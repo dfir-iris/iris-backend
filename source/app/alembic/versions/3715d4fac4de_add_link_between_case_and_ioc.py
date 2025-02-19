@@ -67,7 +67,7 @@ def upgrade():
                         "ioc_tlp_id": ioc.ioc_tlp_id,
                         "custom_attributes": json.dumps(ioc.custom_attributes),
                         "ioc_enrichment": json.dumps(ioc.ioc_enrichment),
-                        "modification_history": ioc.modification_history,
+                        "modification_history": json.dumps(ioc.modification_history),
                         "case_id": ioc_link.case_id
                     }).fetchone()
 
@@ -118,13 +118,13 @@ def upgrade():
                     conn.execute(delete_query, {"asset_ids": tuple(asset_ids)})
 
                     # Inserting the new ioc_asset_link links
-                    for asset_link in asset_ids:
+                    for asset_link_id in asset_ids:
                         conn.execute(text(
                             "INSERT INTO ioc_asset_link(ioc_id, asset_id)"
                             "VALUES (:ioc_id, :asset_id)"),
                             {
                                 "ioc_id": new_ioc_id,
-                                "asset_id": asset_link.asset_id,
+                                "asset_id": asset_link_id,
                             })
 
                 # duplicate case events ioc
