@@ -44,7 +44,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from sqlalchemy.testing import exclude
 from werkzeug.datastructures import FileStorage
 
 from app import app
