@@ -43,6 +43,8 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
+
+from sqlalchemy.testing import exclude
 from werkzeug.datastructures import FileStorage
 
 from app import app
@@ -2364,7 +2366,7 @@ class AlertSchema(ma.SQLAlchemyAutoSchema):
     classification = ma.Nested(CaseClassificationSchema)
     owner = ma.Nested(UserSchema, only=['id', 'user_name', 'user_login', 'user_email'])
     iocs = ma.Nested(IocSchema, many=True)
-    assets = ma.Nested(CaseAssetsSchema, many=True)
+    assets = ma.Nested(CaseAssetsSchema, many=True, exclude=['alerts'])
     resolution_status = ma.Nested(AlertResolutionSchema)
 
     class Meta:
