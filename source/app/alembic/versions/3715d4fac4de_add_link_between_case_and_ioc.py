@@ -27,6 +27,9 @@ def upgrade():
             sa.Column('case_id', sa.Integer, sa.ForeignKey('cases.case_id'), nullable=True)
         )
 
+        # Commit the transaction
+        op.execute("COMMIT")
+
     # Migrate data
     if _has_table('ioc_link'):
         conn = op.get_bind()
