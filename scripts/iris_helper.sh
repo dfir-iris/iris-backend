@@ -4,20 +4,23 @@
 # Bash script to manage Docker Compose tasks for a Flask app (iriswebapp).
 #
 # Usage:
-#   ./iris_helper.sh [options]
+#   ./start_app.sh [options]
 #
 #   If run with no options, the script will prompt for all inputs interactively.
 #
 # Options:
-#   -e, --env-file <path>       Path to the .env file to use.
-#   -m, --mode <dev|production> Mode to run (development or production).
-#   -r, --reset-db              Reset database (dev mode only).
-#   -b, --build                 Rebuild containers (dev mode only).
-#   -s, --services <list>       Comma-separated list of services to start (dev).
+#   -e, --env-file <path>       Path to the .env file to use
+#   -m, --mode <dev|production> Mode to run (development or production)
+#   -r, --reset-db              Reset database (dev mode only)
+#   -b, --build                 Rebuild containers (dev mode only)
+#   -s, --services <list>       Comma-separated list of services to start (dev)
 #                               e.g. "app,worker,rabbitmq,nginx,db"
-#   -l, --logs                  Print Docker logs after starting (dev mode only).
-#   -v, --version <version>     Set version tags for containers (prod mode only).
+#   -l, --logs                  Print Docker logs after starting (dev mode only)
+#   -v, --version <version>     Set version tags for containers (prod mode only)
 #                               e.g. "2.4.20" or "2.5.0-beta"
+#   --init                      If .env doesn't exist, copy .env.model -> .env,
+#                               generate secrets, set versions to latest, pull
+#                               images, start in daemon mode, print admin pass.
 #   -h, --help                  Show this help message.
 #
 ###############################################################################
@@ -30,7 +33,7 @@ set -e
 DEFAULT_ENV_FILE=".env"
 DEV_DOCKER_FILE="docker-compose.dev.yml"
 PROD_DOCKER_FILE="docker-compose.yml"   # Adjust if your production file is different
-VALID_VERSIONS=("2.4.20" "2.5.0-beta")   # Extend as needed
+VALID_VERSIONS=("v2.4.20" "v2.4.19" "v2.4.17" "v2.5.0-beta")   # The first item is treated as the stable "latest"
 
 # If you have other containers in dev, adjust accordingly:
 DEV_CONTAINERS=("app" "worker" "rabbitmq" "nginx" "db")
@@ -40,7 +43,7 @@ DEV_CONTAINERS=("app" "worker" "rabbitmq" "nginx" "db")
 # ---------------------------
 
 print_help() {
-  sed -n '2,24p' "$0"  # prints lines 2-24 from this file (the usage block)
+  sed -n '2,27p' "$0"  # prints lines 2-27 from this file (the usage block)
   exit 0
 }
 
@@ -56,15 +59,11 @@ ask() {
     default="N"
   fi
 
-  # Ask the question
   read -r -p "$1 [$prompt] " reply
-
-  # If user just presses Enter, $reply is empty => use default
   if [ -z "$reply" ]; then
     reply=$default
   fi
 
-  # Return 0 for yes, 1 for no
   case "$reply" in
     [yY][eE][sS]|[yY]) return 0 ;;
     *)                 return 1 ;;
@@ -95,8 +94,8 @@ select_env_file() {
       ENV_FILE="$user_env_path"
     fi
   else
-    # If no default .env was found, ask user
-    read -r -p "No .env found in current dir. Please provide path to your .env file: " user_env_path
+    # If no default .env found, ask user
+    read -r -p "No .env found. Please provide path to your .env file: " user_env_path
     if [[ ! -f "$user_env_path" ]]; then
       echo "Error: specified .env file does not exist."
       exit 1
@@ -120,12 +119,7 @@ set_version_in_env() {
   sed -i.bak "s|^APP_IMAGE_TAG=.*|APP_IMAGE_TAG=$version|" "$envfile" && rm -f "$envfile.bak"
 }
 
-###############################################################################
-# manage_running_containers_for_services:
-#   In dev or prod, if we want to specifically check certain services,
-#   we see if "iriswebapp_<service>" is running. Currently, we just
-#   inform the user. You can adapt to ask or do something else if needed.
-###############################################################################
+# If we want to check or warn if specific services are already running in dev/prod
 manage_running_containers_for_services() {
   local services_list=("$@")
   for svc in "${services_list[@]}"; do
@@ -157,14 +151,15 @@ manage_all_running_iriswebapp_containers() {
   echo "$running_containers"
   echo "Choose an action to apply to ALL of these containers:"
   echo "1) Stop all"
-  echo "2) Stop & Remove all (WILL DELETE ALL DATA FOREVER)"
-  echo "3) Restart all"
-  echo "4) Do nothing"
+  echo "2) Stop & Remove containers"
+  echo "3) Remove all containers and volumes (WILL DELETE ALL DATA)"
+  echo "4) Restart all"
+  echo "5) Do nothing"
 
   local choice
-  read -r -p "Enter choice [1-4]: " choice
+  read -r -p "Enter choice [1-5]: " choice
   if [[ -z "$choice" ]]; then
-    choice="4"  # default to "Do nothing" if empty
+    choice="5"  # default to "Do nothing" if empty
   fi
 
   local containers_arr=( $running_containers )
@@ -179,16 +174,94 @@ manage_all_running_iriswebapp_containers() {
       docker rm "${containers_arr[@]}"
       ;;
     3)
+      # This is a destructive action, so ask for confirmation
+      if ! ask "Are you sure you want to remove all containers and volumes?" "N"; then
+        echo "Aborting."
+        return
+      fi
+      echo "Removing all containers and volumes..."
+      docker compose down -v
+      ;;
+    4)
       echo "Restarting all containers..."
       docker restart "${containers_arr[@]}"
       ;;
-    4)
+    5)
       echo "Skipping..."
       ;;
     *)
       echo "Invalid choice: '$choice'. Skipping..."
       ;;
   esac
+}
+
+###############################################################################
+# init_env():
+#   If .env doesn't exist, copy .env.model -> .env, set versions to latest,
+#   generate secrets, pull images, start in daemon, print admin password,
+#   and optionally show logs.
+###############################################################################
+init_env() {
+  # If user specified a custom env-file location, respect it;
+  # otherwise default to ./env. The user wants to do an init only if .env is missing
+  # so let's define envfile=ENV_FILE or use the default if not set:
+  local envfile="${ENV_FILE:-$DEFAULT_ENV_FILE}"
+
+  if [[ -f "$envfile" ]]; then
+    echo "'.env' already exists at '$envfile'. Skipping --init."
+    return
+  fi
+
+  # Ensure there's a .env.model to copy from
+  if [[ ! -f ".env.model" ]]; then
+    echo "Error: .env.model not found in the current directory. Cannot proceed with --init."
+    exit 1
+  fi
+
+  echo "Initializing a new .env from .env.model..."
+  cp .env.model "$envfile"
+
+  # 1) Set versions to the stable "latest"
+  local latest_version="${VALID_VERSIONS[0]}"
+  echo "Setting version tags to $latest_version..."
+  set_version_in_env "$latest_version" "$envfile"
+
+  # 2) Generate random secrets
+  #    - 32 hex chars => openssl rand -hex 16 => 16 bytes => 32 hex chars
+  #    - 16 hex chars => openssl rand -hex 8 => 8 bytes => 16 hex chars
+  echo "Generating random secrets..."
+  local pg_pass="$(openssl rand -hex 16)"         # 32 hex
+  local pg_admin_pass="$(openssl rand -hex 16)"   # 32 hex
+  local iris_secret_key="$(openssl rand -hex 16)" # 32 hex
+  local iris_sec_salt="$(openssl rand -hex 16)"   # 32 hex
+  local iris_adm_pass="$(openssl rand -hex 8)"    # 16 hex
+
+  # 3) Insert them into the .env
+  sed -i.bak "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$pg_pass|" "$envfile" && rm -f "$envfile.bak"
+  sed -i.bak "s|^POSTGRES_ADMIN_PASSWORD=.*|POSTGRES_ADMIN_PASSWORD=$pg_admin_pass|" "$envfile" && rm -f "$envfile.bak"
+  sed -i.bak "s|^IRIS_SECRET_KEY=.*|IRIS_SECRET_KEY=$iris_secret_key|" "$envfile" && rm -f "$envfile.bak"
+  sed -i.bak "s|^IRIS_SECURITY_PASSWORD_SALT=.*|IRIS_SECURITY_PASSWORD_SALT=$iris_sec_salt|" "$envfile" && rm -f "$envfile.bak"
+  sed -i.bak "s|^IRIS_ADM_PASSWORD=.*|IRIS_ADM_PASSWORD=$iris_adm_pass|" "$envfile" && rm -f "$envfile.bak"
+
+  echo "Secrets generated and inserted into $envfile"
+
+  # 4) Pull images (production by default)
+  echo "Pulling Docker images (production stack)..."
+  docker compose --env-file "$envfile" -f "$PROD_DOCKER_FILE" pull
+
+  # 5) Start in daemon mode
+  echo "Starting containers in daemon mode..."
+  docker compose --env-file "$envfile" -f "$PROD_DOCKER_FILE" up -d
+
+  # 6) Print the admin password
+  echo "IRIS_ADM_PASSWORD has been set to: $iris_adm_pass"
+
+  # 7) Ask if we want to tail logs
+  if ask "Do you want to tail logs now?" "N"; then
+    docker compose --env-file "$envfile" -f "$PROD_DOCKER_FILE" logs -f
+  fi
+
+  echo "Initialization complete."
 }
 
 # ---------------------------
@@ -201,6 +274,7 @@ REBUILD=false
 SERVICES=""
 PRINT_LOGS=false
 VERSION=""
+INIT_MODE=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -232,6 +306,10 @@ while [[ $# -gt 0 ]]; do
       VERSION="$2"
       shift; shift
       ;;
+    --init)
+      INIT_MODE=true
+      shift
+      ;;
     -h|--help)
       print_help
       ;;
@@ -241,6 +319,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# ---------------------------
+# If --init is set, run init_env and skip the rest
+# ---------------------------
+if $INIT_MODE; then
+  manage_all_running_iriswebapp_containers
+  init_env
+  exit 0
+fi
 
 # ---------------------------
 # STEP 1: Check existing iriswebapp_ containers
@@ -256,7 +343,6 @@ if [[ -z "$MODE" ]]; then
   echo "2) Production"
   read -r -p "Enter choice [1 or 2]: " mode_choice
   if [[ -z "$mode_choice" ]]; then
-    # If empty, default to 1 => development
     mode_choice="1"
   fi
 
@@ -277,7 +363,6 @@ select_env_file
 # ---------------------------
 if [[ "$MODE" == "development" ]]; then
 
-  # If not specified via CLI, ask if we want to reset DB
   if ! $RESET_DB; then
     if ask "Do you want to reset the database (docker compose down -v)?" "N"; then
       RESET_DB=true
@@ -288,19 +373,16 @@ if [[ "$MODE" == "development" ]]; then
     docker compose --file "$DEV_DOCKER_FILE" --env-file "$ENV_FILE" down -v
   fi
 
-  # If not specified via CLI, ask if we want to rebuild
   if ! $REBUILD; then
     if ask "Do you want to rebuild containers?" "N"; then
       REBUILD=true
     fi
   fi
-
   if $REBUILD; then
     echo "Which services do you want to rebuild? Available: ${DEV_CONTAINERS[*]}"
     echo "Enter 'all' for all containers, or space-separated list: e.g. 'app worker'."
     read -r -p "Services to rebuild: " rebuild_services
     if [[ -z "$rebuild_services" ]]; then
-      # If empty, default to "all"
       rebuild_services="all"
     fi
     if [[ "$rebuild_services" == "all" ]]; then
@@ -310,7 +392,6 @@ if [[ "$MODE" == "development" ]]; then
     docker compose --file "$DEV_DOCKER_FILE" --env-file "$ENV_FILE" build $rebuild_services
   fi
 
-  # If user didn't specify which services to start, ask:
   if [[ -z "$SERVICES" ]]; then
     echo "Which services do you want to start? Options: ${DEV_CONTAINERS[*]}"
     echo "Enter 'all' for all, or space-separated list: e.g. 'app worker'."
@@ -324,14 +405,12 @@ if [[ "$MODE" == "development" ]]; then
     SERVICES="$start_services"
   fi
 
-  # Optionally check if they're already running & let user decide
   IFS=' ' read -r -a services_array <<< "$SERVICES"
   manage_running_containers_for_services "${services_array[@]}"
 
   echo "Starting services: $SERVICES"
   docker compose --file "$DEV_DOCKER_FILE" --env-file "$ENV_FILE" up -d $SERVICES
 
-  # If user didn't specify logs option, ask
   if ! $PRINT_LOGS; then
     if ask "Do you want to tail logs?" "N"; then
       PRINT_LOGS=true
@@ -347,7 +426,6 @@ if [[ "$MODE" == "development" ]]; then
 # ---------------------------
 elif [[ "$MODE" == "production" ]]; then
 
-  # If user did not specify a version in the CLI, ask them
   if [[ -z "$VERSION" ]]; then
     echo "Which version do you want to run?"
     for i in "${!VALID_VERSIONS[@]}"; do
@@ -357,9 +435,9 @@ elif [[ "$MODE" == "production" ]]; then
 
     read -r -p "Enter choice (1-${#VALID_VERSIONS[@]}, or ${#VALID_VERSIONS[@]}+1 for custom): " version_choice
     if [[ -z "$version_choice" ]]; then
-      # Default to 1 if empty => 2.4.20 (first in the array)
       version_choice=1
     fi
+
     if (( version_choice >= 1 && version_choice <= ${#VALID_VERSIONS[@]} )); then
       VERSION="${VALID_VERSIONS[$((version_choice-1))]}"
     else
@@ -368,10 +446,8 @@ elif [[ "$MODE" == "production" ]]; then
     fi
   fi
 
-  # Now set the version in .env (with cross-platform sed)
   set_version_in_env "$VERSION" "$ENV_FILE"
 
-  # Optionally define production services if you want to check them individually
   ALL_PROD_SERVICES=("app" "worker" "rabbitmq" "nginx" "db")
   manage_running_containers_for_services "${ALL_PROD_SERVICES[@]}"
 
@@ -379,15 +455,6 @@ elif [[ "$MODE" == "production" ]]; then
   docker compose --env-file "$ENV_FILE" -f "$PROD_DOCKER_FILE" up -d
 
   echo "Production containers are up."
-  if ! $PRINT_LOGS; then
-    if ask "Do you want to tail logs?" "N"; then
-      PRINT_LOGS=true
-    fi
-  fi
-  if $PRINT_LOGS; then
-    echo "Tailing logs. Press Ctrl+C to stop."
-    docker compose --file "$DEV_DOCKER_FILE" --env-file "$ENV_FILE" logs -f
-  fi
 
 else
   echo "Invalid mode selected: $MODE"
