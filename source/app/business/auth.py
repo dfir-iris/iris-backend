@@ -76,6 +76,22 @@ def validate_local_login(username: str, password: str):
     return None
 
 
+def _is_relative_url(url):
+    parsed_url = urlsplit(url)
+    return not parsed_url.scheme and not parsed_url.netloc
+
+
+def _filter_next_url(next_url, context_case):
+    """
+      This function ensures the url is relative to avoid open redirects
+      see https://codeql.github.com/codeql-query-help/python/py-url-redirection/
+    """
+    next_url = next_url.replace('\\', '')
+    if _is_relative_url(next_url):
+        return next_url
+    return url_for('index.index', cid=context_case)
+
+
 def wrap_login_user(user, is_oidc=False):
 
     session['username'] = user.user
@@ -106,11 +122,6 @@ def wrap_login_user(user, is_oidc=False):
 
     track_activity(f'user \'{user.user}\' successfully logged-in', ctx_less=True, display_in_ui=False)
 
-    next_url = None
-    if request.args.get('next'):
-        next_url = request.args.get('next') if 'cid=' in request.args.get('next') else request.args.get('next') + '?cid=' + str(user.ctx_case)
-
-    if not next_url or urlsplit(next_url).netloc != '':
-        next_url = url_for('index.index', cid=user.ctx_case)
+    next_url = _filter_next_url(request.args.get('next'), user.ctx_case)
 
     return redirect(next_url)
