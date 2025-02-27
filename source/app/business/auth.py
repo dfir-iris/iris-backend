@@ -1,4 +1,4 @@
-from urllib.parse import urlsplit, urlparse, urljoin
+from urllib.parse import urlparse, urljoin
 
 from flask import session, redirect, url_for, request
 from flask_login import login_user
