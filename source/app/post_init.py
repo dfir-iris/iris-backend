@@ -1450,9 +1450,9 @@ def create_safe_ioctypes():
     create_safe_limited(db.session, IocType, ["type_name", "type_description"], type_name="mobile-application-id",
                         type_description="The application id of a mobile application", type_taxonomy="")
     create_safe_limited(db.session, IocType, ["type_name", "type_description"], type_name="mutex",
-                        type_description="Mutex, use the format \BaseNamedObjects<Mutex>", type_taxonomy="")
+                        type_description="Mutex, use the format \\BaseNamedObjects<Mutex>", type_taxonomy="")
     create_safe_limited(db.session, IocType, ["type_name", "type_description"], type_name="named pipe",
-                        type_description="Named pipe, use the format .\pipe<PipeName>", type_taxonomy="")
+                        type_description="Named pipe, use the format .\\pipe<PipeName>", type_taxonomy="")
     create_safe_limited(db.session, IocType, ["type_name", "type_description"], type_name="other",
                         type_description="Other attribute", type_taxonomy="")
     create_safe_limited(db.session, IocType, ["type_name", "type_description"], type_name="file-path",
