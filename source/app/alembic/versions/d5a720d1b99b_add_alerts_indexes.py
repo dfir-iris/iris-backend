@@ -5,16 +5,14 @@ Revises: 11aa5b725b8e
 Create Date: 2024-10-28 12:54:22.782313
 
 """
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import and_, or_, text
-from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.alembic.alembic_utils import _has_table, index_exists
 
 # revision identifiers, used by Alembic.
 revision = 'd5a720d1b99b'
-down_revision = '11aa5b725b8e'
+down_revision = '3715d4fac4de'
 branch_labels = None
 depends_on = None
 

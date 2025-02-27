@@ -259,18 +259,19 @@ class CeleryConfig:
     result_extended = True
     result_serializer = "json"
     worker_pool_restarts = True
+    broker_connection_retry_on_startup =True
 
 
 # --------- APP ---------
 class Config:
     # Handled by bumpversion
-    IRIS_VERSION = "v2.4.20" # DO NOT EDIT THIS LINE MANUALLY
+    IRIS_VERSION = "v2.5.0-beta.1" # DO NOT EDIT THIS LINE MANUALLY
 
     if os.environ.get('IRIS_DEMO_VERSION') is not None and os.environ.get('IRIS_DEMO_VERSION') != 'None':
         IRIS_VERSION = os.environ.get('IRIS_DEMO_VERSION')
 
     API_MIN_VERSION = "2.0.4"
-    API_MAX_VERSION = "2.0.5"
+    API_MAX_VERSION = "2.1.0"
 
     MODULES_INTERFACE_MIN_VERSION = '1.1'
     MODULES_INTERFACE_MAX_VERSION = '1.2.0'

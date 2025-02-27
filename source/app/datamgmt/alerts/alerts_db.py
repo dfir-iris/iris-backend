@@ -20,29 +20,45 @@ from copy import deepcopy
 import json
 from datetime import datetime, timedelta
 from flask_login import current_user
-from functools import reduce
 from sqlalchemy import desc, asc, func, tuple_, or_, not_, and_
 from sqlalchemy.orm import aliased, make_transient, selectinload
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 
 import app
 from app import db
-from app.datamgmt.case.case_assets_db import create_asset, set_ioc_links, get_unspecified_analysis_status_id
-from app.datamgmt.case.case_events_db import update_event_assets, update_event_iocs
-from app.datamgmt.case.case_iocs_db import add_ioc, add_ioc_link
+from app.datamgmt.case.case_assets_db import create_asset
+from app.datamgmt.case.case_assets_db import set_ioc_links
+from app.datamgmt.case.case_assets_db import get_unspecified_analysis_status_id
+from app.datamgmt.case.case_events_db import update_event_assets
+from app.datamgmt.case.case_events_db import update_event_iocs
+from app.datamgmt.case.case_iocs_db import add_ioc
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
 from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name
-from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id, \
-    case_template_post_modifier
+from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
+from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
 from app.datamgmt.states import update_timeline_state
 from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.iris_engine.utils.common import parse_bf_date_format
-from app.models import Cases, EventCategory, Tags, AssetsType, Comments, CaseAssets, alert_assets_association, \
-    alert_iocs_association, Ioc, IocLink, Client
-from app.models.alerts import Alert, AlertStatus, AlertCaseAssociation, SimilarAlertsCache, AlertResolutionStatus, \
-    AlertSimilarity, Severity
-from app.models.authorization import Permissions, User
-from app.schema.marshables import EventSchema, AlertSchema
+from app.models.cases import Cases
+from app.models.models import EventCategory
+from app.models.models import Tags
+from app.models.models import AssetsType
+from app.models.models import Comments
+from app.models.models import CaseAssets
+from app.models.models import alert_assets_association
+from app.models.models import alert_iocs_association
+from app.models.models import Ioc
+from app.models.models import Client
+from app.models.alerts import Alert
+from app.models.alerts import AlertStatus
+from app.models.alerts import AlertCaseAssociation
+from app.models.alerts import SimilarAlertsCache
+from app.models.alerts import AlertResolutionStatus
+from app.models.alerts import AlertSimilarity
+from app.models.alerts import Severity
+from app.models.authorization import Permissions
+from app.models.authorization import User
+from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
 
 
@@ -150,14 +166,37 @@ def get_filtered_alerts(
         sort: str = 'desc',
         current_user_id: int = None,
         source_reference=None,
-        custom_conditions: List[dict] = None,
-        fields: List[str] = None):
+        custom_conditions: List[dict] = None):
     """
     Get a list of alerts that match the given filter conditions
 
     args:
         start_date (datetime): The start date of the alert creation time
         end_date (datetime): The end date of the alert creation time
+        title (str): The title of the alert
+        description (str): The description of the alert
+        status (str): The status of the alert
+        severity (str): The severity of the alert
+        owner (str): The owner of the alert
+        source (str): The source of the alert
+        tags (str): The tags of the alert
+        case_id (int): The case id of the alert
+        client (int): The client id of the alert
+        classification (int): The classification id of the alert
+        alert_ids (int): The alert ids
+        assets (list): The assets of the alert
+        iocs (list): The iocs of the alert
+        resolution_status (list): The resolution status of the alert
+        logical_operator (str): Logical operator to combine conditions ('and', 'or', 'not')
+        page (int): The page number
+        per_page (int): The number of alerts per page
+        sort (str): The sort order
+        current_user_id (int): The ID of the current user
+        source_reference (str): Alert source reference
+        custom_conditions (list): Custom conditions to be applied (e.g., NOT client AND owner_id in [1,2,3])
+
+    returns:
+        list: A list of alerts that match the given filter conditions
         ...
         fields (List[str]): The list of fields to include in the output
 
@@ -307,16 +346,6 @@ def get_filtered_alerts(
 
     order_func = desc if sort == "desc" else asc
 
-    # If fields are provided, use them in the schema
-    if fields:
-        try:
-            alert_schema = AlertSchema(only=fields)
-        except Exception as e:
-            app.app.logger.exception(f"Error selecting fields in AlertSchema: {str(e)}")
-            alert_schema = AlertSchema()
-    else:
-        alert_schema = AlertSchema()
-
     try:
         # Query the alerts using the filter conditions
 
@@ -327,17 +356,12 @@ def get_filtered_alerts(
             order_func(Alert.alert_source_event_time)
         ).paginate(page=page, per_page=per_page, error_out=False)
 
-        return {
-            'total': filtered_alerts.total,
-            'alerts': alert_schema.dump(filtered_alerts, many=True),
-            'last_page': filtered_alerts.pages,
-            'current_page': filtered_alerts.page,
-            'next_page': filtered_alerts.next_num if filtered_alerts.has_next else None,
-        }
+        return filtered_alerts
 
     except Exception as e:
         app.app.logger.exception(f"Error getting alerts: {str(e)}")
         return None
+
 
 
 def add_alert(
@@ -470,9 +494,8 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
             for alert_ioc in alert.iocs:
                 if str(alert_ioc.ioc_uuid) == ioc_uuid:
 
-                    ioc, existed = add_ioc(alert_ioc, current_user.id, case.case_id)
-                    add_ioc_link(ioc.ioc_id, case.case_id)
-                    ioc_links.append(ioc.ioc_id)
+                    add_ioc(alert_ioc, current_user.id, case.case_id)
+                    ioc_links.append(alert_ioc.ioc_id)
 
         # Add the assets to the case
         for asset_uuid in assets_list:
@@ -603,9 +626,36 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         for alert_ioc in alert.iocs:
             if str(alert_ioc.ioc_uuid) == ioc_uuid:
 
-                ioc, existed = add_ioc(alert_ioc, current_user.id, case.case_id)
-                add_ioc_link(ioc.ioc_id, case.case_id)
-                ioc_links.append(ioc.ioc_id)
+                # Make sure we don't have an existing IOC already
+                tmp_ioc = Ioc.query.filter(
+                    Ioc.case_id == case.case_id,
+                    Ioc.ioc_value == alert_ioc.ioc_value,
+                    Ioc.ioc_type_id == alert_ioc.ioc_type_id
+                ).first()
+
+                if tmp_ioc:
+                    # Skip as we already have it in the case
+                    ioc_links.append(tmp_ioc.ioc_id)
+                    continue
+
+                if alert_ioc.case_id is not None:
+                    # Make a deep copy of the ioc
+                    # prevent the ioc to conflict with the existing ioc
+                    new_alert_ioc = deepcopy(alert_ioc)
+                    make_transient(new_alert_ioc)
+
+                    new_alert_ioc.ioc_id = None
+                    new_alert_ioc.ioc_uuid = ioc_uuid
+                    new_alert_ioc.user_id = current_user.id
+                    new_alert_ioc.case_id = case.case_id
+
+                    db.session.add(new_alert_ioc)
+                    db.session.commit()
+
+                    alert_ioc = new_alert_ioc
+
+                add_ioc(alert_ioc, current_user.id, case.case_id)
+                ioc_links.append(alert_ioc.ioc_id)
 
     # Add the assets to the case
     for asset_uuid in assets_list:
@@ -624,6 +674,8 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
 
                     db.session.add(new_alert_asset)
                     db.session.commit()
+
+                    alert_asset = new_alert_asset
 
                 asset = create_asset(asset=alert_asset,
                                      caseid=case.case_id,
@@ -723,21 +775,32 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
         for alert_ioc in alert.iocs:
             if str(alert_ioc.ioc_uuid) == ioc_uuid:
 
-                ioc, existed = add_ioc(alert_ioc, current_user.id, case.case_id)
-                add_ioc_link(ioc.ioc_id, case.case_id)
-                ioc_links.append(ioc.ioc_id)
+                tmp_ioc = Ioc.query.filter(
+                    Ioc.case_id == case.case_id,
+                    Ioc.ioc_value == alert_ioc.ioc_value,
+                    Ioc.ioc_type_id == alert_ioc.ioc_type_id
+                ).first()
+
+                if tmp_ioc:
+                    alert_ioc = tmp_ioc
+
+                add_ioc(alert_ioc, current_user.id, case.case_id)
+                ioc_links.append(alert_ioc.ioc_id)
 
     # Add the assets to the case
     for asset_uuid in assets_list:
         for alert_asset in alert.assets:
+            # Filter selected assets by the user
             if str(alert_asset.asset_uuid) == asset_uuid:
 
                 alert_asset.analysis_status_id = get_unspecified_analysis_status_id()
 
-                tmp_asset = CaseAssets.query.filter(
-                    CaseAssets.asset_uuid == alert_asset.asset_uuid,
+                # Check if the asset exists already in the case
+                tmp_asset = CaseAssets.query.filter(and_(
+                    CaseAssets.asset_name == alert_asset.asset_name,
+                    CaseAssets.asset_type_id == alert_asset.asset_type_id,
                     CaseAssets.case_id == case.case_id
-                ).first()
+                )).first()
 
                 if tmp_asset:
                     asset = tmp_asset
@@ -1236,10 +1299,9 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
             close_condition = Cases.close_date.isnot(None) | Cases.close_date.is_(None)
 
         matching_ioc_cases = (
-            db.session.query(IocLink)
-            .with_entities(IocLink.case_id, Ioc.ioc_value, Cases.name, Cases.close_date, Cases.description)
-            .join(IocLink.ioc)
-            .join(IocLink.case)
+            db.session.query(Ioc)
+            .with_entities(Ioc.case_id, Ioc.ioc_value, Cases.name, Cases.close_date, Cases.description)
+            .join(Ioc.case)
             .filter(
                 and_(
                     and_(

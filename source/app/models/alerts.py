@@ -1,8 +1,27 @@
+#  IRIS Source Code
+#  Copyright (C) 2024 - DFIR-IRIS
+#  contact@dfir-iris.org
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 3 of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#  Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from datetime import datetime
 
 import uuid
 from sqlalchemy.dialects.postgresql import JSON
-from sqlalchemy import BigInteger, Table, Boolean, String
+from sqlalchemy import BigInteger
+from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
@@ -10,11 +29,11 @@ from sqlalchemy import Integer
 from sqlalchemy import Text
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 
 from app import db
-from app.models import Base, alert_assets_association, alert_iocs_association
-from app.models.cases import Cases
+from app.models.models import alert_assets_association
+from app.models.models import alert_iocs_association
 
 
 class AlertCaseAssociation(db.Model):
