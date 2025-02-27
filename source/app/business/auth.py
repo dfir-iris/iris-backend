@@ -1,4 +1,4 @@
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlparse, urljoin
 
 from flask import session, redirect, url_for, request
 from flask_login import login_user
@@ -76,18 +76,25 @@ def validate_local_login(username: str, password: str):
     return None
 
 
-def _is_relative_url(url):
-    parsed_url = urlsplit(url)
-    return not parsed_url.scheme and not parsed_url.netloc
-
+def is_safe_url(target):
+    """
+    Check whether the target URL is safe for redirection by ensuring that it is either a relative URL or
+    has the same host as the current request.
+    """
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 def _filter_next_url(next_url, context_case):
     """
-      This function ensures the url is relative to avoid open redirects
-      see https://codeql.github.com/codeql-query-help/python/py-url-redirection/
+    Ensures that the URL to which the user is redirected is safe. If the provided URL is not safe or is missing,
+    a default URL (typically the index page) is returned.
     """
+    if not next_url:
+        return url_for('index.index', cid=context_case)
+    # Remove backslashes to mitigate obfuscation
     next_url = next_url.replace('\\', '')
-    if _is_relative_url(next_url):
+    if is_safe_url(next_url):
         return next_url
     return url_for('index.index', cid=context_case)
 
