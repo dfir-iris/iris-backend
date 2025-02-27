@@ -824,6 +824,7 @@ class CaseTemplateSchema(ma.Schema):
                                                                                                 allow_none=True,
                                                                                                 missing=[])
 
+    @staticmethod
     def validate_string_or_list(value: Union[str, List[str]]) -> Union[str, List[str]]:
         """Validates that a value is a string or a list of strings.
 
@@ -848,6 +849,7 @@ class CaseTemplateSchema(ma.Schema):
                     raise ValidationError('All items in list must be strings')
         return value
 
+    @staticmethod
     def validate_string_or_list_of_dict(value: Union[str, List[Dict[str, str]]]) -> Union[str, List[Dict[str, str]]]:
         """Validates that a value is a string or a list of dictionaries with string values.
 
