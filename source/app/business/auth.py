@@ -1,9 +1,14 @@
 from urllib.parse import urlparse, urljoin
 
-from flask import session, redirect, url_for, request
+from flask import session
+from flask import redirect
+from flask import url_for
+from flask import request
 from flask_login import login_user
 
-from app import bc, app, db
+from app import bc
+from app import app
+from app import db
 from app.business.users import retrieve_user_by_username
 from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
 from app.iris_engine.access_control.ldap_handler import ldap_authenticate
@@ -72,6 +77,7 @@ def _is_safe_url(target):
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
 
 def _filter_next_url(next_url, context_case):
     """

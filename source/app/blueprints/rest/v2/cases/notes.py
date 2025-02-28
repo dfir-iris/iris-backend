@@ -31,6 +31,7 @@ from app.models.models import Notes
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.business.notes import notes_create
 from app.business.notes import notes_get
+from app.business.notes import notes_update
 from app.business.cases import cases_exists
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
@@ -50,11 +51,11 @@ def create_note(case_identifier):
     if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
         return ac_api_return_access_denied(caseid=case_identifier)
 
-    note_schema = CaseNoteSchema()
     try:
         note = notes_create(request_json=request.get_json(), case_identifier=case_identifier)
 
-        return response_api_created(note_schema.dump(note))
+        schema = CaseNoteSchema()
+        return response_api_created(schema.dump(note))
 
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
@@ -64,8 +65,6 @@ def create_note(case_identifier):
 @ac_api_requires()
 def get_note(case_identifier, identifier):
 
-    note_schema = CaseNoteSchema()
-
     try:
         note = notes_get(identifier)
         _check_note_and_case_identifier_match(note, case_identifier)
@@ -73,11 +72,32 @@ def get_note(case_identifier, identifier):
         if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=note.note_case_id)
 
-        return response_api_success(note_schema.dump(note))
+        schema = CaseNoteSchema()
+        return response_api_success(schema.dump(note))
     except ObjectNotFoundError:
         return response_api_not_found()
     except BusinessProcessingError as e:
         return response_api_error(e.get_message())
+
+
+@case_notes_blueprint.put('<int:identifier>')
+@ac_api_requires()
+def update_note(case_identifier, identifier):
+    try:
+        note = notes_get(identifier)
+        _check_note_and_case_identifier_match(note, case_identifier)
+
+        note = notes_update(note, request.get_json())
+
+        schema = CaseNoteSchema()
+        result = schema.dump(note)
+        return response_api_success(result)
+
+    except ObjectNotFoundError:
+        return response_api_not_found()
+
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 def _check_note_and_case_identifier_match(note: Notes, case_identifier):

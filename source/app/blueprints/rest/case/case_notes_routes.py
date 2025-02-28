@@ -34,6 +34,7 @@ from app.business.notes import notes_list_revisions
 from app.business.notes import notes_get_revision
 from app.business.notes import notes_delete_revision
 from app.business.notes import notes_update
+from app.business.notes import notes_get
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.case.case_notes_db import add_comment_to_note
 from app.datamgmt.case.case_notes_db import get_directories_with_note_count
@@ -136,14 +137,15 @@ def case_note_delete(cur_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/notes/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_note_save(cur_id, caseid):
     addnote_schema = CaseNoteSchema()
 
     try:
-
-        note = notes_update(cur_id, request.get_json())
+        note = notes_get(cur_id)
+        note = notes_update(note, request.get_json())
 
         return response_success(f"Note ID {cur_id} saved", data=addnote_schema.dump(note))
 
