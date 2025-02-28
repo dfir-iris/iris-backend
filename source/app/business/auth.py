@@ -15,7 +15,7 @@ from app.schema.marshables import UserSchema
 log = app.logger
 
 
-def validate_ldap_login(username: str, password:str, local_fallback: bool = True):
+def validate_ldap_login(username: str, password: str, local_fallback: bool = True):
     """
     Validate the user login using LDAP authentication.
 
@@ -64,7 +64,7 @@ def validate_local_login(username: str, password: str):
     return None
 
 
-def is_safe_url(target):
+def _is_safe_url(target):
     """
     Check whether the target URL is safe for redirection by ensuring that it is either a relative URL or
     has the same host as the current request.
@@ -82,7 +82,7 @@ def _filter_next_url(next_url, context_case):
         return url_for('index.index', cid=context_case)
     # Remove backslashes to mitigate obfuscation
     next_url = next_url.replace('\\', '')
-    if is_safe_url(next_url):
+    if _is_safe_url(next_url):
         return next_url
     return url_for('index.index', cid=context_case)
 
@@ -118,5 +118,4 @@ def wrap_login_user(user, is_oidc=False):
     track_activity(f'user \'{user.user}\' successfully logged-in', ctx_less=True, display_in_ui=False)
 
     next_url = _filter_next_url(request.args.get('next'), user.ctx_case)
-
     return redirect(next_url)

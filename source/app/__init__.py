@@ -19,7 +19,6 @@ import collections
 import json
 import logging as logger
 import os
-import urllib.parse
 from flask import Flask
 from flask import session
 from flask_bcrypt import Bcrypt
@@ -38,6 +37,7 @@ from app.configuration import Config
 from app.iris_engine.tasker.celery import make_celery
 from app.iris_engine.tasker.celery import set_celery_flask_context
 from app.iris_engine.access_control.oidc_handler import get_oidc_client
+from app.jinja_filters import register_jinja_filters
 
 
 class ReverseProxied(object):
@@ -65,6 +65,12 @@ LOG_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 logger.basicConfig(level=logger.INFO, format=LOG_FORMAT, datefmt=LOG_TIME_FORMAT)
 
+SQLALCHEMY_ENGINE_OPTIONS = {
+    "json_deserializer": partial(json.loads, object_pairs_hook=collections.OrderedDict),
+    "pool_pre_ping": True
+}
+
+db = SQLAlchemy(engine_options=SQLALCHEMY_ENGINE_OPTIONS)  # flask-sqlalchemy
 bc = Bcrypt()  # flask-bcrypt
 ma = Marshmallow()
 celery = make_celery(__name__)
@@ -95,37 +101,25 @@ def ac_current_user_has_manage_perms():
     return False
 
 
-app.jinja_env.filters['unquote'] = lambda u: urllib.parse.unquote(u)
-app.jinja_env.filters['tojsonsafe'] = lambda u: json.dumps(u, indent=4, ensure_ascii=False)
-app.jinja_env.filters['tojsonindent'] = lambda u: json.dumps(u, indent=4)
-app.jinja_env.filters['escape_dots'] = lambda u: u.replace('.', '[.]')
+register_jinja_filters(app.jinja_env)
+
 app.jinja_env.globals.update(user_has_perm=ac_current_user_has_permission)
 app.jinja_env.globals.update(user_has_manage_perms=ac_current_user_has_manage_perms)
-app.jinja_options["autoescape"] = lambda _: True
+app.jinja_options['autoescape'] = lambda _: True
 app.jinja_env.autoescape = True
 
 app.config.from_object(Config)
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax'
-)
+app.config['timezone'] = 'Europe/Paris'
+from app.post_init import PostInit
 
 cache = Cache(app)
 
-SQLALCHEMY_ENGINE_OPTIONS = {
-    "json_deserializer": partial(json.loads, object_pairs_hook=collections.OrderedDict),
-    "pool_pre_ping": True
-}
+db.init_app(app)
 
-db = SQLAlchemy(app, engine_options=SQLALCHEMY_ENGINE_OPTIONS)  # flask-sqlalchemy
-
-from app.post_init import run_post_init
 bc.init_app(app)
 
 lm = LoginManager()  # flask-loginmanager
 lm.init_app(app)  # init the login manager
-
 ma.init_app(app)
 
 dropzone = Dropzone(app)
@@ -169,8 +163,8 @@ def after_request(response):
 register_blueprints(app)
 
 try:
-
-    run_post_init(development=app.config['DEVELOPMENT'])
+    post_init = PostInit(app)
+    post_init.run()
 
 except Exception as e:
     app.logger.exception('Post init failed. IRIS not started')
