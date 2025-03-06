@@ -132,6 +132,18 @@ irisapp:
   ##
   podSecurityContext: {}
 
+  # OIDC Configuration
+  ## @param irisapp.IRIS_AUTHENTICATION_TYPE Iris Frontend Authentication Type
+  IRIS_AUTHENTICATION_TYPE: local
+  #OIDC_ISSUER_URL: "your_issuer_url"
+  #OIDC_CLIENT_ID: "your_client_id"
+  #OIDC_CLIENT_SECRET: "your_client_secret"
+  #OIDC_AUTH_ENDPOINT: "your_auth_endpoint"  # optional if provider supports discovery
+  #OIDC_TOKEN_ENDPOINT: "your_token_endpoint"  # optional if provider supports discovery
+  #OIDC_END_SESSION_ENDPOINT: "your_end_session"  # optional
+  #OIDC_MAPPING_USERGROUP: "your_group_mapping"  # optional
+  #OIDC_MAPPING_ROLES: "your_roles_mapping"  # optional
+
 ## @section Iris Backend Configuration
 ##
 irisworker:
