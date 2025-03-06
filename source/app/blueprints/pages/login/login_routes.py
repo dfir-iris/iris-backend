@@ -22,6 +22,7 @@ import pyotp
 import qrcode
 import random
 import string
+import json
 from flask import Blueprint, flash
 from flask import redirect
 from flask import render_template
@@ -43,6 +44,8 @@ from app.datamgmt.manage.manage_users_db import create_user
 from app.datamgmt.manage.manage_users_db import get_user
 from app.forms import LoginForm, MFASetupForm
 from app.iris_engine.utils.tracker import track_activity
+from app.datamgmt.manage.manage_users_db import create_user, update_user_groups
+from app.datamgmt.manage.manage_groups_db import get_groups_list
 
 login_blueprint = Blueprint(
     'login',
@@ -179,10 +182,12 @@ if is_authentication_oidc():
         # Use the mapping from the configuration or default to email or preferred_username if not set
         email_field = app.config.get("OIDC_MAPPING_EMAIL")
         username_field = app.config.get("OIDC_MAPPING_USERNAME")
-
+        usergroup_field = app.config.get("OIDC_MAPPING_USERGROUP")
+        userroles_mapping_field = app.config.get("OIDC_MAPPING_ROLES")
+        
         user_login = access_token_resp['id_token'].get(username_field) or access_token_resp['id_token'].get(email_field)
         user_name = access_token_resp['id_token'].get(email_field) or access_token_resp['id_token'].get(username_field)
-
+        user_group = access_token_resp['id_token'].get(usergroup_field)
         user = get_user(user_login, 'user')
 
         if not user:
@@ -215,8 +220,16 @@ if is_authentication_oidc():
                         user_is_service_account=False
                 )
 
-        if user and not user.active:
-            return response_error("User not active in IRIS", 403)
+        if user and not user.active or (user and not user_group):
+            return response_error("User not active or has no role in IRIS", 403)
+        if user_group:
+            if not userroles_mapping_field:
+                groups_list = get_groups_list()
+                group_name_to_id = {group.group_name: group.group_id for group in groups_list}
+            else:
+                group_name_to_id = json.loads(userroles_mapping_field)
+            new_user_group = [group_name_to_id[group_name] for group_name in user_group if group_name in group_name_to_id]
+            update_user_groups(user.id, new_user_group)
 
         return wrap_login_user(user, is_oidc=True)
 

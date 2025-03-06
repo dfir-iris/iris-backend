@@ -473,6 +473,8 @@ class Config:
         OIDC_SCOPES = config.load('OIDC', 'SCOPES', fallback="openid email profile")
         OIDC_MAPPING_USERNAME = config.load('OIDC', 'MAPPING_USERNAME', fallback='preferred_username')
         OIDC_MAPPING_EMAIL = config.load('OIDC', 'MAPPING_EMAIL', fallback='email')
+        OIDC_MAPPING_USERGROUP = config.load('OIDC', 'MAPPING_USERGROUP', fallback=None)
+        OIDC_MAPPING_ROLES = config.load('OIDC', 'MAPPING_ROLES', fallback=None)
 
     """ Caching 
     """
