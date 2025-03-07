@@ -16,28 +16,11 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint
-from flask import redirect
-from flask import render_template
-from flask import url_for
-from flask_wtf import FlaskForm
+import logging
 
-from app.models.authorization import Permissions
-from app.blueprints.access_controls import ac_requires
+LOG_FORMAT = '%(asctime)s :: %(levelname)s :: %(module)s :: %(funcName)s :: %(message)s'
+LOG_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
-activities_blueprint = Blueprint(
-    'activities',
-    __name__,
-    template_folder='templates'
-)
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt=LOG_TIME_FORMAT)
 
-
-@activities_blueprint.route('/activities', methods=['GET'])
-@ac_requires(Permissions.activities_read, Permissions.all_activities_read)
-def activities_index(caseid: int, url_redir):
-    if url_redir:
-        return redirect(url_for('activities.activities_index', cid=caseid, redirect=True))
-
-    form = FlaskForm()
-
-    return render_template('activities.html', form=form)
+logger = logging
