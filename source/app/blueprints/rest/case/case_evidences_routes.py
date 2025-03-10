@@ -90,6 +90,7 @@ def case_add_rfile(caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/evidences/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_get_evidence(cur_id, caseid):
