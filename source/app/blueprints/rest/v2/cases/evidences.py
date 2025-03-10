@@ -25,11 +25,13 @@ from app.models.authorization import CaseAccessLevel
 from app.business.errors import BusinessProcessingError
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
+from app.business.evidences import evidences_get
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
@@ -51,3 +53,11 @@ def create_evidence(case_identifier):
         return response_api_created(evidence_schema.dump(evidence))
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_evidences_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_evidence(case_identifier, identifier):
+    evidence = evidences_get(identifier, case_identifier)
+    evidence_schema = CaseEvidenceSchema()
+    return response_api_success(evidence_schema.dump(evidence))
