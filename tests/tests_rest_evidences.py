@@ -94,7 +94,15 @@ class TestsRestEvidences(TestCase):
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(200, response.status_code)
 
-    def test_get_evidence_should_return_404_when_evidence_is_missing(self):
+    def test_get_evidence_should_return_404_when_evidence_does_not_exist(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
+
+    def test_get_evidence_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        response = self._subject.get(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences/{identifier}')
         self.assertEqual(404, response.status_code)

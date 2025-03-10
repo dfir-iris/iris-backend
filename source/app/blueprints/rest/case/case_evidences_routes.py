@@ -93,7 +93,7 @@ def case_add_rfile(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_get_evidence(cur_id, caseid):
-    crf = get_rfile(cur_id, caseid)
+    crf = get_rfile(cur_id)
     if not crf:
         return response_error("Invalid evidence ID for this case")
 
@@ -111,7 +111,7 @@ def case_edit_rfile(cur_id, caseid):
 
         request_data = call_modules_hook('on_preload_evidence_update', data=request.get_json(), caseid=caseid)
 
-        crf = get_rfile(cur_id, caseid)
+        crf = get_rfile(cur_id)
         if not crf:
             return response_error("Invalid evidence ID for this case")
 
@@ -140,7 +140,7 @@ def case_edit_rfile(cur_id, caseid):
 @ac_api_requires()
 def case_delete_rfile(cur_id, caseid):
     call_modules_hook('on_preload_evidence_delete', data=cur_id, caseid=caseid)
-    crf = get_rfile(cur_id, caseid)
+    crf = get_rfile(cur_id)
     if not crf:
         return response_error("Invalid evidence ID for this case")
 
@@ -169,7 +169,7 @@ def case_comment_evidence_list(cur_id, caseid):
 @ac_api_requires()
 def case_comment_evidence_add(cur_id, caseid):
     try:
-        evidence = get_rfile(cur_id, caseid=caseid)
+        evidence = get_rfile(cur_id)
         if not evidence:
             return response_error('Invalid evidence ID')
 

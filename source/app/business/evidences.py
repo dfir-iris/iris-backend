@@ -52,8 +52,8 @@ def evidences_create(case_identifier, request_json) -> CaseReceivedFile:
     return crf
 
 
-def evidences_get(identifier, case_identifier) -> CaseReceivedFile:
-    evidence = get_rfile(identifier, case_identifier)
+def evidences_get(identifier) -> CaseReceivedFile:
+    evidence = get_rfile(identifier)
     if not evidence:
         raise ObjectNotFoundError()
     return evidence

@@ -61,8 +61,15 @@ def create_evidence(case_identifier):
 def get_evidence(case_identifier, identifier):
 
     try:
-        evidence = evidences_get(identifier, case_identifier)
+        evidence = evidences_get(identifier)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
+
         evidence_schema = CaseEvidenceSchema()
         return response_api_success(evidence_schema.dump(evidence))
     except ObjectNotFoundError:
         return response_api_not_found()
+
+
+def _check_evidence_and_case_identifier_match(evidence, case_identifier):
+    if evidence.case_id != case_identifier:
+        raise ObjectNotFoundError
