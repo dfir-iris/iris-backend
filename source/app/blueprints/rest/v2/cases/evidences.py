@@ -64,6 +64,9 @@ def get_evidence(case_identifier, identifier):
         evidence = evidences_get(identifier)
         _check_evidence_and_case_identifier_match(evidence, case_identifier)
 
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
+
         evidence_schema = CaseEvidenceSchema()
         return response_api_success(evidence_schema.dump(evidence))
     except ObjectNotFoundError:
