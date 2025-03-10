@@ -155,16 +155,6 @@ class TestBurstDBInteraction(TestCase):
         random_second = random.randrange(int_delta)
         return start + timedelta(seconds=random_second)
 
-    @staticmethod
-    def update_dates():
-        d1 = datetime.strptime('1/1/2008 1:30 PM', '%m/%d/%Y %I:%M %p')
-        d2 = datetime.strptime('12/12/2021 4:50 AM', '%m/%d/%Y %I:%M %p')
-        events = CasesEvent.query.all()
-        for event in events:
-            event.event_date = datetime.utcnow()
-            logging.info(f"Updating event {event.event_title}")
-        db.session.commit()
-
     def test_burst_creation(self):
         start_time = datetime.utcnow()
         logging.info(f"Test started at: {start_time.__str__()}")
