@@ -33,4 +33,4 @@ def set_celery_flask_context(celery: Celery, app):
             with app.app_context():
                 return self.run(*args, **kwargs)
 
-    celery.task_cls = ContextTask
+    celery.Task = ContextTask

@@ -20,7 +20,7 @@ from unittest import TestCase
 from iris import Iris
 
 
-class TestsRest(TestCase):
+class TestsRestMiscellaneous(TestCase):
 
     def setUp(self) -> None:
         self._subject = Iris()
@@ -55,3 +55,20 @@ class TestsRest(TestCase):
     def test_get_timeline_state_should_return_200(self):
         response = self._subject.get('/case/timeline/state', query_parameters={'cid': 1})
         self.assertEqual(200, response.status_code)
+
+    # TODO should probably move this in a test suite related to modules?
+    def test_create_case_should_not_raise_exception_when_module_is_enabled(self):
+        response = self._subject.get('/manage/modules/list').json()
+        module_identifier = None
+        for module in response['data']:
+            if module['module_human_name'] == 'IrisCheck':
+                module_identifier = module['id']
+        self._subject.create(f'/manage/modules/enable/{module_identifier}', {})
+        case_identifier = self._subject.create_dummy_case()
+        self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
+
+        response = self._subject.get('/dim/tasks/list/1').json()
+        module = response['data'][0]
+
+        self.assertEqual('success', module['state'])
