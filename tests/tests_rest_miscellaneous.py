@@ -62,6 +62,13 @@ class TestsRestMiscellaneous(TestCase):
     # TODO should probably move this in a test suite related to modules?
     # TODO skipping this tests, before it randomly triggers exceptions during the iriswebappp_worker initialization
     #      (depending on the order into which things get executed). Should investigate.
+    #      Hint: I think the problem happens when starting from an empty database.
+    #      It may be the case that celery tasks (hence api requests?) are executed before the database is fully created
+    #      Initialization should be done in the following order?
+    #      - in the worker: ensure database is created, load database schemas, register celery tasks
+    #      - in the app: create database, ensure worker is ready, register API endpoints
+    #      (maybe it shouldn't be the app responsibility to create and fill the database, but another independent task
+    #      which should be ended before everything else?)
     @skip
     def test_create_case_should_not_raise_exception_when_module_is_enabled(self):
         response = self._subject.get('/manage/modules/list').json()
