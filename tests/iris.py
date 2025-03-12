@@ -94,8 +94,5 @@ class Iris:
             self.get(f'/manage/users/deactivate/{identifier}')
             self.create(f'/manage/users/delete/{identifier}', {})
 
-    def start_logs_capture(self):
-        self._docker_compose.start_logs_capture()
-
-    def extract_logs(self):
-        return self._docker_compose.extract_logs()
+    def extract_logs(self, service):
+        return self._docker_compose.extract_logs(service)
