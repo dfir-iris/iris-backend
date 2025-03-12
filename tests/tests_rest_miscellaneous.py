@@ -19,6 +19,8 @@
 from unittest import TestCase
 from iris import Iris
 
+from time import sleep
+
 
 class TestsRestMiscellaneous(TestCase):
 
@@ -69,6 +71,9 @@ class TestsRestMiscellaneous(TestCase):
         self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
 
         response = self._subject.get('/dim/tasks/list/1').json()
+        while len(response['data']) == 0:
+            sleep(1)
+            response = self._subject.get('/dim/tasks/list/1').json()
         module = response['data'][0]
 
         self.assertEqual('success', module['state'])
