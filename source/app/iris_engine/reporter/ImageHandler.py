@@ -26,6 +26,7 @@ from pathlib import Path
 from docxtpl import DocxTemplate
 
 from docx_generator.globals.picture_globals import PictureGlobals
+from docx_generator.exceptions.rendering_error import RenderingError
 
 from app.datamgmt.datastore.datastore_db import datastore_get_local_file_path
 
