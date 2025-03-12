@@ -60,6 +60,8 @@ class TestsRestMiscellaneous(TestCase):
 
     # TODO should probably move this in a test suite related to modules?
     def test_create_case_should_not_raise_exception_when_module_is_enabled(self):
+        self._subject.start_logs_capture()
+
         response = self._subject.get('/manage/modules/list').json()
         module_identifier = None
         for module in response['data']:
@@ -71,9 +73,15 @@ class TestsRestMiscellaneous(TestCase):
         self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
 
         response = self._subject.get('/dim/tasks/list/1').json()
+        attempts = 0
         while len(response['data']) == 0:
             sleep(1)
             response = self._subject.get('/dim/tasks/list/1').json()
+            attempts += 1
+            if attempts > 20:
+                logs = self._subject.extract_logs()
+                print(logs)
+                self.fail(f'Timed out with logs: {logs}')
         module = response['data'][0]
 
         self.assertEqual('success', module['state'])
