@@ -33,9 +33,21 @@ from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
+from app.datamgmt.case.case_rfiles_db import get_rfiles
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
+
+
+@case_evidences_blueprint.get('')
+@ac_api_requires()
+def get_evidences(case_identifier):
+    evidences = get_rfiles(case_identifier)
+
+    evidence_schema = CaseEvidenceSchema()
+    evidence_schema.dump(evidences, many=True)
+
+    return response_api_success(evidence_schema.dump(evidences, many=True))
 
 
 @case_evidences_blueprint.post('')

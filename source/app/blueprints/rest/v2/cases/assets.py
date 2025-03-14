@@ -50,7 +50,7 @@ case_assets_blueprint = Blueprint('case_assets',
 def case_list_assets(case_identifier):
 
     try:
-
+        # TODO shouldn't CaseAccessLevel.read_only be allowed here too?
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
 
