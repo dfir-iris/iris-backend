@@ -133,3 +133,13 @@ class TestsRestEvidences(TestCase):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences').json()
         self.assertEqual(0, response['total'])
+
+    def test_get_evidences_should_order_by_descending_date(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename1'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        body = {'filename': 'filename2'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences').json()
+        self.assertEqual('filename2', response['data'][0]['filename'])
