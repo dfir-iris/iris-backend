@@ -60,17 +60,20 @@ class TestsRestMiscellaneous(TestCase):
         self.assertEqual(200, response.status_code)
 
     # TODO should probably move this in a test suite related to modules?
-    # TODO skipping this tests, before it randomly triggers exceptions during the iriswebappp_worker initialization
-    #      (depending on the order into which things get executed). Should investigate.
-    #      Hint: I think the problem happens when starting from an empty database.
-    #      It may be the case that celery tasks (hence api requests?) are executed before the database is fully created
-    #      Initialization should be done in the following order?
-    #      - in the worker: ensure database is created, load database schemas, register celery tasks
-    #      - in the app: create database, ensure worker is ready, register API endpoints
-    #      (maybe it shouldn't be the app responsibility to create and fill the database, but another independent task
-    #      which should be ended before everything else?)
+    # TODO skipping this tests, because it randomly triggers exceptions in the iriswebappp_worker
+    #      (psycopg2.errors.NotNullViolation) null value in column "client_id" violates not-null constraint
+    #      DETAIL:  Failing row contains (3, null, null, null, null, null, null, 2025-03-14 09:59:04.454669, null, null, null, 0, null, null, 8030efd5-04ae-4337-b55b-3fb0226e2736, null, null, null, null, null).
+    #      File "/iriswebapp/app/iris_engine/module_handler/module_handler.py", line 465, in task_hook_wrapper, db.session.commit()
+    #
+    #      After investigation, this is what seems to happen:
+    #      - the app creates the case and publishes a task_hook_wrapper('on_postload_case_create') in Celery
+    #      - the app deletes the case
+    #      - the worker takes some time to startup
+    #      - then it gets the Celery 'on_postload_case_create' task and merges the incoming case data with the state of database
+    #        since, by then, the case has already been removed from database, on the identifier and the fields with a server_default are filled
+    #        in particulier, client_id is None, and the code fails during the commit
     @skip
-    def test_create_case_should_not_raise_exception_when_module_is_enabled(self):
+    def test_delete_case_should_set_module_state_to_success(self):
         response = self._subject.get('/manage/modules/list').json()
         module_identifier = None
         for module in response['data']:
