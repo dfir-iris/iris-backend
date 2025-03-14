@@ -29,6 +29,7 @@ from app.models.models import Comments
 from app.models.models import EvidencesComments
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
+from app.datamgmt.conversions import convert_sort_direction
 
 
 def get_rfiles(caseid):
@@ -42,12 +43,18 @@ def get_rfiles(caseid):
 
 
 def get_paginated_evidences(case_identifier):
-    pagination_parameters = PaginationParameters(0, 100, '', '')
+    pagination_parameters = PaginationParameters(0, 100, 'date_added', 'desc')
     query = CaseReceivedFile.query.filter(
         CaseReceivedFile.case_id == case_identifier
-    ).order_by(
-        desc(CaseReceivedFile.date_added)
     )
+    order_func = convert_sort_direction(pagination_parameters.get_direction())
+
+    order_by = pagination_parameters.get_order_by()
+    column = CaseReceivedFile.date_added
+    if hasattr(CaseReceivedFile, order_by):
+        column = getattr(CaseReceivedFile, order_by)
+
+    query = query.order_by(order_func(column))
 
     return query.paginate(
         page=pagination_parameters.get_page(),
