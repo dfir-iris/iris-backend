@@ -20,6 +20,7 @@ import datetime
 from flask_login import current_user
 from sqlalchemy import and_
 from sqlalchemy import desc
+from flask_sqlalchemy.pagination import Pagination
 
 from app import db
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
@@ -42,8 +43,7 @@ def get_rfiles(caseid):
     return crf
 
 
-def get_paginated_evidences(case_identifier):
-    pagination_parameters = PaginationParameters(0, 100, 'date_added', 'desc')
+def get_paginated_evidences(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     query = CaseReceivedFile.query.filter(
         CaseReceivedFile.case_id == case_identifier
     )

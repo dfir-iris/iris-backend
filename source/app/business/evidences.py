@@ -26,10 +26,10 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import CaseEvidenceSchema
 from app.models.models import CaseReceivedFile
+from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import add_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfile
 from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
-
 
 
 def _load(request_data):
@@ -62,5 +62,5 @@ def evidences_get(identifier) -> CaseReceivedFile:
     return evidence
 
 
-def evidences_filter(case_identifier) -> Pagination:
-    return get_paginated_evidences(case_identifier)
+def evidences_filter(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_paginated_evidences(case_identifier, pagination_parameters)
