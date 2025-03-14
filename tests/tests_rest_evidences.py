@@ -151,5 +151,5 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename2'}
         self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
 
-        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', { 'sort_dir': 'asc' }).json()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'sort_dir': 'asc'}).json()
         self.assertEqual('filename1', response['data'][0]['filename'])
