@@ -28,6 +28,7 @@ from app.models.models import CaseReceivedFile
 from app.models.models import Comments
 from app.models.models import EvidencesComments
 from app.models.authorization import User
+from app.models.pagination_parameters import PaginationParameters
 
 
 def get_rfiles(caseid):
@@ -38,6 +39,21 @@ def get_rfiles(caseid):
     ).all()
 
     return crf
+
+
+def get_paginated_evidences(case_identifier):
+    pagination_parameters = PaginationParameters(0, 100, '', '')
+    query = CaseReceivedFile.query.filter(
+        CaseReceivedFile.case_id == case_identifier
+    ).order_by(
+        desc(CaseReceivedFile.date_added)
+    )
+
+    return query.paginate(
+        page=pagination_parameters.get_page(),
+        per_page=pagination_parameters.get_per_page(),
+        error_out=False
+    )
 
 
 def add_rfile(evidence, caseid, user_id):

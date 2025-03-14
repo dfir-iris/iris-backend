@@ -18,6 +18,7 @@
 
 from flask_login import current_user
 from marshmallow.exceptions import ValidationError
+from flask_sqlalchemy.pagination import Pagination
 
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
@@ -27,6 +28,8 @@ from app.schema.marshables import CaseEvidenceSchema
 from app.models.models import CaseReceivedFile
 from app.datamgmt.case.case_rfiles_db import add_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfile
+from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
+
 
 
 def _load(request_data):
@@ -57,3 +60,7 @@ def evidences_get(identifier) -> CaseReceivedFile:
     if not evidence:
         raise ObjectNotFoundError()
     return evidence
+
+
+def evidences_filter(case_identifier) -> Pagination:
+    return get_paginated_evidences(case_identifier)

@@ -25,7 +25,7 @@ from app.models.authorization import CaseAccessLevel
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.blueprints.access_controls import ac_api_return_access_denied
-from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_created, response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -33,7 +33,7 @@ from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
-from app.datamgmt.case.case_rfiles_db import get_rfiles
+from app.business.evidences import evidences_filter
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
@@ -45,12 +45,10 @@ def get_evidences(case_identifier):
     if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
         return ac_api_return_access_denied(caseid=case_identifier)
 
-    evidences = get_rfiles(case_identifier)
+    evidences = evidences_filter(case_identifier)
 
     evidence_schema = CaseEvidenceSchema()
-    evidence_schema.dump(evidences, many=True)
-
-    return response_api_success(evidence_schema.dump(evidences, many=True))
+    return response_api_paginated(evidence_schema, evidences)
 
 
 @case_evidences_blueprint.post('')
