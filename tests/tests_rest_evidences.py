@@ -117,7 +117,7 @@ class TestsRestEvidences(TestCase):
         response = user.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(403, response.status_code)
 
-    def test_get_evidences_should_not_fail(self):
+    def test_get_evidences_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences')
         self.assertEqual(200, response.status_code)
