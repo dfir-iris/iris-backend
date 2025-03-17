@@ -158,3 +158,7 @@ class TestsRestEvidences(TestCase):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'order_by': 'an_invalid_field'})
         self.assertEqual(400, response.status_code)
+
+    def test_get_evidences_should_return_404_when_the_case_does_not_exist(self):
+        response = self._subject.get(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences')
+        self.assertEqual(404, response.status_code)
