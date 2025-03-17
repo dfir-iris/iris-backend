@@ -162,3 +162,13 @@ class TestsRestEvidences(TestCase):
     def test_get_evidences_should_return_404_when_the_case_does_not_exist(self):
         response = self._subject.get(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences')
         self.assertEqual(404, response.status_code)
+
+    def test_get_evidences_should_accept_per_page_query_parameter(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename1'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        body = {'filename': 'filename2'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'per_page': 1}).json()
+        self.assertEqual(1, len(response['data']))
