@@ -50,9 +50,7 @@ def get_paginated_evidences(case_identifier, pagination_parameters: PaginationPa
     order_func = convert_sort_direction(pagination_parameters.get_direction())
 
     order_by = pagination_parameters.get_order_by()
-    column = CaseReceivedFile.date_added
-    if hasattr(CaseReceivedFile, order_by):
-        column = getattr(CaseReceivedFile, order_by)
+    column = getattr(CaseReceivedFile, order_by)
 
     query = query.order_by(order_func(column))
 

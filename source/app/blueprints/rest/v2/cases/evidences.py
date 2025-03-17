@@ -36,6 +36,7 @@ from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
 from app.business.evidences import evidences_filter
+from app.models.models import CaseReceivedFile
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
@@ -48,10 +49,13 @@ def get_evidences(case_identifier):
         return ac_api_return_access_denied(caseid=case_identifier)
 
     pagination_parameters = parse_pagination_parameters(request, default_order_by='date_added', default_direction='desc')
-    evidences = evidences_filter(case_identifier, pagination_parameters)
+    try:
+        evidences = evidences_filter(case_identifier, pagination_parameters)
 
-    evidence_schema = CaseEvidenceSchema()
-    return response_api_paginated(evidence_schema, evidences)
+        evidence_schema = CaseEvidenceSchema()
+        return response_api_paginated(evidence_schema, evidences)
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 @case_evidences_blueprint.post('')

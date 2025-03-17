@@ -63,4 +63,7 @@ def evidences_get(identifier) -> CaseReceivedFile:
 
 
 def evidences_filter(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    order_by = pagination_parameters.get_order_by()
+    if not hasattr(CaseReceivedFile, order_by):
+        raise BusinessProcessingError(f'Unexpected order_by field {order_by}')
     return get_paginated_evidences(case_identifier, pagination_parameters)

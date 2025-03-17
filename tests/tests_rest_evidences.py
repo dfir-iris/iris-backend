@@ -153,3 +153,8 @@ class TestsRestEvidences(TestCase):
 
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'sort_dir': 'asc'}).json()
         self.assertEqual('filename1', response['data'][0]['filename'])
+
+    def test_get_evidences_should_return_400_when_order_by_is_an_invalid_field(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'order_by': 'an_invalid_field'})
+        self.assertEqual(400, response.status_code)
