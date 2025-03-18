@@ -129,9 +129,7 @@ def filter_assets(case_identifier, pagination_parameters: PaginationParameters, 
 
             conditions = apply_custom_conditions(query, CaseAssets, custom_conditions, relationship_model_map)
 
-            print(conditions)
             query = query.filter(combine_conditions(conditions, logical_operator))
-            print(query)
 
         except Exception as e:
             log.exception(e)
