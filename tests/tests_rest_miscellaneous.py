@@ -17,10 +17,13 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
+from unittest import skip
 from iris import Iris
 
+from time import sleep
 
-class TestsRest(TestCase):
+
+class TestsRestMiscellaneous(TestCase):
 
     def setUp(self) -> None:
         self._subject = Iris()
@@ -55,3 +58,41 @@ class TestsRest(TestCase):
     def test_get_timeline_state_should_return_200(self):
         response = self._subject.get('/case/timeline/state', query_parameters={'cid': 1})
         self.assertEqual(200, response.status_code)
+
+    # TODO should probably move this in a test suite related to modules?
+    # TODO skipping this tests, because it randomly triggers exceptions in the iriswebappp_worker
+    #      (psycopg2.errors.NotNullViolation) null value in column "client_id" violates not-null constraint
+    #      DETAIL:  Failing row contains (3, null, null, null, null, null, null, 2025-03-14 09:59:04.454669, null, null, null, 0, null, null, 8030efd5-04ae-4337-b55b-3fb0226e2736, null, null, null, null, null).
+    #      File "/iriswebapp/app/iris_engine/module_handler/module_handler.py", line 465, in task_hook_wrapper, db.session.commit()
+    #
+    #      After investigation, this is what seems to happen:
+    #      - the app creates the case and publishes a task_hook_wrapper('on_postload_case_create') in Celery
+    #      - the app deletes the case
+    #      - the worker takes some time to startup
+    #      - then it gets the Celery 'on_postload_case_create' task and merges the incoming case data with the state of database
+    #        since, by then, the case has already been removed from database, on the identifier and the fields with a server_default are filled
+    #        in particulier, client_id is None, and the code fails during the commit
+    @skip
+    def test_delete_case_should_set_module_state_to_success(self):
+        response = self._subject.get('/manage/modules/list').json()
+        module_identifier = None
+        for module in response['data']:
+            if module['module_human_name'] == 'IrisCheck':
+                module_identifier = module['id']
+        self._subject.create(f'/manage/modules/enable/{module_identifier}', {})
+        case_identifier = self._subject.create_dummy_case()
+        self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
+
+        response = self._subject.get('/dim/tasks/list/1').json()
+        attempts = 0
+        while len(response['data']) == 0:
+            sleep(1)
+            response = self._subject.get('/dim/tasks/list/1').json()
+            attempts += 1
+            if attempts > 20:
+                logs = self._subject.extract_logs('worker')
+                self.fail(f'Timed out with logs: {logs}')
+        module = response['data'][0]
+
+        self.assertEqual('success', module['state'])

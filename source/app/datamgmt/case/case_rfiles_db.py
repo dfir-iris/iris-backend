@@ -57,11 +57,8 @@ def add_rfile(evidence, caseid, user_id):
     return evidence
 
 
-def get_rfile(rfile_id, caseid):
-    return CaseReceivedFile.query.filter(
-        CaseReceivedFile.id == rfile_id,
-        CaseReceivedFile.case_id == caseid
-    ).first()
+def get_rfile(rfile_id):
+    return CaseReceivedFile.query.filter(CaseReceivedFile.id == rfile_id).first()
 
 
 def update_rfile(evidence, user_id, caseid):

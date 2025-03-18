@@ -23,13 +23,16 @@ from app.blueprints.access_controls import ac_api_requires
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
+from app.business.evidences import evidences_get
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
@@ -51,3 +54,25 @@ def create_evidence(case_identifier):
         return response_api_created(evidence_schema.dump(evidence))
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_evidences_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_evidence(case_identifier, identifier):
+
+    try:
+        evidence = evidences_get(identifier)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
+
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
+
+        evidence_schema = CaseEvidenceSchema()
+        return response_api_success(evidence_schema.dump(evidence))
+    except ObjectNotFoundError:
+        return response_api_not_found()
+
+
+def _check_evidence_and_case_identifier_match(evidence, case_identifier):
+    if evidence.case_id != case_identifier:
+        raise ObjectNotFoundError

@@ -20,11 +20,13 @@ from flask_login import current_user
 from marshmallow.exceptions import ValidationError
 
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import CaseEvidenceSchema
 from app.models.models import CaseReceivedFile
 from app.datamgmt.case.case_rfiles_db import add_rfile
+from app.datamgmt.case.case_rfiles_db import get_rfile
 
 
 def _load(request_data):
@@ -49,3 +51,9 @@ def evidences_create(case_identifier, request_json) -> CaseReceivedFile:
     track_activity(f'added evidence "{crf.filename}"', caseid=case_identifier)
     return crf
 
+
+def evidences_get(identifier) -> CaseReceivedFile:
+    evidence = get_rfile(identifier)
+    if not evidence:
+        raise ObjectNotFoundError()
+    return evidence
