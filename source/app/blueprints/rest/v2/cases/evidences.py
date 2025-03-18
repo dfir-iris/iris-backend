@@ -36,7 +36,6 @@ from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
 from app.business.evidences import evidences_filter
-from app.models.models import CaseReceivedFile
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
