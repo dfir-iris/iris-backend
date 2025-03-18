@@ -688,6 +688,7 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
     asset_type: AssetTypeSchema = ma.Nested(AssetTypeSchema, required=False)
     alerts = fields.Nested('AlertSchema', many=True, exclude=['assets'])
     analysis_status = fields.Nested('AnalysisStatusSchema', required=False)
+    iocs = fields.Nested('IocSchema', many=True, only=['ioc_id'])
 
     class Meta:
         model = CaseAssets
