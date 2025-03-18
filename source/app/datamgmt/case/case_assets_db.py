@@ -120,7 +120,7 @@ def filter_assets(case_identifier, pagination_parameters: PaginationParameters, 
     query = apply_filters(query, CaseAssets, filter_params)
 
     custom_conditions_param = filter_params.get('custom_conditions')
-    logical_operator = filter_params.get('logical_operator')
+    logical_operator = filter_params.get('logical_operator') or 'or'
     if custom_conditions_param:
         try:
             custom_conditions = json.loads(custom_conditions_param)
@@ -129,7 +129,9 @@ def filter_assets(case_identifier, pagination_parameters: PaginationParameters, 
 
             conditions = apply_custom_conditions(query, CaseAssets, custom_conditions, relationship_model_map)
 
+            print(conditions)
             query = query.filter(combine_conditions(conditions, logical_operator))
+            print(query)
 
         except Exception as e:
             log.exception(e)
