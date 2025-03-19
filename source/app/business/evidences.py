@@ -66,7 +66,6 @@ def evidences_get(identifier) -> CaseReceivedFile:
 def evidences_update(evidence: CaseReceivedFile, request_json: dict) -> CaseReceivedFile:
     request_data = call_modules_hook('on_preload_evidence_update', data=request_json, caseid=evidence.case_id)
     request_data['id'] = evidence.id
-    evidence_schema = CaseEvidenceSchema()
     evidence = _load(request_data, instance=evidence, partial=True)
     evidence = update_rfile(evidence=evidence, user_id=current_user.id, caseid=evidence.case_id)
     evidence = call_modules_hook('on_postload_evidence_update', data=evidence, caseid=evidence.case_id)
