@@ -99,6 +99,9 @@ def get_evidence(case_identifier, identifier):
 @case_evidences_blueprint.put('/<int:identifier>')
 @ac_api_requires()
 def update_evidence(case_identifier, identifier):
+    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
+
     evidence = evidences_get(identifier)
 
     evidence = evidences_update(evidence, request.get_json())

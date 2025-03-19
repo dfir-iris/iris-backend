@@ -200,3 +200,14 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename2'}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
         self.assertEqual(uuid, response['file_uuid'])
+
+    def test_update_evidence_should_return_403_when_user_has_no_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        body = {'filename': 'filename2'}
+        response = user.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body)
+        self.assertEqual(403, response.status_code)
