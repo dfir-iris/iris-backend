@@ -200,6 +200,24 @@ class TestsRestEvidences(TestCase):
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
         self.assertEqual(30, response['file_size'])
 
+    def test_update_evidence_should_change_type_id(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'type_id': 3}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual(3, response['type_id'])
+
+    def test_update_evidence_should_change_start_date(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'start_date': '2024-04-13T03:02:00'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual('2024-04-13T03:02:00', response['start_date'])
+
     def test_update_evidence_should_keep_file_uuid(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
