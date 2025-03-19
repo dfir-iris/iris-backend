@@ -33,10 +33,10 @@ from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
 from app.datamgmt.case.case_rfiles_db import update_rfile
 
 
-def _load(request_data):
+def _load(request_data, **kwargs):
     try:
         evidence_schema = CaseEvidenceSchema()
-        return evidence_schema.load(request_data)
+        return evidence_schema.load(request_data, **kwargs)
     except ValidationError as e:
         raise BusinessProcessingError('Data error', data=e.messages)
 
@@ -67,7 +67,7 @@ def evidences_update(evidence: CaseReceivedFile, request_json: dict) -> CaseRece
     request_data = call_modules_hook('on_preload_evidence_update', data=request_json, caseid=evidence.case_id)
     request_data['id'] = evidence.id
     evidence_schema = CaseEvidenceSchema()
-    evidence = evidence_schema.load(request_data, instance=evidence)
+    evidence = _load(request_data, instance=evidence, partial=True)
     evidence = update_rfile(evidence=evidence, user_id=current_user.id, caseid=evidence.case_id)
     evidence = call_modules_hook('on_postload_evidence_update', data=evidence, caseid=evidence.case_id)
     if not evidence:

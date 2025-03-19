@@ -191,6 +191,15 @@ class TestsRestEvidences(TestCase):
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
         self.assertEqual('filename2', response['filename'])
 
+    def test_update_evidence_should_change_file_size(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'file_size': 30}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual(30, response['file_size'])
+
     def test_update_evidence_should_keep_file_uuid(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
