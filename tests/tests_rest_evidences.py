@@ -190,3 +190,13 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename2'}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
         self.assertEqual('filename2', response['filename'])
+
+    def test_update_evidence_should_keep_file_uuid(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        uuid = response['file_uuid']
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual(uuid, response['file_uuid'])

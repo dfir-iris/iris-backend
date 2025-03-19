@@ -102,7 +102,10 @@ def update_evidence(case_identifier, identifier):
     evidence = evidences_get(identifier)
 
     evidence = evidences_update(evidence, request.get_json())
-    return response_api_success(evidence)
+
+    schema = CaseEvidenceSchema()
+    result = schema.dump(evidence)
+    return response_api_success(result)
 
 
 def _check_evidence_and_case_identifier_match(evidence, case_identifier):
