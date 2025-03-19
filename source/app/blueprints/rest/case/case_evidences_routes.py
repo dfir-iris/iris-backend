@@ -127,11 +127,11 @@ def case_edit_rfile(cur_id, caseid):
 
         evd = call_modules_hook('on_postload_evidence_update', data=evd, caseid=caseid)
 
-        if evd:
-            track_activity(f"updated evidence \"{evd.filename}\"", caseid=caseid)
-            return response_success("Evidence {} updated".format(evd.filename), data=evidence_schema.dump(evd))
+        if not evd:
+            return response_error('Unable to update task for internal reasons')
 
-        return response_error("Unable to update task for internal reasons")
+        track_activity(f"updated evidence \"{evd.filename}\"", caseid=caseid)
+        return response_success("Evidence {} updated".format(evd.filename), data=evidence_schema.dump(evd))
 
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
