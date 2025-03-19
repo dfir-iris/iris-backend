@@ -127,7 +127,7 @@ def filter_assets(case_identifier, pagination_parameters: PaginationParameters, 
             if not isinstance(custom_conditions, list):
                 raise ValueError("custom_conditions should be a list of condition objects")
 
-            conditions = apply_custom_conditions(query, CaseAssets, custom_conditions, relationship_model_map)
+            query, conditions = apply_custom_conditions(query, CaseAssets, custom_conditions, relationship_model_map)
 
             query = query.filter(combine_conditions(conditions, logical_operator))
 

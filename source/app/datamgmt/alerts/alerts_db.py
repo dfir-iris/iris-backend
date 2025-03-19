@@ -238,7 +238,8 @@ def get_filtered_alerts(
                 app.app.logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
                 return
 
-        conditions.extend(apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map))
+        query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
+        conditions.extend(conditions_tmp)
 
         # Combine conditions
     combined_conditions = combine_conditions(conditions, logical_operator)

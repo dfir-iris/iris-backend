@@ -148,7 +148,7 @@ def apply_custom_conditions(query, model, custom_conditions, relationship_model_
             condition = build_condition(field, operator, value)
             conditions.append(condition)
 
-    return conditions
+    return query, conditions
 
 
 def get_field_from_model(model, field_path):
