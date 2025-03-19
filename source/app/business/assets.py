@@ -156,7 +156,7 @@ def assets_update(asset: CaseAssets, request_json: dict):
 
     request_data['asset_id'] = asset.asset_id
 
-    asset_schema = _load(request_data, instance=asset)
+    asset_schema = _load(request_data, instance=asset, partial=True)
 
     if case_assets_db_exists(asset_schema):
         raise BusinessProcessingError('Data error', data='Asset with same value and type already exists')

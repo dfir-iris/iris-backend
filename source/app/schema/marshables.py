@@ -742,18 +742,20 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
             ValidationError: If either ID is invalid.
 
         """
-        assert_type_mml(input_var=data.get('asset_type_id'),
-                        field_name="asset_type_id",
-                        type=int)
+        if data.get('asset_type_id'):
+            assert_type_mml(input_var=data.get('asset_type_id'),
+                            field_name="asset_type_id",
+                            type=int)
 
-        asset_type = AssetsType.query.filter(AssetsType.asset_id == data.get('asset_type_id')).count()
-        if not asset_type:
-            raise marshmallow.exceptions.ValidationError("Invalid asset type ID",
-                                                         field_name="asset_type_id")
+            asset_type = AssetsType.query.filter(AssetsType.asset_id == data.get('asset_type_id')).count()
+            if not asset_type:
+                raise marshmallow.exceptions.ValidationError("Invalid asset type ID",
+                                                             field_name="asset_type_id")
 
-        assert_type_mml(input_var=data.get('analysis_status_id'),
-                        field_name="analysis_status_id", type=int,
-                        allow_none=True)
+        if data.get('analysis_status_id'):
+            assert_type_mml(input_var=data.get('analysis_status_id'),
+                            field_name="analysis_status_id", type=int,
+                            allow_none=True)
 
         if data.get('analysis_status_id'):
             status = AnalysisStatus.query.filter(AnalysisStatus.id == data.get('analysis_status_id')).count()
