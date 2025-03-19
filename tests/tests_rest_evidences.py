@@ -172,3 +172,12 @@ class TestsRestEvidences(TestCase):
 
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'per_page': 1}).json()
         self.assertEqual(1, len(response['data']))
+
+    def test_update_evidence_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body)
+        self.assertEqual(200, response.status_code)

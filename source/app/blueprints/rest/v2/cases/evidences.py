@@ -95,6 +95,13 @@ def get_evidence(case_identifier, identifier):
         return response_api_not_found()
 
 
+@case_evidences_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_evidence(case_identifier, identifier):
+    evidence = evidences_get(identifier)
+
+    return response_api_success(evidence)
+
 def _check_evidence_and_case_identifier_match(evidence, case_identifier):
     if evidence.case_id != case_identifier:
         raise ObjectNotFoundError
