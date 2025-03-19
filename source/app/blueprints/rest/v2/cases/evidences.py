@@ -35,6 +35,7 @@ from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
+from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
 
 
@@ -100,6 +101,7 @@ def get_evidence(case_identifier, identifier):
 def update_evidence(case_identifier, identifier):
     evidence = evidences_get(identifier)
 
+    evidence = evidences_update(evidence, request.get_json())
     return response_api_success(evidence)
 
 
