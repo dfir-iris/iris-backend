@@ -104,6 +104,7 @@ def case_get_evidence(cur_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/evidences/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_edit_rfile(cur_id, caseid):
