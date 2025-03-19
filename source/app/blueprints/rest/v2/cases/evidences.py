@@ -104,11 +104,11 @@ def get_evidence(case_identifier, identifier):
 def update_evidence(case_identifier, identifier):
     if not cases_exists(case_identifier):
         return response_api_not_found()
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
 
-    evidence = evidences_get(identifier)
     try:
+        evidence = evidences_get(identifier)
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
         _check_evidence_and_case_identifier_match(evidence, case_identifier)
 
         evidence = evidences_update(evidence, request.get_json())
