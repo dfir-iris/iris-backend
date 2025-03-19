@@ -211,3 +211,12 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename2'}
         response = user.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body)
         self.assertEqual(403, response.status_code)
+
+    def test_update_evidence_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences/{identifier}', body)
+        self.assertEqual(404, response.status_code)

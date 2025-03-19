@@ -103,12 +103,16 @@ def update_evidence(case_identifier, identifier):
         return ac_api_return_access_denied(caseid=case_identifier)
 
     evidence = evidences_get(identifier)
+    try:
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
 
-    evidence = evidences_update(evidence, request.get_json())
+        evidence = evidences_update(evidence, request.get_json())
 
-    schema = CaseEvidenceSchema()
-    result = schema.dump(evidence)
-    return response_api_success(result)
+        schema = CaseEvidenceSchema()
+        result = schema.dump(evidence)
+        return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
 
 
 def _check_evidence_and_case_identifier_match(evidence, case_identifier):
