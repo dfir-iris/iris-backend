@@ -20,6 +20,7 @@ from unittest import TestCase
 from iris import Iris
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+_CASE_ACCESS_LEVEL_READ_ONLY = 2
 _CASE_ACCESS_LEVEL_FULL_ACCESS = 4
 
 
@@ -216,7 +217,7 @@ class TestsRestAssets(TestCase):
         response = user2.create(f'/case/assets/{asset_identifier}/comments/{comment_identifier}/edit?cid={case_identifier}', {'comment_text': 'updated comment'})
         self.assertEqual(400, response.status_code)
 
-    def test_get_assets_should_not_fail(self):
+    def test_get_assets_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/assets')
         self.assertEqual(200, response.status_code)
@@ -254,3 +255,15 @@ class TestsRestAssets(TestCase):
         self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/assets', { 'order_by': 'asset_name' }).json()
         self.assertEqual('asset1', response['data'][0]['asset_name'])
+
+    def test_get_assets_should_return_200_when_user_has_read_only_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        user = self._subject.create_dummy_user()
+        body = {
+            'cases_list': [case_identifier],
+            'access_level': _CASE_ACCESS_LEVEL_READ_ONLY
+        }
+        self._subject.create(f'/manage/users/{user.get_identifier()}/cases-access/update', body)
+        response = user.get(f'/api/v2/cases/{case_identifier}/assets')
+        self.assertEqual(200, response.status_code)
