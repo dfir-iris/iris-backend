@@ -30,6 +30,7 @@ from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import add_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfile
 from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
+from app.datamgmt.case.case_rfiles_db import update_rfile
 
 
 def _load(request_data):
@@ -59,6 +60,19 @@ def evidences_get(identifier) -> CaseReceivedFile:
     evidence = get_rfile(identifier)
     if not evidence:
         raise ObjectNotFoundError()
+    return evidence
+
+
+def evidences_update(evidence: CaseReceivedFile, request_json: dict) -> CaseReceivedFile:
+    request_data = call_modules_hook('on_preload_evidence_update', data=request_json, caseid=evidence.case_id)
+    request_data['id'] = evidence.id
+    evidence_schema = CaseEvidenceSchema()
+    evidence = evidence_schema.load(request_data, instance=evidence)
+    evidence = update_rfile(evidence=evidence, user_id=current_user.id, caseid=evidence.case_id)
+    evidence = call_modules_hook('on_postload_evidence_update', data=evidence, caseid=evidence.case_id)
+    if not evidence:
+        raise BusinessProcessingError('Unable to update task for internal reasons')
+    track_activity(f'updated evidence "{evidence.filename}"', caseid=evidence.case_id)
     return evidence
 
 

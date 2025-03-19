@@ -33,7 +33,6 @@ from app.datamgmt.case.case_rfiles_db import get_case_evidence_comment
 from app.datamgmt.case.case_rfiles_db import get_case_evidence_comments
 from app.datamgmt.case.case_rfiles_db import get_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfiles
-from app.datamgmt.case.case_rfiles_db import update_rfile
 from app.datamgmt.states import get_evidences_state
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -45,6 +44,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.business.evidences import evidences_create
+from app.business.evidences import evidences_update
 from app.business.errors import BusinessProcessingError
 
 
@@ -108,33 +108,20 @@ def case_get_evidence(cur_id, caseid):
 @ac_api_requires()
 def case_edit_rfile(cur_id, caseid):
     try:
-        # validate before saving
-        evidence_schema = CaseEvidenceSchema()
-
-        request_data = call_modules_hook('on_preload_evidence_update', data=request.get_json(), caseid=caseid)
-
         crf = get_rfile(cur_id)
         if not crf:
-            return response_error("Invalid evidence ID for this case")
+            return response_error('Invalid evidence ID for this case')
 
-        request_data['id'] = cur_id
-        evidence = evidence_schema.load(request_data, instance=crf)
+        evd = evidences_update(crf, request.get_json())
 
-        evd = update_rfile(evidence=evidence,
-                           user_id=current_user.id,
-                           caseid=caseid
-                           )
-
-        evd = call_modules_hook('on_postload_evidence_update', data=evd, caseid=caseid)
-
-        if not evd:
-            return response_error('Unable to update task for internal reasons')
-
-        track_activity(f"updated evidence \"{evd.filename}\"", caseid=caseid)
-        return response_success("Evidence {} updated".format(evd.filename), data=evidence_schema.dump(evd))
+        evidence_schema = CaseEvidenceSchema()
+        return response_success(f'Evidence {evd.filename} updated', data=evidence_schema.dump(evd))
 
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
+
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/delete/<int:cur_id>', methods=['POST'])
