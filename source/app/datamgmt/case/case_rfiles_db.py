@@ -20,6 +20,7 @@ import datetime
 from flask_login import current_user
 from sqlalchemy import and_
 from sqlalchemy import desc
+from flask_sqlalchemy.pagination import Pagination
 
 from app import db
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
@@ -28,6 +29,8 @@ from app.models.models import CaseReceivedFile
 from app.models.models import Comments
 from app.models.models import EvidencesComments
 from app.models.authorization import User
+from app.models.pagination_parameters import PaginationParameters
+from app.datamgmt.conversions import convert_sort_direction
 
 
 def get_rfiles(caseid):
@@ -38,6 +41,24 @@ def get_rfiles(caseid):
     ).all()
 
     return crf
+
+
+def get_paginated_evidences(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    query = CaseReceivedFile.query.filter(
+        CaseReceivedFile.case_id == case_identifier
+    )
+    order_func = convert_sort_direction(pagination_parameters.get_direction())
+
+    order_by = pagination_parameters.get_order_by()
+    column = getattr(CaseReceivedFile, order_by)
+
+    query = query.order_by(order_func(column))
+
+    return query.paginate(
+        page=pagination_parameters.get_page(),
+        per_page=pagination_parameters.get_per_page(),
+        error_out=False
+    )
 
 
 def add_rfile(evidence, caseid, user_id):

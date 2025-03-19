@@ -24,8 +24,10 @@ from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_
 from app.models.authorization import CaseAccessLevel
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
+from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -33,9 +35,29 @@ from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
+from app.business.evidences import evidences_filter
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
+
+
+@case_evidences_blueprint.get('')
+@ac_api_requires()
+def get_evidences(case_identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
+
+    pagination_parameters = parse_pagination_parameters(request, default_order_by='date_added', default_direction='desc')
+    try:
+        evidences = evidences_filter(case_identifier, pagination_parameters)
+
+        evidence_schema = CaseEvidenceSchema()
+        return response_api_paginated(evidence_schema, evidences)
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 @case_evidences_blueprint.post('')

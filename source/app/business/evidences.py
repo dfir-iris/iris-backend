@@ -18,6 +18,7 @@
 
 from flask_login import current_user
 from marshmallow.exceptions import ValidationError
+from flask_sqlalchemy.pagination import Pagination
 
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
@@ -25,8 +26,10 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import CaseEvidenceSchema
 from app.models.models import CaseReceivedFile
+from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import add_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfile
+from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
 
 
 def _load(request_data):
@@ -57,3 +60,10 @@ def evidences_get(identifier) -> CaseReceivedFile:
     if not evidence:
         raise ObjectNotFoundError()
     return evidence
+
+
+def evidences_filter(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    order_by = pagination_parameters.get_order_by()
+    if not hasattr(CaseReceivedFile, order_by):
+        raise BusinessProcessingError(f'Unexpected order_by field {order_by}')
+    return get_paginated_evidences(case_identifier, pagination_parameters)

@@ -27,7 +27,8 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
-from app.blueprints.rest.parsing import parse_pagination_parameters, parse_fields_parameters
+from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.blueprints.rest.parsing import parse_fields_parameters
 from app.business.cases import cases_exists
 from app.business.assets import assets_create
 from app.business.assets import assets_filter
@@ -50,7 +51,7 @@ case_assets_blueprint = Blueprint('case_assets',
 def case_list_assets(case_identifier):
 
     try:
-
+        # TODO shouldn't CaseAccessLevel.read_only be allowed here too?
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
 

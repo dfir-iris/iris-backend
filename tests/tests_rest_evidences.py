@@ -116,3 +116,59 @@ class TestsRestEvidences(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_get_evidences_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences')
+        self.assertEqual(200, response.status_code)
+
+    def test_get_evidences_should_return_403_when_user_has_no_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/cases/{case_identifier}/evidences')
+        self.assertEqual(403, response.status_code)
+
+    def test_get_evidences_should_return_total(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences').json()
+        self.assertEqual(0, response['total'])
+
+    def test_get_evidences_should_order_by_descending_date(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename1'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        body = {'filename': 'filename2'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences').json()
+        self.assertEqual('filename2', response['data'][0]['filename'])
+
+    def test_get_evidences_should_order_by_ascending_date_when_sort_dir_is_set_to_asc(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename1'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        body = {'filename': 'filename2'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'sort_dir': 'asc'}).json()
+        self.assertEqual('filename1', response['data'][0]['filename'])
+
+    def test_get_evidences_should_return_400_when_order_by_is_an_invalid_field(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'order_by': 'an_invalid_field'})
+        self.assertEqual(400, response.status_code)
+
+    def test_get_evidences_should_return_404_when_the_case_does_not_exist(self):
+        response = self._subject.get(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences')
+        self.assertEqual(404, response.status_code)
+
+    def test_get_evidences_should_accept_per_page_query_parameter(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename1'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        body = {'filename': 'filename2'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'per_page': 1}).json()
+        self.assertEqual(1, len(response['data']))

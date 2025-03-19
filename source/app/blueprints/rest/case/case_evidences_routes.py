@@ -52,6 +52,7 @@ case_evidences_rest_blueprint = Blueprint('case_evidences_rest', __name__)
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/evidences')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_list_rfiles(caseid):
