@@ -20,6 +20,7 @@ from flask import request
 from werkzeug import Response
 
 from app import app
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.datamgmt.manage.manage_tags_db import get_filtered_tags
 from app.schema.marshables import TagsSchema
 from app.blueprints.access_controls import ac_api_requires
@@ -29,6 +30,7 @@ manage_tags_rest_blueprint = Blueprint('manage_tags_rest', __name__)
 
 
 @manage_tags_rest_blueprint.route('/manage/tags/filter', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/tags')
 @ac_api_requires()
 def manage_tags_filter() -> Response:
     """Returns a list of tags, filtered by the given parameters.
