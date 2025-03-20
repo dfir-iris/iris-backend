@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import datetime
-import json
 
 from flask_login import current_user
 from sqlalchemy import and_
@@ -25,9 +24,8 @@ from sqlalchemy import func
 from flask_sqlalchemy.pagination import Pagination
 
 from app import db, app
-from app.datamgmt.filtering import apply_filters, apply_custom_conditions, combine_conditions, get_filtered_data
+from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
-from app.datamgmt.conversions import convert_sort_direction
 from app.models.models import AnalysisStatus
 from app.models.models import CaseStatus
 from app.models.models import AssetComments
@@ -111,7 +109,6 @@ def get_assets(case_identifier):
 def filter_assets(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:
     base_filter = CaseAssets.case_id == case_identifier
     return get_filtered_data(CaseAssets, base_filter, pagination_parameters, request_parameters, relationship_model_map)
-
 
 
 def get_raw_assets(caseid):
