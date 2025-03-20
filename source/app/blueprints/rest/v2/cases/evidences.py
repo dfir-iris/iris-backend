@@ -35,7 +35,9 @@ from app.business.cases import cases_exists
 from app.schema.marshables import CaseEvidenceSchema
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
+from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
+from app.models.models import CaseReceivedFile
 
 
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
@@ -81,6 +83,8 @@ def create_evidence(case_identifier):
 @case_evidences_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_evidence(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
 
     try:
         evidence = evidences_get(identifier)
@@ -95,6 +99,29 @@ def get_evidence(case_identifier, identifier):
         return response_api_not_found()
 
 
-def _check_evidence_and_case_identifier_match(evidence, case_identifier):
+@case_evidences_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_evidence(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    try:
+        evidence = evidences_get(identifier)
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
+
+        evidence = evidences_update(evidence, request.get_json())
+
+        schema = CaseEvidenceSchema()
+        result = schema.dump(evidence)
+        return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+
+def _check_evidence_and_case_identifier_match(evidence: CaseReceivedFile, case_identifier):
     if evidence.case_id != case_identifier:
-        raise ObjectNotFoundError
+        raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')

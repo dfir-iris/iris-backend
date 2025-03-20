@@ -37,7 +37,7 @@ def upgrade():
         sa.Column('asset_icon_not_compromised', sa.String(255)),
         sa.Column('asset_icon_compromised', sa.String(255))
     )
-    
+
     # Migrate existing Asset_types
     conn = op.get_bind()
     res = conn.execute(text("SELECT asset_id, asset_name FROM public.assets_type;"))

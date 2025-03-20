@@ -41,7 +41,7 @@ class TestsRestEvidences(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', {})
         self.assertEqual(400, response.status_code)
 
-    def test_create_evidence_should_return_403_when_user_has_no_access_to_case(self):
+    def test_create_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
         case_identifier = self._subject.create_dummy_case()
 
         user = self._subject.create_dummy_user()
@@ -172,3 +172,94 @@ class TestsRestEvidences(TestCase):
 
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences', {'per_page': 1}).json()
         self.assertEqual(1, len(response['data']))
+
+    def test_update_evidence_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body)
+        self.assertEqual(200, response.status_code)
+
+    def test_update_evidence_should_change_filename(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual('filename2', response['filename'])
+
+    def test_update_evidence_should_change_file_size(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'file_size': 30}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual(30, response['file_size'])
+
+    def test_update_evidence_should_change_type_id(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'type_id': 3}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual(3, response['type_id'])
+
+    def test_update_evidence_should_change_start_date(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'start_date': '2024-04-13T03:02:00'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual('2024-04-13T03:02:00', response['start_date'])
+
+    def test_update_evidence_should_keep_file_uuid(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        uuid = response['file_uuid']
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
+        self.assertEqual(uuid, response['file_uuid'])
+
+    def test_update_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        body = {'filename': 'filename2'}
+        response = user.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body)
+        self.assertEqual(403, response.status_code)
+
+    def test_update_evidence_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences/{identifier}', body)
+        self.assertEqual(404, response.status_code)
+
+    def test_update_evidence_should_return_400_when_case_identifier_does_not_match_evidence_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        body = {'filename': 'filename2'}
+        case_identifier2 = self._subject.create_dummy_case()
+        response = self._subject.update(f'/api/v2/cases/{case_identifier2}/evidences/{identifier}', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_update_evidence_should_return_404_when_evidence_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename2'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
+        self.assertEqual(404, response.status_code)

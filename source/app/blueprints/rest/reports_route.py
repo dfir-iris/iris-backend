@@ -121,12 +121,12 @@ def generate_report(report_id, caseid):
             if fpath is None:
                 track_activity("failed to generate the report")
                 return response_error(msg="Failed to generate the report", data=logs)
-            
+
             with open(fpath, 'rb') as rfile:
                 encoded_file = base64.b64encode(rfile.read()).decode('utf-8')
 
             res = get_case(caseid)
-            
+
             _data = {
                 'report_id': report_id,
                 'file_path': fpath,

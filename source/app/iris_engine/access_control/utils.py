@@ -411,7 +411,7 @@ def ac_set_new_case_access(org_members, case_id, customer_id = None):
     """
 
     users = ac_apply_autofollow_groups_access(case_id)
-    if current_user.id in users.keys():
+    if current_user.id in users:
         del users[current_user.id]
 
     users_full = User.query.with_entities(User.id).all()
@@ -506,7 +506,7 @@ def ac_auto_update_user_effective_access(user_id):
                 ucea_to_add.update({case_id: target_ucas[case_id]})
 
     for prev_case_id in grouped_uca:
-        if prev_case_id not in target_ucas.keys():
+        if prev_case_id not in target_ucas:
             cid_to_remove.append(prev_case_id)
 
     UserCaseEffectiveAccess.query.where(and_(
