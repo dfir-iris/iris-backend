@@ -14,19 +14,16 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-import json
 from flask import Blueprint
 from flask import request
 from werkzeug import Response
 
-from app import app
 from app.blueprints.rest.endpoints import response_api_paginated, response_api_error
 from app.blueprints.rest.parsing import parse_fields_parameters, parse_pagination_parameters
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_tags_db import get_filtered_tags
 from app.schema.marshables import TagsSchema
 from app.blueprints.access_controls import ac_api_requires
-from app.blueprints.responses import response_success, AlchemyEncoder
 
 tags_blueprint = Blueprint('tags_rest',
                            __name__,
@@ -51,7 +48,6 @@ def manage_list_tags() -> Response:
 
         fields = parse_fields_parameters(request)
         pagination_parameters = parse_pagination_parameters(request)
-
 
         filtered_tags = get_filtered_tags(tag_title=tag_title,
                                           tag_namespace=tag_namespace,
