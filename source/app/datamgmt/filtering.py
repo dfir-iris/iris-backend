@@ -15,7 +15,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+import json
+
 from sqlalchemy import String, Text, inspect, or_, not_, and_
+
+from app import app
+from app.datamgmt.conversions import convert_sort_direction
+from app.models.pagination_parameters import PaginationParameters
 
 RESTRICTED_USER_FIELDS = {
     'password',
@@ -27,6 +33,8 @@ RESTRICTED_USER_FIELDS = {
     'ctx_human_case',
     'is_service_account'
 }
+
+log = app.logger
 
 
 def apply_filters(query, model, filter_params: dict):
@@ -163,3 +171,63 @@ def get_field_from_model(model, field_path):
         raise ValueError(f"Field '{field_path}' not found in {model.__name__}")
 
     return field
+
+
+def get_filtered_data(model,
+                      base_filter,
+                      pagination_parameters: PaginationParameters,
+                      request_parameters: dict,
+                      relationship_model_map: dict = None):
+    """
+    Generic function to filter, sort, and paginate query results for a given model.
+
+    :param model: The SQLAlchemy model to query.
+    :param base_filter: A SQLAlchemy filter condition to apply (or None).
+    :param pagination_parameters: An instance of PaginationParameters.
+    :param request_parameters: Dictionary of additional filter parameters.
+    :param relationship_model_map: A dictionary mapping relationship names to models.
+    :return: Paginated query results.
+    """
+    # Create a shallow copy to avoid modifying the original dictionary
+    filter_params = request_parameters.copy()
+
+    # Remove pagination related keys.
+    for key in ['page', 'per_page', 'order_by', 'direction']:
+        filter_params.pop(key, None)
+
+    # Start query and apply base filter if provided.
+    query = model.query
+    if base_filter is not None:
+        query = query.filter(base_filter)
+
+    # Apply generic filters.
+    query = apply_filters(query, model, filter_params)
+
+    # Process any custom conditions.
+    custom_conditions_param = filter_params.get('custom_conditions')
+    logical_operator = filter_params.get('logical_operator') or 'or'
+    if custom_conditions_param:
+        try:
+            custom_conditions = json.loads(custom_conditions_param)
+            if not isinstance(custom_conditions, list):
+                raise ValueError("custom_conditions should be a list of condition objects")
+
+            query, conditions = apply_custom_conditions(query, model, custom_conditions, relationship_model_map)
+            query = query.filter(combine_conditions(conditions, logical_operator))
+        except Exception as e:
+            log.exception(e)
+            raise ValueError(f"Error parsing custom_conditions: {e}")
+
+    # Apply ordering if requested.
+    order_by = pagination_parameters.get_order_by()
+    if order_by is not None and hasattr(model, order_by):
+        order_func = convert_sort_direction(pagination_parameters.get_direction())
+        query = query.order_by(order_func(getattr(model, order_by)))
+
+    # Paginate and return the results.
+    result = query.paginate(
+        page=pagination_parameters.get_page(),
+        per_page=pagination_parameters.get_per_page(),
+        error_out=False
+    )
+    return result

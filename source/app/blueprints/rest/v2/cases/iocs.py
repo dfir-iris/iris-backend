@@ -27,7 +27,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
-from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.blueprints.rest.parsing import parse_pagination_parameters, parse_fields_parameters
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.iocs import iocs_create
@@ -50,34 +50,30 @@ case_iocs_blueprint = Blueprint('case_ioc_rest_v2',
 @ac_api_requires()
 def get_case_iocs(case_identifier):
 
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
+    try:
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
 
-    pagination_parameters = parse_pagination_parameters(request)
+        pagination_parameters = parse_pagination_parameters(request)
+        fields = parse_fields_parameters(request)
 
-    ioc_type_id = request.args.get('ioc_type_id', None, type=int)
-    ioc_type = request.args.get('ioc_type', None, type=str)
-    ioc_tlp_id = request.args.get('ioc_tlp_id', None, type=int)
-    ioc_value = request.args.get('ioc_value', None, type=str)
-    ioc_description = request.args.get('ioc_description', None, type=str)
-    ioc_tags = request.args.get('ioc_tags', None, type=str)
+        filtered_iocs = get_filtered_iocs(
+            case_identifier,
+            pagination_parameters,
+            request.args.to_dict()
+        )
 
-    filtered_iocs = get_filtered_iocs(
-        pagination_parameters,
-        caseid=case_identifier,
-        ioc_type_id=ioc_type_id,
-        ioc_type=ioc_type,
-        ioc_tlp_id=ioc_tlp_id,
-        ioc_value=ioc_value,
-        ioc_description=ioc_description,
-        ioc_tags=ioc_tags
-    )
+        if fields:
+            iocs_schema = IocSchemaForAPIV2(only=fields)
+        else:
+            iocs_schema = IocSchemaForAPIV2()
 
-    if filtered_iocs is None:
-        return response_api_error('Filtering error')
+        return response_api_paginated(iocs_schema, filtered_iocs)
 
-    iocs_schema = IocSchemaForAPIV2()
-    return response_api_paginated(iocs_schema, filtered_iocs)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message())
 
 
 @case_iocs_blueprint.post('')
