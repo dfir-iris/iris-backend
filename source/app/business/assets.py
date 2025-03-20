@@ -43,6 +43,7 @@ from app.datamgmt.case.case_assets_db import delete_asset
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import CaseAssetsSchema
+from app.util import add_obj_history_entry
 
 
 def _load(request_data, **kwargs):
@@ -67,6 +68,9 @@ def assets_create(case_identifier, request_json):
         if errors:
             raise BusinessProcessingError('Encountered errors while linking IOC. Asset has still been created.')
     asset = call_modules_hook('on_postload_asset_create', data=asset, caseid=case_identifier)
+
+    add_obj_history_entry(asset, 'created')
+
     if asset:
         track_activity(f'added asset "{asset.asset_name}"', caseid=case_identifier)
         return 'Asset added', asset
@@ -162,6 +166,7 @@ def assets_update(asset: CaseAssets, request_json: dict):
         raise BusinessProcessingError('Data error', data='Asset with same value and type already exists')
 
     update_assets_state(caseid=caseid)
+    add_obj_history_entry(asset, 'updated')
     db.session.commit()
 
     if hasattr(asset_schema, 'ioc_links'):
