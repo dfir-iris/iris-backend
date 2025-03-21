@@ -132,15 +132,15 @@ def case_delete_rfile(cur_id, caseid):
     call_modules_hook('on_preload_evidence_delete', data=cur_id, caseid=caseid)
     crf = get_rfile(cur_id)
     if not crf:
-        return response_error("Invalid evidence ID for this case")
+        return response_error('Invalid evidence ID for this case')
 
     delete_rfile(cur_id, caseid=caseid)
 
     call_modules_hook('on_postload_evidence_delete', data=cur_id, caseid=caseid)
 
-    track_activity(f"deleted evidence \"{crf.filename}\" from registry", caseid)
+    track_activity(f'deleted evidence "{crf.filename}" from registry', caseid)
 
-    return response_success("Evidence deleted")
+    return response_success('Evidence deleted')
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>/comments/list', methods=['GET'])
