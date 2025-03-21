@@ -53,7 +53,7 @@ from app.datamgmt.manage.manage_attribute_db import merge_custom_attributes
 from app.datamgmt.manage.manage_tags_db import add_db_tag
 from app.datamgmt.case.case_iocs_db import get_ioc_links
 from app.iris_engine.access_control.utils import ac_mask_from_val_list
-from app.models.models import AnalysisStatus
+from app.models.models import AnalysisStatus, IocAssetLink
 from app.models.models import CaseClassification
 from app.models.models import SavedFilter
 from app.models.models import DataStorePath
@@ -673,10 +673,11 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
     asset_type: AssetTypeSchema = ma.Nested(AssetTypeSchema, required=False)
     alerts = fields.Nested('AlertSchema', many=True, exclude=['assets'])
     analysis_status = fields.Nested('AnalysisStatusSchema', required=False)
-    iocs = fields.Nested('IocSchema', many=True, only=['ioc_id'])
+    iocs = fields.Nested('IocSchemaForAPIV2', many=True, only=['ioc_id'])
 
     class Meta:
         model = CaseAssets
+        sqla_session = db.session
         include_fk = True
         load_instance = True
         unknown = EXCLUDE
@@ -941,6 +942,7 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
 
     class Meta:
         model = Ioc
+        sqla_session = db.session
         load_instance = True
         include_fk = True
         unknown = EXCLUDE
@@ -1032,6 +1034,7 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
 
     class Meta:
         model = Ioc
+        sqla_session = db.session
         load_instance = True
         include_fk = True
         unknown = EXCLUDE
