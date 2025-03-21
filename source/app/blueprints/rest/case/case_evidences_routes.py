@@ -126,6 +126,7 @@ def case_edit_rfile(cur_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/assets/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_delete_rfile(cur_id, caseid):
