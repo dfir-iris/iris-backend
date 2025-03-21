@@ -263,3 +263,11 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename2'}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
+
+    def test_delete_evidence_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(204, response.status_code)
