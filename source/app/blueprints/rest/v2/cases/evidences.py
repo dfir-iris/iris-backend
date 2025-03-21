@@ -133,12 +133,15 @@ def delete_evidence(case_identifier, identifier):
     try:
         evidence = evidences_get(identifier)
         evidences_delete(evidence)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
         if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=evidence.case_id)
 
         return response_api_deleted()
     except ObjectNotFoundError:
         return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 def _check_evidence_and_case_identifier_match(evidence: CaseReceivedFile, case_identifier):
