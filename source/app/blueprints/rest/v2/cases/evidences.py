@@ -127,6 +127,9 @@ def update_evidence(case_identifier, identifier):
 @case_evidences_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_evidence(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
     evidence = evidences_get(identifier)
     evidences_delete(evidence)
     if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
