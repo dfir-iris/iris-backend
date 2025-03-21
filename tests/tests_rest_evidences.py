@@ -280,3 +280,13 @@ class TestsRestEvidences(TestCase):
         self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(404, response.status_code)
+
+    def test_delete_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        response = user.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(403, response.status_code)
