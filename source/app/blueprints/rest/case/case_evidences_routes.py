@@ -28,7 +28,6 @@ from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.datamgmt.case.case_rfiles_db import delete_evidence_comment
-from app.datamgmt.case.case_rfiles_db import delete_rfile
 from app.datamgmt.case.case_rfiles_db import get_case_evidence_comment
 from app.datamgmt.case.case_rfiles_db import get_case_evidence_comments
 from app.datamgmt.case.case_rfiles_db import get_rfile
@@ -44,6 +43,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.business.evidences import evidences_create
+from app.business.evidences import evidences_delete
 from app.business.evidences import evidences_update
 from app.business.errors import BusinessProcessingError
 
@@ -129,16 +129,11 @@ def case_edit_rfile(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_delete_rfile(cur_id, caseid):
-    call_modules_hook('on_preload_evidence_delete', data=cur_id, caseid=caseid)
     crf = get_rfile(cur_id)
     if not crf:
         return response_error('Invalid evidence ID for this case')
 
-    delete_rfile(cur_id, caseid=caseid)
-
-    call_modules_hook('on_postload_evidence_delete', data=cur_id, caseid=caseid)
-
-    track_activity(f'deleted evidence "{crf.filename}" from registry', caseid)
+    evidences_delete(crf)
 
     return response_success('Evidence deleted')
 
