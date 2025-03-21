@@ -91,12 +91,12 @@ def update_rfile(evidence, user_id, caseid):
     return evidence
 
 
-def delete_rfile(rfile_id, caseid):
+def delete_rfile(evidence: CaseReceivedFile):
     with db.session.begin_nested():
         com_ids = EvidencesComments.query.with_entities(
             EvidencesComments.comment_id
         ).filter(
-            EvidencesComments.comment_evidence_id == rfile_id
+            EvidencesComments.comment_evidence_id == evidence.id
         ).all()
 
         com_ids = [c.comment_id for c in com_ids]
@@ -104,12 +104,9 @@ def delete_rfile(rfile_id, caseid):
 
         Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
-        CaseReceivedFile.query.filter(and_(
-            CaseReceivedFile.id == rfile_id,
-            CaseReceivedFile.case_id == caseid,
-        )).delete()
+        db.session.delete(evidence)
 
-        update_evidences_state(caseid=caseid)
+        update_evidences_state(caseid=evidence.case_id)
 
         db.session.commit()
 

@@ -85,6 +85,6 @@ def evidences_filter(case_identifier, pagination_parameters: PaginationParameter
 
 def evidences_delete(evidence: CaseReceivedFile):
     call_modules_hook('on_preload_evidence_delete', data=evidence.id, caseid=evidence.case_id)
-    delete_rfile(evidence.id, caseid=evidence.case_id)
+    delete_rfile(evidence)
     call_modules_hook('on_postload_evidence_delete', data=evidence.id, caseid=evidence.case_id)
     track_activity(f'deleted evidence "{evidence.filename}" from registry', evidence.case_id)
