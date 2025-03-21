@@ -18,7 +18,6 @@
 
 import datetime
 from flask_login import current_user
-from sqlalchemy import and_
 from sqlalchemy import desc
 from flask_sqlalchemy.pagination import Pagination
 
