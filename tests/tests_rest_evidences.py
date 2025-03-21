@@ -271,3 +271,12 @@ class TestsRestEvidences(TestCase):
         identifier = response['id']
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_get_evidence_should_return_404_after_it_has_been_deleted(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(404, response.status_code)

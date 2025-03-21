@@ -38,6 +38,7 @@ from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
 from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
+from app.business.evidences import evidences_delete
 from app.models.models import CaseReceivedFile
 
 
@@ -125,7 +126,9 @@ def update_evidence(case_identifier, identifier):
 
 @case_evidences_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
-def delete_asset(case_identifier, identifier):
+def delete_evidence(case_identifier, identifier):
+    evidence = evidences_get(identifier)
+    evidences_delete(evidence)
     return response_api_deleted()
 
 
