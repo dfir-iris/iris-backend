@@ -283,6 +283,9 @@ def set_ioc_links(ioc_list, asset_id):
     # Reset IOC list
     delete_ioc_asset_link(asset_id)
 
+    # Ensure that each ioc is unique
+    ioc_list = list(set(ioc_list))
+
     for ioc in ioc_list:
         ial = IocAssetLink()
         ial.asset_id = asset_id
