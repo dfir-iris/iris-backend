@@ -234,7 +234,6 @@ if authentication_type == 'oidc_proxy':
     except Exception as e:
         logger.error(f"OIDC ERROR - {e}")
         exit(0)
-        pass
     else:
         logger.info("OIDC configuration properly parsed")
 
