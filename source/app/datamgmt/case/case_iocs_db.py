@@ -15,17 +15,17 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
 from flask_login import current_user
 from sqlalchemy import and_
 
 from app import db
 from app import app
+from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_ioc_state
-from app.datamgmt.conversions import convert_sort_direction
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
-from app.models.cases import Cases
-from app.models.models import Client
+from app.models.alerts import Alert
+from app.models.cases import Cases, CasesEvent
+from app.models.models import Client, CaseAssets
 from app.models.models import Comments
 from app.models.models import Ioc
 from app.models.models import IocComments
@@ -35,6 +35,16 @@ from app.models.authorization import User
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import CaseAccessLevel
 from app.models.pagination_parameters import PaginationParameters
+
+log = app.logger
+
+relationship_model_map = {
+    'case': Cases,
+    'assets': CaseAssets,
+    'tlp': Tlp,
+    'events': CasesEvent,
+    'alerts': Alert
+}
 
 
 def get_iocs(case_identifier) -> list[Ioc]:
@@ -167,7 +177,7 @@ def get_ioc_types_list():
     return l_types
 
 
-def add_ioc_type(name:str, description:str, taxonomy:str):
+def add_ioc_type(name: str, description: str, taxonomy: str):
     ioct = IocType(type_name=name,
                    type_description=description,
                    type_taxonomy=taxonomy
@@ -292,76 +302,15 @@ def user_list_cases_view(user_id):
     return [r.case_id for r in res]
 
 
-def _build_filter_ioc_query(
+def get_filtered_iocs(
         caseid: int = None,
-        ioc_type_id: int = None,
-        ioc_type: str = None,
-        ioc_tlp_id: int = None,
-        ioc_value: str = None,
-        ioc_description: str = None,
-        ioc_tags: str = None,
-        sort_by=None,
-        sort_dir='asc'):
+        pagination_parameters: PaginationParameters = None,
+        request_parameters: dict = None
+    ):
     """
     Get a list of iocs from the database, filtered by the given parameters
     """
 
-    conditions = []
-    if ioc_type_id is not None:
-        conditions.append(Ioc.ioc_type_id == ioc_type_id)
+    base_filter = Ioc.case_id == caseid if caseid is not None else None
+    return get_filtered_data(Ioc, base_filter, pagination_parameters, request_parameters, relationship_model_map)
 
-    if ioc_type is not None:
-        conditions.append(Ioc.ioc_type == ioc_type)
-
-    if ioc_tlp_id is not None:
-        conditions.append(Ioc.ioc_tlp_id == ioc_tlp_id)
-
-    if ioc_value is not None:
-        conditions.append(Ioc.ioc_value == ioc_value)
-
-    if ioc_description is not None:
-        conditions.append(Ioc.ioc_description == ioc_description)
-
-    if ioc_tags is not None:
-        conditions.append(Ioc.ioc_tags == ioc_tags)
-
-    if caseid is not None:
-        conditions.append(Ioc.case_id == caseid)
-
-    query = Ioc.query.filter(*conditions)
-
-    if sort_by is not None:
-        order_func = convert_sort_direction(sort_dir)
-
-        if sort_by == 'opened_by':
-            query = query.join(User, Ioc.user_id == User.id).order_by(order_func(User.name))
-
-        elif hasattr(Ioc, sort_by):
-            query = query.order_by(order_func(getattr(Ioc, sort_by)))
-
-    return query
-
-
-def get_filtered_iocs(
-        pagination_parameters: PaginationParameters,
-        caseid: int = None,
-        ioc_type_id: int = None,
-        ioc_type: str = None,
-        ioc_tlp_id: int = None,
-        ioc_value: str = None,
-        ioc_description: str = None,
-        ioc_tags: str = None
-        ):
-
-    query = _build_filter_ioc_query(caseid=caseid, ioc_type_id=ioc_type_id, ioc_type=ioc_type, ioc_tlp_id=ioc_tlp_id, ioc_value=ioc_value,
-                                    ioc_description=ioc_description, ioc_tags=ioc_tags,
-                                    sort_by=pagination_parameters.get_order_by(), sort_dir=pagination_parameters.get_direction())
-
-    try:
-        filtered_iocs = query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page(), error_out=False)
-
-    except Exception as e:
-        app.logger.exception(f"Error getting cases: {str(e)}")
-        return None
-
-    return filtered_iocs

@@ -27,12 +27,12 @@ from app.models.models import ObjectState
 def _update_object_state(object_name, caseid, userid=None) -> ObjectState:
     """
     Expects a db commit soon after
-    
+
     Args:
         object_name: name of the object to update
         caseid: case id
         userid: user id
-        
+
     Returns:
         ObjectState object
     """

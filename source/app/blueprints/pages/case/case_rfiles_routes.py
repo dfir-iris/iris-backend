@@ -55,7 +55,7 @@ def case_edit_rfile_modal(cur_id, caseid, url_redir):
     if url_redir:
         return redirect(url_for('case_rfiles.case_rfile', cid=caseid, redirect=True))
 
-    crf = get_rfile(cur_id, caseid)
+    crf = get_rfile(cur_id)
     if not crf:
         return response_error("Invalid evidence ID for this case")
 
@@ -80,7 +80,7 @@ def case_comment_evidence_modal(cur_id, caseid, url_redir):
     if url_redir:
         return redirect(url_for('case_task.case_task', cid=caseid, redirect=True))
 
-    evidence = get_rfile(cur_id, caseid=caseid)
+    evidence = get_rfile(cur_id)
     if not evidence:
         return response_error('Invalid evidence ID')
 

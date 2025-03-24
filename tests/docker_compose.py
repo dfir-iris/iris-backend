@@ -30,8 +30,9 @@ class DockerCompose:
     def start(self):
         subprocess.check_call(_DOCKER_COMPOSE + ['-f', self._docker_compose_file, 'up', '--detach'], cwd=self._docker_compose_path)
 
-    def extract_all_logs(self):
-        return subprocess.check_output(_DOCKER_COMPOSE + ['-f', self._docker_compose_file, 'logs', '--no-color'], cwd=self._docker_compose_path, universal_newlines=True)
+    def extract_logs(self, service):
+        return subprocess.check_output(_DOCKER_COMPOSE + ['-f', self._docker_compose_file, 'logs', '--no-color', service],
+                                       cwd=self._docker_compose_path, universal_newlines=True)
 
     def stop(self):
         subprocess.check_call(_DOCKER_COMPOSE + ['-f', self._docker_compose_file, 'down', '--volumes'], cwd=self._docker_compose_path)

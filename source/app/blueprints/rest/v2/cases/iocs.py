@@ -16,10 +16,10 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import logging as log
 from flask import Blueprint
 from flask import request
 
+from app.logger import logger
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -27,7 +27,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
-from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.blueprints.rest.parsing import parse_pagination_parameters, parse_fields_parameters
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.iocs import iocs_create
@@ -39,6 +39,7 @@ from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import IocSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.models.models import Ioc
 
 case_iocs_blueprint = Blueprint('case_ioc_rest_v2',
                                 __name__,
@@ -49,34 +50,30 @@ case_iocs_blueprint = Blueprint('case_ioc_rest_v2',
 @ac_api_requires()
 def get_case_iocs(case_identifier):
 
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
+    try:
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
 
-    pagination_parameters = parse_pagination_parameters(request)
+        pagination_parameters = parse_pagination_parameters(request)
+        fields = parse_fields_parameters(request)
 
-    ioc_type_id = request.args.get('ioc_type_id', None, type=int)
-    ioc_type = request.args.get('ioc_type', None, type=str)
-    ioc_tlp_id = request.args.get('ioc_tlp_id', None, type=int)
-    ioc_value = request.args.get('ioc_value', None, type=str)
-    ioc_description = request.args.get('ioc_description', None, type=str)
-    ioc_tags = request.args.get('ioc_tags', None, type=str)
+        filtered_iocs = get_filtered_iocs(
+            case_identifier,
+            pagination_parameters,
+            request.args.to_dict()
+        )
 
-    filtered_iocs = get_filtered_iocs(
-        pagination_parameters,
-        caseid=case_identifier,
-        ioc_type_id=ioc_type_id,
-        ioc_type=ioc_type,
-        ioc_tlp_id=ioc_tlp_id,
-        ioc_value=ioc_value,
-        ioc_description=ioc_description,
-        ioc_tags=ioc_tags
-    )
+        if fields:
+            iocs_schema = IocSchemaForAPIV2(only=fields)
+        else:
+            iocs_schema = IocSchemaForAPIV2()
 
-    if filtered_iocs is None:
-        return response_api_error('Filtering error')
+        return response_api_paginated(iocs_schema, filtered_iocs)
 
-    iocs_schema = IocSchemaForAPIV2()
-    return response_api_paginated(iocs_schema, filtered_iocs)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message())
 
 
 @case_iocs_blueprint.post('')
@@ -92,7 +89,7 @@ def add_ioc_to_case(case_identifier):
         ioc, _ = iocs_create(request.get_json(), case_identifier)
         return response_api_created(ioc_schema.dump(ioc))
     except BusinessProcessingError as e:
-        log.error(e)
+        logger.error(e)
         return response_api_error(e.get_message())
 
 
@@ -104,8 +101,7 @@ def delete_case_ioc(case_identifier, identifier):
         ioc = iocs_get(identifier)
         if not ac_fast_check_current_user_has_case_access(ioc.case_id, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=ioc.case_id)
-        if ioc.case_id != case_identifier:
-            raise ObjectNotFoundError()
+        _check_ioc_and_case_identifier_match(ioc, case_identifier)
 
         iocs_delete(ioc)
         return response_api_deleted()
@@ -125,8 +121,7 @@ def get_case_ioc(case_identifier, identifier):
         ioc = iocs_get(identifier)
         if not ac_fast_check_current_user_has_case_access(ioc.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=ioc.case_id)
-        if ioc.case_id != case_identifier:
-            raise ObjectNotFoundError()
+        _check_ioc_and_case_identifier_match(ioc, case_identifier)
 
         return response_api_success(ioc_schema.dump(ioc))
     except ObjectNotFoundError:
@@ -140,9 +135,9 @@ def update_ioc(case_identifier, identifier):
     ioc_schema = IocSchemaForAPIV2()
     try:
         ioc = iocs_get(identifier)
-        if not ac_fast_check_current_user_has_case_access(ioc.case_id,
-                                                          [CaseAccessLevel.full_access]):
+        if not ac_fast_check_current_user_has_case_access(ioc.case_id, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=ioc.case_id)
+        _check_ioc_and_case_identifier_match(ioc, case_identifier)
 
         ioc, _ = iocs_update(ioc, request.get_json())
         return response_api_success(ioc_schema.dump(ioc))
@@ -152,3 +147,8 @@ def update_ioc(case_identifier, identifier):
 
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+
+def _check_ioc_and_case_identifier_match(ioc: Ioc, case_identifier):
+    if ioc.case_id != case_identifier:
+        raise ObjectNotFoundError

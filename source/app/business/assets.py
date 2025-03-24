@@ -43,6 +43,7 @@ from app.datamgmt.case.case_assets_db import delete_asset
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import CaseAssetsSchema
+from app.util import add_obj_history_entry
 
 
 def _load(request_data, **kwargs):
@@ -67,6 +68,9 @@ def assets_create(case_identifier, request_json):
         if errors:
             raise BusinessProcessingError('Encountered errors while linking IOC. Asset has still been created.')
     asset = call_modules_hook('on_postload_asset_create', data=asset, caseid=case_identifier)
+
+    add_obj_history_entry(asset, 'created')
+
     if asset:
         track_activity(f'added asset "{asset.asset_name}"', caseid=case_identifier)
         return 'Asset added', asset
@@ -138,24 +142,31 @@ def get_assets_case(case_identifier):
     return ret
 
 
-def assets_filter(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+def assets_filter(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:
     if not cases_exists(case_identifier):
         raise ObjectNotFoundError()
-    return filter_assets(case_identifier, pagination_parameters)
+
+    try:
+        pagination = filter_assets(case_identifier, pagination_parameters, request_parameters)
+
+        return pagination
+    except Exception as e:
+        raise BusinessProcessingError(str(e))
 
 
-def assets_update(asset: CaseAssets, request_json):
+def assets_update(asset: CaseAssets, request_json: dict):
     caseid = asset.case_id
     request_data = call_modules_hook('on_preload_asset_update', data=request_json, caseid=caseid)
 
     request_data['asset_id'] = asset.asset_id
 
-    asset_schema = _load(request_data, instance=asset)
+    asset_schema = _load(request_data, instance=asset, partial=True)
 
     if case_assets_db_exists(asset_schema):
         raise BusinessProcessingError('Data error', data='Asset with same value and type already exists')
 
     update_assets_state(caseid=caseid)
+    add_obj_history_entry(asset, 'updated')
     db.session.commit()
 
     if hasattr(asset_schema, 'ioc_links'):

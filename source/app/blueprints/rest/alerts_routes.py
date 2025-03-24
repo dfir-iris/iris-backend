@@ -21,12 +21,13 @@ import marshmallow
 from datetime import datetime
 from flask import Blueprint
 from flask import request
+from flask import current_app
 from flask_login import current_user
 from typing import List
 from werkzeug import Response
 
-import app
 from app import db
+from app import socket_io
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.case_comments import case_comment_update
@@ -160,7 +161,7 @@ def alerts_list_route() -> Response:
         )
 
     except Exception as e:
-        app.app.logger.exception(e)
+        current_app.logger.exception(e)
         return response_error(str(e))
 
     if filtered_alerts is None:
@@ -171,7 +172,7 @@ def alerts_list_route() -> Response:
         try:
             alert_schema = AlertSchema(only=fields)
         except Exception as e:
-            app.app.logger.exception(f"Error selecting fields in AlertSchema: {str(e)}")
+            current_app.logger.exception(f"Error selecting fields in AlertSchema: {str(e)}")
             alert_schema = AlertSchema()
     else:
         alert_schema = AlertSchema()
@@ -242,13 +243,13 @@ def alerts_add_route() -> Response:
                             creation_date=new_alert.alert_source_event_time)
 
         #register_related_alerts(new_alert, assets_list=assets, iocs_list=iocs)
-        
+
         new_alert = call_modules_hook('on_postload_alert_create', data=new_alert)
 
         track_activity(f"created alert #{new_alert.alert_id} - {new_alert.alert_title}", ctx_less=True)
 
         # Emit a socket io event
-        app.socket_io.emit('new_alert', json.dumps({
+        socket_io.emit('new_alert', json.dumps({
             'alert_id': new_alert.alert_id
         }), namespace='/alerts')
 
@@ -256,7 +257,7 @@ def alerts_add_route() -> Response:
         return response_success(data=alert_schema.dump(new_alert))
 
     except Exception as e:
-        app.app.logger.exception(e)
+        current_app.logger.exception(e)
         # Handle any errors during deserialization or DB operations
         return response_error(str(e))
 
@@ -661,7 +662,7 @@ def alerts_escalate_route(alert_id) -> Response:
 
     except Exception as e:
 
-        app.logger.exception(e)
+        current_app.logger.exception(e)
 
         # Handle any errors during deserialization or DB operations
         return response_error(str(e))
@@ -730,7 +731,7 @@ def alerts_merge_route(alert_id) -> Response:
         return response_success(data=CaseSchema().dump(case))
 
     except Exception as e:
-        app.app.logger.exception(e)
+        current_app.logger.exception(e)
         # Handle any errors during deserialization or DB operations
         return response_error(str(e))
 
@@ -864,7 +865,7 @@ def alerts_batch_merge_route() -> Response:
         return response_success(data=CaseSchema().dump(case))
 
     except Exception as e:
-        app.app.logger.exception(e)
+        current_app.logger.exception(e)
         # Handle any errors during deserialization or DB operations
         return response_error(str(e))
 
@@ -940,10 +941,9 @@ def alerts_batch_escalate_route() -> Response:
         return response_success(data=CaseSchema().dump(case))
 
     except Exception as e:
-        app.app.logger.exception(e)
+        current_app.logger.exception(e)
         # Handle any errors during deserialization or DB operations
         return response_error(str(e))
-
 
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>/comments/list', methods=['GET'])

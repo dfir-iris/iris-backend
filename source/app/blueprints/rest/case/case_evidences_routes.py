@@ -25,15 +25,14 @@ from flask_login import current_user
 
 from app import db
 from app.blueprints.rest.case_comments import case_comment_update
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
-from app.datamgmt.case.case_rfiles_db import add_rfile
 from app.datamgmt.case.case_rfiles_db import delete_evidence_comment
 from app.datamgmt.case.case_rfiles_db import delete_rfile
 from app.datamgmt.case.case_rfiles_db import get_case_evidence_comment
 from app.datamgmt.case.case_rfiles_db import get_case_evidence_comments
 from app.datamgmt.case.case_rfiles_db import get_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfiles
-from app.datamgmt.case.case_rfiles_db import update_rfile
 from app.datamgmt.states import get_evidences_state
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -44,11 +43,16 @@ from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.business.evidences import evidences_create
+from app.business.evidences import evidences_update
+from app.business.errors import BusinessProcessingError
+
 
 case_evidences_rest_blueprint = Blueprint('case_evidences_rest', __name__)
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/evidences')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_list_rfiles(caseid):
@@ -73,39 +77,25 @@ def case_rfiles_state(caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/evidences')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_add_rfile(caseid):
     try:
-        # validate before saving
+        evidence = evidences_create(caseid, request.get_json())
         evidence_schema = CaseEvidenceSchema()
+        return response_success('Evidence added', data=evidence_schema.dump(evidence))
 
-        request_data = call_modules_hook('on_preload_evidence_create', data=request.get_json(), caseid=caseid)
-
-        evidence = evidence_schema.load(request_data)
-
-        crf = add_rfile(evidence=evidence,
-                        user_id=current_user.id,
-                        caseid=caseid
-                        )
-
-        crf = call_modules_hook('on_postload_evidence_create', data=crf, caseid=caseid)
-
-        if crf:
-            track_activity(f"added evidence \"{crf.filename}\"", caseid=caseid)
-            return response_success("Evidence added", data=evidence_schema.dump(crf))
-
-        return response_error("Unable to create task for internal reasons")
-
-    except marshmallow.exceptions.ValidationError as e:
-        return response_error(msg="Data error", data=e.messages)
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/evidences/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_get_evidence(cur_id, caseid):
-    crf = get_rfile(cur_id, caseid)
+    crf = get_rfile(cur_id)
     if not crf:
         return response_error("Invalid evidence ID for this case")
 
@@ -114,37 +104,25 @@ def case_get_evidence(cur_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/evidences/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_edit_rfile(cur_id, caseid):
     try:
-        # validate before saving
-        evidence_schema = CaseEvidenceSchema()
-
-        request_data = call_modules_hook('on_preload_evidence_update', data=request.get_json(), caseid=caseid)
-
-        crf = get_rfile(cur_id, caseid)
+        crf = get_rfile(cur_id)
         if not crf:
-            return response_error("Invalid evidence ID for this case")
+            return response_error('Invalid evidence ID for this case')
 
-        request_data['id'] = cur_id
-        evidence = evidence_schema.load(request_data, instance=crf)
+        evd = evidences_update(crf, request.get_json())
 
-        evd = update_rfile(evidence=evidence,
-                           user_id=current_user.id,
-                           caseid=caseid
-                           )
-
-        evd = call_modules_hook('on_postload_evidence_update', data=evd, caseid=caseid)
-
-        if evd:
-            track_activity(f"updated evidence \"{evd.filename}\"", caseid=caseid)
-            return response_success("Evidence {} updated".format(evd.filename), data=evidence_schema.dump(evd))
-
-        return response_error("Unable to update task for internal reasons")
+        evidence_schema = CaseEvidenceSchema()
+        return response_success(f'Evidence {evd.filename} updated', data=evidence_schema.dump(evd))
 
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
+
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/delete/<int:cur_id>', methods=['POST'])
@@ -152,7 +130,7 @@ def case_edit_rfile(cur_id, caseid):
 @ac_api_requires()
 def case_delete_rfile(cur_id, caseid):
     call_modules_hook('on_preload_evidence_delete', data=cur_id, caseid=caseid)
-    crf = get_rfile(cur_id, caseid)
+    crf = get_rfile(cur_id)
     if not crf:
         return response_error("Invalid evidence ID for this case")
 
@@ -181,7 +159,7 @@ def case_comment_evidence_list(cur_id, caseid):
 @ac_api_requires()
 def case_comment_evidence_add(cur_id, caseid):
     try:
-        evidence = get_rfile(cur_id, caseid=caseid)
+        evidence = get_rfile(cur_id)
         if not evidence:
             return response_error('Invalid evidence ID')
 

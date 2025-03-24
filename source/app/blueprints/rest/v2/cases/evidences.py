@@ -1,0 +1,127 @@
+#  IRIS Source Code
+#  Copyright (C) 2024 - DFIR-IRIS
+#  contact@dfir-iris.org
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 3 of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#  Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+from flask import Blueprint
+from flask import request
+
+from app.blueprints.access_controls import ac_api_requires
+from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.models.authorization import CaseAccessLevel
+from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
+from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_paginated
+from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_not_found
+from app.business.cases import cases_exists
+from app.schema.marshables import CaseEvidenceSchema
+from app.business.evidences import evidences_create
+from app.business.evidences import evidences_get
+from app.business.evidences import evidences_update
+from app.business.evidences import evidences_filter
+from app.models.models import CaseReceivedFile
+
+
+case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
+
+
+@case_evidences_blueprint.get('')
+@ac_api_requires()
+def get_evidences(case_identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
+
+    pagination_parameters = parse_pagination_parameters(request, default_order_by='date_added', default_direction='desc')
+    try:
+        evidences = evidences_filter(case_identifier, pagination_parameters)
+
+        evidence_schema = CaseEvidenceSchema()
+        return response_api_paginated(evidence_schema, evidences)
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_evidences_blueprint.post('')
+@ac_api_requires()
+def create_evidence(case_identifier):
+
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
+
+    try:
+        evidence = evidences_create(case_identifier, request.get_json())
+
+        evidence_schema = CaseEvidenceSchema()
+        return response_api_created(evidence_schema.dump(evidence))
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_evidences_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_evidence(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    try:
+        evidence = evidences_get(identifier)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
+
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
+
+        evidence_schema = CaseEvidenceSchema()
+        return response_api_success(evidence_schema.dump(evidence))
+    except ObjectNotFoundError:
+        return response_api_not_found()
+
+
+@case_evidences_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_evidence(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    try:
+        evidence = evidences_get(identifier)
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
+
+        evidence = evidences_update(evidence, request.get_json())
+
+        schema = CaseEvidenceSchema()
+        result = schema.dump(evidence)
+        return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+
+def _check_evidence_and_case_identifier_match(evidence: CaseReceivedFile, case_identifier):
+    if evidence.case_id != case_identifier:
+        raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')

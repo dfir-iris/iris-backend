@@ -1,6 +1,8 @@
 from flask import Blueprint
 
 from app.blueprints.rest.v2.auth import auth_blueprint
+from app.blueprints.rest.v2.manage import manage_v2_blueprint
+from app.blueprints.rest.v2.tags import tags_blueprint
 from app.blueprints.rest.v2.tasks import tasks_blueprint
 from app.blueprints.rest.v2.iocs import iocs_blueprint
 from app.blueprints.rest.v2.assets import assets_blueprint
@@ -21,3 +23,5 @@ rest_v2_blueprint.register_blueprint(iocs_blueprint)
 rest_v2_blueprint.register_blueprint(assets_blueprint)
 rest_v2_blueprint.register_blueprint(alerts_blueprint)
 rest_v2_blueprint.register_blueprint(dashboard_blueprint)
+rest_v2_blueprint.register_blueprint(manage_v2_blueprint)
+rest_v2_blueprint.register_blueprint(tags_blueprint)
