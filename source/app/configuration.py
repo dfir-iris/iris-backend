@@ -61,7 +61,7 @@ class IrisConfig(configparser.ConfigParser):
             }
         }
 
-        for section, keys in required_values.items():
+        for section, in required_values.items():
             if section not in self:
                 raise IrisConfigException(
                     'Missing section %s in the configuration file' % section)
