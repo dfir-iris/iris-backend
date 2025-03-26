@@ -30,6 +30,7 @@ from sqlalchemy import and_
 from app import db
 from app import app
 from app.blueprints.rest.case_comments import case_comment_update
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.datamgmt.case.case_assets_db import get_asset_by_name
 from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.datamgmt.case.case_events_db import get_category_by_name
@@ -743,6 +744,7 @@ def case_edit_event(cur_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/events')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_add_event(caseid):
