@@ -71,6 +71,8 @@ from app.blueprints.access_controls import ac_api_requires
 from app.util import add_obj_history_entry
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.business.errors import BusinessProcessingError
+from app.business.events import events_create
 
 case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 
@@ -793,6 +795,26 @@ def case_add_event(caseid):
 
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
+
+@case_timeline_rest_blueprint.route('/case/timeline/events/add', methods=['POST'])
+@ac_requires_case_identifier(CaseAccessLevel.full_access)
+@ac_api_requires()
+def case_add_event(caseid):
+    request_json = request.get_json()
+    try:
+        event = events_create(caseid, request_json)
+        event_schema = EventSchema()
+        event_dump = event_schema.dump(event)
+        collab_notify(case_id=caseid,
+                      object_type='events',
+                      action_type='updated',
+                      object_id=event.event_id,
+                      object_data=event_dump)
+
+        return response_success('Event added', data=event_schema.dump(event))
+
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/duplicate/<int:cur_id>', methods=['GET'])
