@@ -23,10 +23,13 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
 from app.business.cases import cases_exists
+from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.models.authorization import CaseAccessLevel
 
 
 case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/<int:case_identifier>/events')
@@ -37,6 +40,8 @@ case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/
 def create_evidence(case_identifier):
     if not cases_exists(case_identifier):
         return response_api_not_found()
+    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
 
     try:
         event = events_create(case_identifier, request.get_json())

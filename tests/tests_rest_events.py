@@ -60,3 +60,13 @@ class TestsRestEvents(TestCase):
                 'event_assets': [], 'event_iocs': []}
         response = self._subject.create(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/events', body)
         self.assertEqual(404, response.status_code)
+
+    def test_create_event_should_return_403_when_user_has_no_permission_to_access_case(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        user = self._subject.create_dummy_user()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = user.create(f'/api/v2/cases/{case_identifier}/events', body)
+        self.assertEqual(403, response.status_code)
