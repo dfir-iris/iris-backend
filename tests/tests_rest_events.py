@@ -30,7 +30,9 @@ class TestsRestEvents(TestCase):
 
     def test_create_event_should_return_201(self):
         case_identifier = self._subject.create_dummy_case()
-        body = {}
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
         self.assertEqual(201, response.status_code)
 
@@ -41,3 +43,11 @@ class TestsRestEvents(TestCase):
                 'event_assets': [], 'event_iocs': []}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
         self.assertEqual('title', response['event_title'])
+
+    def test_create_evidence_should_return_400_when_field_event_title_is_missing(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
+        self.assertEqual(400, response.status_code)

@@ -309,7 +309,6 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
         identifier = response['id']
-        body = {'filename': 'filename2'}
         case_identifier2 = self._subject.create_dummy_case()
         response = self._subject.delete(f'/api/v2/cases/{case_identifier2}/evidences/{identifier}')
         self.assertEqual(400, response.status_code)

@@ -19,7 +19,7 @@
 from datetime import datetime
 
 from flask_login import current_user
-import marshmallow
+from marshmallow.exceptions import ValidationError
 
 from app import db
 from app.models.cases import CasesEvent
@@ -34,55 +34,59 @@ from app.datamgmt.case.case_events_db import update_event_iocs
 from app.iris_engine.utils.tracker import track_activity
 
 
-def events_create(case_identifier, request_json) -> CasesEvent:
+def _load(request_data, **kwargs):
     try:
-        request_data = call_modules_hook('on_preload_event_create', data=request_json, caseid=case_identifier)
-
-        event_schema = EventSchema()
-        event = event_schema.load(request_data)
-
-        # TODO this should probably rather be done in the API layer
-        event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
-                                                                            request_data.get(u'event_tz'))
-
-        event.case_id = case_identifier
-        event.event_added = datetime.utcnow()
-        event.user_id = current_user.id
-
-        add_obj_history_entry(event, 'created')
-
-        db.session.add(event)
-        update_timeline_state(caseid=case_identifier)
-        db.session.commit()
-
-        save_event_category(event.event_id, request_data.get('event_category_id'))
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-        if request_data.get('event_sync_iocs_assets'):
-            sync_iocs_assets = request_data.get('event_sync_iocs_assets')
-        else:
-            sync_iocs_assets = False
-
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=case_identifier,
-                                           assets_list=request_data.get('event_assets'),
-                                           iocs_list=request_data.get('event_iocs'),
-                                           sync_iocs_assets=sync_iocs_assets)
-        if not success:
-            raise BusinessProcessingError('Error while saving linked assets', data=log)
-
-        success, log = update_event_iocs(event_id=event.event_id,
-                                         caseid=case_identifier,
-                                         iocs_list=request_data.get('event_iocs'))
-        if not success:
-            raise BusinessProcessingError('Error while saving linked iocs', data=log)
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-
-        event = call_modules_hook('on_postload_event_create', data=event, caseid=case_identifier)
-
-        track_activity(f"added event \"{event.event_title}\"", caseid=case_identifier)
-        return event
-
-    except marshmallow.exceptions.ValidationError as e:
+        evidence_schema = EventSchema()
+        return evidence_schema.load(request_data, **kwargs)
+    except ValidationError as e:
         raise BusinessProcessingError('Data error', data=e.normalized_messages())
+
+
+def events_create(case_identifier, request_json) -> CasesEvent:
+    request_data = call_modules_hook('on_preload_event_create', data=request_json, caseid=case_identifier)
+
+    event = _load(request_data)
+
+    # TODO this should probably rather be done in the API layer
+    event_schema = EventSchema()
+    event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
+                                                                        request_data.get(u'event_tz'))
+
+    event.case_id = case_identifier
+    event.event_added = datetime.utcnow()
+    event.user_id = current_user.id
+
+    add_obj_history_entry(event, 'created')
+
+    db.session.add(event)
+    update_timeline_state(caseid=case_identifier)
+    db.session.commit()
+
+    save_event_category(event.event_id, request_data.get('event_category_id'))
+
+    setattr(event, 'event_category_id', request_data.get('event_category_id'))
+    if request_data.get('event_sync_iocs_assets'):
+        sync_iocs_assets = request_data.get('event_sync_iocs_assets')
+    else:
+        sync_iocs_assets = False
+
+    success, log = update_event_assets(event_id=event.event_id,
+                                       caseid=case_identifier,
+                                       assets_list=request_data.get('event_assets'),
+                                       iocs_list=request_data.get('event_iocs'),
+                                       sync_iocs_assets=sync_iocs_assets)
+    if not success:
+        raise BusinessProcessingError('Error while saving linked assets', data=log)
+
+    success, log = update_event_iocs(event_id=event.event_id,
+                                     caseid=case_identifier,
+                                     iocs_list=request_data.get('event_iocs'))
+    if not success:
+        raise BusinessProcessingError('Error while saving linked iocs', data=log)
+
+    setattr(event, 'event_category_id', request_data.get('event_category_id'))
+
+    event = call_modules_hook('on_postload_event_create', data=event, caseid=case_identifier)
+
+    track_activity(f'added event "{event.event_title}"', caseid=case_identifier)
+    return event
