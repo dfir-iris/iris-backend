@@ -746,60 +746,6 @@ def case_edit_event(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_add_event(caseid):
-    try:
-
-        event_schema = EventSchema()
-        request_data = call_modules_hook('on_preload_event_create', data=request.get_json(), caseid=caseid)
-
-        event = event_schema.load(request_data)
-
-        event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
-                                                                            request_data.get(u'event_tz'))
-
-        event.case_id = caseid
-        event.event_added = datetime.utcnow()
-        event.user_id = current_user.id
-
-        add_obj_history_entry(event, 'created')
-
-        db.session.add(event)
-        update_timeline_state(caseid=caseid)
-        db.session.commit()
-
-        save_event_category(event.event_id, request_data.get('event_category_id'))
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-        sync_iocs_assets = request_data.get('event_sync_iocs_assets') if request_data.get(
-            'event_sync_iocs_assets') else False
-
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=caseid,
-                                           assets_list=request_data.get('event_assets'),
-                                           iocs_list=request_data.get('event_iocs'),
-                                           sync_iocs_assets=sync_iocs_assets)
-        if not success:
-            return response_error('Error while saving linked assets', data=log)
-
-        success, log = update_event_iocs(event_id=event.event_id,
-                                         caseid=caseid,
-                                         iocs_list=request_data.get('event_iocs'))
-        if not success:
-            return response_error('Error while saving linked iocs', data=log)
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-
-        event = call_modules_hook('on_postload_event_create', data=event, caseid=caseid)
-
-        track_activity(f"added event \"{event.event_title}\"", caseid=caseid)
-        return response_success("Event added", data=event_schema.dump(event))
-
-    except marshmallow.exceptions.ValidationError as e:
-        return response_error(msg="Data error", data=e.normalized_messages())
-
-@case_timeline_rest_blueprint.route('/case/timeline/events/add', methods=['POST'])
-@ac_requires_case_identifier(CaseAccessLevel.full_access)
-@ac_api_requires()
-def case_add_event(caseid):
     request_json = request.get_json()
     try:
         event = events_create(caseid, request_json)
