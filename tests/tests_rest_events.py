@@ -19,6 +19,8 @@
 from unittest import TestCase
 from iris import Iris
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestEvents(TestCase):
 
@@ -44,10 +46,17 @@ class TestsRestEvents(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
         self.assertEqual('title', response['event_title'])
 
-    def test_create_evidence_should_return_400_when_field_event_title_is_missing(self):
+    def test_create_event_should_return_400_when_field_event_title_is_missing(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'event_category_id': 1,
                 'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
                 'event_assets': [], 'event_iocs': []}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
         self.assertEqual(400, response.status_code)
+
+    def test_create_event_should_return_404_when_case_is_missing(self):
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/events', body)
+        self.assertEqual(404, response.status_code)

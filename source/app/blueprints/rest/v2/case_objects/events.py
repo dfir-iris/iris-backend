@@ -22,9 +22,11 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.business.events import events_create
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
+from app.business.cases import cases_exists
 
 
 case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/<int:case_identifier>/events')
@@ -33,6 +35,9 @@ case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/
 @case_events_blueprint.post('')
 @ac_api_requires()
 def create_evidence(case_identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
     try:
         event = events_create(case_identifier, request.get_json())
         schema = EventSchema()
