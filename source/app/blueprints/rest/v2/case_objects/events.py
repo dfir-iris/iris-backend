@@ -17,9 +17,12 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.business.events import events_create
+from app.schema.marshables import EventSchema
 
 
 case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/<int:case_identifier>/events')
@@ -28,4 +31,6 @@ case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/
 @case_events_blueprint.post('')
 @ac_api_requires()
 def create_evidence(case_identifier):
-    return response_api_created(None)
+    event = events_create(case_identifier, request.get_json())
+    schema = EventSchema()
+    return response_api_created(schema.dump(event))
