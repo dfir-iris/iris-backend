@@ -713,11 +713,8 @@ def case_edit_event(cur_id, caseid):
 
         setattr(event, 'event_category_id', request_data.get('event_category_id'))
 
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=caseid,
-                                           assets_list=request_data.get('event_assets'),
-                                           iocs_list=request_data.get('event_iocs'),
-                                           sync_iocs_assets=request_data.get('event_sync_iocs_assets'))
+        success, log = update_event_assets(event.event_id, caseid, request_data.get('event_assets'),
+                                           request_data.get('event_iocs'), request_data.get('event_sync_iocs_assets'))
         if not success:
             return response_error('Error while saving linked assets', data=log)
 
@@ -805,11 +802,7 @@ def case_duplicate_event(cur_id, caseid):
         iocs_list = get_event_iocs_ids(old_event.event_id, caseid)
         # Update assets mapping
         assets_list = get_event_assets_ids(old_event.event_id, caseid)
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=caseid,
-                                           assets_list=assets_list,
-                                           iocs_list=iocs_list,
-                                           sync_iocs_assets=False)
+        success, log = update_event_assets(event.event_id, caseid, assets_list, iocs_list, False)
         if not success:
             return response_error('Error while saving linked assets', data=log)
 
@@ -993,11 +986,8 @@ def case_events_upload_csv(caseid):
 
             setattr(event, 'event_category_id', request_data.get('event_category_id'))
 
-            success, log = update_event_assets(event_id=event.event_id,
-                                               caseid=caseid,
-                                               assets_list=request_data.get('event_assets'),
-                                               iocs_list=request_data.get('event_iocs'),
-                                               sync_iocs_assets=event_sync_iocs_assets)
+            success, log = update_event_assets(event.event_id, caseid, request_data.get('event_assets'),
+                                               request_data.get('event_iocs'), event_sync_iocs_assets)
             if not success:
                 raise Exception(f'Error while saving linked assets\nlog:{log}')
 

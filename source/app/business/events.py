@@ -69,11 +69,8 @@ def events_create(case_identifier, request_json) -> CasesEvent:
     else:
         sync_iocs_assets = False
 
-    success, log = update_event_assets(event_id=event.event_id,
-                                       caseid=case_identifier,
-                                       assets_list=request_data.get('event_assets'),
-                                       iocs_list=request_data.get('event_iocs'),
-                                       sync_iocs_assets=sync_iocs_assets)
+    success, log = update_event_assets(event.event_id, case_identifier, request_data.get('event_assets'),
+                                       request_data.get('event_iocs'), sync_iocs_assets)
     if not success:
         raise BusinessProcessingError('Error while saving linked assets', data=log)
 

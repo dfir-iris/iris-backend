@@ -441,11 +441,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
 
             event.category = [unspecified_cat]
 
-            update_event_assets(event_id=event.event_id,
-                                caseid=case.case_id,
-                                assets_list=asset_links,
-                                iocs_list=ioc_links,
-                                sync_iocs_assets=False)
+            update_event_assets(event.event_id, case.case_id, asset_links, ioc_links, False)
 
             update_event_iocs(event_id=event.event_id,
                               caseid=case.case_id,
@@ -617,11 +613,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
 
         event.category = [unspecified_cat]
 
-        update_event_assets(event_id=event.event_id,
-                            caseid=case.case_id,
-                            assets_list=asset_links,
-                            iocs_list=ioc_links,
-                            sync_iocs_assets=False)
+        update_event_assets(event.event_id, case.case_id, asset_links, ioc_links, False)
 
         update_event_iocs(event_id=event.event_id,
                           caseid=case.case_id,
@@ -745,11 +737,7 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
 
         event.category = [unspecified_cat]
 
-        update_event_assets(event_id=event.event_id,
-                            caseid=case.case_id,
-                            assets_list=asset_links,
-                            iocs_list=ioc_links,
-                            sync_iocs_assets=False)
+        update_event_assets(event.event_id, case.case_id, asset_links, ioc_links, False)
 
         update_event_iocs(event_id=event.event_id,
                           caseid=case.case_id,
