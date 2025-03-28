@@ -211,7 +211,7 @@ def get_tlps():
 def get_tlps_dict():
     tlpDict = {}
     for tlp in Tlp.query.all():
-        tlpDict[tlp.tlp_name]=tlp.tlp_id 
+        tlpDict[tlp.tlp_name]=tlp.tlp_id
     return tlpDict
 
 
