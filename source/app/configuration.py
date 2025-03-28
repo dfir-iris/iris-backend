@@ -219,7 +219,6 @@ if authentication_type == 'oidc_proxy':
         logger.info("OIDC configuration properly parsed")
 
 
-# --------- CELERY ---------
 class CeleryConfig:
     result_backend = "db+" + SQLALCHEMY_BASE_URI + "iris_tasks"  # use database as storage
     broker_url = CELERY_BROKER_
@@ -339,9 +338,7 @@ class Config:
     else:
         DEVELOPMENT = config.load('DEVELOPMENT', 'IS_DEV_INSTANCE') == "True"
 
-    """
-        Authentication configuration
-    """
+    # Authentication configuration
     TLS_ROOT_CA = tls_root_ca
 
     AUTHENTICATION_TYPE = authentication_type
@@ -447,8 +444,7 @@ class Config:
         OIDC_MAPPING_USERNAME = config.load('OIDC', 'MAPPING_USERNAME', fallback='preferred_username')
         OIDC_MAPPING_EMAIL = config.load('OIDC', 'MAPPING_EMAIL', fallback='email')
 
-    """ Caching
-    """
+    # Caching
     CACHE_TYPE = 'SimpleCache'
     CACHE_DEFAULT_TIMEOUT = 300
 
