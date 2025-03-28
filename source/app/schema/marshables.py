@@ -31,9 +31,9 @@ from marshmallow import EXCLUDE
 from marshmallow import fields
 from marshmallow import post_load
 from marshmallow import pre_load
+from marshmallow.exceptions import ValidationError
 from marshmallow.validate import Length
 from marshmallow_sqlalchemy import auto_field
-from marshmallow.exceptions import ValidationError
 from pathlib import Path
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
