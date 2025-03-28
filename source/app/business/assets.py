@@ -106,42 +106,6 @@ def assets_get_detailed(identifier):
     return data
 
 
-def get_assets_case(case_identifier):
-    assets = get_assets(case_identifier)
-    customer_id = get_case_client_id(case_identifier)
-
-    ret = {'assets': []}
-
-    ioc_links_req = get_assets_ioc_links(case_identifier)
-
-    cache_ioc_link = {}
-    for ioc in ioc_links_req:
-
-        if ioc.asset_id not in cache_ioc_link:
-            cache_ioc_link[ioc.asset_id] = [ioc._asdict()]
-        else:
-            cache_ioc_link[ioc.asset_id].append(ioc._asdict())
-
-    cases_access = get_user_cases_fast(current_user.id)
-
-    for asset in assets:
-        asset = asset._asdict()
-
-        if len(assets) < 300:
-            # Find similar assets from other cases with the same customer
-            asset['link'] = list(get_similar_assets(
-                asset['asset_name'], asset['asset_type_id'], case_identifier, customer_id, cases_access))
-        else:
-            asset['link'] = []
-
-        asset['ioc_links'] = cache_ioc_link.get(asset['asset_id'])
-
-        ret['assets'].append(asset)
-
-    ret['state'] = get_assets_state(case_identifier)
-    return ret
-
-
 def assets_filter(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:
     if not cases_exists(case_identifier):
         raise ObjectNotFoundError()
