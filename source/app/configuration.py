@@ -50,21 +50,11 @@ class IrisConfig(configparser.ConfigParser):
             logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
 
     def validate_config(self):
-        required_values = {
-            'POSTGRES': {
-            },
-            'IRIS': {
-            },
-            'CELERY': {
-            },
-            'DEVELOPMENT': {
-            }
-        }
+        required_sections = ['POSTGRES', 'IRIS', 'CELERY', 'DEVELOPMENT']
 
-        for section, keys in required_values.items():
+        for section in required_sections:
             if section not in self:
-                raise IrisConfigException(
-                    'Missing section %s in the configuration file' % section)
+                raise IrisConfigException(f'Missing section {section} in the configuration file')
 
     def config_key_vault(self):
         """
