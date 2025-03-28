@@ -20,7 +20,8 @@ from functools import reduce
 
 from sqlalchemy import and_
 
-import app
+from app import db
+from app.logger import logger
 from app.models.models import Tags
 from app.datamgmt.conversions import convert_sort_direction
 
@@ -70,7 +71,7 @@ def get_filtered_tags(tag_title=None,
         filtered_tags = data.paginate(page=page, per_page=per_page)
 
     except Exception as e:
-        app.logger.exception(f"Failed to get filtered tags: {e}")
+        logger.exception(f"Failed to get filtered tags: {e}")
         raise e
 
     return filtered_tags
@@ -94,10 +95,10 @@ def add_db_tag(tag_title, tag_namespace=None):
             return existing_tag
 
         tag.save()
-        app.db.session.commit()
+        db.session.commit()
 
     except Exception as e:
-        app.logger.exception(f"Failed to add tag: {e}")
+        logger.exception(f"Failed to add tag: {e}")
         raise e
 
     return tag
