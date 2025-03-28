@@ -24,17 +24,11 @@ from app import db
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
-from app.datamgmt.case.case_db import get_case_client_id
-from app.datamgmt.manage.manage_users_db import get_user_cases_fast
-from app.datamgmt.states import get_assets_state
 from app.datamgmt.states import update_assets_state
 from app.models.models import CaseAssets
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_assets_db import get_asset
-from app.datamgmt.case.case_assets_db import get_assets
 from app.datamgmt.case.case_assets_db import filter_assets
-from app.datamgmt.case.case_assets_db import get_assets_ioc_links
-from app.datamgmt.case.case_assets_db import get_similar_assets
 from app.datamgmt.case.case_assets_db import case_assets_db_exists
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
