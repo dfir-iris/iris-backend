@@ -161,17 +161,9 @@ CELERY_BROKER_ = config.load('CELERY', 'BROKER',
 
 
 # Build of SQLAlchemy connectors. One is admin and the other is only for iris. Admin is needed to create new DB
-SQLALCHEMY_BASE_URI = 'postgresql+psycopg2://{user}:{passwd}@{server}:{port}/'.format(
-    user=PG_ACCOUNT_,
-    passwd=PG_PASSWD_,
-    server=PG_SERVER_,
-    port=PG_PORT_
-)
+SQLALCHEMY_BASE_URI = f'postgresql+psycopg2://{PG_ACCOUNT_}:{PG_PASSWD_}@{PG_SERVER_}:{PG_PORT_}/'
 
-SQLALCHEMY_BASE_ADMIN_URI = "postgresql+psycopg2://{user}:{passwd}@{server}:{port}/".format(user=PGA_ACCOUNT_,
-                                                                                            passwd=PGA_PASSWD_,
-                                                                                            server=PG_SERVER_,
-                                                                                            port=PG_PORT_)
+SQLALCHEMY_BASE_ADMIN_URI = f'postgresql+psycopg2://{PGA_ACCOUNT_}:{PGA_PASSWD_}@{PG_SERVER_}:{PG_PORT_}/'
 
 
 class AuthenticationType(Enum):
