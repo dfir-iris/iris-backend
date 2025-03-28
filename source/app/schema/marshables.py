@@ -47,6 +47,7 @@ from werkzeug.datastructures import FileStorage
 
 from app import db
 from app import ma
+from app.logger import logger
 from app.datamgmt.datastore.datastore_db import datastore_get_standard_path
 from app.datamgmt.manage.manage_attribute_db import merge_custom_attributes
 from app.datamgmt.manage.manage_tags_db import add_db_tag
@@ -1428,7 +1429,7 @@ class DSFileSchema(ma.SQLAlchemyAutoSchema):
                     os.unlink(fn.name)
 
                 except Exception as e:
-                    current_app.logger.exception(e)
+                    logger.exception(e)
                     raise ValidationError(str(e), field_name='file_password')
 
             else:
