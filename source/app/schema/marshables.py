@@ -1194,8 +1194,8 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
             ValidationError: If the date and time string or time zone string are invalid.
 
         """
-        date_time = "{}{}".format(event_date, event_tz)
-        date_time_wtz = "{}".format(event_date)
+        date_time = f'{event_date}{event_tz}'
+        date_time_wtz = f'{event_date}'
 
         try:
             self.event_date = dateutil.parser.isoparse(date_time)
