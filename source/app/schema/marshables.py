@@ -18,7 +18,6 @@
 
 import datetime
 import dateutil.parser
-import marshmallow
 import os
 import pyminizip
 import random
@@ -28,13 +27,13 @@ import string
 import tempfile
 from flask_login import current_user
 from flask import current_app
-from marshmallow import ValidationError
 from marshmallow import EXCLUDE
 from marshmallow import fields
 from marshmallow import post_load
 from marshmallow import pre_load
 from marshmallow.validate import Length
 from marshmallow_sqlalchemy import auto_field
+from marshmallow.exceptions import ValidationError
 from pathlib import Path
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
@@ -44,7 +43,6 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
-
 from werkzeug.datastructures import FileStorage
 
 from app import db
@@ -187,20 +185,17 @@ class CaseNoteDirectorySchema(ma.SQLAlchemyAutoSchema):
     def verify_parent_id(self, parent_id, case_id, current_id=None):
 
         if current_id is not None and int(parent_id) == int(current_id):
-            raise marshmallow.exceptions.ValidationError("Invalid parent id for the directory",
-                                                         field_name="parent_id")
+            raise ValidationError('Invalid parent id for the directory', field_name='parent_id')
         directory = NoteDirectory.query.filter(
             NoteDirectory.id == parent_id,
             NoteDirectory.case_id == case_id
         ).first()
         if directory:
             if current_id is not None and directory.parent_id == int(current_id):
-                raise marshmallow.exceptions.ValidationError("Invalid parent id for the directory",
-                                                             field_name="parent_id")
+                raise ValidationError('Invalid parent id for the directory', field_name='parent_id')
             return parent_id
 
-        raise marshmallow.exceptions.ValidationError("Invalid parent id for the directory",
-                                                     field_name="parent_id")
+        raise ValidationError('Invalid parent id for the directory', field_name='parent_id')
 
     @pre_load
     def verify_directory_name(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
@@ -294,8 +289,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
         ).all()
         for usr in luser:
             if usr.id != user_id:
-                raise marshmallow.exceptions.ValidationError('User name already taken',
-                                                             field_name="user_login")
+                raise ValidationError('User name already taken', field_name="user_login")
 
         return data
 
@@ -335,8 +329,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
         ).all()
         for usr in luser:
             if usr.id != user_id:
-                raise marshmallow.exceptions.ValidationError('User email already taken',
-                                                             field_name="user_email")
+                raise ValidationError('User email already taken', field_name="user_email")
 
         return data
 
@@ -390,8 +383,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
                     password_error += f"Password must contain a special char [{server_settings.password_policy_special_chars}]. "
 
             if len(password_error) > 0:
-                raise marshmallow.exceptions.ValidationError(password_error,
-                                                             field_name="user_password")
+                raise ValidationError(password_error, field_name="user_password")
 
         return data
 
@@ -467,8 +459,7 @@ class CaseNoteSchema(ma.SQLAlchemyAutoSchema):
         if directory:
             return data
 
-        raise marshmallow.exceptions.ValidationError("Invalid directory id for the case",
-                                                     field_name="directory_id")
+        raise ValidationError("Invalid directory id for the case", field_name="directory_id")
 
     @post_load
     def custom_attributes_merge(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
@@ -538,8 +529,7 @@ class CaseAddNoteSchema(ma.Schema):
         if directory:
             return data
 
-        raise marshmallow.exceptions.ValidationError("Invalid directory id for the case",
-                                                     field_name="directory_id")
+        raise ValidationError("Invalid directory id for the case", field_name="directory_id")
 
     @post_load
     def custom_attributes_merge(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
@@ -634,10 +624,7 @@ class AssetTypeSchema(ma.SQLAlchemyAutoSchema):
             AssetsType.asset_id != data.asset_id
         ).first()
         if client:
-            raise marshmallow.exceptions.ValidationError(
-                "Asset type name already exists",
-                field_name="asset_name"
-            )
+            raise ValidationError("Asset type name already exists", field_name="asset_name")
 
         return data
 
@@ -664,10 +651,7 @@ class AssetTypeSchema(ma.SQLAlchemyAutoSchema):
         fpath, message = store_icon(file_storage)
 
         if fpath is None:
-            raise marshmallow.exceptions.ValidationError(
-                message,
-                field_name=field_type
-            )
+            raise ValidationError(message, field_name=field_type)
 
         setattr(self, field_type, fpath)
 
@@ -703,8 +687,7 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
         """
 
         if request_data.get('asset_name') is None:
-            raise marshmallow.exceptions.ValidationError("Asset name is required",
-                                                         field_name="asset_name")
+            raise ValidationError("Asset name is required", field_name="asset_name")
 
         case_alias = aliased(Cases)
         asset_alias = aliased(CaseAssets)
@@ -749,8 +732,7 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
 
             asset_type = AssetsType.query.filter(AssetsType.asset_id == data.get('asset_type_id')).count()
             if not asset_type:
-                raise marshmallow.exceptions.ValidationError("Invalid asset type ID",
-                                                             field_name="asset_type_id")
+                raise ValidationError("Invalid asset type ID", field_name="asset_type_id")
 
         if data.get('analysis_status_id'):
             assert_type_mml(input_var=data.get('analysis_status_id'),
@@ -760,14 +742,12 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
         if data.get('analysis_status_id'):
             status = AnalysisStatus.query.filter(AnalysisStatus.id == data.get('analysis_status_id')).count()
             if not status:
-                raise marshmallow.exceptions.ValidationError("Invalid analysis status ID",
-                                                             field_name="analysis_status_id")
+                raise ValidationError("Invalid analysis status ID", field_name="analysis_status_id")
 
         if data.get('asset_tags'):
             for tag in data.get('asset_tags').split(','):
                 if not isinstance(tag, str):
-                    raise marshmallow.exceptions.ValidationError("All items in list must be strings",
-                                                                 field_name="asset_tags")
+                    raise ValidationError("All items in list must be strings", field_name="asset_tags")
                 add_db_tag(tag.strip())
 
         return data
@@ -925,10 +905,7 @@ class IocTypeSchema(ma.SQLAlchemyAutoSchema):
             IocType.type_id != data.type_id
         ).first()
         if client:
-            raise marshmallow.exceptions.ValidationError(
-                "IOC type name already exists",
-                field_name="type_name"
-            )
+            raise ValidationError("IOC type name already exists", field_name="type_name")
 
         return data
 
@@ -991,13 +968,13 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
             assert_type_mml(input_var=data.get('ioc_type_id'), field_name="ioc_type_id", type=int)
             ioc_type = IocType.query.filter(IocType.type_id == data.get('ioc_type_id')).first()
             if not ioc_type:
-                raise marshmallow.exceptions.ValidationError("Invalid IOC type ID", field_name="ioc_type_id")
+                raise ValidationError("Invalid IOC type ID", field_name="ioc_type_id")
 
             if ioc_type.type_validation_regex:
                 if not re.fullmatch(ioc_type.type_validation_regex, data.get('ioc_value'), re.IGNORECASE):
                     error = f"The input doesn\'t match the expected format " \
                             f"(expected: {ioc_type.type_validation_expect or ioc_type.type_validation_regex})"
-                    raise marshmallow.exceptions.ValidationError(error, field_name="ioc_ioc_value")
+                    raise ValidationError(error, field_name="ioc_ioc_value")
 
         if data.get('ioc_tlp_id'):
             assert_type_mml(input_var=data.get('ioc_tlp_id'), field_name="ioc_tlp_id", type=int,
@@ -1008,8 +985,7 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         if data.get('ioc_tags'):
             for tag in data.get('ioc_tags').split(','):
                 if not isinstance(tag, str):
-                    raise marshmallow.exceptions.ValidationError("All items in list must be strings",
-                                                                 field_name="ioc_tags")
+                    raise ValidationError("All items in list must be strings", field_name="ioc_tags")
                 add_db_tag(tag.strip())
 
         return data
@@ -1083,13 +1059,13 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
             assert_type_mml(input_var=data.get('ioc_type_id'), field_name='ioc_type_id', type=int)
             ioc_type = IocType.query.filter(IocType.type_id == data.get('ioc_type_id')).first()
             if not ioc_type:
-                raise marshmallow.exceptions.ValidationError('Invalid IOC type ID', field_name='ioc_type_id')
+                raise ValidationError('Invalid IOC type ID', field_name='ioc_type_id')
 
             if ioc_type.type_validation_regex:
                 if not re.fullmatch(ioc_type.type_validation_regex, data.get('ioc_value'), re.IGNORECASE):
                     error = f'The input doesn\'t match the expected format ' \
                             f'(expected: {ioc_type.type_validation_expect or ioc_type.type_validation_regex})'
-                    raise marshmallow.exceptions.ValidationError(error, field_name="ioc_ioc_value")
+                    raise ValidationError(error, field_name="ioc_ioc_value")
 
         if data.get('ioc_tlp_id'):
             assert_type_mml(input_var=data.get('ioc_tlp_id'), field_name='ioc_tlp_id', type=int,
@@ -1100,8 +1076,7 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
         if data.get('ioc_tags'):
             for tag in data.get('ioc_tags').split(','):
                 if not isinstance(tag, str):
-                    raise marshmallow.exceptions.ValidationError('All items in list must be strings',
-                                                                 field_name='ioc_tags')
+                    raise ValidationError('All items in list must be strings', field_name='ioc_tags')
                 add_db_tag(tag.strip())
 
         return data
@@ -1201,7 +1176,7 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
             self.event_date = dateutil.parser.isoparse(date_time)
             self.event_date_wtz = dateutil.parser.isoparse(date_time_wtz)
         except Exception:
-            raise marshmallow.exceptions.ValidationError("Invalid date time", field_name="event_date")
+            raise ValidationError("Invalid date time", field_name="event_date")
 
         return self.event_date, self.event_date_wtz
 
@@ -1224,11 +1199,11 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
 
         """
         if data is None:
-            raise marshmallow.exceptions.ValidationError("Received empty data")
+            raise ValidationError('Received empty data')
 
         for field in ['event_title', 'event_date', 'event_tz', 'event_category_id', 'event_assets', 'event_iocs']:
             if field not in data:
-                raise marshmallow.exceptions.ValidationError(f"Missing field {field}", field_name=field)
+                raise ValidationError(f"Missing field {field}", field_name=field)
 
         assert_type_mml(input_var=int(data.get('event_category_id')),
                         field_name='event_category_id',
@@ -1236,7 +1211,7 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
 
         event_cat = EventCategory.query.filter(EventCategory.id == int(data.get('event_category_id'))).count()
         if not event_cat:
-            raise marshmallow.exceptions.ValidationError("Invalid event category ID", field_name="event_category_id")
+            raise ValidationError("Invalid event category ID", field_name="event_category_id")
 
         assert_type_mml(input_var=data.get('event_assets'),
                         field_name='event_assets',
@@ -1250,7 +1225,7 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
 
             ast = CaseAssets.query.filter(CaseAssets.asset_id == asset).count()
             if not ast:
-                raise marshmallow.exceptions.ValidationError("Invalid assets ID", field_name="event_assets")
+                raise ValidationError("Invalid assets ID", field_name="event_assets")
 
         assert_type_mml(input_var=data.get('event_iocs'),
                         field_name='event_iocs',
@@ -1264,7 +1239,7 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
 
             ast = Ioc.query.filter(Ioc.ioc_id == ioc).count()
             if not ast:
-                raise marshmallow.exceptions.ValidationError("Invalid IOC ID", field_name="event_assets")
+                raise ValidationError("Invalid IOC ID", field_name="event_assets")
 
         if data.get('event_color') and data.get('event_color') not in ['#fff', '#1572E899', '#6861CE99', '#48ABF799',
                                                                        '#31CE3699', '#F2596199', '#FFAD4699']:
@@ -1273,8 +1248,7 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
         if data.get('event_tags'):
             for tag in data.get('event_tags').split(','):
                 if not isinstance(tag, str):
-                    raise marshmallow.exceptions.ValidationError("All items in list must be strings",
-                                                                 field_name="event_tags")
+                    raise ValidationError("All items in list must be strings", field_name="event_tags")
                 add_db_tag(tag.strip())
 
         return data
@@ -1393,10 +1367,7 @@ class DSFileSchema(ma.SQLAlchemyAutoSchema):
                 exists = False
 
         except Exception as e:
-            raise marshmallow.exceptions.ValidationError(
-                str(e),
-                field_name='file_password'
-            )
+            raise ValidationError(str(e), field_name='file_password')
 
         setattr(self, 'file_local_path', str(dsf.file_local_name))
 
@@ -1424,10 +1395,7 @@ class DSFileSchema(ma.SQLAlchemyAutoSchema):
 
         """
         if file_storage is None:
-            raise marshmallow.exceptions.ValidationError(
-                "No file provided",
-                field_name='file_content'
-            )
+            raise ValidationError("No file provided", field_name='file_content')
 
         if not file_storage.filename:
             return None
@@ -1461,10 +1429,7 @@ class DSFileSchema(ma.SQLAlchemyAutoSchema):
 
                 except Exception as e:
                     current_app.logger.exception(e)
-                    raise marshmallow.exceptions.ValidationError(
-                        str(e),
-                        field_name='file_password'
-                    )
+                    raise ValidationError(str(e), field_name='file_password')
 
             else:
                 file_storage.save(location)
@@ -1474,16 +1439,10 @@ class DSFileSchema(ma.SQLAlchemyAutoSchema):
                 file_hash = file_sha256sum(file_path)
 
         except Exception as e:
-            raise marshmallow.exceptions.ValidationError(
-                str(e),
-                field_name='file_content'
-            )
+            raise ValidationError(str(e), field_name='file_content')
 
         if location is None:
-            raise marshmallow.exceptions.ValidationError(
-                "Unable to save file in target location",
-                field_name='file_content'
-            )
+            raise ValidationError("Unable to save file in target location", field_name='file_content')
 
         setattr(self, 'file_local_path', str(location))
 
@@ -1565,10 +1524,7 @@ class CaseClassificationSchema(ma.SQLAlchemyAutoSchema):
             CaseClassification.id != data.id
         ).first()
         if client:
-            raise marshmallow.exceptions.ValidationError(
-                "Case classification name already exists",
-                field_name="name"
-            )
+            raise ValidationError("Case classification name already exists", field_name="name")
 
         return data
 
@@ -1609,10 +1565,7 @@ class EvidenceTypeSchema(ma.SQLAlchemyAutoSchema):
             EvidenceTypes.id != data.id
         ).first()
         if client:
-            raise marshmallow.exceptions.ValidationError(
-                "Evidence type already exists",
-                field_name="name"
-            )
+            raise ValidationError("Evidence type already exists", field_name="name")
 
         return data
 
@@ -1691,8 +1644,7 @@ class CaseSchema(ma.SQLAlchemyAutoSchema):
         if client:
             return data
 
-        raise marshmallow.exceptions.ValidationError("Invalid client id",
-                                                     field_name="case_customer")
+        raise ValidationError("Invalid client id", field_name="case_customer")
 
     @post_load
     def custom_attributes_merge(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
@@ -1787,16 +1739,14 @@ class GlobalTasksSchema(ma.SQLAlchemyAutoSchema):
 
         user = User.query.filter(User.id == data.get('task_assignee_id')).count()
         if not user:
-            raise marshmallow.exceptions.ValidationError("Invalid user id for assignee",
-                                                         field_name="task_assignees_id")
+            raise ValidationError("Invalid user id for assignee", field_name="task_assignees_id")
 
         assert_type_mml(input_var=data.get('task_status_id'),
                         field_name='task_status_id',
                         type=int)
         status = TaskStatus.query.filter(TaskStatus.id == data.get('task_status_id')).count()
         if not status:
-            raise marshmallow.exceptions.ValidationError("Invalid task status ID",
-                                                         field_name="task_status_id")
+            raise ValidationError("Invalid task status ID", field_name="task_status_id")
 
         return data
 
@@ -1850,10 +1800,7 @@ class CustomerSchema(ma.SQLAlchemyAutoSchema):
             Client.client_id != data.client_id
         ).first()
         if client:
-            raise marshmallow.exceptions.ValidationError(
-                "Customer already exists",
-                field_name="customer_name"
-            )
+            raise ValidationError("Customer already exists", field_name="customer_name")
 
         return data
 
@@ -1976,14 +1923,12 @@ class CaseTaskSchema(ma.SQLAlchemyAutoSchema):
 
         status = TaskStatus.query.filter(TaskStatus.id == data.get('task_status_id')).count()
         if not status:
-            raise marshmallow.exceptions.ValidationError("Invalid task status ID",
-                                                         field_name="task_status_id")
+            raise ValidationError("Invalid task status ID", field_name="task_status_id")
 
         if data.get('task_tags'):
             for tag in data.get('task_tags').split(','):
                 if not isinstance(tag, str):
-                    raise marshmallow.exceptions.ValidationError("All items in list must be strings",
-                                                                 field_name="task_tags")
+                    raise ValidationError("All items in list must be strings", field_name="task_tags")
                 add_db_tag(tag.strip())
 
         return data
@@ -2122,10 +2067,7 @@ class AuthorizationGroupSchema(ma.SQLAlchemyAutoSchema):
 
         for group in groups:
             if data.get('group_id') is None or group.group_id != data.get('group_id'):
-                raise marshmallow.exceptions.ValidationError(
-                    "Group already exists",
-                    field_name="group_name"
-                )
+                raise ValidationError("Group already exists", field_name="group_name")
 
         return data
 
@@ -2200,10 +2142,7 @@ class AuthorizationOrganisationSchema(ma.SQLAlchemyAutoSchema):
 
         for organisation in organisations:
             if data.get('org_id') is None or organisation.org_id != data.get('org_id'):
-                raise marshmallow.exceptions.ValidationError(
-                    "Organisation name already exists",
-                    field_name="org_name"
-                )
+                raise ValidationError("Organisation name already exists", field_name="org_name")
 
         return data
 
@@ -2385,8 +2324,7 @@ class AlertSchema(ma.SQLAlchemyAutoSchema):
         if data.get('alert_tags'):
             for tag in data.get('alert_tags').split(','):
                 if not isinstance(tag, str):
-                    raise marshmallow.exceptions.ValidationError("All items in list must be strings",
-                                                                 field_name="alert_tags")
+                    raise ValidationError("All items in list must be strings", field_name="alert_tags")
                 add_db_tag(tag.strip())
 
         return data
@@ -2544,8 +2482,7 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         if client:
             return data
 
-        raise marshmallow.exceptions.ValidationError("Invalid client id",
-                                                     field_name="case_customer")
+        raise ValidationError("Invalid client id", field_name="case_customer")
 
 
 class CaseDetailsSchema(ma.SQLAlchemyAutoSchema):

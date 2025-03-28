@@ -46,7 +46,6 @@ def events_create(case_identifier, request_json) -> CasesEvent:
     request_data = call_modules_hook('on_preload_event_create', data=request_json, caseid=case_identifier)
 
     event = _load(request_data)
-
     # TODO this should probably rather be done in the API layer
     event_schema = EventSchema()
     event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
