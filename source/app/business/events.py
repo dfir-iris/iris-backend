@@ -64,10 +64,7 @@ def events_create(case_identifier, request_json) -> CasesEvent:
     save_event_category(event.event_id, request_data.get('event_category_id'))
 
     setattr(event, 'event_category_id', request_data.get('event_category_id'))
-    if request_data.get('event_sync_iocs_assets'):
-        sync_iocs_assets = request_data.get('event_sync_iocs_assets')
-    else:
-        sync_iocs_assets = False
+    sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
 
     success, log = update_event_assets(event.event_id, case_identifier, request_data.get('event_assets'),
                                        request_data.get('event_iocs'), sync_iocs_assets)
