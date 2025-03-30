@@ -41,7 +41,7 @@ class TestsRestEvidences(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', {})
         self.assertEqual(400, response.status_code)
 
-    def test_create_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+    def test_create_evidence_should_return_403_when_user_has_no_permission_to_access_case(self):
         case_identifier = self._subject.create_dummy_case()
 
         user = self._subject.create_dummy_user()
@@ -228,7 +228,7 @@ class TestsRestEvidences(TestCase):
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
         self.assertEqual(uuid, response['file_uuid'])
 
-    def test_update_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+    def test_update_evidence_should_return_403_when_user_has_no_permission_to_access_case(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
@@ -263,3 +263,52 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename2'}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
+
+    def test_delete_evidence_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_get_evidence_should_return_404_after_it_has_been_deleted(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_evidence_should_return_403_when_user_has_no_permission_to_access_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        response = user.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(403, response.status_code)
+
+    def test_delete_evidence_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        response = self._subject.delete(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/evidences/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_evidence_should_return_404_when_evidence_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}/evidences/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_evidence_should_return_400_when_case_identifier_does_not_match_evidence_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        case_identifier2 = self._subject.create_dummy_case()
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier2}/evidences/{identifier}')
+        self.assertEqual(400, response.status_code)

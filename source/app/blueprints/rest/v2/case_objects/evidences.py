@@ -29,6 +29,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.business.cases import cases_exists
@@ -37,6 +38,7 @@ from app.business.evidences import evidences_create
 from app.business.evidences import evidences_get
 from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
+from app.business.evidences import evidences_delete
 from app.models.models import CaseReceivedFile
 
 
@@ -116,6 +118,26 @@ def update_evidence(case_identifier, identifier):
         schema = CaseEvidenceSchema()
         result = schema.dump(evidence)
         return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_evidences_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_evidence(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    try:
+        evidence = evidences_get(identifier)
+        evidences_delete(evidence)
+        _check_evidence_and_case_identifier_match(evidence, case_identifier)
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=evidence.case_id)
+
+        return response_api_deleted()
     except ObjectNotFoundError:
         return response_api_not_found()
     except BusinessProcessingError as e:

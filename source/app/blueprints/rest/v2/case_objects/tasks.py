@@ -130,14 +130,6 @@ def update_case_task(case_identifier, identifier):
 @case_tasks_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_case_task(case_identifier, identifier):
-    """
-    Handle deleting a task from a case
-
-    Args:
-        case_identifier (int): The case ID
-        identifier (int): The task ID    
-    """
-
     try:
         task = tasks_get(identifier)
 

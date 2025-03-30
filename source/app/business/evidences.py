@@ -28,6 +28,7 @@ from app.schema.marshables import CaseEvidenceSchema
 from app.models.models import CaseReceivedFile
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import add_rfile
+from app.datamgmt.case.case_rfiles_db import delete_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfile
 from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
 from app.datamgmt.case.case_rfiles_db import update_rfile
@@ -80,3 +81,10 @@ def evidences_filter(case_identifier, pagination_parameters: PaginationParameter
     if not hasattr(CaseReceivedFile, order_by):
         raise BusinessProcessingError(f'Unexpected order_by field {order_by}')
     return get_paginated_evidences(case_identifier, pagination_parameters)
+
+
+def evidences_delete(evidence: CaseReceivedFile):
+    call_modules_hook('on_preload_evidence_delete', data=evidence.id, caseid=evidence.case_id)
+    delete_rfile(evidence)
+    call_modules_hook('on_postload_evidence_delete', data=evidence.id, caseid=evidence.case_id)
+    track_activity(f'deleted evidence "{evidence.filename}" from registry', evidence.case_id)
