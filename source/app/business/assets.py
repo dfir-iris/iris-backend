@@ -24,17 +24,11 @@ from app import db
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
-from app.datamgmt.case.case_db import get_case_client_id
-from app.datamgmt.manage.manage_users_db import get_user_cases_fast
-from app.datamgmt.states import get_assets_state
 from app.datamgmt.states import update_assets_state
 from app.models.models import CaseAssets
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_assets_db import get_asset
-from app.datamgmt.case.case_assets_db import get_assets
 from app.datamgmt.case.case_assets_db import filter_assets
-from app.datamgmt.case.case_assets_db import get_assets_ioc_links
-from app.datamgmt.case.case_assets_db import get_similar_assets
 from app.datamgmt.case.case_assets_db import case_assets_db_exists
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
@@ -104,42 +98,6 @@ def assets_get_detailed(identifier):
     asset_iocs = get_linked_iocs_finfo_from_asset(identifier)
     data['linked_ioc'] = [row._asdict() for row in asset_iocs]
     return data
-
-
-def get_assets_case(case_identifier):
-    assets = get_assets(case_identifier)
-    customer_id = get_case_client_id(case_identifier)
-
-    ret = {'assets': []}
-
-    ioc_links_req = get_assets_ioc_links(case_identifier)
-
-    cache_ioc_link = {}
-    for ioc in ioc_links_req:
-
-        if ioc.asset_id not in cache_ioc_link:
-            cache_ioc_link[ioc.asset_id] = [ioc._asdict()]
-        else:
-            cache_ioc_link[ioc.asset_id].append(ioc._asdict())
-
-    cases_access = get_user_cases_fast(current_user.id)
-
-    for asset in assets:
-        asset = asset._asdict()
-
-        if len(assets) < 300:
-            # Find similar assets from other cases with the same customer
-            asset['link'] = list(get_similar_assets(
-                asset['asset_name'], asset['asset_type_id'], case_identifier, customer_id, cases_access))
-        else:
-            asset['link'] = []
-
-        asset['ioc_links'] = cache_ioc_link.get(asset['asset_id'])
-
-        ret['assets'].append(asset)
-
-    ret['state'] = get_assets_state(case_identifier)
-    return ret
 
 
 def assets_filter(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:

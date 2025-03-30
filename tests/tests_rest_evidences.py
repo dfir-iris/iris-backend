@@ -41,7 +41,7 @@ class TestsRestEvidences(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', {})
         self.assertEqual(400, response.status_code)
 
-    def test_create_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+    def test_create_evidence_should_return_403_when_user_has_no_permission_to_access_case(self):
         case_identifier = self._subject.create_dummy_case()
 
         user = self._subject.create_dummy_user()
@@ -228,7 +228,7 @@ class TestsRestEvidences(TestCase):
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/evidences/{identifier}', body).json()
         self.assertEqual(uuid, response['file_uuid'])
 
-    def test_update_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+    def test_update_evidence_should_return_403_when_user_has_no_permission_to_access_case(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
@@ -281,7 +281,7 @@ class TestsRestEvidences(TestCase):
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(404, response.status_code)
 
-    def test_delete_evidence_should_return_403_when_user_has_no_permission_to_access_to_case(self):
+    def test_delete_evidence_should_return_403_when_user_has_no_permission_to_access_case(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
@@ -309,7 +309,6 @@ class TestsRestEvidences(TestCase):
         body = {'filename': 'filename'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
         identifier = response['id']
-        body = {'filename': 'filename2'}
         case_identifier2 = self._subject.create_dummy_case()
         response = self._subject.delete(f'/api/v2/cases/{case_identifier2}/evidences/{identifier}')
         self.assertEqual(400, response.status_code)

@@ -30,6 +30,7 @@ from sqlalchemy import and_
 from app import db
 from app import app
 from app.blueprints.rest.case_comments import case_comment_update
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.datamgmt.case.case_assets_db import get_asset_by_name
 from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.datamgmt.case.case_events_db import get_category_by_name
@@ -71,6 +72,8 @@ from app.blueprints.access_controls import ac_api_requires
 from app.util import add_obj_history_entry
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.business.errors import BusinessProcessingError
+from app.business.events import events_create
 
 case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 
@@ -710,11 +713,8 @@ def case_edit_event(cur_id, caseid):
 
         setattr(event, 'event_category_id', request_data.get('event_category_id'))
 
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=caseid,
-                                           assets_list=request_data.get('event_assets'),
-                                           iocs_list=request_data.get('event_iocs'),
-                                           sync_iocs_assets=request_data.get('event_sync_iocs_assets'))
+        success, log = update_event_assets(event.event_id, caseid, request_data.get('event_assets'),
+                                           request_data.get('event_iocs'), request_data.get('event_sync_iocs_assets'))
         if not success:
             return response_error('Error while saving linked assets', data=log)
 
@@ -741,58 +741,25 @@ def case_edit_event(cur_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/events')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_add_event(caseid):
+    request_json = request.get_json()
     try:
-
+        event = events_create(caseid, request_json)
         event_schema = EventSchema()
-        request_data = call_modules_hook('on_preload_event_create', data=request.get_json(), caseid=caseid)
+        event_dump = event_schema.dump(event)
+        collab_notify(case_id=caseid,
+                      object_type='events',
+                      action_type='updated',
+                      object_id=event.event_id,
+                      object_data=event_dump)
 
-        event = event_schema.load(request_data)
+        return response_success('Event added', data=event_schema.dump(event))
 
-        event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
-                                                                            request_data.get(u'event_tz'))
-
-        event.case_id = caseid
-        event.event_added = datetime.utcnow()
-        event.user_id = current_user.id
-
-        add_obj_history_entry(event, 'created')
-
-        db.session.add(event)
-        update_timeline_state(caseid=caseid)
-        db.session.commit()
-
-        save_event_category(event.event_id, request_data.get('event_category_id'))
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-        sync_iocs_assets = request_data.get('event_sync_iocs_assets') if request_data.get(
-            'event_sync_iocs_assets') else False
-
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=caseid,
-                                           assets_list=request_data.get('event_assets'),
-                                           iocs_list=request_data.get('event_iocs'),
-                                           sync_iocs_assets=sync_iocs_assets)
-        if not success:
-            return response_error('Error while saving linked assets', data=log)
-
-        success, log = update_event_iocs(event_id=event.event_id,
-                                         caseid=caseid,
-                                         iocs_list=request_data.get('event_iocs'))
-        if not success:
-            return response_error('Error while saving linked iocs', data=log)
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-
-        event = call_modules_hook('on_postload_event_create', data=event, caseid=caseid)
-
-        track_activity(f"added event \"{event.event_title}\"", caseid=caseid)
-        return response_success("Event added", data=event_schema.dump(event))
-
-    except marshmallow.exceptions.ValidationError as e:
-        return response_error(msg="Data error", data=e.normalized_messages())
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/duplicate/<int:cur_id>', methods=['GET'])
@@ -835,11 +802,7 @@ def case_duplicate_event(cur_id, caseid):
         iocs_list = get_event_iocs_ids(old_event.event_id, caseid)
         # Update assets mapping
         assets_list = get_event_assets_ids(old_event.event_id, caseid)
-        success, log = update_event_assets(event_id=event.event_id,
-                                           caseid=caseid,
-                                           assets_list=assets_list,
-                                           iocs_list=iocs_list,
-                                           sync_iocs_assets=False)
+        success, log = update_event_assets(event.event_id, caseid, assets_list, iocs_list, False)
         if not success:
             return response_error('Error while saving linked assets', data=log)
 
@@ -1023,11 +986,8 @@ def case_events_upload_csv(caseid):
 
             setattr(event, 'event_category_id', request_data.get('event_category_id'))
 
-            success, log = update_event_assets(event_id=event.event_id,
-                                               caseid=caseid,
-                                               assets_list=request_data.get('event_assets'),
-                                               iocs_list=request_data.get('event_iocs'),
-                                               sync_iocs_assets=event_sync_iocs_assets)
+            success, log = update_event_assets(event.event_id, caseid, request_data.get('event_assets'),
+                                               request_data.get('event_iocs'), event_sync_iocs_assets)
             if not success:
                 raise Exception(f'Error while saving linked assets\nlog:{log}')
 
