@@ -50,7 +50,7 @@ class IrisConfig(configparser.ConfigParser):
             logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
 
     def validate_config(self):
-        required_sections = ['POSTGRES', 'IRIS', 'CELERY', 'DEVELOPMENT']
+        required_values = ['POSTGRES', 'IRIS', 'CELERY', 'DEVELOPMENT']
 
         for section, in required_values.items():
             if section not in self:
