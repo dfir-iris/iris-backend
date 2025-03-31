@@ -50,21 +50,11 @@ class IrisConfig(configparser.ConfigParser):
             logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
 
     def validate_config(self):
-        required_values = {
-            'POSTGRES': {
-            },
-            'IRIS': {
-            },
-            'CELERY': {
-            },
-            'DEVELOPMENT': {
-            }
-        }
+        required_sections = ['POSTGRES', 'IRIS', 'CELERY', 'DEVELOPMENT']
 
         for section, in required_values.items():
             if section not in self:
-                raise IrisConfigException(
-                    'Missing section %s in the configuration file' % section)
+                raise IrisConfigException(f'Missing section {section} in the configuration file')
 
     def config_key_vault(self):
         """
@@ -156,7 +146,6 @@ class IrisConfig(configparser.ConfigParser):
         return value
 
 
-# --------- Configuration ---------
 config = IrisConfig()
 
 # Fetch the values
@@ -172,17 +161,9 @@ CELERY_BROKER_ = config.load('CELERY', 'BROKER',
 
 
 # Build of SQLAlchemy connectors. One is admin and the other is only for iris. Admin is needed to create new DB
-SQLALCHEMY_BASE_URI = 'postgresql+psycopg2://{user}:{passwd}@{server}:{port}/'.format(
-    user=PG_ACCOUNT_,
-    passwd=PG_PASSWD_,
-    server=PG_SERVER_,
-    port=PG_PORT_
-)
+SQLALCHEMY_BASE_URI = f'postgresql+psycopg2://{PG_ACCOUNT_}:{PG_PASSWD_}@{PG_SERVER_}:{PG_PORT_}/'
 
-SQLALCHEMY_BASE_ADMIN_URI = "postgresql+psycopg2://{user}:{passwd}@{server}:{port}/".format(user=PGA_ACCOUNT_,
-                                                                                            passwd=PGA_PASSWD_,
-                                                                                            server=PG_SERVER_,
-                                                                                            port=PG_PORT_)
+SQLALCHEMY_BASE_ADMIN_URI = f'postgresql+psycopg2://{PGA_ACCOUNT_}:{PGA_PASSWD_}@{PG_SERVER_}:{PG_PORT_}/'
 
 
 class AuthenticationType(Enum):
@@ -194,7 +175,7 @@ authentication_type = os.environ.get('IRIS_AUTHENTICATION_TYPE',
                                      config.get('IRIS', 'AUTHENTICATION_TYPE', fallback="local"))
 
 authentication_create_user_if_not_exists = config.load('IRIS', 'AUTHENTICATION_CREATE_USER_IF_NOT_EXIST',
-                                                        fallback="False")
+                                                       fallback="False")
 
 tls_root_ca = os.environ.get('TLS_ROOT_CA',
                              config.get('IRIS', 'TLS_ROOT_CA', fallback=None))
@@ -238,14 +219,13 @@ if authentication_type == 'oidc_proxy':
         logger.info("OIDC configuration properly parsed")
 
 
-# --------- CELERY ---------
 class CeleryConfig:
     result_backend = "db+" + SQLALCHEMY_BASE_URI + "iris_tasks"  # use database as storage
     broker_url = CELERY_BROKER_
     result_extended = True
     result_serializer = "json"
     worker_pool_restarts = True
-    broker_connection_retry_on_startup =True
+    broker_connection_retry_on_startup = True
 
 
 class Config:
@@ -358,9 +338,7 @@ class Config:
     else:
         DEVELOPMENT = config.load('DEVELOPMENT', 'IS_DEV_INSTANCE') == "True"
 
-    """
-        Authentication configuration
-    """
+    # Authentication configuration
     TLS_ROOT_CA = tls_root_ca
 
     AUTHENTICATION_TYPE = authentication_type
@@ -468,8 +446,7 @@ class Config:
         OIDC_MAPPING_USERGROUP = config.load('OIDC', 'MAPPING_USERGROUP', fallback=None)
         OIDC_MAPPING_ROLES = config.load('OIDC', 'MAPPING_ROLES', fallback=None)
 
-    """ Caching 
-    """
+    # Caching
     CACHE_TYPE = 'SimpleCache'
     CACHE_DEFAULT_TIMEOUT = 300
 

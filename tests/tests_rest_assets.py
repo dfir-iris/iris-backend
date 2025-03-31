@@ -24,6 +24,18 @@ _CASE_ACCESS_LEVEL_READ_ONLY = 2
 _CASE_ACCESS_LEVEL_FULL_ACCESS = 4
 
 
+def _get_most_recent_modification(modification_history):
+    current_timestamp = 0
+    result = None
+    for timestamp_as_string, modification in modification_history.items():
+        timestamp = float(timestamp_as_string)
+        if timestamp < current_timestamp:
+            continue
+        result = modification
+        current_timestamp = timestamp
+    return result
+
+
 class TestsRestAssets(TestCase):
 
     def setUp(self) -> None:
@@ -72,6 +84,13 @@ class TestsRestAssets(TestCase):
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test', 'asset_compromise_status_id': 1}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
         self.assertEqual(1, response['asset_compromise_status_id'])
+
+    def test_create_asset_should_update_modification_history(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        modification = _get_most_recent_modification(response['modification_history'])
+        self.assertEqual('created', modification['action'])
 
     def test_get_asset_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
@@ -132,6 +151,16 @@ class TestsRestAssets(TestCase):
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/assets/{identifier}',
                                         {'asset_type_id': 1, 'asset_name': 'admin_laptop_test', 'asset_compromise_status_id': 2}).json()
         self.assertEqual(2, response['asset_compromise_status_id'])
+
+    def test_update_asset_should_update_modification_history(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        identifier = response['asset_id']
+        body = {'asset_type_id': 1, 'asset_name': 'new_asset_name'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/assets/{identifier}', body).json()
+        modification = _get_most_recent_modification(response['modification_history'])
+        self.assertEqual('updated', modification['action'])
 
     def test_delete_asset_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()

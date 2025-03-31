@@ -30,11 +30,12 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.blueprints.rest.v2.cases.assets import case_assets_blueprint
-from app.blueprints.rest.v2.cases.iocs import case_iocs_blueprint
-from app.blueprints.rest.v2.cases.notes import case_notes_blueprint
-from app.blueprints.rest.v2.cases.tasks import case_tasks_blueprint
-from app.blueprints.rest.v2.cases.evidences import case_evidences_blueprint
+from app.blueprints.rest.v2.case_objects.assets import case_assets_blueprint
+from app.blueprints.rest.v2.case_objects.iocs import case_iocs_blueprint
+from app.blueprints.rest.v2.case_objects.notes import case_notes_blueprint
+from app.blueprints.rest.v2.case_objects.tasks import case_tasks_blueprint
+from app.blueprints.rest.v2.case_objects.evidences import case_evidences_blueprint
+from app.blueprints.rest.v2.case_objects.events import case_events_blueprint
 from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.datamgmt.case.case_db import get_case
@@ -58,6 +59,7 @@ cases_blueprint.register_blueprint(case_iocs_blueprint)
 cases_blueprint.register_blueprint(case_notes_blueprint)
 cases_blueprint.register_blueprint(case_tasks_blueprint)
 cases_blueprint.register_blueprint(case_evidences_blueprint)
+cases_blueprint.register_blueprint(case_events_blueprint)
 
 
 # Routes

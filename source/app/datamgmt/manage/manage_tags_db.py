@@ -1,8 +1,27 @@
+#  IRIS Source Code
+#  Copyright (C) 2025 - DFIR-IRIS
+#  contact@dfir-iris.org
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 3 of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#  Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from functools import reduce
 
 from sqlalchemy import and_
 
-import app
+from app import db
+from app.logger import logger
 from app.models.models import Tags
 from app.datamgmt.conversions import convert_sort_direction
 
@@ -52,7 +71,7 @@ def get_filtered_tags(tag_title=None,
         filtered_tags = data.paginate(page=page, per_page=per_page)
 
     except Exception as e:
-        app.logger.exception(f"Failed to get filtered tags: {e}")
+        logger.exception(f"Failed to get filtered tags: {e}")
         raise e
 
     return filtered_tags
@@ -76,10 +95,10 @@ def add_db_tag(tag_title, tag_namespace=None):
             return existing_tag
 
         tag.save()
-        app.db.session.commit()
+        db.session.commit()
 
     except Exception as e:
-        app.logger.exception(f"Failed to add tag: {e}")
+        logger.exception(f"Failed to add tag: {e}")
         raise e
 
     return tag

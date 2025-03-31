@@ -96,7 +96,7 @@ from app.blueprints.rest.reports_route import reports_rest_blueprint
 from app.blueprints.rest.search_routes import search_rest_blueprint
 from app.blueprints.graphql.graphql_route import graphql_blueprint
 
-from app.blueprints.rest.v2 import rest_v2_blueprint
+from app.blueprints.rest.api_v2_routes import rest_v2_blueprint
 from app.models.authorization import User
 
 

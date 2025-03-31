@@ -128,7 +128,7 @@ class Cases(db.Model):
         db.session.commit()
 
         # Rename case with the ID
-        self.name = "#{id} - {name}".format(id=self.case_id, name=self.name)
+        self.name = f'#{self.case_id} - {self.name}'
 
         # Create the states
         update_timeline_state(caseid=self.case_id, userid=self.user_id)

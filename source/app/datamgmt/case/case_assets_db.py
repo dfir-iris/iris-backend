@@ -276,18 +276,6 @@ def delete_ioc_asset_link(asset_id):
     ).delete()
 
 
-def get_linked_iocs_from_asset(asset_id):
-    iocs = IocAssetLink.query.with_entities(
-        Ioc.ioc_id,
-        Ioc.ioc_value
-    ).filter(
-        IocAssetLink.asset_id == asset_id,
-        Ioc.ioc_id == IocAssetLink.ioc_id
-    ).all()
-
-    return iocs
-
-
 def set_ioc_links(ioc_list, asset_id):
     if ioc_list is None:
         return False, "Empty IOC list"
