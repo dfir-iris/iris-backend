@@ -185,7 +185,6 @@ if is_authentication_oidc():
         username_field = app.config.get("OIDC_MAPPING_USERNAME")
         usergroup_field = app.config.get("OIDC_MAPPING_USERGROUP")
         userroles_mapping_field = app.config.get("OIDC_MAPPING_ROLES")
-        
         user_login = access_token_resp['id_token'].get(username_field) or access_token_resp['id_token'].get(email_field)
         user_name = access_token_resp['id_token'].get(email_field) or access_token_resp['id_token'].get(username_field)
         user_group = access_token_resp['id_token'].get(usergroup_field)
