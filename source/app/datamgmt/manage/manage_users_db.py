@@ -22,7 +22,7 @@ from functools import reduce
 from flask_login import current_user
 from sqlalchemy import and_
 
-import app
+from app.logger import logger
 from app import bc
 from app import db
 from app.datamgmt.case.case_db import get_case
@@ -771,7 +771,7 @@ def get_filtered_users(user_ids: str = None,
         )
 
     except Exception as e:
-        app.logger.exception(f'Error getting users: {str(e)}')
+        logger.exception(f'Error getting users: {str(e)}')
         return None
 
     return filtered_users
