@@ -87,25 +87,25 @@ def logout():
         db.session.commit()
 
     if is_authentication_oidc():
-        if oidc_client.provider_info.get("end_session_endpoint"):
+        if oidc_client.provider_info.get('end_session_endpoint'):
             try:
                 logout_request = oidc_client.construct_EndSessionRequest(
-                    state=session["oidc_state"])
+                    state=session['oidc_state'])
                 logout_url = logout_request.request(
                     oidc_client.provider_info["end_session_endpoint"])
-                track_activity("user '{}' has been logged-out".format(
-                    current_user.user), ctx_less=True, display_in_ui=False)
+                track_activity(f'user \'{current_user.user}\' has been logged-out',
+                               ctx_less=True, display_in_ui=False)
                 logout_user()
                 session.clear()
                 return redirect(logout_url)
             except GrantError:
                 track_activity(
-                    f"no oidc session found for user '{current_user.user}', skipping oidc provider logout and continuing to logout local user",
+                    f'no oidc session found for user \'{current_user.user}\', skipping oidc provider logout and continuing to logout local user',
                     ctx_less=True,
                     display_in_ui=False
                 )
 
-    track_activity("user '{}' has been logged-out".format(current_user.user),
+    track_activity(f'user \'{current_user.user}\' has been logged-out',
                    ctx_less=True, display_in_ui=False)
     logout_user()
     session.clear()
