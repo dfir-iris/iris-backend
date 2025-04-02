@@ -143,8 +143,8 @@ def _handle_no_cid_required(no_cid_required):
 
 def _update_denied_case(caseid):
     session['current_case'] = {
-        'case_name': "{} to #{}".format("Access denied", caseid),
-        'case_info': "",
+        'case_name': f'Access denied to #{caseid}',
+        'case_info': '',
         'case_id': caseid,
         'access': '<i class="ml-2 text-danger mt-1 fa-solid fa-ban"></i>'
     }
@@ -155,8 +155,8 @@ def _update_current_case(caseid, restricted_access):
         case = get_case(caseid)
         if case:
             session['current_case'] = {
-                'case_name': "{}".format(case.name),
-                'case_info': "(#{} - {})".format(caseid, case.client.name),
+                'case_name': case.name,
+                'case_info': f'(#{caseid} - {case.client.name})',
                 'case_id': caseid,
                 'access': restricted_access
             }
