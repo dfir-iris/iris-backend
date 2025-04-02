@@ -152,3 +152,19 @@ class TestsRestEvents(TestCase):
         case_identifier2 = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier2}/events/{identifier}')
         self.assertEqual(400, response.status_code)
+
+    def test_get_event_should_return_children_when_event_is_parent_of_another_event(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        body = {'event_title': 'title2', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': [],
+                'parent_event_id': identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        child_identifier = response['event_id']
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}', body).json()
+        self.assertEqual(child_identifier, response['children'][0]['event_id'])
