@@ -86,7 +86,7 @@ class IrisReportMaker(object):
         case_info_in = self._get_case_info()
 
         # Format information and generate the activity report #
-        doc_id = '{}'.format(datetime.utcnow().strftime("%y%m%d_%H%M"))
+        doc_id = datetime.utcnow().strftime("%y%m%d_%H%M")
 
         case_info = {
             'auto_activities': auto_activities,
