@@ -27,6 +27,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
 from app.business.events import events_get
+from app.models.cases import CasesEvent
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
@@ -62,6 +63,7 @@ def get_event(case_identifier, identifier):
 
     try:
         event = events_get(identifier)
+        _check_event_and_case_identifier_match(event, case_identifier)
         if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=event.case_id)
 
@@ -71,3 +73,9 @@ def get_event(case_identifier, identifier):
         return response_api_success(result)
     except ObjectNotFoundError:
         return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
+    if event.case_id != case_identifier:
+        raise BusinessProcessingError(f'Event {event.event_id} does not belong to case {case_identifier}')
