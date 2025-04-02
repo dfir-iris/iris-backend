@@ -58,4 +58,6 @@ def create_evidence(case_identifier):
 def get_event(case_identifier, identifier):
     event = events_get(identifier)
     schema = EventSchema()
-    return response_api_success(schema.dump(event))
+    result = schema.dump(event)
+    result['event_category_id'] = event.category[0].id if event.category else None
+    return response_api_success(result)
