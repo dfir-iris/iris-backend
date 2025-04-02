@@ -661,6 +661,7 @@ def event_flag(cur_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/events/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def event_view(cur_id, caseid):
