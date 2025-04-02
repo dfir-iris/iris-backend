@@ -45,7 +45,7 @@ def search_file_post():
     files = []
     search_condition = and_()
 
-    track_activity("started a global search for {} on {}".format(search_value, search_type))
+    track_activity(f'started a global search for {search_value} on {search_type}')
 
     if search_type == "ioc":
         res = Ioc.query.with_entities(
@@ -74,7 +74,7 @@ def search_file_post():
 
         ns = []
         if search_value:
-            search_value = "%{}%".format(search_value)
+            search_value = f'%{search_value}%'
             ns = Notes.query.filter(
                 Notes.note_content.like(search_value),
                 Cases.client_id == Client.client_id,
@@ -96,7 +96,7 @@ def search_file_post():
         files = ns
 
     if search_type == "comments":
-        search_value = "%{}%".format(search_value)
+        search_value = f'%{search_value}%'
         comments = Comments.query.filter(
             Comments.comment_text.like(search_value),
             Cases.client_id == Client.client_id,
