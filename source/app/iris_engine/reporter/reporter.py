@@ -180,7 +180,7 @@ class IrisReportMaker(object):
 
             alki = []
             for asset in as_list:
-                alki.append('{} ({})'.format(asset.asset_name, asset.type))
+                alki.append(f'{asset.asset_name} ({asset.type})')
 
             setattr(ras, 'asset', "\r\n".join(alki))
 
@@ -296,7 +296,7 @@ class IrisMakeDocReport(IrisReportMaker):
 
         report = CaseTemplateReport.query.filter(CaseTemplateReport.id == self._report_id).first()
 
-        name = '{}.docx'.format(report.naming_format)
+        name = f'{report.naming_format}.docx'
         name = name.replace("%code_name%", case_info['doc_id'])
         name = name.replace('%customer%', case_info['case']['client']['customer_name'])
         name = name.replace('%case_name%', case_info['case'].get('name'))
@@ -423,7 +423,7 @@ class IrisMakeDocReport(IrisReportMaker):
 
             alki = []
             for asset in as_list:
-                alki.append('{} ({})'.format(asset.asset_name, asset.type))
+                alki.append(f'{asset.asset_name} ({asset.type})')
 
             setattr(ras, 'asset', "\r\n".join(alki))
 
@@ -565,7 +565,7 @@ class IrisMakeMdReport(IrisReportMaker):
                 html_file.write(output_text)
 
         except Exception as e:
-            log.exception('Error while generating report: {}'.format(e))
+            log.exception(f'Error while generating report: {e}')
             return None, e.__str__()
 
         return output_file_path, 'Report generated'
