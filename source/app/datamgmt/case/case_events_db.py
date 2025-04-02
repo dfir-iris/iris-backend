@@ -107,10 +107,9 @@ def get_default_cat():
     return [cat._asdict()]
 
 
-def get_case_event(event_id, caseid):
+def get_case_event(event_id):
     return CasesEvent.query.filter(
-        CasesEvent.event_id == event_id,
-        CasesEvent.case_id == caseid
+        CasesEvent.event_id == event_id
     ).first()
 
 

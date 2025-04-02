@@ -126,7 +126,7 @@ def case_comment_edit(cur_id, com_id, caseid):
 @ac_api_requires()
 def case_comment_add(cur_id, caseid):
     try:
-        event = get_case_event(event_id=cur_id, caseid=caseid)
+        event = get_case_event(cur_id)
         if not event:
             return response_error('Invalid event ID')
 
@@ -629,7 +629,7 @@ def case_filter_timeline(caseid):
 def case_delete_event(cur_id, caseid):
     call_modules_hook('on_preload_event_delete', data=cur_id, caseid=caseid)
 
-    event = get_case_event(event_id=cur_id, caseid=caseid)
+    event = get_case_event(cur_id)
     if not event:
         return response_error('Not a valid event ID for this case')
 
@@ -648,7 +648,7 @@ def case_delete_event(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def event_flag(cur_id, caseid):
-    event = get_case_event(cur_id, caseid)
+    event = get_case_event(cur_id)
     if not event:
         return response_error("Invalid event ID for this case")
 
@@ -664,9 +664,9 @@ def event_flag(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def event_view(cur_id, caseid):
-    event = get_case_event(cur_id, caseid)
+    event = get_case_event(cur_id)
     if not event:
-        return response_error("Invalid event ID for this case")
+        return response_error('Invalid event ID for this case')
 
     event_schema = EventSchema()
 
@@ -687,7 +687,7 @@ def event_view(cur_id, caseid):
 @ac_api_requires()
 def case_edit_event(cur_id, caseid):
     try:
-        event = get_case_event(cur_id, caseid)
+        event = get_case_event(cur_id)
         if not event:
             return response_error("Invalid event ID for this case")
 
@@ -770,7 +770,7 @@ def case_duplicate_event(cur_id, caseid):
 
     try:
         event_schema = EventSchema()
-        old_event = get_case_event(event_id=cur_id, caseid=caseid)
+        old_event = get_case_event(cur_id)
         if not old_event:
             return response_error("Invalid event ID for this case")
 

@@ -32,6 +32,7 @@ from app.datamgmt.case.case_events_db import update_event_assets
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.case.case_events_db import update_event_iocs
 from app.iris_engine.utils.tracker import track_activity
+from app.datamgmt.case.case_events_db import get_case_event
 
 
 def _load(request_data, **kwargs):
@@ -83,3 +84,6 @@ def events_create(case_identifier, request_json) -> CasesEvent:
 
     track_activity(f'added event "{event.event_title}"', caseid=case_identifier)
     return event
+
+def events_get(identifier) -> CasesEvent:
+    return get_case_event(identifier)

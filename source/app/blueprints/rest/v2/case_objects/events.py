@@ -26,6 +26,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
+from app.business.events import events_get
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
 from app.business.cases import cases_exists
@@ -51,7 +52,10 @@ def create_evidence(case_identifier):
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
 
+
 @case_events_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_event(case_identifier, identifier):
-    return response_api_success(None)
+    event = events_get(identifier)
+    schema = EventSchema()
+    return response_api_success(schema.dump(event))
