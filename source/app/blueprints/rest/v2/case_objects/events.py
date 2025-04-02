@@ -57,6 +57,9 @@ def create_evidence(case_identifier):
 @case_events_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_event(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
     try:
         event = events_get(identifier)
         schema = EventSchema()
