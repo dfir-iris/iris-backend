@@ -76,6 +76,7 @@ def get_event(case_identifier, identifier):
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
 
+
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
     if event.case_id != case_identifier:
         raise BusinessProcessingError(f'Event {event.event_id} does not belong to case {case_identifier}')
