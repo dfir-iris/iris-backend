@@ -99,6 +99,8 @@ def get_evidence(case_identifier, identifier):
         return response_api_success(evidence_schema.dump(evidence))
     except ObjectNotFoundError:
         return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 @case_evidences_blueprint.put('/<int:identifier>')

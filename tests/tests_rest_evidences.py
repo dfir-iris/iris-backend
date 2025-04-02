@@ -117,6 +117,15 @@ class TestsRestEvidences(TestCase):
         response = user.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(403, response.status_code)
 
+    def test_get_evidence_should_return_400_when_evidence_does_not_belong_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+        case_identifier2 = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier2}/evidences/{identifier}')
+        self.assertEqual(400, response.status_code)
+
     def test_get_evidences_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences')
