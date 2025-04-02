@@ -23,6 +23,7 @@ from marshmallow.exceptions import ValidationError
 
 from app import db
 from app.models.cases import CasesEvent
+from app.business.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
@@ -85,5 +86,9 @@ def events_create(case_identifier, request_json) -> CasesEvent:
     track_activity(f'added event "{event.event_title}"', caseid=case_identifier)
     return event
 
+
 def events_get(identifier) -> CasesEvent:
-    return get_case_event(identifier)
+    event = get_case_event(identifier)
+    if not event:
+        raise ObjectNotFoundError()
+    return event

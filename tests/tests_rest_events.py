@@ -114,3 +114,8 @@ class TestsRestEvents(TestCase):
         identifier = response['event_id']
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}').json()
         self.assertEqual(1, response['event_category_id'])
+
+    def test_get_event_should_return_404_when_evidence_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)

@@ -29,6 +29,7 @@ from app.business.events import events_create
 from app.business.events import events_get
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
@@ -56,8 +57,11 @@ def create_evidence(case_identifier):
 @case_events_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_event(case_identifier, identifier):
-    event = events_get(identifier)
-    schema = EventSchema()
-    result = schema.dump(event)
-    result['event_category_id'] = event.category[0].id if event.category else None
-    return response_api_success(result)
+    try:
+        event = events_get(identifier)
+        schema = EventSchema()
+        result = schema.dump(event)
+        result['event_category_id'] = event.category[0].id if event.category else None
+        return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
