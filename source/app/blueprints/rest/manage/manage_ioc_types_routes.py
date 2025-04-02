@@ -49,7 +49,7 @@ def get_ioc_type(cur_id):
 
     ioc_type = IocType.query.filter(IocType.type_id == cur_id).first()
     if not ioc_type:
-        return response_error("Invalid ioc type ID {type_id}".format(type_id=cur_id))
+        return response_error(f"Invalid ioc type ID {cur_id}")
 
     return response_success("", data=ioc_type)
 
@@ -71,7 +71,7 @@ def add_ioc_type_api():
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
-    track_activity("Added ioc type {ioc_type_name}".format(ioc_type_name=ioct_sc.type_name), ctx_less=True)
+    track_activity(f"Added ioc type {ioct_sc.type_name}", ctx_less=True)
     # Return the assets
     return response_success("Added successfully", data=ioct_sc)
 
@@ -89,12 +89,12 @@ def remove_ioc_type(cur_id):
 
     if type_id:
         db.session.delete(type_id)
-        track_activity("Deleted ioc type ID {type_id}".format(type_id=cur_id), ctx_less=True)
-        return response_success("Deleted ioc type ID {type_id}".format(type_id=cur_id))
+        track_activity(f"Deleted ioc type ID {cur_id}", ctx_less=True)
+        return response_success(f"Deleted ioc type ID {cur_id}")
 
     track_activity(f'Attempted to delete ioc type ID {cur_id}, but was not found', ctx_less=True)
 
-    return response_error("Attempted to delete ioc type ID {type_id}, but was not found".format(type_id=cur_id))
+    return response_error(f"Attempted to delete ioc type ID {cur_id}, but was not found")
 
 
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/update/<int:cur_id>', methods=['POST'])
@@ -105,7 +105,7 @@ def update_ioc(cur_id):
 
     ioc_type = IocType.query.filter(IocType.type_id == cur_id).first()
     if not ioc_type:
-        return response_error("Invalid ioc type ID {type_id}".format(type_id=cur_id))
+        return response_error(f"Invalid ioc type ID {cur_id}")
 
     ioct_schema = IocTypeSchema()
 
@@ -114,7 +114,7 @@ def update_ioc(cur_id):
         ioct_sc = ioct_schema.load(request.get_json(), instance=ioc_type)
 
         if ioct_sc:
-            track_activity("updated ioc type type {}".format(ioct_sc.type_name))
+            track_activity(f"updated ioc type type {ioct_sc.type_name}")
             return response_success("IOC type updated", ioct_sc)
 
     except marshmallow.exceptions.ValidationError as e:

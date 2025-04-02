@@ -75,13 +75,13 @@ def datastore_list_filter(caseid):
         filter_d = dict(json.loads(urllib.parse.unquote_plus(query_filter)))
 
     except Exception as e:
-        current_app.logger.error('Error parsing filter: {}'.format(query_filter))
+        current_app.logger.error(f'Error parsing filter: {query_filter}')
         current_app.logger.error(e)
         return response_error('Invalid query')
 
     data, log = datastore_filter_tree(filter_d, caseid)
     if data is None:
-        current_app.logger.error('Error parsing filter: {}'.format(query_filter))
+        current_app.logger.error(f'Error parsing filter: {query_filter}')
         current_app.logger.error(log)
         return response_error('Invalid query')
 

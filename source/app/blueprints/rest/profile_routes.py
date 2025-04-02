@@ -99,7 +99,7 @@ def update_user_view():
         db.session.commit()
 
         if cuser:
-            track_activity("user {} updated itself".format(user.user))
+            track_activity(f"user {user.user} updated itself")
             return response_success("User updated", data=user_schema.dump(user))
 
         return response_error("Unable to update user for internal reasons")

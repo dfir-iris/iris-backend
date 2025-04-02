@@ -204,7 +204,7 @@ def group_cac_set_case(caseid):
             success, logs = ac_set_case_access_for_users(group.group_members, caseid, access_level)
 
     except Exception as e:
-        log.error('Error while setting case access for group: {}'.format(e))
+        log.error(f'Error while setting case access for group: {e}')
         log.error(traceback.format_exc())
         return response_error(msg=str(e))
 
@@ -250,7 +250,7 @@ def user_cac_set_case(caseid):
         db.session.commit()
 
     except Exception as e:
-        log.error('Error while setting case access for user: {}'.format(e))
+        log.error(f'Error while setting case access for user: {e}')
         log.error(traceback.format_exc())
         return response_error(msg=str(e))
 

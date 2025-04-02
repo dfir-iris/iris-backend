@@ -565,7 +565,7 @@ def case_filter_timeline(caseid):
             if asset.event_id == ras['event_id']:
                 alki.append(
                     {
-                        "name": "{} ({})".format(asset.asset_name, asset.type),
+                        "name": f"{asset.asset_name} ({asset.type})",
                         "ip": asset.asset_ip,
                         "description": asset.asset_description,
                         "compromised": asset.asset_compromise_status_id == CompromiseStatus.compromised.value
@@ -581,7 +581,7 @@ def case_filter_timeline(caseid):
 
                 alki.append(
                     {
-                        "name": "{}".format(ioc.ioc_value),
+                        "name": f"{ioc.ioc_value}",
                         "description": ioc.ioc_description
                     }
                 )
@@ -641,7 +641,7 @@ def case_delete_event(cur_id, caseid):
 
     track_activity(f"deleted event \"{event.event_title}\" in timeline", caseid)
 
-    return response_success('Event ID {} deleted'.format(cur_id))
+    return response_success(f'Event ID {cur_id} deleted')
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/flag/<int:cur_id>', methods=['GET'])
@@ -1002,7 +1002,7 @@ def case_events_upload_csv(caseid):
 
             event = call_modules_hook('on_postload_event_create', data=event, caseid=caseid)
 
-            track_activity("added event {}".format(event.event_id), caseid=caseid)
+            track_activity(f"added event {event.event_id}", caseid=caseid)
 
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())

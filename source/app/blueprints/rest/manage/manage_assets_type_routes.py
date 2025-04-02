@@ -102,7 +102,7 @@ def view_assets(cur_id):
             asset_sc.asset_icon_compromised = fpath_c
 
         if asset_sc:
-            track_activity("updated asset type {}".format(asset_sc.asset_name))
+            track_activity(f"updated asset type {asset_sc.asset_name}")
             return response_success("Asset type updated", asset_sc)
 
     except marshmallow.exceptions.ValidationError as e:
@@ -132,7 +132,7 @@ def add_assets():
             db.session.add(asset_sc)
             db.session.commit()
 
-            track_activity("updated asset type {}".format(asset_sc.asset_name))
+            track_activity(f"updated asset type {asset_sc.asset_name}")
             return response_success("Asset type updated", asset_sc)
 
     except marshmallow.exceptions.ValidationError as e:
@@ -167,9 +167,9 @@ def delete_assets(cur_id):
 
     db.session.delete(asset)
 
-    track_activity("Deleted asset type ID {asset_id}".format(asset_id=cur_id), ctx_less=True)
+    track_activity(f"Deleted asset type ID {cur_id}", ctx_less=True)
 
-    return response_success("Deleted asset type ID {cur_id} successfully".format(cur_id=cur_id))
+    return response_success(f"Deleted asset type ID {cur_id} successfully")
 
 
 @manage_assets_type_rest_blueprint.route('/manage/asset-types/search', methods=['POST'])

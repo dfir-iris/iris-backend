@@ -285,7 +285,7 @@ def manage_groups_cac_delete_case(cur_id):
         db.session.commit()
 
     except Exception as e:
-        log.error("Error while removing cases access from group: {}".format(e))
+        log.error(f"Error while removing cases access from group: {e}")
         log.error(traceback.format_exc())
         return response_error(msg=str(e))
 

@@ -129,7 +129,7 @@ def add_user():
         del udata['user_password']
 
         if cuser:
-            track_activity("created user {}".format(user.user), ctx_less=True)
+            track_activity(f"created user {user.user}", ctx_less=True)
             return response_success("user created", data=udata)
 
         return response_error("Unable to create user for internal reasons")
@@ -259,7 +259,7 @@ def manage_user_cac_delete_cases(cur_id):
         db.session.commit()
 
     except Exception as e:
-        log.error("Error while removing cases access from user: {}".format(e))
+        log.error(f"Error while removing cases access from user: {e}")
         log.error(traceback.format_exc())
         return response_error(msg=str(e))
 
@@ -296,7 +296,7 @@ def update_user_api(cur_id):
         db.session.commit()
 
         if cuser:
-            track_activity("updated user {}".format(user.user), ctx_less=True)
+            track_activity(f"updated user {user.user}", ctx_less=True)
             return response_success("User updated", data=user_schema.dump(user))
 
         return response_error("Unable to update user for internal reasons")
@@ -380,18 +380,18 @@ def view_delete_user(cur_id):
             return ac_api_return_access_denied()
 
         if user.active is True:
-            track_activity(message="tried to delete active user ID {}".format(cur_id), ctx_less=True)
+            track_activity(message=f"tried to delete active user ID {cur_id}", ctx_less=True)
             return response_error("Cannot delete active user")
 
         delete_user(user.id)
 
-        track_activity(message="deleted user ID {}".format(cur_id), ctx_less=True)
-        return response_success("Deleted user ID {}".format(cur_id))
+        track_activity(message=f"deleted user ID {cur_id}", ctx_less=True)
+        return response_success(f"Deleted user ID {cur_id}")
 
     except Exception as e:
         print(e)
         db.session.rollback()
-        track_activity(message="tried to delete active user ID {}".format(cur_id), ctx_less=True)
+        track_activity(message=f"tried to delete active user ID {cur_id}", ctx_less=True)
         return response_error("Cannot delete active user")
 
 
