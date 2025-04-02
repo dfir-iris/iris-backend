@@ -255,7 +255,7 @@ def export_case_tm_json(case_id):
 
         alki = []
         for asset in as_list:
-            alki.append("{} ({})".format(asset.asset_name, asset.type))
+            alki.append(f'{asset.asset_name} ({asset.type})')
 
         ras['assets'] = alki
 
