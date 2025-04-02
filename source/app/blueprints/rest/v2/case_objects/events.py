@@ -21,6 +21,7 @@ from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -49,3 +50,8 @@ def create_evidence(case_identifier):
         return response_api_created(schema.dump(event))
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+@case_events_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_event(case_identifier, identifier):
+    return response_api_success(None)
