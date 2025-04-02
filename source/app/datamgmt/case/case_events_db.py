@@ -136,7 +136,7 @@ def get_case_events_comments_count(events_list):
     ).all()
 
 
-def get_case_event_comment(event_id, comment_id, caseid):
+def get_case_event_comment(event_id, comment_id):
     return EventComments.query.filter(
         EventComments.comment_event_id == event_id,
         EventComments.comment_id == comment_id

@@ -107,7 +107,7 @@ def case_comment_delete(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_get(cur_id, com_id, caseid):
-    comment = get_case_event_comment(cur_id, com_id, caseid=caseid)
+    comment = get_case_event_comment(cur_id, com_id)
     if not comment:
         return response_error("Invalid comment ID")
 
