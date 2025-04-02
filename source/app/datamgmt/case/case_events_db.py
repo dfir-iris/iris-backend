@@ -323,7 +323,7 @@ def get_case_assets_for_tm(caseid):
 
     for asset in assets_list:
         assets.append({
-            'asset_name': "{} ({})".format(asset.asset_name, asset.type),
+            'asset_name': f'{asset.asset_name} ({asset.type})',
             'asset_id': asset.asset_id
         })
 
@@ -344,7 +344,7 @@ def get_case_iocs_for_tm(caseid):
 
     for ioc in iocs_list:
         iocs.append({
-            'ioc_value': "{}".format(ioc.ioc_value),
+            'ioc_value': f'{ioc.ioc_value}',
             'ioc_id': ioc.ioc_id
         })
 

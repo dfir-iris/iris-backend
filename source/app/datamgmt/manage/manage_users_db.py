@@ -481,7 +481,7 @@ def set_user_case_access(user_id, case_id, access_level):
 
     ac_set_case_access_for_user(user_id, case_id, access_level)
 
-    return True, 'Case access set to {} for user {}'.format(access_level, user_id)
+    return True, f'Case access set to {access_level} for user {user_id}'
 
 
 def get_user_details(user_id, include_api_key=False):
