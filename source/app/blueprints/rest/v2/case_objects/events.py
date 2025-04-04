@@ -42,7 +42,7 @@ case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/
 
 @case_events_blueprint.post('')
 @ac_api_requires()
-def create_evidence(case_identifier):
+def create_event(case_identifier):
     if not cases_exists(case_identifier):
         return response_api_not_found()
     if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
