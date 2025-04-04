@@ -22,10 +22,10 @@ import json
 import marshmallow.exceptions
 import urllib.parse
 from flask import Blueprint
+from flask import current_app
 from flask import request
 from flask import send_file
 from flask_login import current_user
-from flask import current_app
 from pathlib import Path
 
 from app import db
