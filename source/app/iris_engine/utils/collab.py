@@ -1,6 +1,6 @@
 import json
 
-import app
+from app import socket_io
 
 
 def collab_notify(case_id: int,
@@ -17,4 +17,4 @@ def collab_notify(case_id: int,
         'object_type': object_type,
         'object_data': object_data
     })
-    app.socket_io.emit('case-obj-notif', data, room=room, to=room, skip_sid=request_sid)
+    socket_io.emit('case-obj-notif', data, room=room, to=room, skip_sid=request_sid)
