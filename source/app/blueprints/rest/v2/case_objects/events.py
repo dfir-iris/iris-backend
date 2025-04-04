@@ -77,6 +77,16 @@ def get_event(case_identifier, identifier):
         return response_api_error(e.get_message(), data=e.get_data())
 
 
+@case_events_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_event(case_identifier, identifier):
+    event = events_get(identifier)
+
+    schema = EventSchema()
+    result = schema.dump(event)
+    return response_api_success(result)
+
+
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
     if event.case_id != case_identifier:
         raise BusinessProcessingError(f'Event {event.event_id} does not belong to case {case_identifier}')
