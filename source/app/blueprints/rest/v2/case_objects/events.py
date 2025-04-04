@@ -27,6 +27,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
 from app.business.events import events_get
+from app.business.events import events_update
 from app.models.cases import CasesEvent
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
@@ -81,6 +82,7 @@ def get_event(case_identifier, identifier):
 @ac_api_requires()
 def update_event(case_identifier, identifier):
     event = events_get(identifier)
+    event = events_update(event, request.get_json())
 
     schema = EventSchema()
     result = schema.dump(event)

@@ -171,7 +171,6 @@ class TestsRestEvents(TestCase):
 
     def test_update_event_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
-        case_identifier = self._subject.create_dummy_case()
         body = {'event_title': 'title', 'event_category_id': 1,
                 'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
                 'event_assets': [], 'event_iocs': []}
@@ -179,3 +178,16 @@ class TestsRestEvents(TestCase):
         identifier = response['event_id']
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_update_event_should_change_event_title(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        body = {'event_title': 'new title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body).json()
+        self.assertEqual('new title', response['event_title'])
