@@ -81,8 +81,8 @@ def ctx_search_user_cases(search, user_id, max_results: int = 100):
         conditions.append(and_(
             UserCaseEffectiveAccess.user_id == user_id,
             or_(
-                Cases.name.ilike('%{}%'.format(search)),
-                Client.name.ilike('%{}%'.format(search))
+                Cases.name.ilike(f'%{search}%'),
+                Client.name.ilike(f'%{search}%')
         )))
 
     uceas = UserCaseEffectiveAccess.query.with_entities(

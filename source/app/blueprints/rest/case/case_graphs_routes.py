@@ -55,9 +55,9 @@ def case_graph_get_data(caseid):
                 img = event.asset_icon_not_compromised
 
             if event.asset_ip:
-                title = "{} -{}".format(event.asset_ip, event.asset_description)
+                title = f"{event.asset_ip} -{event.asset_description}"
             else:
-                title = "{}".format(event.asset_description)
+                title = f"{event.asset_description}"
             label = event.asset_name
             idx = f'a{event.asset_id}'
             node_type = 'asset'
@@ -70,7 +70,7 @@ def case_graph_get_data(caseid):
             node_type = 'ioc'
 
         try:
-            date = "{}-{}-{}".format(event.event_date.day, event.event_date.month, event.event_date.year)
+            date = f"{event.event_date.day}-{event.event_date.month}-{event.event_date.year}"
         except:
             date = '15-05-2021'
 
@@ -95,7 +95,7 @@ def case_graph_get_data(caseid):
 
         ak = {
             'node_id': idx,
-            'node_title': "{} - {}".format(event.event_date, event.event_title),
+            'node_title': f"{event.event_date} - {event.event_title}",
             'node_name': label,
             'node_type': node_type
         }

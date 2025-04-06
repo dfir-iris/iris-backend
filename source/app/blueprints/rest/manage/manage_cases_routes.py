@@ -187,7 +187,7 @@ def api_reopen_case(identifier):
     case = call_modules_hook('on_postload_case_update', data=case, caseid=identifier)
 
     add_obj_history_entry(case, 'case reopen')
-    track_activity("reopen case ID {}".format(identifier), caseid=identifier)
+    track_activity(f"reopen case ID {identifier}", caseid=identifier)
     case_schema = CaseSchema()
 
     return response_success("Case reopen successfully", data=case_schema.dump(res))
@@ -365,8 +365,7 @@ def manage_cases_uploadfiles(caseid):
     mod, _ = instantiate_module_from_name(pipeline_mod)
     status = configure_module_on_init(mod)
     if status.is_failure():
-        return response_error("Path for upload {} is not built ! Unreachable pipeline".format(
-            os.path.join(f.filename)))
+        return response_error(f"Path for upload {os.path.join(f.filename)} is not built ! Unreachable pipeline")
 
     case_customer = None
     case_name = None

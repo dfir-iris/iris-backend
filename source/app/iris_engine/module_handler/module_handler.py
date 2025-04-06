@@ -100,8 +100,8 @@ def check_module_health(module_instance):
         return False, ['Error - cannot instantiate the module. Check server logs']
 
     try:
-        dup_logs("Testing module")
-        dup_logs("Module name : {}".format(module_instance.get_module_name()))
+        dup_logs('Testing module')
+        dup_logs(f'Module name: {module_instance.get_module_name()}')
 
         if type(module_instance.get_interface_version()) != str:
             mod_interface_version = str(module_instance.get_interface_version())
@@ -111,7 +111,7 @@ def check_module_health(module_instance):
         if not (version.parse(app.config.get('MODULES_INTERFACE_MIN_VERSION'))
                 <= version.parse(mod_interface_version)
                 <= version.parse(app.config.get('MODULES_INTERFACE_MAX_VERSION'))):
-            log.critical("Module interface no compatible with server. Expected "
+            log.critical('Module interface no compatible with server. Expected '
                          f"{app.config.get('MODULES_INTERFACE_MIN_VERSION')} <= module "
                          f"<= {app.config.get('MODULES_INTERFACE_MAX_VERSION')}")
             logs.append("Module interface no compatible with server. Expected "
@@ -120,7 +120,7 @@ def check_module_health(module_instance):
 
             return False, logs
 
-        dup_logs("Module interface version : {}".format(module_instance.get_interface_version()))
+        dup_logs(f'Module interface version: {module_instance.get_interface_version()}')
 
         module_type = module_instance.get_module_type()
         if module_type not in ["module_pipeline", "module_processor"]:
@@ -128,7 +128,7 @@ def check_module_health(module_instance):
             logs.append(f"Unrecognised module type. Expected module_pipeline or module_processor, got {module_type}")
             return False, logs
 
-        dup_logs("Module type : {}".format(module_instance.get_module_type()))
+        dup_logs(f'Module type: {module_instance.get_module_type()}')
 
         if not module_instance.is_providing_pipeline() and module_type == 'pipeline':
             log.critical("Module of type pipeline has no pipelines")
@@ -136,7 +136,7 @@ def check_module_health(module_instance):
             return False, logs
 
         if module_instance.is_providing_pipeline():
-            dup_logs("Module has pipeline : {}".format(module_instance.is_providing_pipeline()))
+            dup_logs(f'Module has pipeline: {module_instance.is_providing_pipeline()}')
             # Check the pipelines config health
             has_error, llogs = check_pipeline_args(module_instance.pipeline_get_info())
 
@@ -173,10 +173,9 @@ def instantiate_module_from_name(module_name):
     # The whole concept is based on the fact that the root module provides an __iris_module_interface
     # variable pointing to the interface class with which Iris can talk to
     try:
-        mod_interface = importlib.import_module("{}.{}".format(module_name,
-                                                           mod_root_interface.__iris_module_interface))
+        mod_interface = importlib.import_module(f'{module_name}.{mod_root_interface.__iris_module_interface}')
     except Exception as e:
-        msg = f"Could not import module {module_name}: {e}"
+        msg = f'Could not import module {module_name}: {e}'
         log.error(msg)
         return None, msg
 
@@ -198,7 +197,7 @@ def instantiate_module_from_name(module_name):
     try:
         mod_inst = cl_interface()
     except Exception as e:
-        msg = f"Could not instantiate the class for module {module_name}: {e}"
+        msg = f'Could not instantiate the class for module {module_name}: {e}'
         log.error(msg)
         return None, msg
 
@@ -291,7 +290,7 @@ def register_module(module_name):
             mod_inst.register_hooks(module_id=module.id)
 
     except Exception as e:
-        return None, "Fatal - {}".format(e.__str__())
+        return None, f'Fatal - {e.__str__()}'
 
     return module, "Module registered"
 
@@ -317,7 +316,7 @@ def iris_update_hooks(module_name, module_id):
             mod_inst.register_hooks(module_id=module_id)
 
     except Exception as e:
-        return False, ["Fatal - {}".format(e.__str__())]
+        return False, [f'Fatal - {e.__str__()}']
 
     return True, ["Module updated"]
 
@@ -612,4 +611,4 @@ def pipeline_dispatcher(self, module_name, hook_name, pipeline_type, pipeline_da
         return mod.pipeline_handler(pipeline_type=pipeline_type,
                                     pipeline_data=pipeline_data)
 
-    return IStatus.I2InterfaceNotImplemented("Couldn't instantiate module {}".format(module_name))
+    return IStatus.I2InterfaceNotImplemented(f'Couldn\'t instantiate module {module_name}')

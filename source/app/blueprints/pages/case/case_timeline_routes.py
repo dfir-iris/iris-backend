@@ -73,7 +73,7 @@ def case_comment_modal(cur_id, caseid, url_redir):
     if url_redir:
         return redirect(url_for('case_timeline.case_timeline', cid=caseid, redirect=True))
 
-    event = get_case_event(cur_id, caseid=caseid)
+    event = get_case_event(cur_id)
     if not event:
         return response_error('Invalid event ID')
 
@@ -87,7 +87,7 @@ def event_view_modal(cur_id, caseid, url_redir):
     if url_redir:
         return redirect(url_for('case_timeline.case_timeline', cid=caseid, redirect=True))
 
-    event = get_case_event(cur_id, caseid)
+    event = get_case_event(cur_id)
     if not event:
         return response_error("Invalid event ID for this case")
 

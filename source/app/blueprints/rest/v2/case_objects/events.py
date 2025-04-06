@@ -21,12 +21,16 @@ from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
+from app.business.events import events_get
+from app.models.cases import CasesEvent
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
@@ -49,3 +53,30 @@ def create_evidence(case_identifier):
         return response_api_created(schema.dump(event))
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_events_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_event(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
+    try:
+        event = events_get(identifier)
+        _check_event_and_case_identifier_match(event, case_identifier)
+        if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=event.case_id)
+
+        schema = EventSchema()
+        result = schema.dump(event)
+        result['event_category_id'] = event.category[0].id if event.category else None
+        return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+
+def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
+    if event.case_id != case_identifier:
+        raise BusinessProcessingError(f'Event {event.event_id} does not belong to case {case_identifier}')

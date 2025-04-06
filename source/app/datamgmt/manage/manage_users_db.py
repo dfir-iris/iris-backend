@@ -22,7 +22,7 @@ from functools import reduce
 from flask_login import current_user, AnonymousUserMixin
 from sqlalchemy import and_
 
-import app
+from app.logger import logger
 from app import bc
 from app import db
 from app.datamgmt.case.case_db import get_case
@@ -481,7 +481,7 @@ def set_user_case_access(user_id, case_id, access_level):
 
     ac_set_case_access_for_user(user_id, case_id, access_level)
 
-    return True, 'Case access set to {} for user {}'.format(access_level, user_id)
+    return True, f'Case access set to {access_level} for user {user_id}'
 
 
 def get_user_details(user_id, include_api_key=False):
@@ -771,7 +771,7 @@ def get_filtered_users(user_ids: str = None,
         )
 
     except Exception as e:
-        app.logger.exception(f'Error getting users: {str(e)}')
+        logger.exception(f'Error getting users: {str(e)}')
         return None
 
     return filtered_users

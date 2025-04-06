@@ -86,8 +86,7 @@ def logout():
                     state=session["oidc_state"])
                 logout_url = logout_request.request(
                     oidc_client.provider_info["end_session_endpoint"])
-                track_activity("user '{}' is been logged-out".format(
-                    current_user.user), ctx_less=True, display_in_ui=False)
+                track_activity(f"user '{current_user.user}' is been logged-out", ctx_less=True, display_in_ui=False)
                 logout_user()
                 session.clear()
                 return redirect(logout_url)
@@ -98,7 +97,7 @@ def logout():
                     display_in_ui=False
                 )
 
-    track_activity("user '{}' is been logged-out".format(current_user.user),
+    track_activity(f"user '{current_user.user}' is been logged-out",
                    ctx_less=True, display_in_ui=False)
     logout_user()
     session.clear()
@@ -123,8 +122,7 @@ def get_cases_charts():
     retr = [[], []]
     rk = {}
     for case in res:
-        month = "{}/{}/{}".format(case.open_date.day,
-                                  case.open_date.month, case.open_date.year)
+        month = f"{case.open_date.day}/{case.open_date.month}/{case.open_date.year}"
 
         if month in rk:
             rk[month] += 1
@@ -231,8 +229,7 @@ def add_gtask(caseid):
 
     gtask = call_modules_hook(
         'on_postload_global_task_create', data=gtask, caseid=caseid)
-    track_activity("created new global task \'{}\'".format(
-        gtask.task_title), caseid=caseid)
+    track_activity(f"created new global task \'{gtask.task_title}\'", caseid=caseid)
 
     return response_success('Task added', data=gtask_schema.dump(gtask))
 
@@ -269,8 +266,7 @@ def edit_gtask(cur_id, caseid):
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
-    track_activity("updated global task {} (status {})".format(
-        task.task_title, task.task_status_id), caseid=caseid)
+    track_activity(f"updated global task {task.task_title} (status {task.task_status_id})", caseid=caseid)
 
     return response_success('Task updated', data=gtask_schema.dump(gtask))
 
@@ -294,7 +290,7 @@ def gtask_delete(cur_id, caseid):
 
     call_modules_hook('on_postload_global_task_delete',
                       data=request.get_json(), caseid=caseid)
-    track_activity("deleted global task ID {}".format(cur_id), caseid=caseid)
+    track_activity(f"deleted global task ID {cur_id}", caseid=caseid)
 
     return response_success("Task deleted")
 

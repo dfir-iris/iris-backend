@@ -650,7 +650,7 @@ def alerts_escalate_route(alert_id) -> Response:
         case = call_modules_hook('on_postload_case_create', data=case)
 
         add_obj_history_entry(case, 'created')
-        track_activity("new case {case_name} created from alert".format(case_name=case.name),
+        track_activity(f"new case {case.name} created from alert",
                        ctx_less=True)
 
         add_obj_history_entry(alert, f"Alert escalated to case #{case.case_id}")
@@ -931,7 +931,7 @@ def alerts_batch_escalate_route() -> Response:
         case = call_modules_hook('on_postload_case_create', data=case)
 
         add_obj_history_entry(case, 'created')
-        track_activity("new case {case_name} created from alerts".format(case_name=case.name),
+        track_activity(f"new case {case.name} created from alerts",
                        caseid=case.case_id)
 
         for alert in alerts_list:

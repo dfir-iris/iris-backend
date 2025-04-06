@@ -165,7 +165,7 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
 
         db.session.commit()
         cases_list.append(case.case_id)
-        log.info('Added unrestricted case {}'.format(case.name))
+        log.info(f'Added unrestricted case {case.name}')
 
     log.info('Setting permissions for unrestricted cases')
     add_case_access_to_group(group=users_data['ganalystes'],
@@ -202,7 +202,7 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
 
         db.session.commit()
         cases_list.append(case.case_id)
-        log.info('Added restricted case {}'.format(case.name))
+        log.info(f'Added restricted case {case.name}')
 
     add_case_access_to_group(group=users_data['ganalystes'],
                              cases_list=cases_list,

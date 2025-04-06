@@ -107,10 +107,9 @@ def get_default_cat():
     return [cat._asdict()]
 
 
-def get_case_event(event_id, caseid):
+def get_case_event(event_id):
     return CasesEvent.query.filter(
-        CasesEvent.event_id == event_id,
-        CasesEvent.case_id == caseid
+        CasesEvent.event_id == event_id
     ).first()
 
 
@@ -137,7 +136,7 @@ def get_case_events_comments_count(events_list):
     ).all()
 
 
-def get_case_event_comment(event_id, comment_id, caseid):
+def get_case_event_comment(event_id, comment_id):
     return EventComments.query.filter(
         EventComments.comment_event_id == event_id,
         EventComments.comment_id == comment_id
@@ -324,7 +323,7 @@ def get_case_assets_for_tm(caseid):
 
     for asset in assets_list:
         assets.append({
-            'asset_name': "{} ({})".format(asset.asset_name, asset.type),
+            'asset_name': f'{asset.asset_name} ({asset.type})',
             'asset_id': asset.asset_id
         })
 
@@ -345,7 +344,7 @@ def get_case_iocs_for_tm(caseid):
 
     for ioc in iocs_list:
         iocs.append({
-            'ioc_value': "{}".format(ioc.ioc_value),
+            'ioc_value': f'{ioc.ioc_value}',
             'ioc_id': ioc.ioc_id
         })
 
