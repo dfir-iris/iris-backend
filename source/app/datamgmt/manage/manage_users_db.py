@@ -19,7 +19,7 @@
 from typing import List
 
 from functools import reduce
-from flask_login import current_user
+from flask_login import current_user, AnonymousUserMixin
 from sqlalchemy import and_
 
 import app
@@ -122,7 +122,7 @@ def update_user_groups(user_id, groups):
         db.session.add(user_group)
 
     for group_id in groups_to_remove:
-        if current_user.id == user_id and ac_ldp_group_removal(user_id=user_id, group_id=group_id):
+        if (not isinstance(current_user, AnonymousUserMixin)) and current_user.id == user_id and ac_ldp_group_removal(user_id=user_id, group_id=group_id):
             continue
 
         UserGroup.query.filter(

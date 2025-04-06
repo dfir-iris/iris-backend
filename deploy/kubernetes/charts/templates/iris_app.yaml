@@ -104,7 +104,33 @@ spec:
 
           - name:  IRIS_ADM_PASSWORD
             value: {{ .Values.irisapp.IRIS_ADM_PASSWORD | quote }}
+          
+          {{- if eq .Values.irisapp.IRIS_AUTHENTICATION_TYPE "oidc" }}
+          - name: OIDC_ISSUER_URL
+            value: {{ .Values.irisapp.OIDC_ISSUER_URL | quote }}
 
+          - name: OIDC_CLIENT_ID
+            value: {{ .Values.irisapp.OIDC_CLIENT_ID | quote }}
+
+          - name: OIDC_CLIENT_SECRET
+            value: {{ .Values.irisapp.OIDC_CLIENT_SECRET | quote }}
+
+          - name: OIDC_AUTH_ENDPOINT
+            value: {{ .Values.irisapp.OIDC_AUTH_ENDPOINT | quote }}
+
+          - name: OIDC_TOKEN_ENDPOINT
+            value: {{ .Values.irisapp.OIDC_TOKEN_ENDPOINT | quote }}
+
+          - name: OIDC_END_SESSION_ENDPOINT
+            value: {{ .Values.irisapp.OIDC_END_SESSION_ENDPOINT | quote }}
+
+          - name: OIDC_MAPPING_USERGROUP
+            value: {{ .Values.irisapp.OIDC_MAPPING_USERGROUP | quote }}
+
+          - name: OIDC_MAPPING_ROLES
+            value: {{ .Values.irisapp.OIDC_MAPPING_ROLES | quote }}
+          {{- end }}
+          
           ports:
             - containerPort: 8000
 
