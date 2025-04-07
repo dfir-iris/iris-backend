@@ -42,6 +42,25 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create(f'/api/v2/alerts', body)
         self.assertEqual(201, response.status_code)
+    
+    def test_create_alert_should_field_alert_title(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertEqual('title', response['alert_title'])
+
+    def test_create_alert_should_return_400_when_alert_customer_id_is_missing(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body)
+        self.assertEqual(400, response.status_code)
 
     def test_alerts_with_filter_alerts_assets_should_not_fail(self):
         response = self._subject.get('/api/v2/alerts', query_parameters={'alert_assets': 'some assert name'})
