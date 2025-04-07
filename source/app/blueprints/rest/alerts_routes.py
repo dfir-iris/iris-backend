@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import json
 import marshmallow
 from datetime import datetime
 from flask import Blueprint
@@ -36,7 +35,6 @@ from app.datamgmt.alerts.alerts_db import create_case_from_alert
 from app.datamgmt.alerts.alerts_db import delete_related_alerts_cache
 from app.datamgmt.alerts.alerts_db import merge_alert_in_case
 from app.datamgmt.alerts.alerts_db import unmerge_alert_from_case
-from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.datamgmt.alerts.alerts_db import get_related_alerts
 from app.datamgmt.alerts.alerts_db import get_related_alerts_details
 from app.datamgmt.alerts.alerts_db import get_alert_comments
@@ -198,6 +196,7 @@ def alerts_add_route():
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
+
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>', methods=['GET'])
 @ac_api_requires(Permissions.alerts_read)

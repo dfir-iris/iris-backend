@@ -22,7 +22,7 @@ from flask import Response
 from flask_login import current_user
 
 from app.blueprints.access_controls import ac_api_requires
-from app.blueprints.rest.endpoints import response_api_success 
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
@@ -136,6 +136,7 @@ def alerts_list_route() -> Response:
     }
     return response_api_success(data=filtered_data)
 
+
 @alerts_blueprint.post('')
 @ac_api_requires()
 def create_alert():
@@ -144,6 +145,6 @@ def create_alert():
         alert = alerts_create(request.get_json())
         alert_schema = AlertSchema()
         return response_api_created(alert_schema.dump(alert))
-    
+
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())

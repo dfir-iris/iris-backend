@@ -35,13 +35,15 @@ from app.schema.marshables import AlertSchema
 from app.schema.marshables import CaseAssetsSchema
 from app.schema.marshables import IocSchema
 
+
 def _load(request_data, **kwargs):
     try:
         alert_schema = AlertSchema()
         return alert_schema.load(request_data, **kwargs)
     except ValidationError as e:
         raise BusinessProcessingError('Data error', data=e.messages)
-    
+
+
 def alerts_create(request_data) -> Alert:
     
     ioc_schema = IocSchema()
