@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -27,7 +27,6 @@ from typing import List
 from werkzeug import Response
 
 from app import db
-from app import socket_io
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.case_comments import case_comment_update
@@ -57,12 +56,12 @@ from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import CaseSchema
 from app.schema.marshables import CommentSchema
-from app.schema.marshables import CaseAssetsSchema
-from app.schema.marshables import IocSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.util import add_obj_history_entry
 from app.blueprints.responses import response_success
+from app.business.errors import BusinessProcessingError
+from app.business.alerts import alerts_create
 
 alerts_rest_blueprint = Blueprint('alerts_rest', __name__)
 
@@ -189,78 +188,16 @@ def alerts_list_route() -> Response:
 
 
 @alerts_rest_blueprint.route('/alerts/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/alerts')
 @ac_api_requires(Permissions.alerts_write)
-def alerts_add_route() -> Response:
-    """
-    Add a new alert to the database
-
-    args:
-        caseid (str): The case id
-
-    returns:
-        Response: The response
-    """
-
-    if not request.json:
-        return response_error('No JSON data provided')
-
-    alert_schema = AlertSchema()
-    ioc_schema = IocSchema()
-    asset_schema = CaseAssetsSchema()
-
+def alerts_add_route():
     try:
-        # Load the JSON data from the request
-        data = request.get_json()
+        alert = alerts_create(request.get_json())
+        alert_schema = AlertSchema()
+        return response_success('Alert added', data=alert_schema.dump(alert))
 
-        iocs_list = data.pop('alert_iocs', [])
-        assets_list = data.pop('alert_assets', [])
-
-        iocs = ioc_schema.load(iocs_list, many=True, partial=True)
-        assets = asset_schema.load(assets_list, many=True, partial=True)
-
-        # Deserialize the JSON data into an Alert object
-        new_alert = alert_schema.load(data)
-
-        # Verify the user is entitled to create an alert for the client
-        if not user_has_client_access(current_user.id, new_alert.alert_customer_id):
-            return response_error('User not entitled to create alerts for the client')
-
-        new_alert.alert_creation_time = datetime.utcnow()
-
-        new_alert.iocs = iocs
-        new_alert.assets = assets
-
-        # Add the new alert to the session and commit it
-        db.session.add(new_alert)
-        db.session.commit()
-
-        # Add history entry
-        add_obj_history_entry(new_alert, 'Alert created')
-
-        # Cache the alert for similarities check
-        cache_similar_alert(new_alert.alert_customer_id, assets=assets_list,
-                            iocs=iocs_list, alert_id=new_alert.alert_id,
-                            creation_date=new_alert.alert_source_event_time)
-
-        #register_related_alerts(new_alert, assets_list=assets, iocs_list=iocs)
-
-        new_alert = call_modules_hook('on_postload_alert_create', data=new_alert)
-
-        track_activity(f"created alert #{new_alert.alert_id} - {new_alert.alert_title}", ctx_less=True)
-
-        # Emit a socket io event
-        socket_io.emit('new_alert', json.dumps({
-            'alert_id': new_alert.alert_id
-        }), namespace='/alerts')
-
-        # Return the newly created alert as JSON
-        return response_success(data=alert_schema.dump(new_alert))
-
-    except Exception as e:
-        current_app.logger.exception(e)
-        # Handle any errors during deserialization or DB operations
-        return response_error(str(e))
-
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>', methods=['GET'])
 @ac_api_requires(Permissions.alerts_read)

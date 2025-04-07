@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,18 +16,24 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint, request, Response
+from flask import Blueprint
+from flask import request
+from flask import Response
 from flask_login import current_user
 
 from app.blueprints.access_controls import ac_api_requires
-from app.blueprints.rest.endpoints import response_api_success, response_api_error
+from app.blueprints.rest.endpoints import response_api_success 
+from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
+from app.business.alerts import alerts_create
+from app.business.errors import BusinessProcessingError
 
 
-alerts_blueprint = Blueprint('alerts', __name__, url_prefix='/alerts')
+alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
 
 
 @alerts_blueprint.get('')
@@ -129,3 +135,15 @@ def alerts_list_route() -> Response:
         'next_page': filtered_alerts.next_num if filtered_alerts.has_next else None,
     }
     return response_api_success(data=filtered_data)
+
+@alerts_blueprint.post('')
+@ac_api_requires()
+def create_alert():
+
+    try:
+        alert = alerts_create(request.get_json())
+        alert_schema = AlertSchema()
+        return response_api_created(alert_schema.dump(alert))
+    
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
