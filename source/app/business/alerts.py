@@ -45,12 +45,12 @@ def _load(request_data, **kwargs):
 
 
 def alerts_create(request_data) -> Alert:
-    
+
     ioc_schema = IocSchema()
-    asset_schema = CaseAssetsSchema() 
-    
+    asset_schema = CaseAssetsSchema()
+
     try:
-        
+
         iocs_list = request_data.pop('alert_iocs', [])
         assets_list = request_data.pop('alert_assets', [])
 
@@ -61,7 +61,7 @@ def alerts_create(request_data) -> Alert:
 
         if not user_has_client_access(current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to create alerts for the client')
-    
+
         alert.alert_creation_time = datetime.utcnow()
 
         alert.iocs = iocs
@@ -72,7 +72,7 @@ def alerts_create(request_data) -> Alert:
 
         add_obj_history_entry(alert, 'Alert created')
 
-        cache_similar_alert(alert.alert_customer_id, assets=assets_list, iocs=iocs_list, alert_id=alert.alert_id, 
+        cache_similar_alert(alert.alert_customer_id, assets=assets_list, iocs=iocs_list, alert_id=alert.alert_id,
                             creation_date=alert.alert_source_event_time)
 
         alert = call_modules_hook('on_postload_alert_create', data=alert)
