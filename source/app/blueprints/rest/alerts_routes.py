@@ -188,7 +188,7 @@ def alerts_list_route() -> Response:
 @alerts_rest_blueprint.route('/alerts/add', methods=['POST'])
 @endpoint_deprecated('POST', '/api/v2/alerts')
 @ac_api_requires(Permissions.alerts_write)
-def alerts_add_route():
+def alerts_add_route() -> Response:
     try:
         alert = alerts_create(request.get_json())
         alert_schema = AlertSchema()

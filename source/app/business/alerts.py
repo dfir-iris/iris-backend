@@ -49,41 +49,37 @@ def alerts_create(request_data) -> Alert:
     ioc_schema = IocSchema()
     asset_schema = CaseAssetsSchema()
 
-    try:
+    iocs_list = request_data.pop('alert_iocs', [])
+    assets_list = request_data.pop('alert_assets', [])
 
-        iocs_list = request_data.pop('alert_iocs', [])
-        assets_list = request_data.pop('alert_assets', [])
+    iocs = ioc_schema.load(iocs_list, many=True, partial=True)
+    assets = asset_schema.load(assets_list, many=True, partial=True)
 
-        iocs = ioc_schema.load(iocs_list, many=True, partial=True)
-        assets = asset_schema.load(assets_list, many=True, partial=True)
+    alert = _load(request_data)
 
-        alert = _load(request_data)
+    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        return response_error('User not entitled to create alerts for the client')
 
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
-            return response_error('User not entitled to create alerts for the client')
+    alert.alert_creation_time = datetime.utcnow()
 
-        alert.alert_creation_time = datetime.utcnow()
+    alert.iocs = iocs
+    alert.assets = assets
 
-        alert.iocs = iocs
-        alert.assets = assets
+    db.session.add(alert)
+    db.session.commit()
 
-        db.session.add(alert)
-        db.session.commit()
+    add_obj_history_entry(alert, 'Alert created')
 
-        add_obj_history_entry(alert, 'Alert created')
+    cache_similar_alert(alert.alert_customer_id, assets=assets_list, iocs=iocs_list, alert_id=alert.alert_id,
+                        creation_date=alert.alert_source_event_time)
 
-        cache_similar_alert(alert.alert_customer_id, assets=assets_list, iocs=iocs_list, alert_id=alert.alert_id,
-                            creation_date=alert.alert_source_event_time)
+    alert = call_modules_hook('on_postload_alert_create', data=alert)
 
-        alert = call_modules_hook('on_postload_alert_create', data=alert)
+    track_activity(f"created alert #{alert.alert_id} - {alert.alert_title}", ctx_less=True)
 
-        track_activity(f"created alert #{alert.alert_id} - {alert.alert_title}", ctx_less=True)
+    socket_io.emit('new_alert', json.dumps({
+        'alert_id': alert.alert_id
+    }), namespace='/alerts')
 
-        socket_io.emit('new_alert', json.dumps({
-            'alert_id': alert.alert_id
-        }), namespace='/alerts')
+    return alert
 
-        return alert
-
-    except BusinessProcessingError as e:
-        return response_error(e.get_message(), data=e.get_data())
