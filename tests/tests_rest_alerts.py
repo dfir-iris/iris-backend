@@ -73,6 +73,16 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create(f'/api/v2/alerts', body).json()
         self.assertEqual(3, response['alert_status_id'])
 
+    def test_create_alert_should_return_data_alert_customer_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertEqual(1, response['alert_customer_id'])
+
     def test_create_alert_should_return_400_when_alert_customer_id_is_missing(self):
         body = {
             'alert_title': 'title',
