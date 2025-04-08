@@ -17,11 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
-from socketio import SimpleClient
-import json
 
 from iris import Iris
-from iris import _API_KEY
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -208,13 +205,12 @@ class TestsRestEvents(TestCase):
         identifier = response['event_id']
 
         with self._subject.get_socket_io_client() as socket_io_client:
-            socket_io_client.emit('join-case-obj-notif', {'channel': f'case-{case_identifier}'})
+            socket_io_client.emit('join-case-obj-notif', f'case-{case_identifier}')
 
             body = {'event_title': 'new title', 'event_category_id': 1,
                     'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
                     'event_assets': [], 'event_iocs': []}
             self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body).json()
 
-            message = socket_io_client.receive(timeout=60)
-            message_content = json.loads(message[1])
-            self.assertEqual(identifier, message_content['object_id'])
+            message = socket_io_client.receive()
+            self.assertEqual(identifier, message['object_id'])

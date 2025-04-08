@@ -21,7 +21,7 @@ from pathlib import Path
 from docker_compose import DockerCompose
 from rest_api import RestApi
 from user import User
-from socket_io_client import SocketIOClient
+from socket_io_context_manager import SocketIOContextManager
 
 API_URL = 'http://127.0.0.1:8000'
 # TODO SSOT: this should be directly read from the .env file
@@ -39,9 +39,9 @@ class Iris:
         # TODO remove this field and use _administrator instead
         self._api = RestApi(API_URL, _API_KEY)
         self._administrator = User(API_URL, _API_KEY, _ADMINISTRATOR_USER_IDENTIFIER)
-        self._socket_io_client = SocketIOClient(API_URL, _API_KEY)
+        self._socket_io_client = SocketIOContextManager(API_URL, _API_KEY)
 
-    def get_socket_io_client(self):
+    def get_socket_io_client(self) -> SocketIOContextManager:
         return self._socket_io_client
 
     def create(self, path, body, query_parameters=None):

@@ -16,27 +16,17 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from json import loads
-from socketio import SimpleClient
+from socket_io_client import SocketIOClient
 
 
-class SocketIOClient:
+class SocketIOContextManager:
 
     def __init__(self, url, api_key):
-        self._url = url
-        self._api_key = api_key
-        self._client = SimpleClient()
+        self._client = SocketIOClient(url, api_key)
 
-    def connect(self):
-        self._client.connect(self._url, headers={'Authorization': f'Bearer {self._api_key}'})
+    def __enter__(self) -> SocketIOClient:
+        self._client.connect()
+        return self._client
 
-    def emit(self, event, channel):
-        self._client.emit(event, {'channel': channel})
-
-    def receive(self):
-        message = self._client.receive(timeout=60)
-        print(message)
-        return loads(message[1])
-
-    def disconnect(self):
+    def __exit__(self, type, value, traceback):
         self._client.disconnect()
