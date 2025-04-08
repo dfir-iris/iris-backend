@@ -138,7 +138,7 @@ def alerts_list_route() -> Response:
 
 
 @alerts_blueprint.post('')
-@ac_api_requires()
+@ac_api_requires(Permissions.alerts_write)
 def create_alert():
 
     try:
