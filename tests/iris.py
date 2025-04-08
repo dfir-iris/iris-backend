@@ -16,11 +16,12 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from uuid import uuid4
 from pathlib import Path
 from docker_compose import DockerCompose
 from rest_api import RestApi
 from user import User
-from uuid import uuid4
+from socket_io_client import SocketIOClient
 
 API_URL = 'http://127.0.0.1:8000'
 # TODO SSOT: this should be directly read from the .env file
@@ -38,6 +39,10 @@ class Iris:
         # TODO remove this field and use _administrator instead
         self._api = RestApi(API_URL, _API_KEY)
         self._administrator = User(API_URL, _API_KEY, _ADMINISTRATOR_USER_IDENTIFIER)
+        self._socket_io_client = SocketIOClient(API_URL, _API_KEY)
+
+    def get_socket_io_client(self):
+        return self._socket_io_client
 
     def create(self, path, body, query_parameters=None):
         return self._api.post(path, body, query_parameters)

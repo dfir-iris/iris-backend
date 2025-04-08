@@ -3,13 +3,8 @@ import json
 from app import socket_io
 
 
-def collab_notify(case_id: int,
-                  object_type: str,
-                  action_type: str,
-                  object_id,
-                  object_data: json = None,
-                  request_sid: int = None
-                  ):
+def collab_notify(case_id: int, object_type: str, action_type: str, object_id,
+                  object_data: json = None, request_sid: int = None):
     room = f"case-{case_id}"
     data = json.dumps({
         'object_id': object_id,

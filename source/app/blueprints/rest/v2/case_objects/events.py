@@ -34,6 +34,7 @@ from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.iris_engine.utils.collab import collab_notify
 from app.models.authorization import CaseAccessLevel
 
 
@@ -86,6 +87,8 @@ def update_event(case_identifier, identifier):
 
     schema = EventSchema()
     result = schema.dump(event)
+    collab_notify(case_identifier, 'events', 'updated', identifier, object_data=result)
+
     return response_api_success(result)
 
 
