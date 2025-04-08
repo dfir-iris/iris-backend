@@ -218,3 +218,11 @@ class TestsRestEvents(TestCase):
             # TODO ideally, this should not be necessary... Change in the code (careful, API impact)
             message = loads(message)
             self.assertEqual(identifier, message['object_id'])
+
+    def test_socket_io_join_should_not_fail(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        with self._subject.get_socket_io_client() as socket_io_client:
+            socket_io_client.emit('join', f'case-{case_identifier}')
+            message = socket_io_client.receive()
+            self.assertEqual('administrator just joined', message['message'])

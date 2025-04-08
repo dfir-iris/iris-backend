@@ -34,7 +34,7 @@ class SocketIOClient:
         self._client.emit(event, {'channel': channel})
 
     def receive(self):
-        message = self._client.receive(timeout=60)
+        message = self._client.receive(timeout=20)
         print(f'<== {message[0]}/{message[1]}')
         return message[1]
 
