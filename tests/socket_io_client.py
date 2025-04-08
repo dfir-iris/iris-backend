@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from json import loads
 from socketio import SimpleClient
 
 
@@ -31,12 +30,13 @@ class SocketIOClient:
         self._client.connect(self._url, headers={'Authorization': f'Bearer {self._api_key}'})
 
     def emit(self, event, channel):
+        print(f'==> {event}/{channel}')
         self._client.emit(event, {'channel': channel})
 
     def receive(self):
         message = self._client.receive(timeout=60)
-        print(message)
-        return loads(message[1])
+        print(f'<== {message[0]}/{message[1]}')
+        return message[1]
 
     def disconnect(self):
         self._client.disconnect()
