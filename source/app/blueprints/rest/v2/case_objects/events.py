@@ -93,7 +93,7 @@ def update_event(case_identifier, identifier):
         if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=event.case_id)
         _check_event_and_case_identifier_match(event, case_identifier)
-        
+
         event = events_update(event, request.get_json())
 
         schema = EventSchema()

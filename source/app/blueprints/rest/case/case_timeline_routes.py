@@ -685,6 +685,7 @@ def event_view(cur_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/events/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_edit_event(cur_id, caseid):
