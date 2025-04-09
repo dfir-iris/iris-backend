@@ -33,15 +33,85 @@ class TestsRestAlerts(TestCase):
             identifier = alert['alert_id']
             self._subject.create(f'/alerts/delete/{identifier}', {})
 
-    def test_create_alert_should_not_fail(self):
+    def test_create_alert_should_return_201(self):
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
             'alert_status_id': 3,
-            'alert_customer_id': 1
+            'alert_customer_id': 1,
         }
-        response = self._subject.create('/alerts/add', body)
-        self.assertEqual(200, response.status_code)
+        response = self._subject.create(f'/api/v2/alerts', body)
+        self.assertEqual(201, response.status_code)
+    
+    def test_create_alert_should_return_data_alert_title(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertEqual('title', response['alert_title'])
+    
+    def test_create_alert_should_return_data_alert_severity_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertEqual(4, response['alert_severity_id'])
+    
+    def test_create_alert_should_return_data_alert_status_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertEqual(3, response['alert_status_id'])
+
+    def test_create_alert_should_return_data_alert_customer_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertEqual(1, response['alert_customer_id'])
+
+    def test_create_alert_should_return_400_when_alert_customer_id_is_missing(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body)
+        self.assertEqual(400, response.status_code)
+    
+    def test_create_alert_should_return_403_when_user_has_no_permission_to_alert(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = user.create(f'/api/v2/alerts', body)
+        self.assertEqual(403, response.status_code)
+
+    def test_create_alert_should_return_field_classification_id_null_when_not_provided(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create(f'/api/v2/alerts', body).json()
+        self.assertIsNone(response['alert_classification_id'])
 
     def test_alerts_with_filter_alerts_assets_should_not_fail(self):
         response = self._subject.get('/api/v2/alerts', query_parameters={'alert_assets': 'some assert name'})
