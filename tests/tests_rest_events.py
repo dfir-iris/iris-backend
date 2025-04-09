@@ -226,3 +226,19 @@ class TestsRestEvents(TestCase):
             socket_io_client.emit('join', f'case-{case_identifier}')
             message = socket_io_client.receive()
             self.assertEqual('administrator just joined', message['message'])
+
+    def test_update_event_should_return_403_when_user_has_no_permission_to_access_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+
+        user = self._subject.create_dummy_user()
+        body = {'event_title': 'new title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = user.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body)
+        self.assertEqual(403, response.status_code)
+
