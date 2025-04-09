@@ -85,17 +85,21 @@ def get_event(case_identifier, identifier):
 @case_events_blueprint.put('/<int:identifier>')
 @ac_api_requires()
 def update_event(case_identifier, identifier):
-    event = events_get(identifier)
-    if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=event.case_id)
 
-    event = events_update(event, request.get_json())
+    try:
+        event = events_get(identifier)
+        if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=event.case_id)
 
-    schema = EventSchema()
-    result = schema.dump(event)
-    notify(case_identifier, 'events', 'updated', identifier, object_data=result)
+        event = events_update(event, request.get_json())
 
-    return response_api_success(result)
+        schema = EventSchema()
+        result = schema.dump(event)
+        notify(case_identifier, 'events', 'updated', identifier, object_data=result)
+
+        return response_api_success(result)
+    except ObjectNotFoundError:
+        return response_api_not_found()
 
 
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):

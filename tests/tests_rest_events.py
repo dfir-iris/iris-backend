@@ -254,3 +254,10 @@ class TestsRestEvents(TestCase):
         response = user.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body)
         self.assertEqual(403, response.status_code)
 
+    def test_update_event_should_return_404_when_event_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'new title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
+        self.assertEqual(404, response.status_code)
