@@ -256,3 +256,12 @@ class TestsRestNotes(TestCase):
         self._subject.delete(f'/api/v2/cases/{case_identifier}/notes/{identifier}')
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes/{identifier}')
         self.assertEqual(404, response.status_code)
+
+    def test_socket_io_join_notes_overview_should_not_fail(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        with self._subject.get_socket_io_client() as socket_io_client:
+            socket_io_client.emit('join-notes-overview', f'case-{case_identifier}-notes')
+            message = socket_io_client.receive()
+            self.assertEqual('administrator', message['user'])
+

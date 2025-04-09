@@ -680,12 +680,11 @@ class Tags(db.Model):
 
     def save(self):
         existing_tag = self.get_by_title(self.tag_title)
-        if existing_tag is not None:
+        if existing_tag:
             return existing_tag
-        else:
-            db.session.add(self)
-            db.session.commit()
-            return self
+        db.session.add(self)
+        db.session.commit()
+        return self
 
     @classmethod
     def get_by_title(cls, tag_title):
@@ -983,15 +982,13 @@ def create_safe_attr(session, attribute_display_name, attribute_description, att
         CustomAttribute.attribute_description == attribute_description,
         CustomAttribute.attribute_for == attribute_for
     ).first()
-
     if cat:
-        return False
-    else:
-        instance = CustomAttribute()
-        instance.attribute_display_name = attribute_display_name
-        instance.attribute_description = attribute_description
-        instance.attribute_for = attribute_for
-        instance.attribute_content = attribute_content
-        session.add(instance)
-        session.commit()
-        return True
+        return
+
+    instance = CustomAttribute()
+    instance.attribute_display_name = attribute_display_name
+    instance.attribute_description = attribute_description
+    instance.attribute_for = attribute_for
+    instance.attribute_content = attribute_content
+    session.add(instance)
+    session.commit()

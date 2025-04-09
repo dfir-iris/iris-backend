@@ -18,6 +18,7 @@
 
 from datetime import datetime
 
+import marshmallow
 from flask_login import current_user
 from marshmallow.exceptions import ValidationError
 
@@ -38,8 +39,11 @@ from app.datamgmt.case.case_events_db import get_case_event
 
 def _load(request_data, **kwargs):
     try:
-        evidence_schema = EventSchema()
-        return evidence_schema.load(request_data, **kwargs)
+        schema = EventSchema()
+        event = schema.load(request_data, **kwargs)
+        event.event_date, event.event_date_wtz = schema.validate_date(request_data.get(u'event_date'),
+                                                                      request_data.get(u'event_tz'))
+        return event
     except ValidationError as e:
         raise BusinessProcessingError('Data error', data=e.normalized_messages())
 
@@ -48,10 +52,6 @@ def events_create(case_identifier, request_json) -> CasesEvent:
     request_data = call_modules_hook('on_preload_event_create', data=request_json, caseid=case_identifier)
 
     event = _load(request_data)
-    # TODO this should probably rather be done in the API layer
-    event_schema = EventSchema()
-    event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
-                                                                        request_data.get(u'event_tz'))
 
     event.case_id = case_identifier
     event.event_added = datetime.utcnow()
@@ -92,3 +92,38 @@ def events_get(identifier) -> CasesEvent:
     if not event:
         raise ObjectNotFoundError()
     return event
+
+
+def events_update(event: CasesEvent, request_json: dict) -> CasesEvent:
+    try:
+        request_data = call_modules_hook('on_preload_event_update', data=request_json, caseid=event.case_id)
+
+        request_data['event_id'] = event.event_id
+        event = _load(request_data, instance=event)
+
+        add_obj_history_entry(event, 'updated')
+
+        update_timeline_state(caseid=event.case_id)
+        db.session.commit()
+
+        save_event_category(event.event_id, request_data.get('event_category_id'))
+
+        setattr(event, 'event_category_id', request_data.get('event_category_id'))
+
+        success, log = update_event_assets(event.event_id, event.case_id, request_data.get('event_assets'),
+                                           request_data.get('event_iocs'), request_data.get('event_sync_iocs_assets'))
+        if not success:
+            raise BusinessProcessingError('Error while saving linked assets', data=log)
+
+        success, log = update_event_iocs(event_id=event.event_id,
+                                         caseid=event.case_id,
+                                         iocs_list=request_data.get('event_iocs'))
+        if not success:
+            raise BusinessProcessingError('Error while saving linked iocs', data=log)
+
+        event = call_modules_hook('on_postload_event_update', data=event, caseid=event.case_id)
+
+        track_activity(f"updated event \"{event.event_title}\"", caseid=event.case_id)
+        return event
+    except marshmallow.exceptions.ValidationError as e:
+        raise BusinessProcessingError('Data error', data=e.normalized_messages())

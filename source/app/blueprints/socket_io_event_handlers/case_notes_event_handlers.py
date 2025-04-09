@@ -26,7 +26,6 @@ from app.blueprints.access_controls import ac_socket_requires
 from app.models.authorization import CaseAccessLevel
 
 
-@socket_io.on('change-note')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_change_note(data):
 
@@ -34,7 +33,6 @@ def socket_change_note(data):
     emit('change-note', data, to=data['channel'], skip_sid=request.sid, room=data['channel'])
 
 
-@socket_io.on('save-note')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_save_note(data):
 
@@ -42,14 +40,12 @@ def socket_save_note(data):
     emit('save-note', data, to=data['channel'], skip_sid=request.sid, room=data['channel'])
 
 
-@socket_io.on('clear_buffer-note')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_clear_buffer_note(message):
 
     emit('clear_buffer-note', message, room=message['channel'])
 
 
-@socket_io.on('join-notes')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_join_note(data):
 
@@ -62,28 +58,24 @@ def socket_join_note(data):
     }, room=room)
 
 
-@socket_io.on('ping-note')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_ping_note(data):
 
     emit('ping-note', {"user": current_user.name, "note_id": data['note_id']}, room=data['channel'])
 
 
-@socket_io.on('pong-note')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_pong_note(data):
 
     emit('pong-note', {"user": current_user.name, "note_id": data['note_id']}, room=data['channel'])
 
 
-@socket_io.on('overview-map-note')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_overview_map_note(data):
 
     emit('overview-map-note', {"user": current_user.user, "note_id": data['note_id']}, room=data['channel'])
 
 
-@socket_io.on('join-notes-overview')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_join_overview(data):
 
@@ -96,7 +88,18 @@ def socket_join_overview(data):
     }, room=room)
 
 
-@socket_io.on('disconnect')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_disconnect(data):
     emit('disconnect', current_user.user, broadcast=True)
+
+
+def register_notes_event_handlers():
+    socket_io.on_event('change-note', socket_change_note)
+    socket_io.on_event('save-note', socket_save_note)
+    socket_io.on_event('clear_buffer-note', socket_clear_buffer_note)
+    socket_io.on_event('join-notes', socket_join_note)
+    socket_io.on_event('ping-note', socket_ping_note)
+    socket_io.on_event('pong-note', socket_pong_note)
+    socket_io.on_event('overview-map-note', socket_overview_map_note)
+    socket_io.on_event('join-notes-overview', socket_join_overview)
+    socket_io.on_event('disconnect', socket_disconnect)

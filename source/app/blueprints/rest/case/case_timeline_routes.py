@@ -74,6 +74,7 @@ from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.business.errors import BusinessProcessingError
 from app.business.events import events_create
+from app.business.events import events_update
 
 case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 
@@ -684,6 +685,7 @@ def event_view(cur_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/events/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_edit_event(cur_id, caseid):
@@ -692,42 +694,10 @@ def case_edit_event(cur_id, caseid):
         if not event:
             return response_error("Invalid event ID for this case")
 
+        request_json = request.get_json()
+        event = events_update(event, request_json)
+
         event_schema = EventSchema()
-
-        request_data = call_modules_hook('on_preload_event_update', data=request.get_json(), caseid=caseid)
-
-        request_data['event_id'] = cur_id
-        event = event_schema.load(request_data, instance=event)
-
-        event.event_date, event.event_date_wtz = event_schema.validate_date(
-            request_data.get(u'event_date'),
-            request_data.get(u'event_tz')
-        )
-
-        event.case_id = caseid
-        add_obj_history_entry(event, 'updated')
-
-        update_timeline_state(caseid=caseid)
-        db.session.commit()
-
-        save_event_category(event.event_id, request_data.get('event_category_id'))
-
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
-
-        success, log = update_event_assets(event.event_id, caseid, request_data.get('event_assets'),
-                                           request_data.get('event_iocs'), request_data.get('event_sync_iocs_assets'))
-        if not success:
-            return response_error('Error while saving linked assets', data=log)
-
-        success, log = update_event_iocs(event_id=event.event_id,
-                                         caseid=caseid,
-                                         iocs_list=request_data.get('event_iocs'))
-        if not success:
-            return response_error('Error while saving linked iocs', data=log)
-
-        event = call_modules_hook('on_postload_event_update', data=event, caseid=caseid)
-
-        track_activity(f"updated event \"{event.event_title}\"", caseid=caseid)
         event_dump = event_schema.dump(event)
         collab_notify(case_id=caseid,
                       object_type='events',
@@ -737,8 +707,8 @@ def case_edit_event(cur_id, caseid):
 
         return response_success("Event updated", data=event_dump)
 
-    except marshmallow.exceptions.ValidationError as e:
-        return response_error(msg="Data error", data=e.normalized_messages())
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/add', methods=['POST'])

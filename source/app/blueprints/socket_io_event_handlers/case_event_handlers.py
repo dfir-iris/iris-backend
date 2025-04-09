@@ -26,7 +26,6 @@ from app.blueprints.access_controls import ac_socket_requires
 from app.models.authorization import CaseAccessLevel
 
 
-@socket_io.on('change')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_summary_onchange(data):
 
@@ -34,7 +33,6 @@ def socket_summary_onchange(data):
     emit('change', data, to=data['channel'], skip_sid=request.sid)
 
 
-@socket_io.on('save')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_summary_onsave(data):
 
@@ -42,17 +40,29 @@ def socket_summary_onsave(data):
     emit('save', data, to=data['channel'], skip_sid=request.sid)
 
 
-@socket_io.on('clear_buffer')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def socket_summary_on_clear_buffer(message):
 
     emit('clear_buffer', message)
 
 
-@socket_io.on('join')
 @ac_socket_requires(CaseAccessLevel.full_access)
 def get_message(data):
 
     room = data['channel']
     join_room(room=room)
     emit('join', {'message': f"{current_user.user} just joined"}, room=room)
+
+
+@ac_socket_requires(CaseAccessLevel.full_access)
+def socket_join_case_obj_notif(data):
+    room = data['channel']
+    join_room(room=room)
+
+
+def register_case_event_handlers():
+    socket_io.on_event('change', socket_summary_onchange)
+    socket_io.on_event('save', socket_summary_onsave)
+    socket_io.on_event('clear_buffer', socket_summary_on_clear_buffer)
+    socket_io.on_event('join', get_message)
+    socket_io.on_event('join-case-obj-notif', socket_join_case_obj_notif)

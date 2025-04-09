@@ -25,6 +25,7 @@ from oic.oauth2.exception import GrantError
 from app import app
 from app import db
 from app import oidc_client
+from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
@@ -37,18 +38,16 @@ from app.schema.marshables import UserSchema
 
 auth_blueprint = Blueprint('auth', __name__, url_prefix='/auth')
 
-log = app.logger
-
 
 @auth_blueprint.post('/login')
 def login():
     """
     Login endpoint. Handles taking user/pass combo and authenticating a local session or returning an error.
     """
-    log.info('Authenticating user')
+    logger.info('Authenticating user')
     if current_user.is_authenticated:
-        log.info('User already authenticated - redirecting')
-        log.debug(f'User {current_user.user} already logged in')
+        logger.info('User already authenticated - redirecting')
+        logger.debug(f'User {current_user.user} already logged in')
         user = return_authed_user_info(user_id=current_user.id)
         return response_api_success(data=user)
 
