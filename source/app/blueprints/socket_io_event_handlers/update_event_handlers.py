@@ -23,9 +23,7 @@ from app import socket_io
 from app import app
 
 
-@socket_io.on('join-update', namespace='/server-updates')
 def get_message(data):
-
     room = data['channel']
     join_room(room=room)
 
@@ -33,15 +31,17 @@ def get_message(data):
          namespace='/server-updates')
 
 
-@socket_io.on('update_ping', namespace='/server-updates')
 def socket_on_update_ping(msg):
-
     emit('update_ping', {'message': "Server connected", 'is_error': False},
          namespace='/server-updates')
 
 
-@socket_io.on('update_get_current_version', namespace='/server-updates')
 def socket_on_update_do_reboot(msg):
-
     socket_io.emit('update_current_version', {"version": app.config.get('IRIS_VERSION')}, to='iris_update_status',
                    namespace='/server-updates')
+
+
+def register_update_event_handlers():
+    socket_io.on_event('join-update', get_message, namespace='/server-updates')
+    socket_io.on_event('update_ping', socket_on_update_ping, namespace='/server-updates')
+    socket_io.on_event('update_get_current_version', socket_on_update_do_reboot, namespace='/server-updates')

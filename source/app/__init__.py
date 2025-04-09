@@ -171,7 +171,10 @@ except Exception as e:
 lm.user_loader(load_user)
 lm.request_loader(load_user_from_request)
 
-# TODO should not disable ruff, but the socket io event handlers must be initialized somehow
-from app.blueprints.socket_io_event_handlers.case_event_handlers import get_message  # noqa: F401
-from app.blueprints.socket_io_event_handlers.case_notes_event_handlers import socket_join_overview  # noqa: F401
-from app.blueprints.socket_io_event_handlers.update_event_handlers import socket_on_update_do_reboot  # noqa: F401
+from app.blueprints.socket_io_event_handlers.case_event_handlers import register_case_event_handlers
+from app.blueprints.socket_io_event_handlers.case_notes_event_handlers import register_notes_event_handlers
+from app.blueprints.socket_io_event_handlers.update_event_handlers import register_update_event_handlers
+
+register_case_event_handlers()
+register_notes_event_handlers()
+register_update_event_handlers()
