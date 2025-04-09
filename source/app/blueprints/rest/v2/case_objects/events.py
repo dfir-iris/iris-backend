@@ -85,6 +85,8 @@ def get_event(case_identifier, identifier):
 @case_events_blueprint.put('/<int:identifier>')
 @ac_api_requires()
 def update_event(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
 
     try:
         event = events_get(identifier)
