@@ -35,6 +35,7 @@ from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.iris_engine.utils.collab import collab_notify
+from app.iris_engine.utils.collab import notify
 from app.models.authorization import CaseAccessLevel
 
 
@@ -52,7 +53,10 @@ def create_event(case_identifier):
     try:
         event = events_create(case_identifier, request.get_json())
         schema = EventSchema()
-        return response_api_created(schema.dump(event))
+        result = schema.dump(event)
+        notify(case_identifier, 'events', 'updated', event.event_id, object_data=result)
+
+        return response_api_created(result)
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
 

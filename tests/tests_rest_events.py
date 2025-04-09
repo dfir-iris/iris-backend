@@ -87,6 +87,21 @@ class TestsRestEvents(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
         self.assertEqual(identifier, response['parent_event_id'])
 
+    def test_create_event_should_change_send_socket_io_message(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        with self._subject.get_socket_io_client() as socket_io_client:
+            socket_io_client.emit('join-case-obj-notif', f'case-{case_identifier}')
+
+            body = {'event_title': 'title', 'event_category_id': 1,
+                    'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                    'event_assets': [], 'event_iocs': []}
+            response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+            identifier = response['event_id']
+
+            message = socket_io_client.receive()
+            self.assertEqual(identifier, message['object_id'])
+
     def test_get_event_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'event_title': 'title', 'event_category_id': 1,
