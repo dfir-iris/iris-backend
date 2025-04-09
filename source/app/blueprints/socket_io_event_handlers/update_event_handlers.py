@@ -21,15 +21,7 @@ from flask_socketio import join_room
 
 from app import socket_io
 from app import app
-from app.blueprints.access_controls import ac_socket_requires
-from app.models.authorization import CaseAccessLevel
 
-
-@socket_io.on('join-case-obj-notif')
-@ac_socket_requires(CaseAccessLevel.full_access)
-def socket_join_case_obj_notif(data):
-    room = data['channel']
-    join_room(room=room)
 
 @socket_io.on('join-update', namespace='/server-updates')
 def get_message(data):
