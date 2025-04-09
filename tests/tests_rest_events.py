@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
-from json import loads
 
 from iris import Iris
 
@@ -230,8 +229,6 @@ class TestsRestEvents(TestCase):
 
             message = socket_io_client.receive()
 
-            # TODO ideally, this should not be necessary... Change in the code (careful, API impact)
-            message = loads(message)
             self.assertEqual(identifier, message['object_id'])
 
     def test_socket_io_join_should_not_fail(self):
