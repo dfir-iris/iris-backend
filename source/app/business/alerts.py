@@ -58,8 +58,7 @@ def alerts_create(request_data) -> Alert:
     alert = _load(request_data)
 
     if not user_has_client_access(current_user.id, alert.alert_customer_id):
-        return response_error('User not entitled to create alerts for the client')
-
+        raise BusinessProcessingError('User not entitled to create alerts for the client')
     alert.alert_creation_time = datetime.utcnow()
 
     alert.iocs = iocs
