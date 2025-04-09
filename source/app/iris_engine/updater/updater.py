@@ -26,9 +26,6 @@ import tempfile
 import time
 from celery.schedules import crontab
 from datetime import datetime
-from flask_login import current_user
-from flask_socketio import emit
-from flask_socketio import join_room
 from packaging import version
 from pathlib import Path
 
@@ -68,30 +65,6 @@ def update_log(status):
 
 def update_log_error(status):
     update_log_to_socket(status, is_error=True)
-
-
-@socket_io.on('join-update', namespace='/server-updates')
-def get_message(data):
-
-    room = data['channel']
-    join_room(room=room)
-
-    emit('join', {'message': f"{current_user.user} just joined", 'is_error': False}, room=room,
-         namespace='/server-updates')
-
-
-@socket_io.on('update_ping', namespace='/server-updates')
-def socket_on_update_ping(msg):
-
-    emit('update_ping', {'message': "Server connected", 'is_error': False},
-         namespace='/server-updates')
-
-
-@socket_io.on('update_get_current_version', namespace='/server-updates')
-def socket_on_update_do_reboot(msg):
-
-    socket_io.emit('update_current_version', {"version": app.config.get('IRIS_VERSION')}, to='iris_update_status',
-                   namespace='/server-updates')
 
 
 def notify_server_ready_to_reboot():
