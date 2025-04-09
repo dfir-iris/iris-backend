@@ -17,27 +17,20 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import datetime
-from app.logger import logger
 import traceback
-
 from flask_login import current_user
-
 from marshmallow.exceptions import ValidationError
 
 from app import db
-
+from app.logger import logger
 from app.util import add_obj_history_entry
 from app.schema.marshables import CaseSchema
-
 from app.models.models import ReviewStatusList
-
 from app.business.errors import BusinessProcessingError
 from app.business.iocs import iocs_exports_to_json
-
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.access_control.utils import ac_set_new_case_access
-
 from app.datamgmt.case.case_db import case_db_exists
 from app.datamgmt.case.case_db import save_case_tags
 from app.datamgmt.case.case_db import register_case_protagonists
@@ -60,9 +53,10 @@ from app.datamgmt.reporter.report_db import export_case_assets_json
 from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
+from app.models.cases import Cases
 
 
-def _load(request_data, **kwargs):
+def _load(request_data, **kwargs) -> Cases:
     try:
         add_case_schema = CaseSchema()
         return add_case_schema.load(request_data, **kwargs)
