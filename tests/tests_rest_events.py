@@ -274,3 +274,16 @@ class TestsRestEvents(TestCase):
                 'event_assets': [], 'event_iocs': []}
         response = self._subject.update(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/events/{identifier}', body)
         self.assertEqual(404, response.status_code)
+
+    def test_update_event_should_return_400_when_event_date_format_is_incorrect(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        body = {'event_title': 'new title', 'event_category_id': 1,
+                'event_date': '1744181930.204785', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body)
+        self.assertEqual(400, response.status_code)

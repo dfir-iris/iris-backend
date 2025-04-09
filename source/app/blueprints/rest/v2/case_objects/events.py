@@ -102,6 +102,8 @@ def update_event(case_identifier, identifier):
         return response_api_success(result)
     except ObjectNotFoundError:
         return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
