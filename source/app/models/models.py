@@ -983,15 +983,13 @@ def create_safe_attr(session, attribute_display_name, attribute_description, att
         CustomAttribute.attribute_description == attribute_description,
         CustomAttribute.attribute_for == attribute_for
     ).first()
-
     if cat:
-        return False
-    else:
-        instance = CustomAttribute()
-        instance.attribute_display_name = attribute_display_name
-        instance.attribute_description = attribute_description
-        instance.attribute_for = attribute_for
-        instance.attribute_content = attribute_content
-        session.add(instance)
-        session.commit()
-        return True
+        return
+
+    instance = CustomAttribute()
+    instance.attribute_display_name = attribute_display_name
+    instance.attribute_description = attribute_description
+    instance.attribute_for = attribute_for
+    instance.attribute_content = attribute_content
+    session.add(instance)
+    session.commit()
