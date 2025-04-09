@@ -340,3 +340,22 @@ class TestsRestEvents(TestCase):
                 'event_assets': []}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body)
         self.assertEqual(400, response.status_code)
+
+    def test_update_event_should_set_event_parent_id_when_provided(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        parent_event_identifier = response['event_id']
+        body = {'event_title': 'title2', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        body = {'event_title': 'new title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': [],
+                'parent_event_id': parent_event_identifier}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body).json()
+        self.assertEqual(parent_event_identifier, response['parent_event_id'])
