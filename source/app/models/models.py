@@ -680,12 +680,11 @@ class Tags(db.Model):
 
     def save(self):
         existing_tag = self.get_by_title(self.tag_title)
-        if existing_tag is not None:
+        if existing_tag:
             return existing_tag
-        else:
-            db.session.add(self)
-            db.session.commit()
-            return self
+        db.session.add(self)
+        db.session.commit()
+        return self
 
     @classmethod
     def get_by_title(cls, tag_title):
