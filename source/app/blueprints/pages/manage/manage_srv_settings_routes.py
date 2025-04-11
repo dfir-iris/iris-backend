@@ -35,16 +35,6 @@ manage_srv_settings_blueprint = Blueprint(
 )
 
 
-@manage_srv_settings_blueprint.route('/manage/server/make-update', methods=['GET'])
-@ac_requires(Permissions.server_administrator, no_cid_required=True)
-def manage_update(caseid, url_redir):
-    if url_redir:
-        return redirect(url_for('manage_srv_settings_blueprint.manage_settings', cid=caseid))
-
-    # Return default page of case management
-    return render_template('manage_make_update.html')
-
-
 @manage_srv_settings_blueprint.route('/manage/settings', methods=['GET'])
 @ac_requires(Permissions.server_administrator, no_cid_required=True)
 def manage_settings(caseid, url_redir):
