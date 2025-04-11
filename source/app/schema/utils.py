@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import hashlib
+from pathlib import Path
 from marshmallow import ValidationError
 
 from app.logger import logger
@@ -76,3 +77,17 @@ def str_to_bool(value):
 def stream_sha256sum(stream):
 
     return hashlib.sha256(stream).hexdigest().upper()
+
+
+def file_sha256sum(file_path):
+
+    if not Path(file_path).is_file():
+        return None
+
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+
+        return sha256_hash.hexdigest().upper()
