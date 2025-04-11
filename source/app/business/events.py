@@ -97,24 +97,27 @@ def events_update(event: CasesEvent, request_json: dict) -> CasesEvent:
 
         request_data['event_id'] = event.event_id
         event = _load(request_data, instance=event)
+        event_category_id = request_data.get('event_category_id')
+        event_assets = request_data.get('event_assets')
+        event_iocs = request_data.get('event_iocs')
+        event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
 
         add_obj_history_entry(event, 'updated')
 
         update_timeline_state(caseid=event.case_id)
         db.session.commit()
 
-        save_event_category(event.event_id, request_data.get('event_category_id'))
+        save_event_category(event.event_id, event_category_id)
 
-        setattr(event, 'event_category_id', request_data.get('event_category_id'))
+        setattr(event, 'event_category_id', event_category_id)
 
-        success, log = update_event_assets(event.event_id, event.case_id, request_data.get('event_assets'),
-                                           request_data.get('event_iocs'), request_data.get('event_sync_iocs_assets'))
+        success, log = update_event_assets(event.event_id, event.case_id, event_assets, event_iocs, event_sync_iocs_assets)
         if not success:
             raise BusinessProcessingError('Error while saving linked assets', data=log)
 
         success, log = update_event_iocs(event_id=event.event_id,
                                          caseid=event.case_id,
-                                         iocs_list=request_data.get('event_iocs'))
+                                         iocs_list=event_iocs)
         if not success:
             raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
