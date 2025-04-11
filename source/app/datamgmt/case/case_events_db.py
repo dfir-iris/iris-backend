@@ -351,17 +351,17 @@ def get_case_iocs_for_tm(caseid):
     return iocs
 
 
-def delete_event(event, caseid):
+def delete_event(event):
     delete_event_category(event.event_id)
 
     CaseEventsAssets.query.filter(
         CaseEventsAssets.event_id == event.event_id,
-        CaseEventsAssets.case_id == caseid
+        CaseEventsAssets.case_id == event.case_id
     ).delete()
 
     CaseEventsIoc.query.filter(
         CaseEventsIoc.event_id == event.event_id,
-        CaseEventsIoc.case_id == caseid
+        CaseEventsIoc.case_id == event.case_id
     ).delete()
 
     com_ids = EventComments.query.with_entities(
@@ -378,7 +378,7 @@ def delete_event(event, caseid):
     db.session.commit()
 
     db.session.delete(event)
-    update_timeline_state(caseid=caseid)
+    update_timeline_state(caseid=event.case_id)
 
     db.session.commit()
 

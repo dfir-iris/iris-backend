@@ -132,7 +132,7 @@ def events_update(event: CasesEvent, request_json: dict) -> CasesEvent:
 
 
 def events_delete(event: CasesEvent):
-    delete_event(event, event.case_id)
+    delete_event(event)
 
     call_modules_hook('on_postload_event_delete', event.event_id, caseid=event.case_id)
     collab_notify(event.case_id, 'events', 'deletion', event.event_id)
