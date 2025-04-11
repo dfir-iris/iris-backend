@@ -29,6 +29,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
 from app.business.events import events_get
 from app.business.events import events_update
+from app.business.events import events_delete
 from app.models.cases import CasesEvent
 from app.schema.marshables import EventSchema
 from app.business.errors import BusinessProcessingError
@@ -111,6 +112,9 @@ def update_event(case_identifier, identifier):
 @case_events_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_event(case_identifier, identifier):
+    event = events_get(identifier)
+    events_delete(event)
+
     return response_api_deleted()
 
 
