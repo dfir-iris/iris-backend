@@ -115,10 +115,13 @@ def delete_event(case_identifier, identifier):
     if not cases_exists(case_identifier):
         return response_api_not_found()
 
-    event = events_get(identifier)
-    events_delete(event)
+    try:
+        event = events_get(identifier)
+        events_delete(event)
 
-    return response_api_deleted()
+        return response_api_deleted()
+    except ObjectNotFoundError:
+        return response_api_not_found()
 
 
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
