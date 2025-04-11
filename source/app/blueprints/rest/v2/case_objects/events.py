@@ -146,6 +146,7 @@ def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
     if event.case_id != case_identifier:
         raise BusinessProcessingError(f'Event {event.event_id} does not belong to case {case_identifier}')
 
+
 def _load(request_data, **kwargs):
     schema = EventSchema()
     event = schema.load(request_data, **kwargs)
