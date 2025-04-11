@@ -57,3 +57,16 @@ def assert_type_mml(input_var: any, field_name: str, type: type, allow_none: boo
         print(e)
 
     raise ValidationError('Invalid data type', field_name=field_name if field_name else 'type')
+
+
+def str_to_bool(value):
+    if value is None:
+        return False
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, int):
+        return bool(value)
+
+    return value.lower() in ['true', '1', 'yes', 'y', 't']
