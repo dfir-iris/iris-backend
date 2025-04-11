@@ -28,7 +28,7 @@ from pickle import loads
 from sqlalchemy import and_
 
 from app import app
-from app import logger
+from app.logger import logger
 from app import celery
 from app import db
 from app.datamgmt.iris_engine.modules_db import get_module_config_from_hname
@@ -579,6 +579,12 @@ def call_modules_hook(hook_name: str, data: any, caseid: int = None, hook_ui_nam
                     data = data_result
 
     return data
+
+
+def call_deprecated_on_preload_modules_hook(hook_name: str, data: any, case_identifier) -> any:
+    hook_name = f'on_preload_{hook_name}'
+    logger.warning(f'DEPRECATION WARNING: Hook {hook_name} has been deprecated and will be removed in a future version')
+    return call_modules_hook(hook_name, data, caseid=case_identifier)
 
 
 def list_available_pipelines():

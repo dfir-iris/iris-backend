@@ -37,6 +37,7 @@ from app.datamgmt.case.case_events_db import delete_event
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.utils.collab import collab_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 def _load(request_data, **kwargs):
@@ -51,7 +52,7 @@ def _load(request_data, **kwargs):
 
 
 def events_create(case_identifier, request_json) -> CasesEvent:
-    request_data = call_modules_hook('on_preload_event_create', request_json, caseid=case_identifier)
+    request_data = call_deprecated_on_preload_modules_hook('event_create', request_json, case_identifier)
 
     event = _load(request_data)
 
