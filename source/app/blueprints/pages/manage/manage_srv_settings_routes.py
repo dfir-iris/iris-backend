@@ -25,7 +25,6 @@ from werkzeug.utils import redirect
 from app import app
 from app.datamgmt.manage.manage_srv_settings_db import get_alembic_revision
 from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
-from app.iris_engine.updater.updater import is_updates_available
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_requires
 
