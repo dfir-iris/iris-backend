@@ -119,12 +119,15 @@ def delete_event(case_identifier, identifier):
         event = events_get(identifier)
         if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=event.case_id)
+        _check_event_and_case_identifier_match(event, case_identifier)
 
         events_delete(event)
 
         return response_api_deleted()
     except ObjectNotFoundError:
         return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
 
 
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
