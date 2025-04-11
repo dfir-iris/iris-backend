@@ -112,6 +112,9 @@ def update_event(case_identifier, identifier):
 @case_events_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_event(case_identifier, identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+
     event = events_get(identifier)
     events_delete(event)
 

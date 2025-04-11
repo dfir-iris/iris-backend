@@ -380,3 +380,13 @@ class TestsRestEvents(TestCase):
         self._subject.delete(f'/api/v2/cases/{case_identifier}/events/{identifier}')
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}')
         self.assertEqual(404, response.status_code)
+
+    def test_delete_event_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        response = self._subject.delete(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/events/{identifier}')
+        self.assertEqual(404, response.status_code)
