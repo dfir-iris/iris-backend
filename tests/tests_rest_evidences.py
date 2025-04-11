@@ -300,6 +300,17 @@ class TestsRestEvidences(TestCase):
         response = user.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
         self.assertEqual(403, response.status_code)
 
+    def test_delete_evidence_should_not_remove_evidence_when_user_has_no_permission_to_access_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        user.delete(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/evidences/{identifier}')
+        self.assertEqual(200, response.status_code)
+
     def test_delete_evidence_should_return_404_when_case_does_not_exist(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
