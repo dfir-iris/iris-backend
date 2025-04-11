@@ -25,7 +25,6 @@ from marshmallow.exceptions import ValidationError
 from app import db
 from app.models.cases import CasesEvent
 from app.business.errors import ObjectNotFoundError
-from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
 from app.datamgmt.states import update_timeline_state
@@ -33,8 +32,11 @@ from app.datamgmt.case.case_events_db import save_event_category
 from app.datamgmt.case.case_events_db import update_event_assets
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.case.case_events_db import update_event_iocs
-from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.case.case_events_db import get_case_event
+from app.datamgmt.case.case_events_db import delete_event
+from app.iris_engine.utils.tracker import track_activity
+from app.iris_engine.utils.collab import collab_notify
+from app.iris_engine.module_handler.module_handler import call_modules_hook
 
 
 def _load(request_data, **kwargs):
@@ -127,3 +129,11 @@ def events_update(event: CasesEvent, request_json: dict) -> CasesEvent:
         return event
     except marshmallow.exceptions.ValidationError as e:
         raise BusinessProcessingError('Data error', data=e.normalized_messages())
+
+
+def events_delete(event: CasesEvent):
+    delete_event(event, event.case_id)
+
+    call_modules_hook('on_postload_event_delete', event.event_id, caseid=event.case_id)
+    collab_notify(event.case_id, 'events', 'deletion', event.event_id)
+    track_activity(f'deleted event "{event.event_title}" in timeline', event.case_id)

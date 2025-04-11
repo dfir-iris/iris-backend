@@ -35,7 +35,6 @@ from app.datamgmt.case.case_assets_db import get_asset_by_name
 from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.datamgmt.case.case_events_db import get_category_by_name
 from app.datamgmt.case.case_events_db import get_default_category
-from app.datamgmt.case.case_events_db import delete_event
 from app.datamgmt.case.case_events_db import delete_event_comment
 from app.datamgmt.case.case_events_db import get_case_event
 from app.datamgmt.case.case_events_db import get_case_event_comment
@@ -75,6 +74,7 @@ from app.blueprints.responses import response_success
 from app.business.errors import BusinessProcessingError
 from app.business.events import events_create
 from app.business.events import events_update
+from app.business.events import events_delete
 
 case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 
@@ -634,13 +634,7 @@ def case_delete_event(cur_id, caseid):
     if not event:
         return response_error('Not a valid event ID for this case')
 
-    delete_event(event=event, caseid=caseid)
-
-    call_modules_hook('on_postload_event_delete', data=cur_id, caseid=caseid)
-
-    collab_notify(caseid, 'events', 'deletion', cur_id)
-
-    track_activity(f"deleted event \"{event.event_title}\" in timeline", caseid)
+    events_delete(event)
 
     return response_success(f'Event ID {cur_id} deleted')
 
