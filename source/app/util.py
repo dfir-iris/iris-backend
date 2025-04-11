@@ -111,11 +111,6 @@ def file_sha256sum(file_path):
         return sha256_hash.hexdigest().upper()
 
 
-def stream_sha256sum(stream):
-
-    return hashlib.sha256(stream).hexdigest().upper()
-
-
 def hmac_sign(data):
     key = bytes(current_app.config.get("SECRET_KEY"), "utf-8")
     h = hmac.HMAC(key, hashes.SHA256())

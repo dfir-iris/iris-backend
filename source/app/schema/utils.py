@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import hashlib
 from marshmallow import ValidationError
 
 from app.logger import logger
@@ -70,3 +71,8 @@ def str_to_bool(value):
         return bool(value)
 
     return value.lower() in ['true', '1', 'yes', 'y', 't']
+
+
+def stream_sha256sum(stream):
+
+    return hashlib.sha256(stream).hexdigest().upper()
