@@ -117,6 +117,9 @@ def delete_event(case_identifier, identifier):
 
     try:
         event = events_get(identifier)
+        if not ac_fast_check_current_user_has_case_access(event.case_id, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=event.case_id)
+
         events_delete(event)
 
         return response_api_deleted()
