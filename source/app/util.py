@@ -158,8 +158,7 @@ def assert_type_mml(input_var: any, field_name: str, type: type, allow_none: boo
         if allow_none is False:
             raise marshmallow.ValidationError('Invalid data - non null expected',
                                               field_name=field_name if field_name else 'type')
-        else:
-            return True
+        return True
 
     if isinstance(input_var, type):
         if max_len:
