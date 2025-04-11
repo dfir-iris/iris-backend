@@ -37,7 +37,6 @@ from app.datamgmt.case.case_events_db import delete_event
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.utils.collab import collab_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
-from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 def _load(request_data, **kwargs):
@@ -51,15 +50,7 @@ def _load(request_data, **kwargs):
         raise BusinessProcessingError('Data error', data=e.normalized_messages())
 
 
-def events_create(case_identifier, request_json) -> CasesEvent:
-    request_data = call_deprecated_on_preload_modules_hook('event_create', request_json, case_identifier)
-
-    event = _load(request_data)
-
-    event_category_id = request_data.get('event_category_id')
-    event_assets = request_data.get('event_assets')
-    event_iocs = request_data.get('event_iocs')
-    sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
+def events_create(case_identifier, event: CasesEvent, event_category_id, event_assets, event_iocs, sync_iocs_assets) -> CasesEvent:
 
     event.case_id = case_identifier
     event.event_added = datetime.utcnow()
