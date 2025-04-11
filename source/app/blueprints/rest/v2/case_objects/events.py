@@ -22,6 +22,7 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -105,6 +106,12 @@ def update_event(case_identifier, identifier):
         return response_api_not_found()
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+
+@case_events_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_event(case_identifier, identifier):
+    return response_api_deleted()
 
 
 def _check_event_and_case_identifier_match(event: CasesEvent, case_identifier):
