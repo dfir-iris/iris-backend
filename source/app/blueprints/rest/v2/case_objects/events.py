@@ -108,7 +108,16 @@ def update_event(case_identifier, identifier):
             return ac_api_return_access_denied(caseid=event.case_id)
         _check_event_and_case_identifier_match(event, case_identifier)
 
-        event = events_update(event, request.get_json())
+        request_data = call_deprecated_on_preload_modules_hook('event_update', request.get_json(), case_identifier)
+
+        request_data['event_id'] = event.event_id
+        event = _load(request_data, instance=event)
+        event_category_id = request_data.get('event_category_id')
+        event_assets = request_data.get('event_assets')
+        event_iocs = request_data.get('event_iocs')
+        event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
+
+        event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets)
 
         schema = EventSchema()
         result = schema.dump(event)
@@ -117,8 +126,8 @@ def update_event(case_identifier, identifier):
         return response_api_success(result)
     except ObjectNotFoundError:
         return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.normalized_messages())
 
 
 @case_events_blueprint.delete('/<int:identifier>')

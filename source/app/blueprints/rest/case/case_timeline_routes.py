@@ -690,8 +690,16 @@ def case_edit_event(cur_id, caseid):
         if not event:
             return response_error("Invalid event ID for this case")
 
-        request_json = request.get_json()
-        event = events_update(event, request_json)
+        request_data = call_deprecated_on_preload_modules_hook('event_update', request.get_json(), caseid)
+
+        request_data['event_id'] = event.event_id
+        event = _load(request_data, instance=event)
+        event_category_id = request_data.get('event_category_id')
+        event_assets = request_data.get('event_assets')
+        event_iocs = request_data.get('event_iocs')
+        event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
+
+        event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets)
 
         event_schema = EventSchema()
         event_dump = event_schema.dump(event)
@@ -703,6 +711,8 @@ def case_edit_event(cur_id, caseid):
 
         return response_success("Event updated", data=event_dump)
 
+    except ValidationError as e:
+        return response_error(e.get_message(), data=e.get_data())
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
