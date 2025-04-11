@@ -151,6 +151,7 @@ class Events:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 
+
 events = Events()
 case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/<int:case_identifier>/events')
 
