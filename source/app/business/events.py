@@ -18,8 +18,8 @@
 
 from datetime import datetime
 
-import marshmallow
 from flask_login import current_user
+import marshmallow
 from marshmallow.exceptions import ValidationError
 
 from app import db
@@ -51,9 +51,14 @@ def _load(request_data, **kwargs):
 
 
 def events_create(case_identifier, request_json) -> CasesEvent:
-    request_data = call_modules_hook('on_preload_event_create', data=request_json, caseid=case_identifier)
+    request_data = call_modules_hook('on_preload_event_create', request_json, caseid=case_identifier)
 
     event = _load(request_data)
+
+    event_category_id = request_data.get('event_category_id')
+    event_assets = request_data.get('event_assets')
+    event_iocs = request_data.get('event_iocs')
+    sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
 
     event.case_id = case_identifier
     event.event_added = datetime.utcnow()
@@ -65,25 +70,23 @@ def events_create(case_identifier, request_json) -> CasesEvent:
     update_timeline_state(caseid=case_identifier)
     db.session.commit()
 
-    save_event_category(event.event_id, request_data.get('event_category_id'))
+    save_event_category(event.event_id, event_category_id)
 
-    setattr(event, 'event_category_id', request_data.get('event_category_id'))
-    sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
+    setattr(event, 'event_category_id', event_category_id)
 
-    success, log = update_event_assets(event.event_id, case_identifier, request_data.get('event_assets'),
-                                       request_data.get('event_iocs'), sync_iocs_assets)
+    success, log = update_event_assets(event.event_id, case_identifier, event_assets, event_iocs, sync_iocs_assets)
     if not success:
         raise BusinessProcessingError('Error while saving linked assets', data=log)
 
     success, log = update_event_iocs(event_id=event.event_id,
                                      caseid=case_identifier,
-                                     iocs_list=request_data.get('event_iocs'))
+                                     iocs_list=event_iocs)
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
-    setattr(event, 'event_category_id', request_data.get('event_category_id'))
+    setattr(event, 'event_category_id', event_category_id)
 
-    event = call_modules_hook('on_postload_event_create', data=event, caseid=case_identifier)
+    event = call_modules_hook('on_postload_event_create', event, caseid=case_identifier)
 
     track_activity(f'added event "{event.event_title}"', caseid=case_identifier)
     return event
@@ -98,7 +101,7 @@ def events_get(identifier) -> CasesEvent:
 
 def events_update(event: CasesEvent, request_json: dict) -> CasesEvent:
     try:
-        request_data = call_modules_hook('on_preload_event_update', data=request_json, caseid=event.case_id)
+        request_data = call_modules_hook('on_preload_event_update', request_json, caseid=event.case_id)
 
         request_data['event_id'] = event.event_id
         event = _load(request_data, instance=event)
@@ -123,7 +126,7 @@ def events_update(event: CasesEvent, request_json: dict) -> CasesEvent:
         if not success:
             raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
-        event = call_modules_hook('on_postload_event_update', data=event, caseid=event.case_id)
+        event = call_modules_hook('on_postload_event_update', event, caseid=event.case_id)
 
         track_activity(f"updated event \"{event.event_title}\"", caseid=event.case_id)
         return event
