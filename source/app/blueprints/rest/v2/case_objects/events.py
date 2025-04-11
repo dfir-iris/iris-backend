@@ -128,6 +128,8 @@ def update_event(case_identifier, identifier):
         return response_api_not_found()
     except ValidationError as e:
         return response_api_error('Data error', data=e.normalized_messages())
+    except BusinessProcessingError as e:
+        return response_api_error('Data error', data=e.get_data())
 
 
 @case_events_blueprint.delete('/<int:identifier>')
