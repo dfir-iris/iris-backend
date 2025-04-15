@@ -21,7 +21,7 @@ import json
 import urllib.parse
 from datetime import datetime
 
-import marshmallow
+from marshmallow.exceptions import ValidationError
 from flask import Blueprint
 from flask import request
 from flask_login import current_user
@@ -35,7 +35,6 @@ from app.datamgmt.case.case_assets_db import get_asset_by_name
 from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.datamgmt.case.case_events_db import get_category_by_name
 from app.datamgmt.case.case_events_db import get_default_category
-from app.datamgmt.case.case_events_db import delete_event
 from app.datamgmt.case.case_events_db import delete_event_comment
 from app.datamgmt.case.case_events_db import get_case_event
 from app.datamgmt.case.case_events_db import get_case_event_comment
@@ -75,6 +74,8 @@ from app.blueprints.responses import response_success
 from app.business.errors import BusinessProcessingError
 from app.business.events import events_create
 from app.business.events import events_update
+from app.business.events import events_delete
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 
@@ -156,7 +157,7 @@ def case_comment_add(cur_id, caseid):
         track_activity(f"event \"{event.event_title}\" commented", caseid=caseid)
         return response_success("Event commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
@@ -625,6 +626,7 @@ def case_filter_timeline(caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/events/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_delete_event(cur_id, caseid):
@@ -634,13 +636,7 @@ def case_delete_event(cur_id, caseid):
     if not event:
         return response_error('Not a valid event ID for this case')
 
-    delete_event(event=event, caseid=caseid)
-
-    call_modules_hook('on_postload_event_delete', data=cur_id, caseid=caseid)
-
-    collab_notify(caseid, 'events', 'deletion', cur_id)
-
-    track_activity(f"deleted event \"{event.event_title}\" in timeline", caseid)
+    events_delete(event)
 
     return response_success(f'Event ID {cur_id} deleted')
 
@@ -694,8 +690,16 @@ def case_edit_event(cur_id, caseid):
         if not event:
             return response_error("Invalid event ID for this case")
 
-        request_json = request.get_json()
-        event = events_update(event, request_json)
+        request_data = call_deprecated_on_preload_modules_hook('event_update', request.get_json(), caseid)
+
+        request_data['event_id'] = event.event_id
+        event = _load(request_data, instance=event)
+        event_category_id = request_data.get('event_category_id')
+        event_assets = request_data.get('event_assets')
+        event_iocs = request_data.get('event_iocs')
+        event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
+
+        event = events_update(event, event_category_id, event_assets, event_iocs, event_sync_iocs_assets)
 
         event_schema = EventSchema()
         event_dump = event_schema.dump(event)
@@ -707,6 +711,8 @@ def case_edit_event(cur_id, caseid):
 
         return response_success("Event updated", data=event_dump)
 
+    except ValidationError as e:
+        return response_error(e.get_message(), data=e.get_data())
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -716,9 +722,17 @@ def case_edit_event(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_add_event(caseid):
-    request_json = request.get_json()
     try:
-        event = events_create(caseid, request_json)
+        request_data = call_deprecated_on_preload_modules_hook('event_create', request.get_json(), caseid)
+
+        event = _load(request_data)
+
+        event_category_id = request_data.get('event_category_id')
+        event_assets = request_data.get('event_assets')
+        event_iocs = request_data.get('event_iocs')
+        sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
+
+        event = events_create(caseid, event, event_category_id, event_assets, event_iocs, sync_iocs_assets)
         event_schema = EventSchema()
         event_dump = event_schema.dump(event)
         collab_notify(case_id=caseid,
@@ -729,6 +743,8 @@ def case_add_event(caseid):
 
         return response_success('Event added', data=event_schema.dump(event))
 
+    except ValidationError as e:
+        return response_error('Data error', data=e.normalized_messages())
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -789,7 +805,7 @@ def case_duplicate_event(cur_id, caseid):
         track_activity(f"added event \"{event.event_title}\"", caseid=caseid)
         return response_success("Event duplicated", data=event_schema.dump(event))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
@@ -974,7 +990,7 @@ def case_events_upload_csv(caseid):
 
             track_activity(f"added event {event.event_id}", caseid=caseid)
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
     except Exception as e:
@@ -988,3 +1004,11 @@ def case_events_upload_csv(caseid):
     app.logger.info("======================== END_CSV_IMPORT ==========================================")
 
     return response_success(msg="Events added (CSV File)")
+
+
+def _load(request_data, **kwargs):
+    schema = EventSchema()
+    event = schema.load(request_data, **kwargs)
+    event.event_date, event.event_date_wtz = schema.validate_date(request_data.get(u'event_date'),
+                                                                  request_data.get(u'event_tz'))
+    return event

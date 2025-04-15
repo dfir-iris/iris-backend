@@ -25,7 +25,6 @@ from werkzeug.utils import redirect
 from app import app
 from app.datamgmt.manage.manage_srv_settings_db import get_alembic_revision
 from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
-from app.iris_engine.updater.updater import is_updates_available
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_requires
 
@@ -34,28 +33,6 @@ manage_srv_settings_blueprint = Blueprint(
     __name__,
     template_folder='templates'
 )
-
-
-@manage_srv_settings_blueprint.route('/manage/server/make-update', methods=['GET'])
-@ac_requires(Permissions.server_administrator, no_cid_required=True)
-def manage_update(caseid, url_redir):
-    if url_redir:
-        return redirect(url_for('manage_srv_settings_blueprint.manage_settings', cid=caseid))
-
-    # Return default page of case management
-    return render_template('manage_make_update.html')
-
-
-@manage_srv_settings_blueprint.route('/manage/server/check-updates/modal', methods=['GET'])
-@ac_requires(Permissions.server_administrator, no_cid_required=True)
-def manage_check_updates_modal(caseid, url_redir):
-    if url_redir:
-        return redirect(url_for('manage_srv_settings_blueprint.manage_settings', cid=caseid))
-
-    has_updates, updates_content, _ = is_updates_available()
-
-    # Return default page of case management
-    return render_template('modal_server_updates.html', has_updates=has_updates, updates_content=updates_content)
 
 
 @manage_srv_settings_blueprint.route('/manage/settings', methods=['GET'])

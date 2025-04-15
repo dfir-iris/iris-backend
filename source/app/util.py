@@ -21,17 +21,12 @@
 # TODO should probably dispatch the methods provided in this file in the different namespaces
 import base64
 import datetime
-import hashlib
-import logging as log
-import marshmallow
 import shutil
 import weakref
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import hmac
 from flask_login import current_user
-from pathlib import Path
-from pyunpack import Archive
 from sqlalchemy.orm.attributes import flag_modified
 from flask import current_app
 
@@ -49,24 +44,6 @@ class FileRemover(object):
     def _do_cleanup(self, wr):
         filepath = self.weak_references[wr]
         shutil.rmtree(filepath, ignore_errors=True)
-
-
-def decompress_7z(filename: Path, output_dir):
-    """
-    Decompress a 7z file in specified output directory
-    :param filename: Filename to decompress
-    :param output_dir: Target output dir
-    :return: True if uncompress
-    """
-    try:
-        a = Archive(filename=filename)
-        a.extractall(directory=output_dir, auto_create_dir=True)
-
-    except Exception as e:
-        log.warning(e)
-        return False
-
-    return True
 
 
 def add_obj_history_entry(obj, action, commit=False):
@@ -98,25 +75,6 @@ def add_obj_history_entry(obj, action, commit=False):
     return obj
 
 
-def file_sha256sum(file_path):
-
-    if not Path(file_path).is_file():
-        return None
-
-    sha256_hash = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        # Read and update hash string value in blocks of 4K
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-
-        return sha256_hash.hexdigest().upper()
-
-
-def stream_sha256sum(stream):
-
-    return hashlib.sha256(stream).hexdigest().upper()
-
-
 def hmac_sign(data):
     key = bytes(current_app.config.get("SECRET_KEY"), "utf-8")
     h = hmac.HMAC(key, hashes.SHA256())
@@ -137,56 +95,3 @@ def hmac_verify(signature_enc, data):
         return True
     except InvalidSignature:
         return False
-
-
-def str_to_bool(value):
-    if value is None:
-        return False
-
-    if isinstance(value, bool):
-        return value
-
-    if isinstance(value, int):
-        return bool(value)
-
-    return value.lower() in ['true', '1', 'yes', 'y', 't']
-
-
-def assert_type_mml(input_var: any, field_name: str, type: type, allow_none: bool = False,
-                    max_len: int = None, max_val: int = None, min_val: int = None):
-    if input_var is None:
-        if allow_none is False:
-            raise marshmallow.ValidationError('Invalid data - non null expected',
-                                              field_name=field_name if field_name else 'type')
-        else:
-            return True
-
-    if isinstance(input_var, type):
-        if max_len:
-            if len(input_var) > max_len:
-                raise marshmallow.ValidationError('Invalid data - max length exceeded',
-                                                  field_name=field_name if field_name else 'type')
-
-        if max_val:
-            if input_var > max_val:
-                raise marshmallow.ValidationError('Invalid data - max value exceeded',
-                                                  field_name=field_name if field_name else 'type')
-
-        if min_val:
-            if input_var < min_val:
-                raise marshmallow.ValidationError('Invalid data - min value exceeded',
-                                                  field_name=field_name if field_name else 'type')
-
-        return True
-
-    try:
-
-        if isinstance(type(input_var), type):
-            return True
-
-    except Exception as e:
-        log.error(e)
-        print(e)
-
-    raise marshmallow.ValidationError('Invalid data type',
-                                      field_name=field_name if field_name else 'type')

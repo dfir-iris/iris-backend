@@ -93,10 +93,10 @@ from app.models.authorization import Organisation
 from app.models.authorization import User
 from app.models.cases import CaseState
 from app.models.cases import CaseProtagonist
-from app.util import file_sha256sum
-from app.util import str_to_bool
-from app.util import assert_type_mml
-from app.util import stream_sha256sum
+from app.schema.utils import assert_type_mml
+from app.schema.utils import file_sha256sum
+from app.schema.utils import stream_sha256sum
+from app.schema.utils import str_to_bool
 
 ALLOWED_EXTENSIONS = {'png', 'svg'}
 POSTGRES_INT_MAX = 2147483647

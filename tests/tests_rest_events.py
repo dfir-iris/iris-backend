@@ -359,3 +359,62 @@ class TestsRestEvents(TestCase):
                 'parent_event_id': parent_event_identifier}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/events/{identifier}', body).json()
         self.assertEqual(parent_event_identifier, response['parent_event_id'])
+
+    def test_delete_event_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}/events/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_get_event_should_return_404_after_it_has_been_deleted(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        self._subject.delete(f'/api/v2/cases/{case_identifier}/events/{identifier}')
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_event_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        response = self._subject.delete(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/events/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_event_should_return_404_when_the_event_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}/events/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_event_should_return_403_when_user_has_no_permission_to_access_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+
+        user = self._subject.create_dummy_user()
+        response = user.delete(f'/api/v2/cases/{case_identifier}/events/{identifier}')
+        self.assertEqual(403, response.status_code)
+
+    def test_delete_event_should_return_400_when_case_identifier_does_not_match_event_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        case_identifier2 = self._subject.create_dummy_case()
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier2}/events/{identifier}')
+        self.assertEqual(400, response.status_code)
