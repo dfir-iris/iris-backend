@@ -21,7 +21,6 @@ from datetime import datetime
 from flask import Blueprint
 from flask import request
 from flask import current_app
-from flask_login import current_user
 from typing import List
 from werkzeug import Response
 
@@ -29,6 +28,7 @@ from app import db
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.case_comments import case_comment_update
+from app.business.auth import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.datamgmt.alerts.alerts_db import create_case_from_alert
@@ -129,6 +129,7 @@ def alerts_list_route() -> Response:
     else:
         fields = None
 
+
     try:
         filtered_alerts = get_filtered_alerts(
             start_date=request.args.get('creation_start_date'),
@@ -154,7 +155,7 @@ def alerts_list_route() -> Response:
             assets=alert_assets,
             iocs=alert_iocs,
             resolution_status=request.args.get('alert_resolution_id', type=int),
-            current_user_id=current_user.id
+            current_user_id=iris_current_user.id
         )
 
     except Exception as e:
@@ -219,8 +220,7 @@ def alerts_get_route(alert_id) -> Response:
     # Return the alert as JSON
     if alert is None:
         return response_error('Alert not found')
-
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('Alert not found')
 
     alert_dump = alert_schema.dump(alert)
@@ -251,8 +251,7 @@ def alerts_similarities_route(alert_id) -> Response:
     # Return the alert as JSON
     if alert is None:
         return response_error('Alert not found')
-
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('Alert not found')
 
     open_alerts = request.args.get('open-alerts', 'false').lower() == 'true'
@@ -295,8 +294,7 @@ def alerts_update_route(alert_id) -> Response:
     alert = get_alert_by_id(alert_id)
     if not alert:
         return response_error('Alert not found')
-
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to update alerts for the client', status=403)
 
     alert_schema = AlertSchema()
@@ -332,7 +330,7 @@ def alerts_update_route(alert_id) -> Response:
         # Deserialize the JSON data into an Alert object
         updated_alert = alert_schema.load(data, instance=alert, partial=True)
         if data.get('alert_owner_id') is None and updated_alert.alert_owner_id is None:
-            updated_alert.alert_owner_id = current_user.id
+            updated_alert.alert_owner_id = iris_current_user.id
 
         if data.get('alert_owner_id') == "-1" or data.get('alert_owner_id') == -1:
             updated_alert.alert_owner_id = None
@@ -412,11 +410,11 @@ def alerts_batch_update_route() -> Response:
                     activity_data.append(f"\"{key}\"")
 
             # Check if the user has access to the client
-            if not user_has_client_access(current_user.id, alert.alert_customer_id):
+            if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
                 return response_error('User not entitled to update alerts for the client', status=403)
 
             if getattr(alert, 'alert_owner_id') is None:
-                updates['alert_owner_id'] = current_user.id
+                updates['alert_owner_id'] = iris_current_user.id
 
             if data.get('alert_owner_id') == "-1" or data.get('alert_owner_id') == -1:
                 updates['alert_owner_id'] = None
@@ -472,7 +470,7 @@ def alerts_batch_delete_route() -> Response:
         if not alert:
             return response_error(f'Alert with ID {alert_id} not found')
 
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to delete alerts for the client', status=403)
 
     success, logs = delete_alerts(alert_ids)
@@ -508,7 +506,7 @@ def alerts_delete_route(alert_id) -> Response:
     try:
 
         # Check if the user has access to the client
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to delete alerts for the client', status=403)
 
         # Delete the case association
@@ -566,7 +564,7 @@ def alerts_escalate_route(alert_id) -> Response:
 
     try:
         # Check if the user has access to the client
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to escalate alerts for the client', status=403)
 
         # Escalate the alert to a case
@@ -639,14 +637,13 @@ def alerts_merge_route(alert_id) -> Response:
     note: str = data.get('note')
     import_as_event: bool = data.get('import_as_event')
     case_tags = data.get('case_tags')
-
     try:
         # Check if the user has access to the client
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to merge alerts for the client', status=403)
 
         # Check if the user has access to the case
-        if not check_ua_case_client(current_user.id, target_case_id):
+        if not check_ua_case_client(iris_current_user.id, target_case_id):
             return response_error('User not entitled to merge alerts for the case', status=403)
 
         # Merge the alert into a case
@@ -702,11 +699,11 @@ def alerts_unmerge_route(alert_id) -> Response:
 
     try:
         # Check if the user has access to the client
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to unmerge alerts for the client', status=403)
 
         # Check if the user has access to the case
-        if not check_ua_case_client(current_user.id, target_case_id):
+        if not check_ua_case_client(iris_current_user.id, target_case_id):
             return response_error('User not entitled to unmerge alerts for the case', status=403)
 
         # Unmerge alert from the case
@@ -762,9 +759,8 @@ def alerts_batch_merge_route() -> Response:
     note: str = data.get('note')
     import_as_event: bool = data.get('import_as_event')
     case_tags = data.get('case_tags')
-
     # Check if the user has access to the case
-    if not check_ua_case_client(current_user.id, target_case_id):
+    if not check_ua_case_client(iris_current_user.id, target_case_id):
         return response_error('User not entitled to merge alerts for the case', status=403)
 
     try:
@@ -776,7 +772,7 @@ def alerts_batch_merge_route() -> Response:
                 continue
 
             # Check if the user has access to the client
-            if not user_has_client_access(current_user.id, alert.alert_customer_id):
+            if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
                 return response_error('User not entitled to merge alerts for the client', status=403)
 
             alert.alert_status_id = AlertStatus.query.filter_by(status_name='Merged').first().status_id
@@ -835,7 +831,6 @@ def alerts_batch_escalate_route() -> Response:
     case_title = data.get('case_title')
     alerts_list = []
     case_template_id: int = data.get('case_template_id', None)
-
     try:
         # Merge the alerts into a case
         for alert_id in parse_comma_separated_identifiers(alert_ids):
@@ -845,7 +840,7 @@ def alerts_batch_escalate_route() -> Response:
                 continue
 
             # Check if the user has access to the client
-            if not user_has_client_access(current_user.id, alert.alert_customer_id):
+            if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
                 return response_error('User not entitled to escalate alerts for the client', status=403)
 
             alert.alert_status_id = AlertStatus.query.filter_by(status_name='Merged').first().status_id
@@ -900,7 +895,7 @@ def alert_comments_get(alert_id):
     if not alert:
         return response_error('Invalid alert ID')
 
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
     alert_comments = get_alert_comments(alert_id)
@@ -929,7 +924,7 @@ def alert_comment_delete(alert_id, com_id):
     if not alert:
         return response_error('Invalid alert ID')
 
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
     success, msg = delete_alert_comment(comment_id=com_id, alert_id=alert_id)
@@ -962,7 +957,7 @@ def alert_comment_get(alert_id, com_id):
     if not alert:
         return response_error('Invalid alert ID')
 
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
     comment = get_alert_comment(alert_id, com_id)
@@ -990,7 +985,7 @@ def alert_comment_edit(alert_id, com_id):
     if not alert:
         return response_error('Invalid alert ID')
 
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
     return case_comment_update(com_id, 'events', None)
@@ -1014,15 +1009,15 @@ def case_comment_add(alert_id):
         alert = get_alert_by_id(alert_id=alert_id)
         if not alert:
             return response_error('Invalid alert ID')
-
-        if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        # Check if the user has access to the client
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to read alerts for the client', status=403)
 
         comment_schema = CommentSchema()
 
         comment = comment_schema.load(request.get_json())
         comment.comment_alert_id = alert_id
-        comment.comment_user_id = current_user.id
+        comment.comment_user_id = iris_current_user.id
         comment.comment_date = datetime.now()
         comment.comment_update_date = datetime.now()
         db.session.add(comment)

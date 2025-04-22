@@ -29,8 +29,7 @@ from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.models.authorization import Permissions
 from app.blueprints.responses import response_error
 from app.blueprints.access_controls import ac_requires
-from app.business.auth import get_current_user
-
+from app.business.auth import iris_current_user
 
 alerts_blueprint = Blueprint(
     'alerts',
@@ -79,8 +78,7 @@ def alert_comment_modal(cur_id, caseid, url_redir):
     if not alert:
         return response_error('Invalid alert ID')
 
-    current_user = get_current_user()
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to update alerts for the client', status=403)
 
     return render_template("modal_conversation.html", element_id=cur_id, element_type='alerts',

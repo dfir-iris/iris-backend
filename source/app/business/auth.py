@@ -41,7 +41,6 @@ import datetime
 import jwt
 from flask import jsonify
 
-
 class TokenUser:
     """A class that mimics the Flask-Login current_user interface for token auth"""
     def __init__(self, user_data):
@@ -263,3 +262,6 @@ def validate_auth_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+
+
+iris_current_user = get_current_user()

@@ -30,7 +30,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from flask import current_app
 
 from app import db
-from app.business.auth import get_current_user
+from app.business.auth import iris_current_user
 
 
 class FileRemover(object):
@@ -48,14 +48,13 @@ class FileRemover(object):
 
 def add_obj_history_entry(obj, action, commit=False):
     if hasattr(obj, 'modification_history'):
-        current_user = get_current_user()
 
         if isinstance(obj.modification_history, dict):
 
             obj.modification_history.update({
                 datetime.datetime.now().timestamp(): {
-                    'user': current_user.user,
-                    'user_id': current_user.id,
+                    'user': iris_current_user.user,
+                    'user_id': iris_current_user.id,
                     'action': action
                 }
             })
@@ -64,8 +63,8 @@ def add_obj_history_entry(obj, action, commit=False):
 
             obj.modification_history = {
                 datetime.datetime.now().timestamp(): {
-                    'user': current_user.user,
-                    'user_id': current_user.id,
+                    'user': iris_current_user.user,
+                    'user_id': iris_current_user.id,
                     'action': action
                 }
             }

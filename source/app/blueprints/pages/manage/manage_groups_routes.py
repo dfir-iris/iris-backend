@@ -19,7 +19,7 @@ from flask import render_template
 from flask import url_for
 from werkzeug.utils import redirect
 
-from app.business.auth import get_current_user
+from app.business.auth import iris_current_user
 from app.datamgmt.manage.manage_cases_db import list_cases_dict
 from app.datamgmt.manage.manage_groups_db import get_group_details
 from app.datamgmt.manage.manage_groups_db import get_group_with_members
@@ -95,8 +95,7 @@ def manage_groups_cac_modal(cur_id, caseid, url_redir):
     if not group:
         return response_error("Invalid group ID")
 
-    current_user = get_current_user()
-    cases_list = list_cases_dict(current_user.id)
+    cases_list = list_cases_dict(iris_current_user.id)
     group_cases_access = [case.get('case_id') for case in group.group_cases_access]
     outer_cases_list = []
     for case in cases_list:

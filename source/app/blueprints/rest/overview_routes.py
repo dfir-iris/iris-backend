@@ -18,8 +18,8 @@
 
 from flask import Blueprint
 from flask import request
-from flask_login import current_user
 
+from app.business.auth import iris_current_user
 from app.datamgmt.overview.overview_db import get_overview_db
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
