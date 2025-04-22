@@ -30,6 +30,7 @@ from flask import url_for
 from flask import request
 from flask import render_template
 from flask import session
+from flask import g
 from flask_login import current_user
 from flask_login import login_user
 from flask_wtf import FlaskForm
@@ -42,6 +43,7 @@ from app import TEMPLATE_PATH
 from app import app
 from app import db
 from app.blueprints.responses import response_error
+from app.business.auth import validate_auth_token, get_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.datamgmt.manage.manage_users_db import get_user
@@ -55,11 +57,35 @@ from app.models.authorization import CaseAccessLevel
 
 def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
     """
-        Returns true as soon as the user has at least one permission in the list of permissions
-        Returns true if the list of required permissions is empty
+    Returns true if the user has at least one of the required permissions
+    Works with both session-based and token-based authentication
     """
     if not permissions:
         return True
+
+    # For token-based authentication
+    if hasattr(g, 'auth_token_user_id'):
+        # Use cached permissions from token if available
+        if hasattr(g, 'auth_user_permissions'):
+            user_permissions = g.auth_user_permissions
+        else:
+            # Lazy load permissions only once per request
+            from app.datamgmt.manage.manage_users_db import get_user
+            user = get_user(g.auth_token_user_id)
+            if not user:
+                return False
+
+            user_permissions = ac_get_effective_permissions_of_user(user)
+            g.auth_user_permissions = user_permissions  # Cache for this request
+
+        for permission in permissions:
+            if user_permissions & permission.value:
+                return True
+        return False
+
+    # For session-based authentication
+    if 'permissions' not in session:
+        session['permissions'] = ac_get_effective_permissions_of_user(current_user)
 
     for permission in permissions:
         if session['permissions'] & permission.value:
@@ -182,7 +208,8 @@ def _get_case_access(request_data, access_level, no_cid_required=False):
     if ctmp is not None:
         return redir, ctmp, has_access
 
-    eaccess_level = ac_fast_check_user_has_case_access(current_user.id, caseid, access_level)
+    current_user_wrap = get_current_user()
+    eaccess_level = ac_fast_check_user_has_case_access(current_user_wrap.id, caseid, access_level)
     if eaccess_level is None and access_level:
         _update_denied_case(caseid)
         return redir, caseid, False
@@ -218,8 +245,9 @@ def _is_csrf_token_valid():
 
 def _ac_return_access_denied(caseid: int = None):
     error_uuid = uuid.uuid4()
-    log.warning(f"Access denied to case #{caseid} for user ID {current_user.id}. Error {error_uuid}")
-    return render_template('pages/error-403.html', user=current_user, caseid=caseid, error_uuid=error_uuid,
+    current_user_wrap = get_current_user()
+    log.warning(f"Access denied to case #{caseid} for user ID {current_user_wrap.id}. Error {error_uuid}")
+    return render_template('pages/error-403.html', user=current_user_wrap, caseid=caseid, error_uuid=error_uuid,
                            template_folder=TEMPLATE_PATH), 403
 
 
@@ -251,11 +279,13 @@ def get_case_access_from_api(request_data, access_level):
     redir, caseid, has_access = _get_caseid_from_request_data(request_data, False)
     redir = False
 
-    if not hasattr(current_user, 'id'):
+    current_user_wrap = get_current_user()
+
+    if not hasattr(current_user_wrap, 'id'):
         # Anonymous request, deny access
         return False, 1, False
 
-    eaccess_level = ac_fast_check_user_has_case_access(current_user.id, caseid, access_level)
+    eaccess_level = ac_fast_check_user_has_case_access(current_user_wrap.id, caseid, access_level)
     if eaccess_level is None and access_level:
         return redir, caseid, False
 
@@ -321,19 +351,37 @@ def ac_api_requires(*permissions):
         @wraps(f)
         def wrap(*args, **kwargs):
             if not _is_csrf_token_valid():
-                return response_error('Invalid CSRF token')
+                if 'auth_token_user_id' not in g:
+                    return response_error('Invalid CSRF token')
 
             if not is_user_authenticated(request):
                 return response_error('Authentication required', status=401)
 
-            if 'permissions' not in session:
-                session['permissions'] = ac_get_effective_permissions_of_user(current_user)
+            # Set the user for token-based authentication
+            if hasattr(g, 'auth_token_user_id'):
+                from app.datamgmt.manage.manage_users_db import get_user
+                user = get_user(g.auth_token_user_id)
+                if not user:
+                    return response_error('User not found', status=404)
 
-            if not _user_has_at_least_a_required_permission(permissions):
-                return response_error('Permission denied', status=403)
+                # Create a compatibility layer for token auth
+                g.token_user = user
+
+                # Check permissions
+                if not _user_has_at_least_a_required_permission(permissions):
+                    return response_error('Permission denied', status=403)
+            else:
+                # Session-based auth - use the normal approach
+                if 'permissions' not in session:
+                    session['permissions'] = ac_get_effective_permissions_of_user(current_user)
+
+                if not _user_has_at_least_a_required_permission(permissions):
+                    return response_error('Permission denied', status=403)
 
             return f(*args, **kwargs)
+
         return wrap
+
     return inner_wrap
 
 
@@ -341,8 +389,9 @@ def ac_requires_client_access():
     def inner_wrap(f):
         @wraps(f)
         def wrap(*args, **kwargs):
+            current_user_wrap = get_current_user()
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(current_user.id, client_id):
+            if not user_has_client_access(current_user_wrap.id, client_id):
                 return _ac_return_access_denied()
 
             return f(*args, **kwargs)
@@ -364,7 +413,8 @@ def ac_socket_requires(*access_level):
                 else:
                     return _ac_return_access_denied(caseid=0)
 
-                access = ac_fast_check_user_has_case_access(current_user.id, case_id, access_level)
+                current_user_wrap = get_current_user()
+                access = ac_fast_check_user_has_case_access(current_user_wrap.id, case_id, access_level)
                 if not access:
                     return _ac_return_access_denied(caseid=case_id)
 
@@ -375,7 +425,8 @@ def ac_socket_requires(*access_level):
 
 
 def ac_api_return_access_denied(caseid: int = None):
-    user_id = current_user.id if hasattr(current_user, 'id') else 'Anonymous'
+    current_user_wrap = get_current_user()
+    user_id = current_user_wrap.id if hasattr(current_user_wrap, 'id') else 'Anonymous'
     error_uuid = uuid.uuid4()
     log.warning(f"EID {error_uuid} - Access denied with case #{caseid} for user ID {user_id} "
                 f"accessing URI {request.full_path}")
@@ -392,7 +443,8 @@ def ac_api_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(current_user.id, client_id):
+            current_user_wrap = get_current_user()
+            if not user_has_client_access(current_user_wrap.id, client_id):
                 return response_error("Permission denied", status=403)
 
             return f(*args, **kwargs)
@@ -497,7 +549,29 @@ def _oidc_proxy_authentication_process(incoming_request: Request):
 
 
 def _local_authentication_process(incoming_request: Request):
-    return current_user.is_authenticated
+    current_user_wrap = get_current_user()
+    return current_user_wrap.is_authenticated
+
+
+def _token_authentication_process(incoming_request: Request):
+    """
+    Process authentication using an Authorization header with Bearer token
+    """
+    auth_header = incoming_request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return False
+
+    token = auth_header.split(' ')[1]
+    user_data = validate_auth_token(token)
+
+    if not user_data:
+        return False
+
+    # Store user data for later use
+    g.auth_user = user_data
+    g.auth_token_user_id = user_data['user_id']
+
+    return True
 
 
 def is_user_authenticated(incoming_request: Request):
@@ -507,6 +581,9 @@ def is_user_authenticated(incoming_request: Request):
         "ldap": _local_authentication_process,
         "oidc": _local_authentication_process,
     }
+
+    if _token_authentication_process(incoming_request):
+        return True
 
     return authentication_mapper.get(app.config.get("AUTHENTICATION_TYPE"))(incoming_request)
 

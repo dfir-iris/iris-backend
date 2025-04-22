@@ -15,7 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
+import jwt
 from flask import Blueprint, session
 from flask import redirect, url_for
 from flask import request
@@ -25,13 +25,14 @@ from oic.oauth2.exception import GrantError
 from app import app
 from app import db
 from app import oidc_client
+from app.datamgmt.manage.manage_users_db import get_active_user
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
-from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_error, response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info
+from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
 
@@ -127,3 +128,40 @@ def whoami():
     return response_api_success(data=UserSchema(only=[
         'id', 'user_name', 'user_login', 'user_email'
     ]).dump(current_user))
+
+
+
+@auth_blueprint.post('/refresh-token')
+def refresh_token_endpoint():
+    """
+    Refresh authentication tokens using a valid refresh token
+    """
+    refresh_token = request.json.get('refresh_token')
+    if not refresh_token:
+        return response_api_error('Refresh token is required')
+
+    try:
+        # Decode the token manually to check the type
+        payload = jwt.decode(refresh_token, app.config.get('SECRET_KEY'), algorithms=['HS256'])
+
+        # Verify it's a refresh token
+        if payload.get('type') != 'refresh':
+            return response_api_error('Invalid token type')
+
+        user_id = payload.get('user_id')
+        user = get_active_user(user_id=user_id)
+
+        if not user:
+            return response_api_not_found()
+
+        # Generate new tokens
+        new_tokens = generate_auth_tokens(user_id)
+
+        return response_api_success(data={
+            'tokens': new_tokens
+        })
+
+    except jwt.ExpiredSignatureError:
+        return response_api_error('Refresh token has expired')
+    except jwt.InvalidTokenError:
+        return response_api_error('Invalid refresh token')

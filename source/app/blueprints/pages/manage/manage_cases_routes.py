@@ -21,10 +21,10 @@ from flask import Blueprint
 from flask import redirect
 from flask import render_template
 from flask import url_for
-from flask_login import current_user
 from flask_wtf import FlaskForm
 from werkzeug import Response
 
+from app.business.auth import get_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.client.client_db import get_client_list
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
@@ -84,6 +84,8 @@ def _details_case(cur_id: int, caseid: int, url_redir: bool) -> Union[str, Respo
     case_states = get_case_states_list()
     user_is_server_administrator = ac_current_user_has_permission(Permissions.server_administrator)
 
+    current_user = get_current_user()
+
     customers = get_client_list(current_user_id=current_user.id,
                                 is_server_administrator=user_is_server_administrator)
 
@@ -116,6 +118,8 @@ def add_case_modal(caseid: int, url_redir: bool):
         return redirect(url_for('manage_case.manage_index_cases', cid=caseid))
 
     form = AddCaseForm()
+    current_user = get_current_user()
+
     # Show only clients that the user has access to
     client_list = get_client_list(current_user_id=current_user.id,
                                   is_server_administrator=ac_current_user_has_permission(

@@ -18,10 +18,10 @@
 
 from datetime import datetime
 from flask import request
-from flask_login import current_user
 
 import app
 from app import db
+from app.blueprints.access_controls import get_current_user
 from app.models.models import UserActivity
 
 log = app.app.logger
@@ -34,6 +34,7 @@ def track_activity(message, caseid=None, ctx_less=False, user_input=False, displ
     :return: Nothing
     """
     ua = UserActivity()
+    current_user = get_current_user()
 
     try:
 

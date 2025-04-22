@@ -40,7 +40,7 @@ from app import oidc_client
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.responses import response_error
-from app.business.auth import validate_ldap_login
+from app.business.auth import validate_ldap_login, get_current_user
 from app.business.users import retrieve_user_by_username
 from app.business.auth import wrap_login_user
 from app.datamgmt.manage.manage_users_db import create_user, update_user_groups
@@ -113,7 +113,8 @@ def _authenticate_password(form, username, password):
 if app.config.get("AUTHENTICATION_TYPE") in ["local", "ldap", "oidc"]:
     @login_blueprint.route('/login', methods=['GET', 'POST'])
     def login():
-        if current_user.is_authenticated:
+        current_user_wrap = get_current_user()
+        if current_user_wrap.is_authenticated:
             return redirect(url_for('index.index'))
 
         if is_authentication_oidc() and app.config.get('AUTHENTICATION_LOCAL_FALLBACK') is False:
@@ -138,7 +139,8 @@ if app.config.get("AUTHENTICATION_TYPE") in ["local", "ldap", "oidc"]:
 if is_authentication_oidc():
     @login_blueprint.route('/oidc-login')
     def oidc_login():
-        if current_user.is_authenticated:
+        current_user_wrap = get_current_user()
+        if current_user_wrap.is_authenticated:
             return redirect(url_for('index.index'))
 
         session["oidc_state"] = rndstr()

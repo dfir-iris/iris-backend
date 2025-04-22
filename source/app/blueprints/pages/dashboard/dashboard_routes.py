@@ -20,10 +20,10 @@ from flask import Blueprint
 from flask import redirect
 from flask import render_template
 from flask import url_for
-from flask_login import current_user
 from flask_wtf import FlaskForm
 
 from app import app
+from app.business.auth import get_current_user
 from app.datamgmt.dashboard.dashboard_db import get_tasks_status
 from app.forms import CaseGlobalTaskForm
 from app.iris_engine.access_control.utils import ac_get_user_case_counts
@@ -60,6 +60,7 @@ def index(caseid, url_redir):
 
     msg = None
 
+    current_user = get_current_user()
     acgucc = ac_get_user_case_counts(current_user.id)
 
     data = {
@@ -86,6 +87,8 @@ def add_gtask_modal(caseid, url_redir):
 
     form.task_assignee_id.choices = [(user.id, user.name) for user in User.query.filter(User.active == True).order_by(User.name).all()]
     form.task_status_id.choices = [(a.id, a.status_name) for a in get_tasks_status()]
+
+    current_user = get_current_user()
 
     return render_template("modal_add_global_task.html", form=form, task=task, uid=current_user.id, user_name=None)
 

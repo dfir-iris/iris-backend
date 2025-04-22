@@ -26,11 +26,11 @@ import weakref
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import hmac
-from flask_login import current_user
 from sqlalchemy.orm.attributes import flag_modified
 from flask import current_app
 
 from app import db
+from app.business.auth import get_current_user
 
 
 class FileRemover(object):
@@ -48,6 +48,7 @@ class FileRemover(object):
 
 def add_obj_history_entry(obj, action, commit=False):
     if hasattr(obj, 'modification_history'):
+        current_user = get_current_user()
 
         if isinstance(obj.modification_history, dict):
 

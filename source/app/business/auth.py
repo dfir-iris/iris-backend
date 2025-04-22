@@ -18,11 +18,11 @@
 
 from urllib.parse import urlparse, urljoin
 
-from flask import session
+from flask import session, g
 from flask import redirect
 from flask import url_for
 from flask import request
-from flask_login import login_user
+from flask_login import login_user, current_user
 
 from app import bc
 from app import app
@@ -36,6 +36,31 @@ from app.iris_engine.access_control.utils import ac_get_effective_permissions_of
 from app.iris_engine.utils.tracker import track_activity
 from app.models.cases import Cases
 from app.schema.marshables import UserSchema
+
+import datetime
+import jwt
+from flask import jsonify
+
+
+class TokenUser:
+    """A class that mimics the Flask-Login current_user interface for token auth"""
+    def __init__(self, user_data):
+        self.id = user_data['user_id']
+        self.user = user_data['username']
+        self.is_authenticated = True
+        self.is_active = True
+        self.is_anonymous = False
+
+
+def get_current_user():
+    """
+    Returns a compatible user object for both session and token auth
+    For token auth, uses data from g.auth_user
+    For session auth, returns Flask current_user
+    """
+    if hasattr(g, 'auth_user'):
+        return TokenUser(g.auth_user)
+    return current_user
 
 
 def return_authed_user_info(user_id):
@@ -74,7 +99,13 @@ def validate_ldap_login(username: str, password: str, local_fallback: bool = Tru
         if not user:
             return None
 
-        return UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+        user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+
+        # Generate auth tokens for API access
+        tokens = generate_auth_tokens(user.id)
+        user_data.update({'tokens': tokens})
+
+        return user_data
     except Exception as e:
         logger.error(e.__str__())
         return None
@@ -95,7 +126,14 @@ def validate_local_login(username: str, password: str):
 
     if bc.check_password_hash(user.password, password):
         wrap_login_user(user)
-        return UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+
+        user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+
+        # Generate auth tokens for API access
+        tokens = generate_auth_tokens(user.id)
+        user_data.update({'tokens': tokens})
+
+        return user_data
 
     track_activity(f'wrong login password for user \'{username}\' using local auth', ctx_less=True, display_in_ui=False)
     return None
@@ -157,3 +195,71 @@ def wrap_login_user(user, is_oidc=False):
 
     next_url = _filter_next_url(request.args.get('next'), user.ctx_case)
     return redirect(next_url)
+
+
+def generate_auth_tokens(user_id, username):
+    """
+    Generate access and refresh tokens with essential user data
+
+    :param user_id: The user ID
+    :param username: The username
+    :return: Dict containing tokens with expiry
+    """
+    # Configure token expiration times
+    access_token_expiry = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+        minutes=app.config.get('ACCESS_TOKEN_EXPIRES_MINUTES', 15)
+    )
+    refresh_token_expiry = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+        days=app.config.get('REFRESH_TOKEN_EXPIRES_DAYS', 14)
+    )
+
+    # Generate access token with user data
+    access_token_payload = {
+        'user_id': user_id,
+        'username': username,
+        'exp': access_token_expiry
+    }
+    access_token = jwt.encode(
+        access_token_payload,
+        app.config.get('SECRET_KEY'),
+        algorithm='HS256'
+    )
+
+    # Generate refresh token
+    refresh_token_payload = {
+        'user_id': user_id,
+        'username': username,
+        'exp': refresh_token_expiry,
+        'type': 'refresh'
+    }
+    refresh_token = jwt.encode(
+        refresh_token_payload,
+        app.config.get('SECRET_KEY'),
+        algorithm='HS256'
+    )
+
+    return {
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'access_token_expires_at': access_token_expiry.timestamp(),
+        'refresh_token_expires_at': refresh_token_expiry.timestamp()
+    }
+
+
+def validate_auth_token(token):
+    """
+    Validate an authentication token
+
+    :param token: JWT token to validate
+    :return: Dict with user data if valid, None otherwise
+    """
+    try:
+        payload = jwt.decode(token, app.config.get('SECRET_KEY'), algorithms=['HS256'])
+        return {
+            'user_id': payload.get('user_id'),
+            'username': payload.get('username')
+        }
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
