@@ -43,7 +43,7 @@ from app import TEMPLATE_PATH
 from app import app
 from app import db
 from app.blueprints.responses import response_error
-from app.business.auth import validate_auth_token, get_current_user
+from app.business.auth import validate_auth_token, iris_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.datamgmt.manage.manage_users_db import get_user
@@ -208,8 +208,7 @@ def _get_case_access(request_data, access_level, no_cid_required=False):
     if ctmp is not None:
         return redir, ctmp, has_access
 
-    current_user_wrap = get_current_user()
-    eaccess_level = ac_fast_check_user_has_case_access(current_user_wrap.id, caseid, access_level)
+    eaccess_level = ac_fast_check_user_has_case_access(iris_current_user.id, caseid, access_level)
     if eaccess_level is None and access_level:
         _update_denied_case(caseid)
         return redir, caseid, False
@@ -245,9 +244,8 @@ def _is_csrf_token_valid():
 
 def _ac_return_access_denied(caseid: int = None):
     error_uuid = uuid.uuid4()
-    current_user_wrap = get_current_user()
-    log.warning(f"Access denied to case #{caseid} for user ID {current_user_wrap.id}. Error {error_uuid}")
-    return render_template('pages/error-403.html', user=current_user_wrap, caseid=caseid, error_uuid=error_uuid,
+    log.warning(f"Access denied to case #{caseid} for user ID {iris_current_user.id}. Error {error_uuid}")
+    return render_template('pages/error-403.html', user=iris_current_user, caseid=caseid, error_uuid=error_uuid,
                            template_folder=TEMPLATE_PATH), 403
 
 
@@ -279,13 +277,11 @@ def get_case_access_from_api(request_data, access_level):
     redir, caseid, has_access = _get_caseid_from_request_data(request_data, False)
     redir = False
 
-    current_user_wrap = get_current_user()
-
-    if not hasattr(current_user_wrap, 'id'):
+    if not hasattr(iris_current_user, 'id'):
         # Anonymous request, deny access
         return False, 1, False
 
-    eaccess_level = ac_fast_check_user_has_case_access(current_user_wrap.id, caseid, access_level)
+    eaccess_level = ac_fast_check_user_has_case_access(iris_current_user.id, caseid, access_level)
     if eaccess_level is None and access_level:
         return redir, caseid, False
 
@@ -389,9 +385,8 @@ def ac_requires_client_access():
     def inner_wrap(f):
         @wraps(f)
         def wrap(*args, **kwargs):
-            current_user_wrap = get_current_user()
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(current_user_wrap.id, client_id):
+            if not user_has_client_access(iris_current_user.id, client_id):
                 return _ac_return_access_denied()
 
             return f(*args, **kwargs)
@@ -413,8 +408,7 @@ def ac_socket_requires(*access_level):
                 else:
                     return _ac_return_access_denied(caseid=0)
 
-                current_user_wrap = get_current_user()
-                access = ac_fast_check_user_has_case_access(current_user_wrap.id, case_id, access_level)
+                access = ac_fast_check_user_has_case_access(iris_current_user.id, case_id, access_level)
                 if not access:
                     return _ac_return_access_denied(caseid=case_id)
 
@@ -425,8 +419,7 @@ def ac_socket_requires(*access_level):
 
 
 def ac_api_return_access_denied(caseid: int = None):
-    current_user_wrap = get_current_user()
-    user_id = current_user_wrap.id if hasattr(current_user_wrap, 'id') else 'Anonymous'
+    user_id = iris_current_user.id if hasattr(iris_current_user, 'id') else 'Anonymous'
     error_uuid = uuid.uuid4()
     log.warning(f"EID {error_uuid} - Access denied with case #{caseid} for user ID {user_id} "
                 f"accessing URI {request.full_path}")
@@ -443,8 +436,7 @@ def ac_api_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            current_user_wrap = get_current_user()
-            if not user_has_client_access(current_user_wrap.id, client_id):
+            if not user_has_client_access(iris_current_user.id, client_id):
                 return response_error("Permission denied", status=403)
 
             return f(*args, **kwargs)
@@ -549,8 +541,7 @@ def _oidc_proxy_authentication_process(incoming_request: Request):
 
 
 def _local_authentication_process(incoming_request: Request):
-    current_user_wrap = get_current_user()
-    return current_user_wrap.is_authenticated
+    return iris_current_user.is_authenticated
 
 
 def _token_authentication_process(incoming_request: Request):

@@ -29,7 +29,6 @@ from flask import render_template
 from flask import request
 from flask import session
 from flask import url_for
-from flask_login import current_user
 from oic import rndstr
 from oic.oic.message import AuthorizationResponse
 

@@ -19,7 +19,7 @@ import jwt
 from flask import Blueprint, session
 from flask import redirect, url_for
 from flask import request
-from flask_login import current_user, logout_user
+from flask_login import logout_user
 from oic.oauth2.exception import GrantError
 
 from app import app
@@ -32,7 +32,8 @@ from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
 from app.blueprints.rest.endpoints import response_api_error, response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens
+from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens, \
+    iris_current_user
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
 
@@ -46,10 +47,10 @@ def login():
     Login endpoint. Handles taking user/pass combo and authenticating a local session or returning an error.
     """
     logger.info('Authenticating user')
-    if current_user.is_authenticated:
+    if iris_current_user.is_authenticated:
         logger.info('User already authenticated - redirecting')
-        logger.debug(f'User {current_user.user} already logged in')
-        user = return_authed_user_info(user_id=current_user.id)
+        logger.debug(f'User {iris_current_user.user} already logged in')
+        user = return_authed_user_info(user_id=iris_current_user.id)
         return response_api_success(data=user)
 
     if is_authentication_oidc() and app.config.get('AUTHENTICATION_LOCAL_FALLBACK') is False:
@@ -82,8 +83,8 @@ def logout():
     """
 
     if session['current_case']:
-        current_user.ctx_case = session['current_case']['case_id']
-        current_user.ctx_human_case = session['current_case']['case_name']
+        iris_current_user.ctx_case = session['current_case']['case_id']
+        iris_current_user.ctx_human_case = session['current_case']['case_name']
         db.session.commit()
 
     if is_authentication_oidc():
@@ -93,19 +94,19 @@ def logout():
                     state=session['oidc_state'])
                 logout_url = logout_request.request(
                     oidc_client.provider_info["end_session_endpoint"])
-                track_activity(f'user \'{current_user.user}\' has been logged-out',
+                track_activity(f'user \'{iris_current_user.user}\' has been logged-out',
                                ctx_less=True, display_in_ui=False)
                 logout_user()
                 session.clear()
                 return redirect(logout_url)
             except GrantError:
                 track_activity(
-                    f'no oidc session found for user \'{current_user.user}\', skipping oidc provider logout and continuing to logout local user',
+                    f'no oidc session found for user \'{iris_current_user.user}\', skipping oidc provider logout and continuing to logout local user',
                     ctx_less=True,
                     display_in_ui=False
                 )
 
-    track_activity(f'user \'{current_user.user}\' has been logged-out',
+    track_activity(f'user \'{iris_current_user.user}\' has been logged-out',
                    ctx_less=True, display_in_ui=False)
     logout_user()
     session.clear()
@@ -121,13 +122,13 @@ def whoami():
     """
 
     # Ensure we are authenticated
-    if not current_user.is_authenticated:
+    if not iris_current_user.is_authenticated:
         return response_api_error("Unauthenticated")
 
     # Return the current_user dict
     return response_api_success(data=UserSchema(only=[
         'id', 'user_name', 'user_login', 'user_email'
-    ]).dump(current_user))
+    ]).dump(iris_current_user))
 
 
 
