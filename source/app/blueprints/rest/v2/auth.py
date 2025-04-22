@@ -26,14 +26,14 @@ from app import app
 from app import db
 from app import oidc_client
 from app.datamgmt.manage.manage_users_db import get_active_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
 from app.blueprints.rest.endpoints import response_api_error, response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens, \
-    iris_current_user
+from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
 

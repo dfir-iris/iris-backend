@@ -21,7 +21,7 @@ from flask import Blueprint, request
 from app import db, app
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.context.context_db import ctx_search_user_cases
 from app.models.cases import Cases
 from app.models.models import Client

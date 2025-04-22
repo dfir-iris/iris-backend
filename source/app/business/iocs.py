@@ -19,7 +19,7 @@
 from marshmallow.exceptions import ValidationError
 
 from app import db
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.models.models import Ioc
 from app.datamgmt.case.case_iocs_db import add_ioc
 from app.datamgmt.case.case_iocs_db import case_iocs_db_exists

@@ -18,11 +18,11 @@
 
 from urllib.parse import urlparse, urljoin
 
-from flask import session, g
+from flask import session
 from flask import redirect
 from flask import url_for
 from flask import request
-from flask_login import login_user, current_user
+from flask_login import login_user
 
 from app import bc
 from app import app
@@ -39,27 +39,6 @@ from app.schema.marshables import UserSchema
 
 import datetime
 import jwt
-from flask import jsonify
-
-class TokenUser:
-    """A class that mimics the Flask-Login current_user interface for token auth"""
-    def __init__(self, user_data):
-        self.id = user_data['user_id']
-        self.user = user_data['username']
-        self.is_authenticated = True
-        self.is_active = True
-        self.is_anonymous = False
-
-
-def get_current_user():
-    """
-    Returns a compatible user object for both session and token auth
-    For token auth, uses data from g.auth_user
-    For session auth, returns Flask current_user
-    """
-    if hasattr(g, 'auth_user'):
-        return TokenUser(g.auth_user)
-    return current_user
 
 
 def return_authed_user_info(user_id):
@@ -262,6 +241,3 @@ def validate_auth_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
-
-
-iris_current_user = get_current_user()

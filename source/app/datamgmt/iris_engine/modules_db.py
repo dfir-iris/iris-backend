@@ -19,7 +19,7 @@ import base64
 import datetime
 
 from app import db, app
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.models.models import IrisHook
 from app.models.models import IrisModule
 from app.models.models import IrisModuleHook

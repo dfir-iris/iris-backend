@@ -19,7 +19,7 @@
 from datetime import datetime
 
 from app import db
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.case.case_comments import get_case_comment
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity

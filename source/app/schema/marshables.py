@@ -46,7 +46,7 @@ from werkzeug.datastructures import FileStorage
 
 from app import db
 from app import ma
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.logger import logger
 from app.datamgmt.datastore.datastore_db import datastore_get_standard_path
 from app.datamgmt.manage.manage_attribute_db import merge_custom_attributes

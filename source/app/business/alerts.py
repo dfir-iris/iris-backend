@@ -22,7 +22,7 @@ from marshmallow.exceptions import ValidationError
 
 from app import db
 from app import socket_io
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.models.alerts import Alert
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access

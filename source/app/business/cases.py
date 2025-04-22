@@ -21,7 +21,7 @@ import traceback
 from marshmallow.exceptions import ValidationError
 
 from app import db
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.logger import logger
 from app.util import add_obj_history_entry
 from app.schema.marshables import CaseSchema

@@ -35,7 +35,7 @@ from app.blueprints.rest.v2.case_objects.notes import case_notes_blueprint
 from app.blueprints.rest.v2.case_objects.tasks import case_tasks_blueprint
 from app.blueprints.rest.v2.case_objects.evidences import case_evidences_blueprint
 from app.blueprints.rest.v2.case_objects.events import case_events_blueprint
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.datamgmt.case.case_db import get_case

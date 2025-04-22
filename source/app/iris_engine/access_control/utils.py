@@ -3,7 +3,7 @@ from sqlalchemy import and_
 
 import app
 from app import db
-from app.business.auth import iris_current_user
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
 from app.models.cases import Cases
 from app.models.models import Client
