@@ -80,7 +80,7 @@ def validate_ldap_login(username: str, password: str, local_fallback: bool = Tru
         user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
 
         # Generate auth tokens for API access
-        tokens = generate_auth_tokens(user.id)
+        tokens = generate_auth_tokens(user)
         user_data.update({'tokens': tokens})
 
         return user_data
@@ -108,7 +108,7 @@ def validate_local_login(username: str, password: str):
         user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
 
         # Generate auth tokens for API access
-        tokens = generate_auth_tokens(user.id)
+        tokens = generate_auth_tokens(user)
         user_data.update({'tokens': tokens})
 
         return user_data
@@ -175,7 +175,7 @@ def wrap_login_user(user, is_oidc=False):
     return redirect(next_url)
 
 
-def generate_auth_tokens(user_id, username):
+def generate_auth_tokens(user):
     """
     Generate access and refresh tokens with essential user data
 
@@ -193,8 +193,10 @@ def generate_auth_tokens(user_id, username):
 
     # Generate access token with user data
     access_token_payload = {
-        'user_id': user_id,
-        'username': username,
+        'user_id': user.id,
+        'username': user.name,
+        'user_email': user.email,
+        'user_login': user.user,
         'exp': access_token_expiry
     }
     access_token = jwt.encode(
@@ -205,8 +207,10 @@ def generate_auth_tokens(user_id, username):
 
     # Generate refresh token
     refresh_token_payload = {
-        'user_id': user_id,
-        'username': username,
+        'user_id': user.id,
+        'username': user.name,
+        'user_email': user.email,
+        'user_login': user.user,
         'exp': refresh_token_expiry,
         'type': 'refresh'
     }

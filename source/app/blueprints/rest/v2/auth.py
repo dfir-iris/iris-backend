@@ -156,7 +156,7 @@ def refresh_token_endpoint():
             return response_api_not_found()
 
         # Generate new tokens
-        new_tokens = generate_auth_tokens(user_id)
+        new_tokens = generate_auth_tokens(user)
 
         return response_api_success(data={
             'tokens': new_tokens
