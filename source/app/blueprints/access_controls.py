@@ -553,7 +553,11 @@ def _token_authentication_process(incoming_request: Request):
     if not auth_header.startswith('Bearer '):
         return False
 
-    token = auth_header.split(' ')[1]
+    parts = auth_header.split(' ')
+    if len(parts) < 2:
+        return False
+
+    token = parts[1]
     user_data = validate_auth_token(token)
 
     if not user_data:
