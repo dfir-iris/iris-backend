@@ -21,6 +21,8 @@
 import logging as log
 import os
 from datetime import datetime
+
+from app.iris_engine.access_control.iris_user import iris_current_user
 from docx_generator.docx_generator import DocxGenerator
 from docx_generator.exceptions import rendering_error
 from sqlalchemy import desc

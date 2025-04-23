@@ -131,7 +131,6 @@ def whoami():
     ]).dump(iris_current_user))
 
 
-
 @auth_blueprint.post('/refresh-token')
 def refresh_token_endpoint():
     """

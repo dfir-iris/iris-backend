@@ -129,7 +129,6 @@ def alerts_list_route() -> Response:
     else:
         fields = None
 
-
     try:
         filtered_alerts = get_filtered_alerts(
             start_date=request.args.get('creation_start_date'),

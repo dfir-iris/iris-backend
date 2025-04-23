@@ -199,7 +199,6 @@ def case_upload_ioc(caseid):
         analysis_status = AnalysisStatus.query.filter(AnalysisStatus.name == 'Unspecified').first()
         analysis_status_id = analysis_status.id
 
-    
         index = 0
         for row in csv_data:
             missing_field = False
@@ -342,7 +341,6 @@ def case_comment_asset_add(cur_id, caseid):
         if not asset:
             return response_error('Invalid asset ID')
 
-    
         comment_schema = CommentSchema()
 
         comment = comment_schema.load(request.get_json())
