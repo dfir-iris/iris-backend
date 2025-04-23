@@ -61,7 +61,7 @@ def validate_ldap_login(username: str, password: str, local_fallback: bool = Tru
 
     :param username: Username
     :param password: Password
-    :param local_fallback: If True, will fallback to local authentication if LDAP fails.
+    :param local_fallback: If True, will fall back to local authentication if LDAP fails.
     :return: User object if successful, None otherwise
     """
     try:
@@ -179,8 +179,7 @@ def generate_auth_tokens(user):
     """
     Generate access and refresh tokens with essential user data
 
-    :param user_id: The user ID
-    :param username: The username
+    :param user: User object
     :return: Dict containing tokens with expiry
     """
     # Configure token expiration times
