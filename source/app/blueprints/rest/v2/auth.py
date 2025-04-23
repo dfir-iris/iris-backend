@@ -75,7 +75,7 @@ def login():
     return response_api_success(data=authed_user)
 
 
-@auth_blueprint.get('/logout')
+@auth_blueprint.post('/logout')
 def logout():
     """
     Logout function. Erase its session and redirect to index i.e login
