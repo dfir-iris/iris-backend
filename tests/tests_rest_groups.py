@@ -58,3 +58,9 @@ class TestsRestGroups(TestCase):
         self._subject.create(f'/api/v2/groups', body)
         response = self._subject.create(f'/api/v2/groups', body)
         self.assertEqual(400, response.status_code)
+
+    def test_create_event_should_return_403_when_user_has_no_insufficient_permissions(self):
+        user = self._subject.create_dummy_user()
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = user.create(f'/api/v2/groups', body)
+        self.assertEqual(403, response.status_code)

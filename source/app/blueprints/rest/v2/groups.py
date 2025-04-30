@@ -25,6 +25,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
+from app.models.authorization import Permissions
 
 
 class Groups:
@@ -50,7 +51,7 @@ def create_groups_blueprint():
     blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
     groups = Groups()
 
-    create_group = wrap_with_permission_checks(groups.create)
+    create_group = wrap_with_permission_checks(groups.create, Permissions.server_administrator)
     blueprint.add_url_rule('', view_func=create_group, methods=['POST'])
 
     return blueprint
