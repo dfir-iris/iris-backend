@@ -48,6 +48,8 @@ from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.iris_engine.demo_builder import protect_demo_mode_group
 from app.business.groups import groups_create
+from app.blueprints.rest.endpoints import endpoint_deprecated
+
 
 manage_groups_rest_blueprint = Blueprint('manage_groups_rest', __name__)
 
@@ -64,6 +66,7 @@ def manage_groups_index():
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/groups')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_add():
 
