@@ -18,8 +18,10 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.access_controls import ac_api_requires
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
@@ -34,11 +36,14 @@ class Groups:
         return self._schema.load(request_data)
 
     def create(self):
-        request_data = request.get_json()
-        group = self._load(request_data)
-        group = groups_create(group)
-        result = self._schema.dump(group)
-        return response_api_created(result)
+        try:
+            request_data = request.get_json()
+            group = self._load(request_data)
+            group = groups_create(group)
+            result = self._schema.dump(group)
+            return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
 
 groups = Groups()

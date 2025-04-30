@@ -42,3 +42,8 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create(f'/api/v2/groups', body).json()
         self.assertIsNotNone(response['group_uuid'])
+
+    def test_create_group_should_return_400_when_field_group_description_is_missing(self):
+        body = {'group_name': 'name'}
+        response = self._subject.create(f'/api/v2/groups', body)
+        self.assertEqual(400, response.status_code)
