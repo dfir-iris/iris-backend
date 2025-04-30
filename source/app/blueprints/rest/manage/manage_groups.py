@@ -48,6 +48,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.iris_engine.demo_builder import protect_demo_mode_group
+from app.business.groups import groups_create
 
 manage_groups_rest_blueprint = Blueprint('manage_groups_rest', __name__)
 
@@ -81,15 +82,12 @@ def manage_groups_add():
         ags_c = ags.load(data)
         ags.verify_unique(data)
 
-        db.session.add(ags_c)
-        db.session.commit()
+        groups_create(ags_c)
+
+        return response_success('', data=ags.dump(ags_c))
 
     except ValidationError as e:
         return response_error(msg='Data error', data=e.messages)
-
-    track_activity(message=f'added group {ags_c.group_name}', ctx_less=True)
-
-    return response_success('', data=ags.dump(ags_c))
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/update/<int:cur_id>', methods=['POST'])
