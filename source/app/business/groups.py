@@ -19,11 +19,11 @@
 from app.models.authorization import Group
 from app import db
 from app.iris_engine.utils.tracker import track_activity
+from app.datamgmt.manage.manage_groups_db import create_group
 
 
 def groups_create(group: Group) -> Group:
-    db.session.add(group)
-    db.session.commit()
+    create_group(group)
     track_activity(f'added group {group.group_name}', ctx_less=True)
 
     return group
