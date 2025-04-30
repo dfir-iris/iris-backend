@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app.models.authorization import Group
-from app import db
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_groups_db import create_group
 
