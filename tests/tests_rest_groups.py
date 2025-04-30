@@ -37,3 +37,8 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create(f'/api/v2/groups', body).json()
         self.assertEqual('name', response['group_name'])
+
+    def test_create_group_should_return_valid_group_uuid(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create(f'/api/v2/groups', body).json()
+        self.assertIsNotNone(response['group_uuid'])
