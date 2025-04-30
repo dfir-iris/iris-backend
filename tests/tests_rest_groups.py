@@ -52,3 +52,9 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 1}
         response = self._subject.create(f'/api/v2/groups', body)
         self.assertEqual(400, response.status_code)
+
+    def test_create_group_should_return_400_when_a_group_with_the_same_name_already_exists(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        self._subject.create(f'/api/v2/groups', body)
+        response = self._subject.create(f'/api/v2/groups', body)
+        self.assertEqual(400, response.status_code)
