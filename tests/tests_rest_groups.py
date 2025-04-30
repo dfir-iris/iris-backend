@@ -47,3 +47,8 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name'}
         response = self._subject.create(f'/api/v2/groups', body)
         self.assertEqual(400, response.status_code)
+
+    def test_create_group_should_return_400_when_field_group_description_is_not_a_string(self):
+        body = {'group_name': 'name', 'group_description': 1}
+        response = self._subject.create(f'/api/v2/groups', body)
+        self.assertEqual(400, response.status_code)
