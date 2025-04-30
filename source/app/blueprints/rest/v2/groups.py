@@ -34,9 +34,11 @@ class Groups:
         return self._schema.load(request_data)
 
     def create(self):
-        group = self._load(request.get_json())
+        request_data = request.get_json()
+        group = self._load(request_data)
         group = groups_create(group)
-        return response_api_created(group)
+        result = self._schema.dump(group)
+        return response_api_created(result)
 
 
 groups = Groups()
