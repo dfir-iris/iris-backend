@@ -17,15 +17,26 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import request
 
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.access_controls import ac_api_requires
+from app.schema.marshables import AuthorizationGroupSchema
+from app.business.groups import groups_create
 
 
 class Groups:
 
+    def __init__(self):
+        self._schema = AuthorizationGroupSchema()
+
+    def _load(self, request_data):
+        return self._schema.load(request_data)
+
     def create(self):
-        return response_api_created(None)
+        group = self._load(request.get_json())
+        group = groups_create(group)
+        return response_api_created(group)
 
 
 groups = Groups()

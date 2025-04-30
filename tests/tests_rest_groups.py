@@ -29,5 +29,11 @@ class TestsRestGroups(TestCase):
         self._subject.clear_database()
 
     def test_create_group_should_return_201(self):
-        response = self._subject.create(f'/api/v2/groups', {})
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create(f'/api/v2/groups', body)
         self.assertEqual(201, response.status_code)
+
+    def test_create_group_should_set_group_name(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create(f'/api/v2/groups', body).json()
+        self.assertEqual('name', response['group_name'])
