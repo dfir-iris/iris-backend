@@ -31,6 +31,7 @@ class Groups:
 groups = Groups()
 groups_blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
 
+
 @groups_blueprint.post('')
 @ac_api_requires()
 def create_event():

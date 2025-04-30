@@ -40,7 +40,6 @@ from app.iris_engine.access_control.utils import ac_ldp_group_removal
 from app.iris_engine.access_control.utils import ac_flag_match_mask
 from app.iris_engine.access_control.utils import ac_ldp_group_update
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac_from_users_list
-from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.schema.marshables import AuthorizationGroupSchema
 from app.blueprints.access_controls import ac_api_requires
