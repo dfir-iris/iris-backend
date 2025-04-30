@@ -207,9 +207,6 @@ def remove_user_from_group(group, member):
 
 
 def delete_group(group):
-    if not group:
-        return None
-
     UserGroup.query.filter(UserGroup.group_id == group.group_id).delete()
     GroupCaseAccess.query.filter(GroupCaseAccess.group_id == group.group_id).delete()
 
