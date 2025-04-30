@@ -794,9 +794,7 @@ def case_duplicate_event(cur_id, caseid):
             return response_error('Error while saving linked assets', data=log)
 
         # Update iocs mapping
-        success, log = update_event_iocs(event_id=event.event_id,
-                                         caseid=caseid,
-                                         iocs_list=iocs_list)
+        success, log = update_event_iocs(event.event_id, caseid, iocs_list)
         if not success:
             return response_error('Error while saving linked iocs', data=log)
 
@@ -977,9 +975,7 @@ def case_events_upload_csv(caseid):
             if not success:
                 raise Exception(f'Error while saving linked assets\nlog:{log}')
 
-            success, log = update_event_iocs(event_id=event.event_id,
-                                             caseid=caseid,
-                                             iocs_list=request_data.get('event_iocs'))
+            success, log = update_event_iocs(event.event_id, caseid, request_data.get('event_iocs'))
             if not success:
                 raise Exception(f'Error while saving linked iocs\nlog:{log}')
 

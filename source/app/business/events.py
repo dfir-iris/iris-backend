@@ -55,9 +55,7 @@ def events_create(case_identifier, event: CasesEvent, event_category_id, event_a
     if not success:
         raise BusinessProcessingError('Error while saving linked assets', data=log)
 
-    success, log = update_event_iocs(event_id=event.event_id,
-                                     caseid=case_identifier,
-                                     iocs_list=event_iocs)
+    success, log = update_event_iocs(event.event_id, case_identifier, event_iocs)
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
@@ -90,9 +88,7 @@ def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs
     if not success:
         raise BusinessProcessingError('Error while saving linked assets', data=log)
 
-    success, log = update_event_iocs(event_id=event.event_id,
-                                     caseid=event.case_id,
-                                     iocs_list=event_iocs)
+    success, log = update_event_iocs(event.event_id, event.case_id, event_iocs)
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
