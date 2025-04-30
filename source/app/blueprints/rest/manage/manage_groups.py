@@ -17,8 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import traceback
+from marshmallow import ValidationError
 
-import marshmallow
 from flask import Blueprint
 from flask import request
 
@@ -84,7 +84,7 @@ def manage_groups_add():
         db.session.add(ags_c)
         db.session.commit()
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg='Data error', data=e.messages)
 
     track_activity(message=f'added group {ags_c.group_name}', ctx_less=True)
@@ -123,7 +123,7 @@ def manage_groups_update(cur_id):
 
         db.session.commit()
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
     return response_success('', data=ags.dump(ags_c))
