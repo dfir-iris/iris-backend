@@ -191,6 +191,8 @@ def alerts_list_route() -> Response:
 def alerts_add_route() -> Response:
     try:
         alert = alerts_create(request.get_json())
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
+            return response_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
         return response_success('Alert added', data=alert_schema.dump(alert))
 

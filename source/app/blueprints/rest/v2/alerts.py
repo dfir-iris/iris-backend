@@ -31,6 +31,7 @@ from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.business.alerts import alerts_create
 from app.business.errors import BusinessProcessingError
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
 alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
@@ -143,6 +144,8 @@ def create_alert():
 
     try:
         alert = alerts_create(request.get_json())
+        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
+            return response_api_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
         return response_api_created(alert_schema.dump(alert))
 
