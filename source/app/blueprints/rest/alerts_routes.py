@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import marshmallow
 from marshmallow.exceptions import ValidationError
 from datetime import datetime
 from flask import Blueprint
@@ -1058,5 +1057,5 @@ def case_comment_add(alert_id):
         track_activity(f"alert \"{alert.alert_id}\" commented", ctx_less=True)
         return response_success("Alert commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
