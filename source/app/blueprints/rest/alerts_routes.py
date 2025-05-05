@@ -53,6 +53,7 @@ from app.models.alerts import AlertStatus
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import CaseSchema
+from app.schema.marshables import IocSchema
 from app.schema.marshables import CommentSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
@@ -189,8 +190,13 @@ def alerts_list_route() -> Response:
 @endpoint_deprecated('POST', '/api/v2/alerts')
 @ac_api_requires(Permissions.alerts_write)
 def alerts_add_route() -> Response:
+
+    request_data = request.get_json()
+    iocs_list = request_data.pop('alert_iocs', [])
+    ioc_schema = IocSchema()
+    iocs = ioc_schema.load(iocs_list, many=True, partial=True)
     try:
-        alert = alerts_create(request.get_json())
+        alert = alerts_create(request_data, iocs)
         if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()

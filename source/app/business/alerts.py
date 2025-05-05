@@ -23,6 +23,7 @@ from marshmallow.exceptions import ValidationError
 from app import db
 from app import socket_io
 from app.models.alerts import Alert
+from app.models.models import Ioc
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -41,15 +42,10 @@ def _load(request_data, **kwargs):
         raise BusinessProcessingError('Data error', data=e.messages)
 
 
-def alerts_create(request_data) -> Alert:
+def alerts_create(request_data, iocs: list[Ioc]) -> Alert:
 
-    ioc_schema = IocSchema()
-    asset_schema = CaseAssetsSchema()
-
-    iocs_list = request_data.pop('alert_iocs', [])
     assets_list = request_data.pop('alert_assets', [])
-
-    iocs = ioc_schema.load(iocs_list, many=True, partial=True)
+    asset_schema = CaseAssetsSchema()
     assets = asset_schema.load(assets_list, many=True, partial=True)
 
     alert = _load(request_data)

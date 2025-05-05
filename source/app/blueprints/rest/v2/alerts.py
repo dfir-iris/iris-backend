@@ -29,6 +29,7 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
+from app.schema.marshables import IocSchema
 from app.business.alerts import alerts_create
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
@@ -142,8 +143,12 @@ def alerts_list_route() -> Response:
 @ac_api_requires(Permissions.alerts_write)
 def create_alert():
 
+    request_data = request.get_json()
+    iocs_list = request_data.pop('alert_iocs', [])
+    ioc_schema = IocSchema()
+    iocs = ioc_schema.load(iocs_list, many=True, partial=True)
     try:
-        alert = alerts_create(request.get_json())
+        alert = alerts_create(request_data, iocs)
         if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_api_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
