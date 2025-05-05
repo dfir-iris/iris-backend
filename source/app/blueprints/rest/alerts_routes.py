@@ -67,11 +67,8 @@ alerts_rest_blueprint = Blueprint('alerts_rest', __name__)
 
 
 def _load(request_data, **kwargs):
-    try:
-        alert_schema = AlertSchema()
-        return alert_schema.load(request_data, **kwargs)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', data=e.messages)
+    alert_schema = AlertSchema()
+    return alert_schema.load(request_data, **kwargs)
 
 
 @alerts_rest_blueprint.route('/alerts/filter', methods=['GET'])
@@ -208,13 +205,18 @@ def alerts_add_route() -> Response:
     assets_list = request_data.pop('alert_assets', [])
     asset_schema = CaseAssetsSchema()
     assets = asset_schema.load(assets_list, many=True, partial=True)
+
     try:
         alert = _load(request_data)
         result = alerts_create(alert, iocs, assets)
+
         if not user_has_client_access(iris_current_user.id, result.alert_customer_id):
             return response_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
         return response_success('Alert added', data=alert_schema.dump(result))
+
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
