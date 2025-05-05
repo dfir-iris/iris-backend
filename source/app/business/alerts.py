@@ -63,8 +63,7 @@ def alerts_create(request_data) -> Alert:
 
     add_obj_history_entry(alert, 'Alert created')
 
-    cache_similar_alert(alert.alert_customer_id, assets=assets_list, iocs=iocs_list, alert_id=alert.alert_id,
-                        creation_date=alert.alert_source_event_time)
+    cache_similar_alert(alert.alert_customer_id, assets_list, iocs_list, alert.alert_id, alert.alert_source_event_time)
 
     alert = call_modules_hook('on_postload_alert_create', data=alert)
 
