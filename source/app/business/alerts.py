@@ -18,7 +18,6 @@
 
 import json
 from datetime import datetime
-from marshmallow.exceptions import ValidationError
 
 from app import db
 from app import socket_io
@@ -29,21 +28,10 @@ from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
-from app.business.errors import BusinessProcessingError
-from app.schema.marshables import AlertSchema
 
 
-def _load(request_data, **kwargs):
-    try:
-        alert_schema = AlertSchema()
-        return alert_schema.load(request_data, **kwargs)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', data=e.messages)
+def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
 
-
-def alerts_create(request_data, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
-
-    alert = _load(request_data)
     alert.alert_creation_time = datetime.utcnow()
 
     alert.iocs = iocs
@@ -65,4 +53,3 @@ def alerts_create(request_data, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     }), namespace='/alerts')
 
     return alert
-

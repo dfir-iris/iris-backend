@@ -19,6 +19,7 @@
 from flask import Blueprint
 from flask import request
 from flask import Response
+from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
@@ -37,6 +38,14 @@ from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
 alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
+
+
+def _load(request_data, **kwargs):
+    try:
+        alert_schema = AlertSchema()
+        return alert_schema.load(request_data, **kwargs)
+    except ValidationError as e:
+        raise BusinessProcessingError('Data error', data=e.messages)
 
 
 @alerts_blueprint.get('')
@@ -153,11 +162,12 @@ def create_alert():
     asset_schema = CaseAssetsSchema()
     assets = asset_schema.load(assets_list, many=True, partial=True)
     try:
-        alert = alerts_create(request_data, iocs, assets)
-        if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
+        alert = _load(request_data)
+        result = alerts_create(alert, iocs, assets)
+        if not user_has_client_access(iris_current_user.id, result.alert_customer_id):
             return response_api_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
-        return response_api_created(alert_schema.dump(alert))
+        return response_api_created(alert_schema.dump(result))
 
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
