@@ -20,6 +20,7 @@ from unittest import TestCase
 from iris import Iris
 from uuid import uuid4
 
+_PERMISSION_ALERTS_WRITE = 0x8
 
 class TestsRestAlerts(TestCase):
 
@@ -155,3 +156,24 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create(f'/alerts/merge/{alert_identifier}', body)
         # TODO should be 201
         self.assertEqual(200, response.status_code)
+
+    def test_create_customer_should_return_400_when_user_has_customer_alert_right(self):
+        body = {
+            'group_name': 'Customer create',
+            'group_description': 'Group with customers can create alert',
+            'group_permissions': [_PERMISSION_ALERTS_WRITE]
+        }
+        response = self._subject.create('/manage/groups/add', body).json()
+        group_identifier = response['data']['group_id']
+        user = self._subject.create_dummy_user()
+        body = {'groups_membership': [group_identifier]}
+        self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
+
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = user.create('/api/v2/alerts', body)
+        self.assertEqual(400, response.status_code)
