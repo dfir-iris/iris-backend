@@ -24,14 +24,13 @@ from app import db
 from app import socket_io
 from app.models.alerts import Alert
 from app.models.models import Ioc
+from app.models.models import CaseAssets
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.business.errors import BusinessProcessingError
 from app.schema.marshables import AlertSchema
-from app.schema.marshables import CaseAssetsSchema
-from app.schema.marshables import IocSchema
 
 
 def _load(request_data, **kwargs):
@@ -42,11 +41,7 @@ def _load(request_data, **kwargs):
         raise BusinessProcessingError('Data error', data=e.messages)
 
 
-def alerts_create(request_data, iocs: list[Ioc]) -> Alert:
-
-    assets_list = request_data.pop('alert_assets', [])
-    asset_schema = CaseAssetsSchema()
-    assets = asset_schema.load(assets_list, many=True, partial=True)
+def alerts_create(request_data, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
 
     alert = _load(request_data)
     alert.alert_creation_time = datetime.utcnow()

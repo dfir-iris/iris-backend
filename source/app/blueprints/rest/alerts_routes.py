@@ -53,6 +53,7 @@ from app.models.alerts import AlertStatus
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import CaseSchema
+from app.schema.marshables import CaseAssetsSchema
 from app.schema.marshables import IocSchema
 from app.schema.marshables import CommentSchema
 from app.blueprints.access_controls import ac_api_requires
@@ -195,8 +196,12 @@ def alerts_add_route() -> Response:
     iocs_list = request_data.pop('alert_iocs', [])
     ioc_schema = IocSchema()
     iocs = ioc_schema.load(iocs_list, many=True, partial=True)
+
+    assets_list = request_data.pop('alert_assets', [])
+    asset_schema = CaseAssetsSchema()
+    assets = asset_schema.load(assets_list, many=True, partial=True)
     try:
-        alert = alerts_create(request_data, iocs)
+        alert = alerts_create(request_data, iocs, assets)
         if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
             return response_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
