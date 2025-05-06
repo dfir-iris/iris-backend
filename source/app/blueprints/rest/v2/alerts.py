@@ -33,6 +33,7 @@ from app.schema.marshables import AlertSchema
 from app.schema.marshables import IocSchema
 from app.schema.marshables import CaseAssetsSchema
 from app.business.alerts import alerts_create
+from app.business.alerts import alerts_get
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
@@ -179,4 +180,5 @@ def create_alert():
 @ac_api_requires()
 def get_alert(identifier):
 
-    return response_api_success(None)
+    alert = alerts_get(identifier)
+    return response_api_success(alert)

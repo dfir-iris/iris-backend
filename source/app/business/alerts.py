@@ -25,6 +25,7 @@ from app.models.alerts import Alert
 from app.models.models import Ioc
 from app.models.models import CaseAssets
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
+from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
@@ -53,3 +54,8 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     }), namespace='/alerts')
 
     return alert
+
+
+def alerts_get(identifier) -> Alert:
+
+    return get_alert_by_id(identifier)

@@ -18,7 +18,6 @@
 
 from unittest import TestCase
 from iris import Iris
-from uuid import uuid4
 
 _PERMISSION_ALERTS_WRITE = 0x8
 
@@ -123,7 +122,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_get_alerts_filter_should_show_newly_created_alert_for_administrator(self):
-        alert_title = f'title{uuid4()}'
+        alert_title = 'title_test'
         body = {
             'alert_title': alert_title,
             'alert_severity_id': 4,
@@ -189,3 +188,16 @@ class TestsRestAlerts(TestCase):
         identifier = response['alert_id']
         response = self._subject.get(f'/api/v2/alerts/{identifier}')
         self.assertEqual(200, response.status_code)
+
+    def test_get_alert_should_return_alert_title(self):
+        alert_title = 'title_test'
+        body = {
+            'alert_title': alert_title,
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.get(f'/api/v2/alerts/{identifier}').json()
+        self.assertEqual(alert_title, response['alert_title'])
