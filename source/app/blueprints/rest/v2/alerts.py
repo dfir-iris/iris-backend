@@ -179,7 +179,7 @@ def create_alert():
 
 
 @alerts_blueprint.get('/<int:identifier>')
-@ac_api_requires()
+@ac_api_requires(Permissions.alerts_read)
 def get_alert(identifier):
 
     try:
