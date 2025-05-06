@@ -20,6 +20,8 @@ from unittest import TestCase
 from iris import Iris
 
 _PERMISSION_ALERTS_WRITE = 0x8
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestAlerts(TestCase):
 
@@ -214,3 +216,7 @@ class TestsRestAlerts(TestCase):
         uuid = response['alert_uuid']
         response = self._subject.get(f'/api/v2/alerts/{identifier}').json()
         self.assertEqual(uuid, response['alert_uuid'])
+
+    def test_get_alert_should_return_404_when_alert_not_found(self):
+        response = self._subject.get(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)

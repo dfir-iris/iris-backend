@@ -29,6 +29,7 @@ from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
+from app.business.errors import ObjectNotFoundError
 
 
 def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
@@ -58,4 +59,9 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
 
 def alerts_get(identifier) -> Alert:
 
-    return get_alert_by_id(identifier)
+    alert = get_alert_by_id(identifier)
+
+    if not alert:
+        raise ObjectNotFoundError()
+
+    return alert
