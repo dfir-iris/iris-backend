@@ -181,4 +181,5 @@ def create_alert():
 def get_alert(identifier):
 
     alert = alerts_get(identifier)
-    return response_api_success(alert)
+    alert_schema = AlertSchema()
+    return response_api_success(alert_schema.dump(alert))

@@ -201,3 +201,16 @@ class TestsRestAlerts(TestCase):
         identifier = response['alert_id']
         response = self._subject.get(f'/api/v2/alerts/{identifier}').json()
         self.assertEqual(alert_title, response['alert_title'])
+
+    def test_get_alert_should_return_alert_uuid(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        uuid = response['alert_uuid']
+        response = self._subject.get(f'/api/v2/alerts/{identifier}').json()
+        self.assertEqual(uuid, response['alert_uuid'])
