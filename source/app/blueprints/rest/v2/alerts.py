@@ -181,7 +181,7 @@ def create_alert():
 @alerts_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_alert(identifier):
-    
+
     try:
         alert = alerts_get(identifier)
         alert_schema = AlertSchema()
