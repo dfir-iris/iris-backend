@@ -23,7 +23,6 @@ from app.blueprints.rest.v2.assets import assets_blueprint
 from app.blueprints.rest.v2.auth import auth_blueprint
 from app.blueprints.rest.v2.cases import cases_blueprint
 from app.blueprints.rest.v2.dashboard import dashboard_blueprint
-from app.blueprints.rest.v2.manage_routes.groups import create_groups_blueprint
 from app.blueprints.rest.v2.iocs import iocs_blueprint
 from app.blueprints.rest.v2.manage import manage_v2_blueprint
 from app.blueprints.rest.v2.tags import tags_blueprint
