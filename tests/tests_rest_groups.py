@@ -20,6 +20,7 @@ from unittest import TestCase
 
 from iris import Iris
 
+
 class TestsRestGroups(TestCase):
 
     def setUp(self) -> None:
@@ -30,37 +31,37 @@ class TestsRestGroups(TestCase):
 
     def test_create_group_should_return_201(self):
         body = {'group_name': 'name', 'group_description': 'description'}
-        response = self._subject.create(f'/api/v2/groups', body)
+        response = self._subject.create(f'/api/v2/manage/groups', body)
         self.assertEqual(201, response.status_code)
 
     def test_create_group_should_set_group_name(self):
         body = {'group_name': 'name', 'group_description': 'description'}
-        response = self._subject.create(f'/api/v2/groups', body).json()
+        response = self._subject.create(f'/api/v2/manage/groups', body).json()
         self.assertEqual('name', response['group_name'])
 
     def test_create_group_should_return_valid_group_uuid(self):
         body = {'group_name': 'name', 'group_description': 'description'}
-        response = self._subject.create(f'/api/v2/groups', body).json()
+        response = self._subject.create(f'/api/v2/manage/groups', body).json()
         self.assertIsNotNone(response['group_uuid'])
 
     def test_create_group_should_return_400_when_field_group_description_is_missing(self):
         body = {'group_name': 'name'}
-        response = self._subject.create(f'/api/v2/groups', body)
+        response = self._subject.create(f'/api/v2/manage/groups', body)
         self.assertEqual(400, response.status_code)
 
     def test_create_group_should_return_400_when_field_group_description_is_not_a_string(self):
         body = {'group_name': 'name', 'group_description': 1}
-        response = self._subject.create(f'/api/v2/groups', body)
+        response = self._subject.create(f'/api/v2/manage/groups', body)
         self.assertEqual(400, response.status_code)
 
     def test_create_group_should_return_400_when_a_group_with_the_same_name_already_exists(self):
         body = {'group_name': 'name', 'group_description': 'description'}
-        self._subject.create(f'/api/v2/groups', body)
-        response = self._subject.create(f'/api/v2/groups', body)
+        self._subject.create(f'/api/v2/manage/groups', body)
+        response = self._subject.create(f'/api/v2/manage/groups', body)
         self.assertEqual(400, response.status_code)
 
     def test_create_event_should_return_403_when_user_has_no_insufficient_permissions(self):
         user = self._subject.create_dummy_user()
         body = {'group_name': 'name', 'group_description': 'description'}
-        response = user.create(f'/api/v2/groups', body)
+        response = user.create(f'/api/v2/manage/groups', body)
         self.assertEqual(403, response.status_code)

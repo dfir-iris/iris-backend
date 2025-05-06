@@ -66,7 +66,7 @@ def manage_groups_index():
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/add', methods=['POST'])
-@endpoint_deprecated('POST', '/api/v2/groups')
+@endpoint_deprecated('POST', '/api/v2/manage/groups')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_add():
 
