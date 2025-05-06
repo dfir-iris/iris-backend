@@ -183,7 +183,7 @@ def create_alert():
 def get_alert(identifier):
 
     try:
-        alert = alerts_get(identifier)
+        alert = alerts_get(iris_current_user, identifier)
         alert_schema = AlertSchema()
         return response_api_success(alert_schema.dump(alert))
 
