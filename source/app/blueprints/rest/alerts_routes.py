@@ -223,6 +223,7 @@ def alerts_add_route() -> Response:
 
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/alerts/{identifier}')
 @ac_api_requires(Permissions.alerts_read)
 def alerts_get_route(alert_id) -> Response:
     """

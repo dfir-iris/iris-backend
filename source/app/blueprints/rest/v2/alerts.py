@@ -25,6 +25,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
@@ -33,7 +34,9 @@ from app.schema.marshables import AlertSchema
 from app.schema.marshables import IocSchema
 from app.schema.marshables import CaseAssetsSchema
 from app.business.alerts import alerts_create
+from app.business.alerts import alerts_get
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
@@ -173,3 +176,16 @@ def create_alert():
 
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
+
+
+@alerts_blueprint.get('/<int:identifier>')
+@ac_api_requires(Permissions.alerts_read)
+def get_alert(identifier):
+
+    try:
+        alert = alerts_get(iris_current_user, identifier)
+        alert_schema = AlertSchema()
+        return response_api_success(alert_schema.dump(alert))
+
+    except ObjectNotFoundError:
+        return response_api_not_found()

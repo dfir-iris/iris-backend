@@ -18,9 +18,11 @@
 
 from unittest import TestCase
 from iris import Iris
-from uuid import uuid4
 
 _PERMISSION_ALERTS_WRITE = 0x8
+_PERMISSION_ALERTS_READ = 0x4
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestAlerts(TestCase):
 
@@ -123,7 +125,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_get_alerts_filter_should_show_newly_created_alert_for_administrator(self):
-        alert_title = f'title{uuid4()}'
+        alert_title = 'title_test'
         body = {
             'alert_title': alert_title,
             'alert_severity_id': 4,
@@ -177,3 +179,81 @@ class TestsRestAlerts(TestCase):
         }
         response = user.create('/api/v2/alerts', body)
         self.assertEqual(400, response.status_code)
+
+    def test_get_alert_should_return_200(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.get(f'/api/v2/alerts/{identifier}')
+        self.assertEqual(200, response.status_code)
+
+    def test_get_alert_should_return_alert_title(self):
+        alert_title = 'title_test'
+        body = {
+            'alert_title': alert_title,
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.get(f'/api/v2/alerts/{identifier}').json()
+        self.assertEqual(alert_title, response['alert_title'])
+
+    def test_get_alert_should_return_alert_uuid(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        uuid = response['alert_uuid']
+        response = self._subject.get(f'/api/v2/alerts/{identifier}').json()
+        self.assertEqual(uuid, response['alert_uuid'])
+
+    def test_get_alert_should_return_404_when_alert_not_found(self):
+        response = self._subject.get(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
+
+    def test_get_alert_should_return_403_when_user_has_no_permission_to_read_alert(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = user.get(f'/api/v2/alerts/{identifier}')
+        self.assertEqual(403, response.status_code)
+
+    def test_get_alert_should_return_404_when_user_has_no_customer_access(self):
+        body = {
+            'group_name': 'Customer create',
+            'group_description': 'Group with customers can create alert',
+            'group_permissions': [_PERMISSION_ALERTS_READ]
+        }
+        response = self._subject.create('/manage/groups/add', body).json()
+        group_identifier = response['data']['group_id']
+        user = self._subject.create_dummy_user()
+        body = {'groups_membership': [group_identifier]}
+        self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
+
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = user.get(f'/api/v2/alerts/{identifier}')
+        self.assertEqual(404, response.status_code)

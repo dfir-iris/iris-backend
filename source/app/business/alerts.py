@@ -25,9 +25,12 @@ from app.models.alerts import Alert
 from app.models.models import Ioc
 from app.models.models import CaseAssets
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
+from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
+from app.business.errors import ObjectNotFoundError
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
 def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
@@ -51,5 +54,17 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     socket_io.emit('new_alert', json.dumps({
         'alert_id': alert.alert_id
     }), namespace='/alerts')
+
+    return alert
+
+
+def alerts_get(current_user, identifier) -> Alert:
+
+    alert = get_alert_by_id(identifier)
+
+    if not alert:
+        raise ObjectNotFoundError()
+    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        raise ObjectNotFoundError()
 
     return alert
