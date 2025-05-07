@@ -17,8 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import traceback
+from marshmallow import ValidationError
 
-import marshmallow
 from flask import Blueprint
 from flask import request
 
@@ -40,7 +40,6 @@ from app.iris_engine.access_control.utils import ac_ldp_group_removal
 from app.iris_engine.access_control.utils import ac_flag_match_mask
 from app.iris_engine.access_control.utils import ac_ldp_group_update
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac_from_users_list
-from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.schema.marshables import AuthorizationGroupSchema
 from app.blueprints.access_controls import ac_api_requires
@@ -48,6 +47,9 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.iris_engine.demo_builder import protect_demo_mode_group
+from app.business.groups import groups_create
+from app.blueprints.rest.endpoints import endpoint_deprecated
+
 
 manage_groups_rest_blueprint = Blueprint('manage_groups_rest', __name__)
 
@@ -64,6 +66,7 @@ def manage_groups_index():
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/groups')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_add():
 
@@ -81,15 +84,12 @@ def manage_groups_add():
         ags_c = ags.load(data)
         ags.verify_unique(data)
 
-        db.session.add(ags_c)
-        db.session.commit()
+        groups_create(ags_c)
 
-    except marshmallow.exceptions.ValidationError as e:
+        return response_success('', data=ags.dump(ags_c))
+
+    except ValidationError as e:
         return response_error(msg='Data error', data=e.messages)
-
-    track_activity(message=f'added group {ags_c.group_name}', ctx_less=True)
-
-    return response_success('', data=ags.dump(ags_c))
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/update/<int:cur_id>', methods=['POST'])
@@ -123,7 +123,7 @@ def manage_groups_update(cur_id):
 
         db.session.commit()
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
     return response_success('', data=ags.dump(ags_c))

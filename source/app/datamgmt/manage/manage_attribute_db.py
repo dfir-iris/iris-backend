@@ -27,7 +27,7 @@ from app.models.cases import Cases
 from app.models.cases import CasesEvent
 from app.models.models import Client
 from app.models.models import CustomAttribute
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import Notes
 
 log = logger.getLogger(__name__)

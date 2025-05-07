@@ -71,7 +71,6 @@ def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
             user_permissions = g.auth_user_permissions
         else:
             # Lazy load permissions only once per request
-            from app.datamgmt.manage.manage_users_db import get_user
             user = get_user(g.auth_token_user_id)
             if not user:
                 return False
@@ -343,41 +342,44 @@ def ac_requires(*permissions, no_cid_required=False):
     return inner_wrap
 
 
+def wrap_with_permission_checks(f, *permissions):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if not _is_csrf_token_valid():
+            if 'auth_token_user_id' not in g:
+                return response_error('Invalid CSRF token')
+
+        if not is_user_authenticated(request):
+            return response_error('Authentication required', status=401)
+
+        # Set the user for token-based authentication
+        if hasattr(g, 'auth_token_user_id'):
+            user = get_user(g.auth_token_user_id)
+            if not user:
+                return response_error('User not found', status=404)
+
+            # Create a compatibility layer for token auth
+            g.token_user = user
+
+            # Check permissions
+            if not _user_has_at_least_a_required_permission(permissions):
+                return response_error('Permission denied', status=403)
+        else:
+            # Session-based auth - use the normal approach
+            if 'permissions' not in session:
+                session['permissions'] = ac_get_effective_permissions_of_user(current_user)
+
+            if not _user_has_at_least_a_required_permission(permissions):
+                return response_error('Permission denied', status=403)
+
+        return f(*args, **kwargs)
+
+    return wrap
+
+
 def ac_api_requires(*permissions):
     def inner_wrap(f):
-        @wraps(f)
-        def wrap(*args, **kwargs):
-            if not _is_csrf_token_valid():
-                if 'auth_token_user_id' not in g:
-                    return response_error('Invalid CSRF token')
-
-            if not is_user_authenticated(request):
-                return response_error('Authentication required', status=401)
-
-            # Set the user for token-based authentication
-            if hasattr(g, 'auth_token_user_id'):
-                from app.datamgmt.manage.manage_users_db import get_user
-                user = get_user(g.auth_token_user_id)
-                if not user:
-                    return response_error('User not found', status=404)
-
-                # Create a compatibility layer for token auth
-                g.token_user = user
-
-                # Check permissions
-                if not _user_has_at_least_a_required_permission(permissions):
-                    return response_error('Permission denied', status=403)
-            else:
-                # Session-based auth - use the normal approach
-                if 'permissions' not in session:
-                    session['permissions'] = ac_get_effective_permissions_of_user(current_user)
-
-                if not _user_has_at_least_a_required_permission(permissions):
-                    return response_error('Permission denied', status=403)
-
-            return f(*args, **kwargs)
-
-        return wrap
+        return wrap_with_permission_checks(f, *permissions)
 
     return inner_wrap
 

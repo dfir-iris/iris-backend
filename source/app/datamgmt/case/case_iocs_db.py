@@ -27,10 +27,10 @@ from app.models.alerts import Alert
 from app.models.cases import Cases, CasesEvent
 from app.models.models import Client, CaseAssets
 from app.models.models import Comments
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocComments
 from app.models.models import IocType
-from app.models.models import Tlp
+from app.models.iocs import Tlp
 from app.models.authorization import User
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import CaseAccessLevel

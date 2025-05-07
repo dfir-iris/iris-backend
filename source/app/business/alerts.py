@@ -22,7 +22,7 @@ from datetime import datetime
 from app import db
 from app import socket_io
 from app.models.alerts import Alert
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import CaseAssets
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.datamgmt.alerts.alerts_db import get_alert_by_id

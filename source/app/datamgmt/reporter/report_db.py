@@ -35,13 +35,13 @@ from app.models.cases import Cases
 from app.models.cases import CasesEvent
 from app.models.models import Comments
 from app.models.models import EventCategory
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
 from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import TaskStatus
-from app.models.models import Tlp
+from app.models.iocs import Tlp
 from app.models.authorization import User
 from app.schema.marshables import CaseDetailsSchema
 from app.schema.marshables import CommentSchema

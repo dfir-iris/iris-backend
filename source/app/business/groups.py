@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,11 +16,13 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint
+from app.models.authorization import Group
+from app.iris_engine.utils.tracker import track_activity
+from app.datamgmt.manage.manage_groups_db import create_group
 
-from app.blueprints.rest.v2.manage_routes.groups import create_groups_blueprint
 
-manage_v2_blueprint = Blueprint('manage', __name__, url_prefix='/manage')
+def groups_create(group: Group) -> Group:
+    create_group(group)
+    track_activity(f'added group {group.group_name}', ctx_less=True)
 
-groups_blueprint = create_groups_blueprint()
-manage_v2_blueprint.register_blueprint(groups_blueprint)
+    return group

@@ -71,7 +71,7 @@ from app.models.models import OsType
 from app.models.models import ReportType
 from app.models.models import ServerSettings
 from app.models.models import TaskStatus
-from app.models.models import Tlp
+from app.models.iocs import Tlp
 from app.models.models import create_safe
 from app.models.models import create_safe_attr
 from app.models.models import get_by_value_or_create

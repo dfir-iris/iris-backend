@@ -47,8 +47,8 @@ from app.models.models import AssetsType
 from app.models.models import Comments
 from app.models.models import CaseAssets
 from app.models.models import alert_assets_association
-from app.models.models import alert_iocs_association
-from app.models.models import Ioc
+from app.models.iocs import alert_iocs_association
+from app.models.iocs import Ioc
 from app.models.models import Client
 from app.models.alerts import Alert
 from app.models.alerts import AlertStatus
@@ -443,9 +443,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
 
             update_event_assets(event.event_id, case.case_id, asset_links, ioc_links, False)
 
-            update_event_iocs(event_id=event.event_id,
-                              caseid=case.case_id,
-                              iocs_list=ioc_links)
+            update_event_iocs(event.event_id, case.case_id, ioc_links)
 
     if template_id is not None and template_id != 0 and template_id != '':
         case, logs = case_template_post_modifier(case, template_id)
@@ -615,9 +613,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
 
         update_event_assets(event.event_id, case.case_id, asset_links, ioc_links, False)
 
-        update_event_iocs(event_id=event.event_id,
-                          caseid=case.case_id,
-                          iocs_list=ioc_links)
+        update_event_iocs(event.event_id, case.case_id, ioc_links)
 
     if template_id is not None and template_id != 0 and template_id != '':
         case, logs = case_template_post_modifier(case, template_id)
@@ -739,9 +735,7 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
 
         update_event_assets(event.event_id, case.case_id, asset_links, ioc_links, False)
 
-        update_event_iocs(event_id=event.event_id,
-                          caseid=case.case_id,
-                          iocs_list=ioc_links)
+        update_event_iocs(event.event_id, case.case_id, ioc_links)
 
     db.session.commit()
 

@@ -41,7 +41,7 @@ from app.models.models import CaseEventsAssets
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTemplateReport
 from app.models.cases import CasesEvent
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 
 from app.iris_engine.reporter.ImageHandler import ImageHandler

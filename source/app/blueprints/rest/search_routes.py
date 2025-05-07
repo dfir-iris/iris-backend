@@ -25,10 +25,10 @@ from app.models.models import Comments
 from app.models.authorization import Permissions
 from app.models.cases import Cases
 from app.models.models import Client
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocType
 from app.models.models import Notes
-from app.models.models import Tlp
+from app.models.iocs import Tlp
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
 
