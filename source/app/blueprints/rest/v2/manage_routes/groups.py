@@ -27,6 +27,7 @@ from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.models.authorization import Permissions
+from app.datamgmt.manage.manage_groups_db import get_group_details
 
 
 class Groups:
@@ -48,7 +49,9 @@ class Groups:
             return response_api_error('Data error', data=e.messages)
 
     def get(self, identifier):
-        return response_api_success(None)
+        group = get_group_details(identifier)
+        result = self._schema.dump(group)
+        return response_api_success(result)
 
 
 def create_groups_blueprint():
