@@ -29,12 +29,14 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
+from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import IocSchema
 from app.schema.marshables import CaseAssetsSchema
 from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
+from app.business.alerts import alerts_update
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
@@ -195,4 +197,12 @@ def get_alert(identifier):
 @ac_api_requires()
 def update_alert(identifier):
 
-    return response_api_success(None)
+    try:
+        request_data = request.get_json()
+        alert = get_alert_by_id(identifier)
+        updated_alert = _load(request_data, instance=alert, partial=True)
+        result = alerts_update(updated_alert, alert, iris_current_user, request_data, identifier)
+        return response_api_success(result)
+
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.messages)
