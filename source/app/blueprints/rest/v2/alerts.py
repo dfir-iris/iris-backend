@@ -202,7 +202,8 @@ def update_alert(identifier):
         alert = get_alert_by_id(identifier)
         updated_alert = _load(request_data, instance=alert, partial=True)
         result = alerts_update(updated_alert, alert, iris_current_user, request_data, identifier)
-        return response_api_success(result)
+        alert_schema = AlertSchema()
+        return response_api_success(alert_schema.dump(result))
 
     except ValidationError as e:
         return response_api_error('Data error', data=e.messages)
