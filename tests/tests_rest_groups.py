@@ -62,7 +62,7 @@ class TestsRestGroups(TestCase):
         response = self._subject.create('/api/v2/manage/groups', body)
         self.assertEqual(400, response.status_code)
 
-    def test_create_event_should_return_403_when_user_has_no_insufficient_permissions(self):
+    def test_create_group_should_return_403_when_user_has_no_insufficient_permissions(self):
         user = self._subject.create_dummy_user()
         body = {'group_name': 'name', 'group_description': 'description'}
         response = user.create('/api/v2/manage/groups', body)
@@ -85,3 +85,12 @@ class TestsRestGroups(TestCase):
     def test_get_group_should_return_404_when_group_does_not_exist(self):
         response = self._subject.get(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
+
+    def test_get_group_should_return_403_when_user_has_no_insufficient_permissions(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/manage/groups/{identifier}')
+        self.assertEqual(403, response.status_code)
