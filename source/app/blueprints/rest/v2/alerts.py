@@ -189,3 +189,10 @@ def get_alert(identifier):
 
     except ObjectNotFoundError:
         return response_api_not_found()
+
+
+@alerts_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_alert(identifier):
+
+    return response_api_success(None)

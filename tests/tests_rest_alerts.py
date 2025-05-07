@@ -257,3 +257,15 @@ class TestsRestAlerts(TestCase):
         identifier = response['alert_id']
         response = user.get(f'/api/v2/alerts/{identifier}')
         self.assertEqual(404, response.status_code)
+
+    def test_update_alert_should_return_200(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {})
+        self.assertEqual(200, response.status_code)
