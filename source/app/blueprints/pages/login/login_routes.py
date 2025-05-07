@@ -187,22 +187,22 @@ if is_authentication_oidc():
         userroles_mapping_field = app.config.get("OIDC_MAPPING_ROLES")
         try:
             if 'id_token' not in access_token_resp:
-                log.error(f"OIDC authentication failed: 'id_token' not found in access token response")
+                log.error('OIDC authentication failed: \'id_token\' not found in access token response')
                 track_activity(
-                    f"OIDC authentication failed: missing id_token in response",
+                    'OIDC authentication failed: missing id_token in response',
                     ctx_less=True,
                     display_in_ui=False,
                 )
                 return redirect(url_for("login.login"))
-                
+
             user_login = access_token_resp['id_token'].get(username_field) or access_token_resp['id_token'].get(email_field)
             user_name = access_token_resp['id_token'].get(email_field) or access_token_resp['id_token'].get(username_field)
             user_group = access_token_resp['id_token'].get(usergroup_field)
-            
+
             if not user_login:
-                log.error(f"OIDC authentication failed: username or email not found in id_token")
+                log.error('OIDC authentication failed: username or email not found in id_token')
                 track_activity(
-                    f"OIDC authentication failed: username or email not found in id_token",
+                    'OIDC authentication failed: username or email not found in id_token',
                     ctx_less=True,
                     display_in_ui=False,
                 )
@@ -214,8 +214,8 @@ if is_authentication_oidc():
                 ctx_less=True,
                 display_in_ui=False,
             )
-            return redirect(url_for("login.login"))        
-       
+            return redirect(url_for('login.login'))
+
         user = get_user(user_login, 'user')
 
         if not user:
