@@ -318,7 +318,7 @@ class TestsRestAlerts(TestCase):
         body = {
             'group_name': 'Customer create',
             'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_WRITE, _PERMISSION_ALERTS_READ]
+            'group_permissions': [_PERMISSION_ALERTS_WRITE]
         }
         response = self._subject.create('/manage/groups/add', body).json()
         group_identifier = response['data']['group_id']
