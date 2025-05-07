@@ -69,6 +69,7 @@ def alerts_get(current_user, identifier) -> Alert:
 
     return alert
 
+
 def alerts_update(updated_alert, alert, iris_current_user, data, identifier) -> Alert:
 
     do_resolution_hook = False
