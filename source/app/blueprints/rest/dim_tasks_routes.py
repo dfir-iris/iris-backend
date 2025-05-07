@@ -33,7 +33,7 @@ from app.models.models import CaseTasks
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
 from app.models.models import GlobalTasks
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import Notes
 from app.models.alerts import Alert
 from app.models.authorization import CaseAccessLevel

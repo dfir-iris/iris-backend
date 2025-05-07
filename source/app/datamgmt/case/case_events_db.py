@@ -29,7 +29,7 @@ from app.models.cases import CasesEvent
 from app.models.models import Comments
 from app.models.models import EventCategory
 from app.models.models import EventComments
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
 from app.models.authorization import User

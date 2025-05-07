@@ -33,7 +33,7 @@ from sqlalchemy.orm import relationship
 
 from app import db
 from app.models.models import alert_assets_association
-from app.models.models import alert_iocs_association
+from app.models.iocs import alert_iocs_association
 
 
 class AlertCaseAssociation(db.Model):

@@ -76,14 +76,14 @@ from app.models.models import Contact
 from app.models.models import DataStoreFile
 from app.models.models import EventCategory
 from app.models.models import GlobalTasks
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocType
 from app.models.models import IrisModule
 from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import ServerSettings
 from app.models.models import TaskStatus
-from app.models.models import Tlp
+from app.models.iocs import Tlp
 from app.models.alerts import Alert
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus

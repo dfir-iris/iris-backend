@@ -63,7 +63,7 @@ from app.models.models import CaseAssets
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.models import EventCategory
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.schema.marshables import CommentSchema
 from app.schema.marshables import EventSchema
 from app.blueprints.access_controls import ac_requires_case_identifier

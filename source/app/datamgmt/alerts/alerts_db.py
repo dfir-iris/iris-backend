@@ -47,8 +47,8 @@ from app.models.models import AssetsType
 from app.models.models import Comments
 from app.models.models import CaseAssets
 from app.models.models import alert_assets_association
-from app.models.models import alert_iocs_association
-from app.models.models import Ioc
+from app.models.iocs import alert_iocs_association
+from app.models.iocs import Ioc
 from app.models.models import Client
 from app.models.alerts import Alert
 from app.models.alerts import AlertStatus

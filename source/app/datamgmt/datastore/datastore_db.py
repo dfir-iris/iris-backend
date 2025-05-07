@@ -30,9 +30,9 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.models.models import CaseReceivedFile
 from app.models.models import DataStoreFile
 from app.models.models import DataStorePath
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.models.models import IocType
-from app.models.models import Tlp
+from app.models.iocs import Tlp
 
 
 def datastore_get_root(cid):

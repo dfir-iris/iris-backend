@@ -32,7 +32,7 @@ from app.datamgmt.manage.manage_attribute_db import get_default_custom_attribute
 from app.forms import ModalAddCaseAssetForm
 from app.forms import ModalAddCaseIOCForm
 from app.models.authorization import CaseAccessLevel
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.blueprints.access_controls import ac_case_requires
 from app.blueprints.responses import response_error
 

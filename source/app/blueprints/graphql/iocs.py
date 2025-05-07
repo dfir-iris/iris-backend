@@ -27,7 +27,7 @@ from graphene import String
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access_stricter
 from app.models.authorization import CaseAccessLevel
-from app.models.models import Ioc
+from app.models.iocs import Ioc
 from app.business.iocs import iocs_create
 from app.business.iocs import iocs_get
 from app.business.iocs import iocs_update
