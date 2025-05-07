@@ -19,6 +19,7 @@
 from flask import Blueprint
 from flask import request
 from flask import Response
+from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
@@ -29,11 +30,19 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
+from app.schema.marshables import IocSchema
+from app.schema.marshables import CaseAssetsSchema
 from app.business.alerts import alerts_create
 from app.business.errors import BusinessProcessingError
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
 alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
+
+
+def _load(request_data, **kwargs):
+    alert_schema = AlertSchema()
+    return alert_schema.load(request_data, **kwargs)
 
 
 @alerts_blueprint.get('')
@@ -141,10 +150,26 @@ def alerts_list_route() -> Response:
 @ac_api_requires(Permissions.alerts_write)
 def create_alert():
 
+    request_data = request.get_json()
+    iocs_list = request_data.pop('alert_iocs', [])
+    ioc_schema = IocSchema()
+    iocs = ioc_schema.load(iocs_list, many=True, partial=True)
+
+    assets_list = request_data.pop('alert_assets', [])
+    asset_schema = CaseAssetsSchema()
+    assets = asset_schema.load(assets_list, many=True, partial=True)
+
     try:
-        alert = alerts_create(request.get_json())
+        alert = _load(request_data)
+        result = alerts_create(alert, iocs, assets)
+
+        if not user_has_client_access(iris_current_user.id, result.alert_customer_id):
+            return response_api_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
-        return response_api_created(alert_schema.dump(alert))
+        return response_api_created(alert_schema.dump(result))
+
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.messages)
 
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())

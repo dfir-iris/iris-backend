@@ -847,7 +847,7 @@ def search_alert_resolution_by_name(resolution_status_name: str, exact_match: Fa
         AlertResolutionStatus.resolution_status_name.ilike(f"%{resolution_status_name}%")).all()
 
 
-def cache_similar_alert(customer_id, assets, iocs, alert_id, creation_date):
+def cache_similar_alert(customer_id, assets: list[CaseAssets], iocs: list[Ioc], alert_id, creation_date):
     """
     Cache similar alerts
 
@@ -863,14 +863,14 @@ def cache_similar_alert(customer_id, assets, iocs, alert_id, creation_date):
 
     """
     for asset in assets:
-        cache_entry = SimilarAlertsCache(customer_id=customer_id, asset_name=asset['asset_name'],
-                                         asset_type_id=asset["asset_type_id"], alert_id=alert_id,
+        cache_entry = SimilarAlertsCache(customer_id=customer_id, asset_name=asset.asset_name,
+                                         asset_type_id=asset.asset_type_id, alert_id=alert_id,
                                          created_at=creation_date)
         db.session.add(cache_entry)
 
     for ioc in iocs:
-        cache_entry = SimilarAlertsCache(customer_id=customer_id, ioc_value=ioc['ioc_value'],
-                                         ioc_type_id=ioc['ioc_type_id'], alert_id=alert_id,
+        cache_entry = SimilarAlertsCache(customer_id=customer_id, ioc_value=ioc.ioc_value,
+                                         ioc_type_id=ioc.ioc_type_id, alert_id=alert_id,
                                          created_at=creation_date)
         db.session.add(cache_entry)
 

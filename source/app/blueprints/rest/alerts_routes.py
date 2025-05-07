@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import marshmallow
+from marshmallow.exceptions import ValidationError
 from datetime import datetime
 from flask import Blueprint
 from flask import request
@@ -53,6 +53,8 @@ from app.models.alerts import AlertStatus
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import CaseSchema
+from app.schema.marshables import CaseAssetsSchema
+from app.schema.marshables import IocSchema
 from app.schema.marshables import CommentSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
@@ -62,6 +64,11 @@ from app.business.errors import BusinessProcessingError
 from app.business.alerts import alerts_create
 
 alerts_rest_blueprint = Blueprint('alerts_rest', __name__)
+
+
+def _load(request_data, **kwargs):
+    alert_schema = AlertSchema()
+    return alert_schema.load(request_data, **kwargs)
 
 
 @alerts_rest_blueprint.route('/alerts/filter', methods=['GET'])
@@ -189,10 +196,27 @@ def alerts_list_route() -> Response:
 @endpoint_deprecated('POST', '/api/v2/alerts')
 @ac_api_requires(Permissions.alerts_write)
 def alerts_add_route() -> Response:
+
+    request_data = request.get_json()
+    iocs_list = request_data.pop('alert_iocs', [])
+    ioc_schema = IocSchema()
+    iocs = ioc_schema.load(iocs_list, many=True, partial=True)
+
+    assets_list = request_data.pop('alert_assets', [])
+    asset_schema = CaseAssetsSchema()
+    assets = asset_schema.load(assets_list, many=True, partial=True)
+
     try:
-        alert = alerts_create(request.get_json())
+        alert = _load(request_data)
+        result = alerts_create(alert, iocs, assets)
+
+        if not user_has_client_access(iris_current_user.id, result.alert_customer_id):
+            return response_error('User not entitled to create alerts for the client')
         alert_schema = AlertSchema()
-        return response_success('Alert added', data=alert_schema.dump(alert))
+        return response_success('Alert added', data=alert_schema.dump(result))
+
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
@@ -1035,5 +1059,5 @@ def case_comment_add(alert_id):
         track_activity(f"alert \"{alert.alert_id}\" commented", ctx_less=True)
         return response_success("Alert commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
