@@ -61,7 +61,6 @@ from app.models.models import CaseClassification
 from app.models.models import ReviewStatus
 from app.models.models import ReviewStatusList
 from app.models.models import EvidenceTypes
-from app.models.models import AssetsType
 from app.models.models import EventCategory
 from app.models.models import IocType
 from app.models.models import IrisHook
