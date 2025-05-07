@@ -20,6 +20,8 @@ from unittest import TestCase
 
 from iris import Iris
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestGroups(TestCase):
 
@@ -79,3 +81,7 @@ class TestsRestGroups(TestCase):
         identifier = response['group_id']
         response = self._subject.get(f'/api/v2/manage/groups/{identifier}').json()
         self.assertEqual('name', response['group_name'])
+
+    def test_get_group_should_return_404_when_group_does_not_exist(self):
+        response = self._subject.get(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)

@@ -23,11 +23,13 @@ from marshmallow import ValidationError
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.business.groups import groups_get
 from app.models.authorization import Permissions
+from app.business.errors import ObjectNotFoundError
 
 
 class Groups:
@@ -49,9 +51,12 @@ class Groups:
             return response_api_error('Data error', data=e.messages)
 
     def get(self, identifier):
-        group = groups_get(identifier)
-        result = self._schema.dump(group)
-        return response_api_success(result)
+        try:
+            group = groups_get(identifier)
+            result = self._schema.dump(group)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 def create_groups_blueprint():
