@@ -73,6 +73,8 @@ def alerts_get(current_user, identifier) -> Alert:
 def alerts_update(updated_alert, alert, iris_current_user, data, identifier) -> Alert:
 
     if not alert:
+        raise ObjectNotFoundError()    
+    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         raise ObjectNotFoundError()
     
     do_resolution_hook = False
