@@ -71,7 +71,6 @@ def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
             user_permissions = g.auth_user_permissions
         else:
             # Lazy load permissions only once per request
-            from app.datamgmt.manage.manage_users_db import get_user
             user = get_user(g.auth_token_user_id)
             if not user:
                 return False
@@ -355,7 +354,6 @@ def wrap_with_permission_checks(f, *permissions):
 
         # Set the user for token-based authentication
         if hasattr(g, 'auth_token_user_id'):
-            from app.datamgmt.manage.manage_users_db import get_user
             user = get_user(g.auth_token_user_id)
             if not user:
                 return response_error('User not found', status=404)
