@@ -194,7 +194,7 @@ def get_alert(identifier):
 
 
 @alerts_blueprint.put('/<int:identifier>')
-@ac_api_requires()
+@ac_api_requires(Permissions.alerts_write)
 def update_alert(identifier):
 
     try:
