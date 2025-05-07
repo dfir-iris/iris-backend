@@ -160,6 +160,7 @@ alert_assets_association = Table(
     Column('asset_id', ForeignKey('case_assets.asset_id'), primary_key=True)
 )
 
+
 class CaseAssets(db.Model):
     __tablename__ = 'case_assets'
 
