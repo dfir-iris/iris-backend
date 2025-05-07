@@ -198,8 +198,8 @@ def get_alert(identifier):
 def update_alert(identifier):
 
     try:
-        request_data = request.get_json()
         alert = get_alert_by_id(identifier)
+        request_data = request.get_json()
         updated_alert = _load(request_data, instance=alert, partial=True)
         result = alerts_update(updated_alert, alert, iris_current_user, request_data, identifier)
         alert_schema = AlertSchema()
@@ -207,3 +207,6 @@ def update_alert(identifier):
 
     except ValidationError as e:
         return response_api_error('Data error', data=e.messages)
+    
+    except ObjectNotFoundError:
+        return response_api_not_found()
