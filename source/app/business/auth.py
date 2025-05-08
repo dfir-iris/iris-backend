@@ -193,7 +193,7 @@ def generate_auth_tokens(user):
     # Generate access token with user data
     access_token_payload = {
         'user_id': user.id,
-        'username': user.name,
+        'user_name': user.name,
         'user_email': user.email,
         'user_login': user.user,
         'exp': access_token_expiry
@@ -207,7 +207,7 @@ def generate_auth_tokens(user):
     # Generate refresh token
     refresh_token_payload = {
         'user_id': user.id,
-        'username': user.name,
+        'user_name': user.name,
         'user_email': user.email,
         'user_login': user.user,
         'exp': refresh_token_expiry,
@@ -238,7 +238,9 @@ def validate_auth_token(token):
         payload = jwt.decode(token, app.config.get('SECRET_KEY'), algorithms=['HS256'])
         return {
             'user_id': payload.get('user_id'),
-            'username': payload.get('username')
+            'user_login': payload.get('user_login'),
+            'user_name': payload.get('username'),
+            'user_email': payload.get('user_email'),
         }
     except jwt.ExpiredSignatureError:
         return None

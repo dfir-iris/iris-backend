@@ -7,9 +7,9 @@ class TokenUser:
     """A class that mimics the Flask-Login current_user interface for token auth"""
     def __init__(self, user_data):
         self.id = user_data['user_id']
-        self.user = user_data['username']
-        self.name = user_data['name']
-        self.email = user_data['email']
+        self.user = user_data['user_login']
+        self.name = user_data['user_name']
+        self.email = user_data['user_email']
         self.is_authenticated = True
         self.is_active = True
         self.is_anonymous = False
