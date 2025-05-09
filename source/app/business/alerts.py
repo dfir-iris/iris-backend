@@ -71,7 +71,7 @@ def alerts_get(current_user, identifier) -> Alert:
     return alert
 
 
-def alerts_update(updated_alert, alert, iris_current_user, data, identifier) -> Alert:
+def alerts_update(updated_alert: Alert, alert: Alert, iris_current_user, data, identifier) -> Alert:
 
     if not data:
         raise BusinessProcessingError('No JSON data provided')
