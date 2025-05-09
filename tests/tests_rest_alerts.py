@@ -267,7 +267,7 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {})
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : 'new_title'})
         self.assertEqual(200, response.status_code)
 
     def test_update_alert_should_return_alert_title(self):
@@ -296,6 +296,18 @@ class TestsRestAlerts(TestCase):
         uuid = response['alert_uuid']
         response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : alert_title}).json()
         self.assertEqual(uuid, response['alert_uuid'])
+
+    def test_update_alert_should_return_no_data_provided(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {})
+        self.assertEqual(400, response.status_code)
 
     def test_update_alert_should_return_404_when_alert_not_found(self):
         response = self._subject.update(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', {'alert_title' : 'alert_title'})
@@ -334,5 +346,5 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create('/api/v2/alerts', body).json()
         identifier = response['alert_id']
-        response = user.update(f'/api/v2/alerts/{identifier}', {})
+        response = user.update(f'/api/v2/alerts/{identifier}', {'alert_title' : 'new_title'})
         self.assertEqual(404, response.status_code)
