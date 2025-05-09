@@ -75,7 +75,6 @@ def alerts_update(updated_alert, alert, iris_current_user, data, identifier) -> 
 
     if not data:
         raise BusinessProcessingError('No JSON data provided')
-
     if not alert:
         raise ObjectNotFoundError()
     if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
