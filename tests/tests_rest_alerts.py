@@ -314,7 +314,7 @@ class TestsRestAlerts(TestCase):
         response = user.update(f'/api/v2/alerts/{identifier}', {})
         self.assertEqual(403, response.status_code)
 
-    def test_get_alert_should_return_404_when_user_has_no_customer_access(self):
+    def test_update_alert_should_return_404_when_user_has_no_customer_access(self):
         body = {
             'group_name': 'Customer create',
             'group_description': 'Group with customers can create alert',
