@@ -73,7 +73,7 @@ from app.models.models import TaskStatus
 from app.models.iocs import Tlp
 from app.models.models import create_safe
 from app.models.models import create_safe_attr
-from app.models.models import create_asset_type_if_not_exists
+from app.business.asset_types import create_asset_type_if_not_exists
 from app.models.models import get_or_create
 from app.datamgmt.iris_engine.modules_db import iris_module_disable_by_id
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
