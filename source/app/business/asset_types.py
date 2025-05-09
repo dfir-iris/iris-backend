@@ -22,10 +22,8 @@ from app.datamgmt.case.assets_type import add_asset_type
 from app.datamgmt.case.assets_type import exists_asset_type_with_name
 
 
-def create_asset_type_if_not_exists(session, **kwargs):
-    asset_name = kwargs.get('asset_name')
-    if exists_asset_type_with_name(session, asset_name):
+def create_asset_type_if_not_exists(session, asset_type: AssetsType):
+    if exists_asset_type_with_name(session, asset_type.asset_name):
         return
 
-    asset_type = AssetsType(**kwargs)
     add_asset_type(session, asset_type)
