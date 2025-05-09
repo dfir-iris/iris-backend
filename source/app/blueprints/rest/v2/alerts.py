@@ -228,7 +228,7 @@ def update_alert(identifier):
 
         if request_data.get('alert_owner_id') == "-1" or request_data.get('alert_owner_id') == -1:
             updated_alert.alert_owner_id = None
-        result = alerts_update(alert, updated_alert, activity_data, identifier, do_resolution_hook, do_status_hook)
+        result = alerts_update(alert, updated_alert, activity_data, do_resolution_hook, do_status_hook)
         alert_schema = AlertSchema()
         return response_api_success(alert_schema.dump(result))
 
