@@ -18,12 +18,14 @@
 
 from app.models.models import AssetsType
 
+from app.datamgmt.case.assets_type import add_asset_type
+from app.datamgmt.case.assets_type import exists_asset_type_with_name
+
 
 def create_asset_type_if_not_exists(session, **kwargs):
-    instance = session.query(AssetsType).filter_by(asset_name=kwargs.get('asset_name')).first()
-    if instance:
+    asset_name = kwargs.get('asset_name')
+    if exists_asset_type_with_name(session, asset_name):
         return
 
-    instance = AssetsType(**kwargs)
-    session.add(instance)
-    session.commit()
+    asset_type = AssetsType(**kwargs)
+    add_asset_type(session, asset_type)

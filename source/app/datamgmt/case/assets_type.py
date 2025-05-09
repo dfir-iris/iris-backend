@@ -37,3 +37,13 @@ def get_asset_type_by_name_case_insensitive(asset_type_name) -> AssetsType:
     ).filter(
         func.lower(AssetsType.asset_name) == asset_type_name
     ).first()
+
+
+def exists_asset_type_with_name(session, asset_name) -> bool:
+    instance = session.query(AssetsType).filter_by(asset_name=asset_name).first()
+    return instance is not None
+
+
+def add_asset_type(session, asset_type):
+    session.add(asset_type)
+    session.commit()
