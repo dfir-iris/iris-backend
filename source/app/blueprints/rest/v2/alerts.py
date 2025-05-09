@@ -200,8 +200,6 @@ def update_alert(identifier):
         alert = alerts_get(iris_current_user, identifier)
         request_data = request.get_json()
         updated_alert = _load(request_data, instance=alert, partial=True)
-        do_resolution_hook = False
-        do_status_hook = False
         activity_data = []
 
         for key, value in request_data.items():
@@ -213,12 +211,6 @@ def update_alert(identifier):
             if type(value) is int:
                 value = str(value)
 
-            if old_value != value:
-                if key == "alert_resolution_status_id":
-                    do_resolution_hook = True
-                if key == 'alert_status_id':
-                    do_status_hook = True
-
                 if key not in ["alert_content", "alert_note"]:
                     activity_data.append(f"\"{key}\" from \"{old_value}\" to \"{value}\"")
                 else:
@@ -228,7 +220,7 @@ def update_alert(identifier):
 
         if request_data.get('alert_owner_id') == "-1" or request_data.get('alert_owner_id') == -1:
             updated_alert.alert_owner_id = None
-        result = alerts_update(updated_alert, activity_data, do_resolution_hook, do_status_hook)
+        result = alerts_update(alert, updated_alert, activity_data)
         alert_schema = AlertSchema()
         return response_api_success(alert_schema.dump(result))
 
