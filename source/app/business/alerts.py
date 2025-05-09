@@ -30,7 +30,6 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.business.errors import ObjectNotFoundError
-from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
