@@ -297,7 +297,7 @@ class TestsRestAlerts(TestCase):
         response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : alert_title}).json()
         self.assertEqual(uuid, response['alert_uuid'])
 
-    def test_update_alert_should_return_no_data_provided(self):
+    def test_update_alert_should_return_400_when_no_data_provided(self):
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
