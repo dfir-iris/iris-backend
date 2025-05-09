@@ -200,7 +200,35 @@ def update_alert(identifier):
         alert = alerts_get(iris_current_user, identifier)
         request_data = request.get_json()
         updated_alert = _load(request_data, instance=alert, partial=True)
-        result = alerts_update(updated_alert, alert, iris_current_user, request_data, identifier)
+        do_resolution_hook = False
+        do_status_hook = False
+        activity_data = []
+
+        for key, value in request_data.items():
+            old_value = getattr(alert, key, None)
+
+            if type(old_value) is int:
+                old_value = str(old_value)
+
+            if type(value) is int:
+                value = str(value)
+
+            if old_value != value:
+                if key == "alert_resolution_status_id":
+                    do_resolution_hook = True
+                if key == 'alert_status_id':
+                    do_status_hook = True
+
+                if key not in ["alert_content", "alert_note"]:
+                    activity_data.append(f"\"{key}\" from \"{old_value}\" to \"{value}\"")
+                else:
+                    activity_data.append(f"\"{key}\"")
+        if request_data.get('alert_owner_id') is None and updated_alert.alert_owner_id is None:
+            updated_alert.alert_owner_id = iris_current_user.id
+
+        if request_data.get('alert_owner_id') == "-1" or request_data.get('alert_owner_id') == -1:
+            updated_alert.alert_owner_id = None
+        result = alerts_update(updated_alert, alert, iris_current_user, activity_data, identifier, do_resolution_hook, do_status_hook)
         alert_schema = AlertSchema()
         return response_api_success(alert_schema.dump(result))
 
@@ -209,6 +237,3 @@ def update_alert(identifier):
 
     except ObjectNotFoundError:
         return response_api_not_found()
-
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())

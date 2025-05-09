@@ -71,43 +71,12 @@ def alerts_get(current_user, identifier) -> Alert:
     return alert
 
 
-def alerts_update(updated_alert: Alert, alert: Alert, iris_current_user, data, identifier) -> Alert:
+def alerts_update(updated_alert: Alert, alert: Alert, iris_current_user, activity_data, identifier, do_resolution_hook, do_status_hook) -> Alert:
 
-    if not data:
-        raise BusinessProcessingError('No JSON data provided')
     if not alert:
         raise ObjectNotFoundError()
     if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
         raise ObjectNotFoundError()
-
-    do_resolution_hook = False
-    do_status_hook = False
-
-    activity_data = []
-    for key, value in data.items():
-        old_value = getattr(alert, key, None)
-
-        if type(old_value) is int:
-            old_value = str(old_value)
-
-        if type(value) is int:
-            value = str(value)
-
-        if old_value != value:
-            if key == "alert_resolution_status_id":
-                do_resolution_hook = True
-            if key == 'alert_status_id':
-                do_status_hook = True
-
-            if key not in ["alert_content", "alert_note"]:
-                activity_data.append(f"\"{key}\" from \"{old_value}\" to \"{value}\"")
-            else:
-                activity_data.append(f"\"{key}\"")
-    if data.get('alert_owner_id') is None and updated_alert.alert_owner_id is None:
-        updated_alert.alert_owner_id = iris_current_user.id
-
-    if data.get('alert_owner_id') == "-1" or data.get('alert_owner_id') == -1:
-        updated_alert.alert_owner_id = None
 
     db.session.commit()
 
