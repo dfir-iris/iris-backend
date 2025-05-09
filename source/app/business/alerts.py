@@ -71,12 +71,7 @@ def alerts_get(current_user, identifier) -> Alert:
     return alert
 
 
-def alerts_update(updated_alert: Alert, alert: Alert, iris_current_user, activity_data, identifier, do_resolution_hook, do_status_hook) -> Alert:
-
-    if not alert:
-        raise ObjectNotFoundError()
-    if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
-        raise ObjectNotFoundError()
+def alerts_update(updated_alert: Alert, alert: Alert, activity_data, identifier, do_resolution_hook, do_status_hook) -> Alert:
 
     db.session.commit()
 
