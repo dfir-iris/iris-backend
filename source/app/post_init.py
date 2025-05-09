@@ -82,7 +82,7 @@ from app.datamgmt.manage.manage_users_db import add_user_to_organisation
 from app.datamgmt.manage.manage_groups_db import get_group_by_name
 
 
-_ASSET_TYPES= [
+_ASSET_TYPES = [
     {'asset_name': 'Account', 'asset_description': 'Generic Account',
      'asset_icon_not_compromised': 'user.png', 'asset_icon_compromised': 'ioc_user.png'},
     {'asset_name': 'Firewall', 'asset_description': 'Firewall',
