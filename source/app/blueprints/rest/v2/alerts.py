@@ -29,7 +29,6 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
-from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import IocSchema
@@ -198,7 +197,7 @@ def get_alert(identifier):
 def update_alert(identifier):
 
     try:
-        alert = get_alert_by_id(identifier)
+        alert = alerts_get(iris_current_user, identifier)
         request_data = request.get_json()
         updated_alert = _load(request_data, instance=alert, partial=True)
         result = alerts_update(updated_alert, alert, iris_current_user, request_data, identifier)
