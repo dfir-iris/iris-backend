@@ -30,11 +30,10 @@ def get_assets_types():
     return assets_types
 
 
-def get_asset_type_id(asset_type_name):
-    assets_type_id = AssetsType.query.with_entities(
+def get_asset_type_by_name_case_insensitive(asset_type_name) -> AssetsType:
+    asset_type_name = asset_type_name.lower()
+    return AssetsType.query.with_entities(
         AssetsType.asset_id
     ).filter(
         func.lower(AssetsType.asset_name) == asset_type_name
     ).first()
-
-    return assets_type_id
