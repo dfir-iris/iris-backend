@@ -105,9 +105,8 @@ def create_safe_limited(session, model, keywords_list, **kwargs):
         return True
 
 
-def create_asset_type_if_not_exists(session, fieldname, **kwargs):
-    select_value = {fieldname: kwargs.get(fieldname)}
-    instance = session.query(AssetsType).filter_by(**select_value).first()
+def create_asset_type_if_not_exists(session, **kwargs):
+    instance = session.query(AssetsType).filter_by(asset_name=kwargs.get('asset_name')).first()
     if instance:
         return
 
