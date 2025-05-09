@@ -16,14 +16,25 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from sqlalchemy import func
+
 from app.models.models import AssetsType
 
 
-def create_asset_type_if_not_exists(session, **kwargs):
-    instance = session.query(AssetsType).filter_by(asset_name=kwargs.get('asset_name')).first()
-    if instance:
-        return
+def get_assets_types():
+    assets_types = [(c.asset_id, c.asset_name) for c
+                    in AssetsType.query.with_entities(AssetsType.asset_name,
+                                                      AssetsType.asset_id).order_by(AssetsType.asset_name)
+                    ]
 
-    instance = AssetsType(**kwargs)
-    session.add(instance)
-    session.commit()
+    return assets_types
+
+
+def get_asset_type_id(asset_type_name):
+    assets_type_id = AssetsType.query.with_entities(
+        AssetsType.asset_id
+    ).filter(
+        func.lower(AssetsType.asset_name) == asset_type_name
+    ).first()
+
+    return assets_type_id

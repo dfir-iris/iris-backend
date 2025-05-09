@@ -184,15 +184,6 @@ def delete_asset(asset: CaseAssets):
     db.session.commit()
 
 
-def get_assets_types():
-    assets_types = [(c.asset_id, c.asset_name) for c
-                    in AssetsType.query.with_entities(AssetsType.asset_name,
-                                                      AssetsType.asset_id).order_by(AssetsType.asset_name)
-                    ]
-
-    return assets_types
-
-
 def get_unspecified_analysis_status_id():
     """
     Get the id of the 'Unspecified' analysis status
@@ -223,16 +214,6 @@ def get_compromise_status_dict():
 
 def get_case_outcome_status_dict():
     return [{'value': e.value, 'name': e.name.replace('_', ' ').capitalize()} for e in CaseStatus]
-
-
-def get_asset_type_id(asset_type_name):
-    assets_type_id = AssetsType.query.with_entities(
-        AssetsType.asset_id
-    ).filter(
-        func.lower(AssetsType.asset_name) == asset_type_name
-    ).first()
-
-    return assets_type_id
 
 
 def get_assets_ioc_links(caseid):

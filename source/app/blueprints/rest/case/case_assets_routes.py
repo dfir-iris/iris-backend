@@ -37,7 +37,7 @@ from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import delete_asset_comment
 from app.datamgmt.case.case_assets_db import get_asset
-from app.datamgmt.case.case_assets_db import get_asset_type_id
+from app.datamgmt.case.assets_type import get_asset_type_id
 from app.datamgmt.case.case_assets_db import get_assets
 from app.datamgmt.case.case_assets_db import get_assets_ioc_links
 from app.datamgmt.case.case_assets_db import get_case_asset_comment
