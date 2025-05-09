@@ -70,7 +70,7 @@ def alerts_get(current_user, identifier) -> Alert:
     return alert
 
 
-def alerts_update(updated_alert: Alert, alert: Alert, activity_data, identifier, do_resolution_hook, do_status_hook) -> Alert:
+def alerts_update(alert: Alert, updated_alert: Alert, activity_data, identifier, do_resolution_hook, do_status_hook) -> Alert:
 
     db.session.commit()
 
