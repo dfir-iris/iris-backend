@@ -19,7 +19,7 @@
 import collections
 import json
 import os
-from flask import Flask
+from flask import Flask, g
 from flask import session
 from flask_bcrypt import Bcrypt
 from flask_caching import Cache
@@ -147,7 +147,10 @@ from app.views import load_user_from_request
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
-    db.session.remove()
+    db.session.close()
+    g.pop('auth_user', None)
+    g.pop('auth_token_user_id', None)
+    g.pop('auth_user_permissions', None)
 
 
 @app.after_request

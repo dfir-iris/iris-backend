@@ -46,7 +46,6 @@ def login():
     """
     Login endpoint. Handles taking user/pass combo and authenticating a local session or returning an error.
     """
-    logger.info('Authenticating user')
     if iris_current_user.is_authenticated:
         logger.info('User already authenticated - redirecting')
         logger.debug(f'User {iris_current_user.user} already logged in')
