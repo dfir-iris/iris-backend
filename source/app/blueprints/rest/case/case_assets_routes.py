@@ -37,7 +37,7 @@ from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import delete_asset_comment
 from app.datamgmt.case.case_assets_db import get_asset
-from app.datamgmt.case.case_assets_db import get_asset_type_id
+from app.datamgmt.case.assets_type import get_asset_type_by_name_case_insensitive
 from app.datamgmt.case.case_assets_db import get_assets
 from app.datamgmt.case.case_assets_db import get_assets_ioc_links
 from app.datamgmt.case.case_assets_db import get_case_asset_comment
@@ -227,14 +227,14 @@ def case_upload_ioc(caseid):
                 index += 1
                 continue
 
-            type_id = get_asset_type_id(row['asset_type_name'].lower())
-            if not type_id:
+            asset_type = get_asset_type_by_name_case_insensitive(row['asset_type_name'])
+            if not asset_type:
                 errors.append(f"{row.get('asset_name')} (invalid asset type: {row.get('asset_type_name')}) for row {index}")
                 track_activity(f"Attempted to upload unrecognized asset type \"{row.get('asset_type_name')}\"")
                 index += 1
                 continue
 
-            row['asset_type_id'] = type_id.asset_id
+            row['asset_type_id'] = asset_type.asset_id
             row.pop('asset_type_name', None)
 
             row['analysis_status_id'] = analysis_status_id

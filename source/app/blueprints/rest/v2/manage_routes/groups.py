@@ -21,11 +21,15 @@ from flask import request
 from marshmallow import ValidationError
 
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
+from app.business.groups import groups_get
 from app.models.authorization import Permissions
+from app.business.errors import ObjectNotFoundError
 
 
 class Groups:
@@ -46,6 +50,14 @@ class Groups:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
+    def get(self, identifier):
+        try:
+            group = groups_get(identifier)
+            result = self._schema.dump(group)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 def create_groups_blueprint():
     blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
@@ -53,5 +65,8 @@ def create_groups_blueprint():
 
     create_group = wrap_with_permission_checks(groups.create, Permissions.server_administrator)
     blueprint.add_url_rule('', view_func=create_group, methods=['POST'])
+
+    get_group = wrap_with_permission_checks(groups.get, Permissions.server_administrator)
+    blueprint.add_url_rule('/<int:identifier>', view_func=get_group, methods=['GET'])
 
     return blueprint

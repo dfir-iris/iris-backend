@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2025 - DFIR-IRIS
+#  Copyright (C) ${current_year} - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,22 +16,14 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.models.authorization import Group
-from app.iris_engine.utils.tracker import track_activity
-from app.datamgmt.manage.manage_groups_db import create_group
-from app.datamgmt.manage.manage_groups_db import get_group_details
-from app.business.errors import ObjectNotFoundError
+from app.models.models import AssetsType
+
+from app.datamgmt.case.assets_type import add_asset_type
+from app.datamgmt.case.assets_type import exists_asset_type_with_name
 
 
-def groups_create(group: Group) -> Group:
-    create_group(group)
-    track_activity(f'added group {group.group_name}', ctx_less=True)
+def create_asset_type_if_not_exists(session, asset_type: AssetsType):
+    if exists_asset_type_with_name(session, asset_type.asset_name):
+        return
 
-    return group
-
-
-def groups_get(identifier) -> Group:
-    group = get_group_details(identifier)
-    if not group:
-        raise ObjectNotFoundError()
-    return group
+    add_asset_type(session, asset_type)

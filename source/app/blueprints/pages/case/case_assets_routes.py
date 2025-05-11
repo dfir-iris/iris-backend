@@ -23,7 +23,7 @@ from flask import url_for
 
 from app.datamgmt.case.case_assets_db import get_analysis_status_list
 from app.datamgmt.case.case_assets_db import get_asset
-from app.datamgmt.case.case_assets_db import get_assets_types
+from app.datamgmt.case.assets_type import get_assets_types
 from app.datamgmt.case.case_assets_db import get_case_assets_comments_count
 from app.datamgmt.case.case_assets_db import get_compromise_status_list
 from app.datamgmt.case.case_assets_db import get_linked_iocs_id_from_asset
