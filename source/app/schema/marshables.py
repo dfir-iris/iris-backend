@@ -668,6 +668,7 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
 
     """
     asset_name: str = auto_field('asset_name', required=True, allow_none=False)
+    asset_type_id: str = auto_field('asset_type_id', required=True, allow_none=False)
     ioc_links: List[int] = fields.List(fields.Integer, required=False)
     asset_enrichment: str = auto_field('asset_enrichment', required=False)
     asset_type: AssetTypeSchema = ma.Nested(AssetTypeSchema, required=False)
