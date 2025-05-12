@@ -19,5 +19,17 @@
 from app.models.authorization import CaseAccessLevel
 
 
+RESTRICTED_USER_FIELDS = {
+    'password',
+    'mfa_secrets',
+    'webauthn_credentials',
+    'api_key',
+    'external_id',
+    'ctx_case',
+    'ctx_human_case',
+    'is_service_account'
+}
+
+
 def has_deny_all_access_level(row):
     return (row.access_level & CaseAccessLevel.deny_all.value) == CaseAccessLevel.deny_all.value

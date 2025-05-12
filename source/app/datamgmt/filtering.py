@@ -22,17 +22,7 @@ from sqlalchemy import String, Text, inspect, or_, not_, and_
 from app import app
 from app.datamgmt.conversions import convert_sort_direction
 from app.models.pagination_parameters import PaginationParameters
-
-RESTRICTED_USER_FIELDS = {
-    'password',
-    'mfa_secrets',
-    'webauthn_credentials',
-    'api_key',
-    'external_id',
-    'ctx_case',
-    'ctx_human_case',
-    'is_service_account'
-}
+from app.datamgmt.authorization import RESTRICTED_USER_FIELDS
 
 log = app.logger
 
