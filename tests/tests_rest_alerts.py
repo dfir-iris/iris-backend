@@ -349,3 +349,20 @@ class TestsRestAlerts(TestCase):
         alert_context = {'context_key': 'key'}
         response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_context' : alert_context}).json()
         self.assertEqual(alert_context, response['alert_context'])
+
+    def test_update_alert_should_update_alert_source_content(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        alert_source_content = {
+            '_id': '603f704aaf7417985bbf3b22',
+            'contextId': '206e2965-6533-48a6-ba9e-794364a84bf9',
+            'description': 'Contoso user performed 11 suspicious activities MITRE'
+        }
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_source_content' : alert_source_content}).json()
+        self.assertEqual(alert_source_content, response['alert_source_content'])
