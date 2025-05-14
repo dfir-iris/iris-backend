@@ -80,8 +80,6 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
     if alert.alert_status_id != updated_alert.alert_status_id:
         do_status_hook = True
 
-    db.session.commit()
-
     updated_alert = call_modules_hook('on_postload_alert_update', data=updated_alert)
 
     if do_resolution_hook:
