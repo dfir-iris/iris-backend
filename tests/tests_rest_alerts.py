@@ -271,7 +271,6 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_update_alert_should_return_alert_title(self):
-        alert_title = 'new_title'
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
@@ -280,6 +279,7 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
+        alert_title = 'new_title'
         response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : alert_title}).json()
         self.assertEqual(alert_title, response['alert_title'])
     
@@ -336,3 +336,16 @@ class TestsRestAlerts(TestCase):
         identifier = response['alert_id']
         response = user.update(f'/api/v2/alerts/{identifier}', {'alert_title' : 'new_title'})
         self.assertEqual(404, response.status_code)
+
+    def test_update_alert_should_update_alert_context(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        alert_context = {'context_key': 'key'}
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_context' : alert_context}).json()
+        self.assertEqual(alert_context, response['alert_context'])
