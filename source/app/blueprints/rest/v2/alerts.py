@@ -35,6 +35,7 @@ from app.schema.marshables import IocSchema
 from app.schema.marshables import CaseAssetsSchema
 from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
+from app.business.alerts import alerts_update
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
@@ -186,6 +187,45 @@ def get_alert(identifier):
         alert = alerts_get(iris_current_user, identifier)
         alert_schema = AlertSchema()
         return response_api_success(alert_schema.dump(alert))
+
+    except ObjectNotFoundError:
+        return response_api_not_found()
+
+
+@alerts_blueprint.put('/<int:identifier>')
+@ac_api_requires(Permissions.alerts_write)
+def update_alert(identifier):
+
+    try:
+        alert = alerts_get(iris_current_user, identifier)
+        request_data = request.get_json()
+        updated_alert = _load(request_data, instance=alert, partial=True)
+        activity_data = []
+
+        for key, value in request_data.items():
+            old_value = getattr(alert, key, None)
+
+            if type(old_value) is int:
+                old_value = str(old_value)
+
+            if type(value) is int:
+                value = str(value)
+
+                if key not in ["alert_content", "alert_note"]:
+                    activity_data.append(f"\"{key}\" from \"{old_value}\" to \"{value}\"")
+                else:
+                    activity_data.append(f"\"{key}\"")
+        if request_data.get('alert_owner_id') is None and updated_alert.alert_owner_id is None:
+            updated_alert.alert_owner_id = iris_current_user.id
+
+        if request_data.get('alert_owner_id') == "-1" or request_data.get('alert_owner_id') == -1:
+            updated_alert.alert_owner_id = None
+        result = alerts_update(alert, updated_alert, activity_data)
+        alert_schema = AlertSchema()
+        return response_api_success(alert_schema.dump(result))
+
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.messages)
 
     except ObjectNotFoundError:
         return response_api_not_found()

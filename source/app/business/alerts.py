@@ -68,3 +68,33 @@ def alerts_get(current_user, identifier) -> Alert:
         raise ObjectNotFoundError()
 
     return alert
+
+
+def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
+
+    do_resolution_hook = False
+    do_status_hook = False
+
+    if alert.alert_resolution_status_id != updated_alert.alert_resolution_status_id:
+        do_resolution_hook = True
+    if alert.alert_status_id != updated_alert.alert_status_id:
+        do_status_hook = True
+
+    updated_alert = call_modules_hook('on_postload_alert_update', data=updated_alert)
+
+    if do_resolution_hook:
+        updated_alert = call_modules_hook('on_postload_alert_resolution_update', data=updated_alert)
+
+    if do_status_hook:
+        updated_alert = call_modules_hook('on_postload_alert_status_update', data=updated_alert)
+
+    if activity_data:
+        activity_data_as_string = ','.join(activity_data)
+        track_activity(f'updated alert #{alert.alert_id}: {activity_data_as_string}', ctx_less=True)
+        add_obj_history_entry(updated_alert, f'updated alert: {activity_data_as_string}')
+    else:
+        track_activity(f'updated alert #{alert.alert_id}', ctx_less=True)
+        add_obj_history_entry(updated_alert, 'updated alert')
+
+    db.session.commit()
+    return updated_alert
