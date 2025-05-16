@@ -15,11 +15,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import json
 import logging as logger
 from sqlalchemy.orm.attributes import flag_modified
 
-from app import db, app
+from app import db
+from app import app
 from app.models.models import CaseAssets
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
@@ -146,16 +148,14 @@ def add_tab_attribute_field(obj, tab_name, field_name, field_type, field_value, 
         attribute[tab_name] = {}
 
     attr = {
-        field_name: {
-            "mandatory": mandatory if mandatory is not None else False,
-            "type": field_type,
-            "value": field_value
-        }
+        "mandatory": mandatory if mandatory is not None else False,
+        "type": field_type,
+        "value": field_value
     }
     if field_options:
-        attr[field_name]['options'] = field_options
+        attr['options'] = field_options
 
-    attribute[tab_name][field_name] = attr[field_name]
+    attribute[tab_name][field_name] = attr
 
     obj.custom_attributes = attribute
 
