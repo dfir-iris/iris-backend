@@ -148,16 +148,14 @@ def add_tab_attribute_field(obj, tab_name, field_name, field_type, field_value, 
         attribute[tab_name] = {}
 
     attr = {
-        field_name: {
-            "mandatory": mandatory if mandatory is not None else False,
-            "type": field_type,
-            "value": field_value
-        }
+        "mandatory": mandatory if mandatory is not None else False,
+        "type": field_type,
+        "value": field_value
     }
     if field_options:
-        attr[field_name]['options'] = field_options
+        attr['options'] = field_options
 
-    attribute[tab_name][field_name] = attr[field_name]
+    attribute[tab_name][field_name] = attr
 
     obj.custom_attributes = attribute
 
