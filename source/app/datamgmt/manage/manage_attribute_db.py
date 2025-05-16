@@ -15,11 +15,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import json
 import logging as logger
 from sqlalchemy.orm.attributes import flag_modified
 
-from app import db, app
+from app import db
+from app import app
 from app.models.models import CaseAssets
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
