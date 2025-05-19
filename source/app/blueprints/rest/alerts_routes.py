@@ -511,6 +511,7 @@ def alerts_batch_delete_route() -> Response:
 
 
 @alerts_rest_blueprint.route('/alerts/delete/<int:alert_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/alerts/{identifier}')
 @ac_api_requires(Permissions.alerts_delete)
 def alerts_delete_route(alert_id) -> Response:
     """
