@@ -419,3 +419,17 @@ class TestsRestAlerts(TestCase):
     def test_delete_alert_should_return_404_when_alert_not_found(self):
         response = self._subject.delete(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
+
+    
+    def test_delete_alert_should_return_403_when_user_has_no_permission_to_delete_alert(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = user.delete(f'/api/v2/alerts/{identifier}')
+        self.assertEqual(403, response.status_code)

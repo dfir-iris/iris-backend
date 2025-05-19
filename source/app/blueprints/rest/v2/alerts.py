@@ -234,7 +234,7 @@ def update_alert(identifier):
 
 
 @alerts_blueprint.delete('/<int:identifier>')
-@ac_api_requires()
+@ac_api_requires(Permissions.alerts_delete)
 def delete_alert(identifier):
 
     try:
