@@ -280,7 +280,7 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
         alert_title = 'new_title'
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : alert_title}).json()
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' :alert_title}).json()
         self.assertEqual(alert_title, response['alert_title'])
     
     def test_update_alert_should_return_alert_uuid(self):
