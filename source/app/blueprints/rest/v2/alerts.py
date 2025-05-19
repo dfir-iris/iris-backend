@@ -36,6 +36,7 @@ from app.schema.marshables import CaseAssetsSchema
 from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
+from app.business.alerts import alerts_delete
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
@@ -234,4 +235,10 @@ def update_alert(identifier):
 @ac_api_requires()
 def delete_alert(identifier):
 
-    return response_api_success(None)
+    try:
+        alert = alerts_get(iris_current_user, identifier)
+        alert_identifier = alerts_delete(alert)
+        return response_api_success(data={'alert_id': alert_identifier})
+
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.messages)

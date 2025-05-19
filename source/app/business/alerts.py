@@ -98,3 +98,15 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
 
     db.session.commit()
     return updated_alert
+
+def alerts_delete(alert):
+
+    db.session.delete(alert)
+    db.session.commit()
+
+    call_modules_hook('on_postload_alert_delete', data=alert.alert_id)
+
+    track_activity(f"delete alert #{alert.alert_id}", ctx_less=True)
+
+    return alert.alert_id
+
