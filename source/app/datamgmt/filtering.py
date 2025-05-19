@@ -20,6 +20,7 @@ import json
 from sqlalchemy import String, Text, inspect, or_, not_, and_
 
 from app import app
+from app.business.errors import BusinessProcessingError
 from app.datamgmt.conversions import convert_sort_direction
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.authorization import RESTRICTED_USER_FIELDS
@@ -200,13 +201,13 @@ def get_filtered_data(model,
         try:
             custom_conditions = json.loads(custom_conditions_param)
             if not isinstance(custom_conditions, list):
-                raise ValueError("custom_conditions should be a list of condition objects")
+                raise BusinessProcessingError("custom_conditions should be a list of condition objects")
 
             query, conditions = apply_custom_conditions(query, model, custom_conditions, relationship_model_map)
             query = query.filter(combine_conditions(conditions, logical_operator))
         except Exception as e:
             log.exception(e)
-            raise ValueError(f"Error parsing custom_conditions: {e}")
+            raise BusinessProcessingError(f"Error parsing custom_conditions: {e}")
 
     # Apply ordering if requested.
     order_by = pagination_parameters.get_order_by()
