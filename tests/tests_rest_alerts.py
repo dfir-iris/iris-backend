@@ -415,3 +415,7 @@ class TestsRestAlerts(TestCase):
         identifier = response['alert_id']
         response = self._subject.delete(f'/api/v2/alerts/{identifier}')
         self.assertEqual(200, response.status_code)
+
+    def test_delete_alert_should_return_404_when_alert_not_found(self):
+        response = self._subject.delete(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
