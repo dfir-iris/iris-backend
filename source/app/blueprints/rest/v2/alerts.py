@@ -26,6 +26,7 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
@@ -237,8 +238,8 @@ def delete_alert(identifier):
 
     try:
         alert = alerts_get(iris_current_user, identifier)
-        alert_identifier = alerts_delete(alert)
-        return response_api_success(data={'alert_id': alert_identifier})
+        alerts_delete(alert)
+        return response_api_deleted()
 
     except ValidationError as e:
         return response_api_error('Data error', data=e.messages)

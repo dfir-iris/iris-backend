@@ -107,6 +107,3 @@ def alerts_delete(alert):
     call_modules_hook('on_postload_alert_delete', data=alert.alert_id)
 
     track_activity(f"delete alert #{alert.alert_id}", ctx_less=True)
-
-    return alert.alert_id
-
