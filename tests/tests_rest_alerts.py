@@ -366,3 +366,22 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_source_content' : alert_source_content}).json()
         self.assertEqual(alert_source_content, response['alert_source_content'])
+
+    def test_create_alert_should_return_asset_name_when_we_add_asset(self):
+        asset_name = "My super asset"
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+            "alert_assets": [{
+            "asset_name": asset_name,
+            "asset_description": "Asset description",
+            "asset_type_id": 1,
+            "asset_ip": "1.1.1.1",
+            "asset_domain": "",
+            "asset_tags": "tag1,tag2",
+            }]
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        self.assertEqual(asset_name, response['assets'][0]['asset_name'])
