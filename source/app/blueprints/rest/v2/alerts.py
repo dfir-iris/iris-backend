@@ -229,3 +229,9 @@ def update_alert(identifier):
 
     except ObjectNotFoundError:
         return response_api_not_found()
+    
+@alerts_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_alert(identifier):
+
+    return response_api_success(None)

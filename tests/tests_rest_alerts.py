@@ -403,3 +403,15 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create('/api/v2/alerts', body).json()
         self.assertEqual(ioc_value, response['iocs'][0]['ioc_value'])
+
+    def test_delete_alert_should_return_200(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.delete(f'/api/v2/alerts/{identifier}')
+        self.assertEqual(200, response.status_code)
