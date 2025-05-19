@@ -99,6 +99,7 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
     db.session.commit()
     return updated_alert
 
+
 def alerts_delete(alert):
 
     db.session.delete(alert)
