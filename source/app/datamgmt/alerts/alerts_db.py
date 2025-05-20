@@ -20,10 +20,9 @@ from copy import deepcopy
 import json
 from datetime import datetime, timedelta
 from flask_login import current_user
-from functools import reduce
 from sqlalchemy import desc, asc, func, tuple_, or_, not_, and_
 from sqlalchemy.orm import aliased, make_transient, selectinload
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 
 import app
 from app import db
@@ -734,10 +733,11 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
 
                 alert_asset.analysis_status_id = get_unspecified_analysis_status_id()
 
-                tmp_asset = CaseAssets.query.filter(
-                    CaseAssets.asset_uuid == alert_asset.asset_uuid,
+                tmp_asset = CaseAssets.query.filter(and_(
+                    CaseAssets.asset_name == alert_asset.asset_name,
+                    CaseAssets.asset_type_id == alert_asset.asset_type_id,
                     CaseAssets.case_id == case.case_id
-                ).first()
+                )).first()
 
                 if tmp_asset:
                     asset = tmp_asset
