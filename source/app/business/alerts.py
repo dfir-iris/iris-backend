@@ -25,6 +25,8 @@ from app.models.alerts import Alert
 from app.models.iocs import Ioc
 from app.models.models import CaseAssets
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
+from app.datamgmt.alerts.alerts_db import delete_similar_alert_cache
+from app.datamgmt.alerts.alerts_db import delete_related_alerts_cache
 from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -101,6 +103,10 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
 
 
 def alerts_delete(alert: Alert):
+
+    delete_similar_alert_cache(alert.alert_id)
+
+    delete_related_alerts_cache([alert.alert_id])
 
     db.session.delete(alert)
     db.session.commit()
