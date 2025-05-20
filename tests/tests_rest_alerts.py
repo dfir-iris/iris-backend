@@ -437,8 +437,8 @@ class TestsRestAlerts(TestCase):
 
     def test_delete_alert_should_return_404_when_user_has_no_customer_access(self):
         body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
+            'group_name': 'Customer delete',
+            'group_description': 'Group with customers can delete alert',
             'group_permissions': [_PERMISSION_ALERTS_DELETE]
         }
         response = self._subject.create('/manage/groups/add', body).json()
