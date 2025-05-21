@@ -369,37 +369,37 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(alert_source_content, response['alert_source_content'])
 
     def test_create_alert_should_return_asset_name_when_we_add_asset(self):
-        asset_name = "My super asset"
+        asset_name = 'My super asset'
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
             'alert_status_id': 3,
             'alert_customer_id': 1,
-            "alert_assets": [{
-            "asset_name": asset_name,
-            "asset_description": "Asset description",
-            "asset_type_id": 1,
-            "asset_ip": "1.1.1.1",
-            "asset_domain": "",
-            "asset_tags": "tag1,tag2",
+            'alert_assets': [{
+            'asset_name': asset_name,
+            'asset_description': 'Asset description',
+            'asset_type_id': 1,
+            'asset_ip': '1.1.1.1',
+            'asset_domain': '',
+            'asset_tags': 'tag1,tag2',
             }]
         }
         response = self._subject.create('/api/v2/alerts', body).json()
         self.assertEqual(asset_name, response['assets'][0]['asset_name'])
 
     def test_create_alert_should_return_ioc_value_when_we_add_ioc(self):
-        ioc_value = "Tarzan 5"
+        ioc_value = 'Tarzan 5'
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
             'alert_status_id': 3,
             'alert_customer_id': 1,
-            "alert_iocs": [{
-                "ioc_value": ioc_value,
-                "ioc_description": "description of Tarzan",
-                "ioc_tlp_id": 1,
-                "ioc_type_id": 2,
-                "ioc_tags": "tag1,tag2",
+            'alert_iocs': [{
+                'ioc_value': ioc_value,
+                'ioc_description': 'description of Tarzan',
+                'ioc_tlp_id': 1,
+                'ioc_type_id': 2,
+                'ioc_tags': 'tag1,tag2',
             }]
         }
         response = self._subject.create('/api/v2/alerts', body).json()
