@@ -248,3 +248,12 @@ class TestsRestAssets(TestCase):
         self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/assets', { 'order_by': 'asset_name' }).json()
         self.assertEqual('asset1', response['data'][0]['asset_name'])
+
+    def test_upload_asset_csv_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        body = {
+	        'CSVData': 'asset_name,asset_type_name,asset_description,asset_ip,asset_domain,asset_tags\n    "My computer","Mac - Computer","Computer of Mme Michu","192.168.15.5","iris.local","Compta|Mac"'
+        }
+        response = self._subject.create('/case/assets/upload', body, query_parameters={'cid': case_identifier})
+        self.assertEqual(200, response.status_code)

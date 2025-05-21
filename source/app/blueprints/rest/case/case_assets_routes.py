@@ -176,7 +176,7 @@ def deprecated_add_asset(caseid):
 @case_assets_rest_blueprint.route('/case/assets/upload', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
-def case_upload_ioc(caseid):
+def case_upload_asset(caseid):
     try:
         # validate before saving
         add_asset_schema = CaseAssetsSchema()
