@@ -33,6 +33,7 @@ from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from source.app.datamgmt.alerts.alerts_db import delete_alert
 
 
 def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
@@ -108,9 +109,9 @@ def alerts_delete(alert: Alert):
 
     delete_related_alerts_cache([alert.alert_id])
 
-    db.session.delete(alert)
-    db.session.commit()
+    delete_alert(alert)
 
     call_modules_hook('on_postload_alert_delete', data=alert.alert_id)
 
     track_activity(f"delete alert #{alert.alert_id}", ctx_less=True)
+

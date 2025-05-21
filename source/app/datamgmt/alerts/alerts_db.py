@@ -1447,3 +1447,7 @@ def get_alert_status_by_name(name: str) -> AlertStatus:
     """
     return AlertStatus.query.filter(AlertStatus.status_name == name).first()
 
+
+def delete_alert(alert):
+    db.session.delete(alert)
+    db.session.commit()
