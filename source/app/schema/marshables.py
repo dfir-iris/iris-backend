@@ -710,6 +710,25 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
 
         return None
 
+    @staticmethod
+    def is_unique_for_cid(case_id, request_data):
+        """
+        Check if the asset is unique for the customer
+        """
+
+        asset = CaseAssets.query.filter(
+            func.lower(CaseAssets.asset_name) == func.lower(request_data.get('asset_name')),
+            CaseAssets.asset_type_id == request_data.get('asset_type_id'),
+            CaseAssets.asset_id != request_data.get('asset_id'),
+            CaseAssets.case_id == case_id
+        ).first()
+
+        if asset is not None:
+            raise marshmallow.exceptions.ValidationError('Asset name already exists in this case',
+                                                         field_name='asset_name')
+
+        return True
+
     @pre_load
     def verify_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Verifies the asset type ID and analysis status ID.
