@@ -28,6 +28,7 @@ from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.business.groups import groups_get
+from app.business.groups import groups_update
 from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 
@@ -59,7 +60,15 @@ class Groups:
             return response_api_not_found()
 
     def update(self, identifier):
-        return response_api_success(None)
+        try:
+            group = groups_get(identifier)
+            request_data = request.get_json()
+            updated_group = self._load(request_data)
+            group = groups_update(updated_group)
+            result = self._schema.dump(group)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
 
 def create_groups_blueprint():
