@@ -103,7 +103,7 @@ class TestsRestGroups(TestCase):
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(200, response.status_code)
 
-    def test_update_group_should_return_field_groupe_name(self):
+    def test_update_group_should_return_field_group_name(self):
         new_name = 'new_name'
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
@@ -111,3 +111,11 @@ class TestsRestGroups(TestCase):
         body = {'group_name': new_name, 'group_description': 'new_description'}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
         self.assertEqual(new_name, response['group_name'])
+
+    def test_update_group_should_return_field_group_auto_follow(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_auto_follow' : True}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
+        self.assertEqual(True, response['group_auto_follow'])
