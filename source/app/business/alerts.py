@@ -33,7 +33,7 @@ from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
-from source.app.datamgmt.alerts.alerts_db import delete_alert
+from app.datamgmt.alerts.alerts_db import delete_alert
 
 
 def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:
