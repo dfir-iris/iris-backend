@@ -119,3 +119,11 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_auto_follow' : True}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
         self.assertEqual(True, response['group_auto_follow'])
+    
+    def test_update_group_should_return_400_when_field_group_description_is_missing(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_name': 'name'}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
+        self.assertEqual(400, response.status_code)
