@@ -94,3 +94,11 @@ class TestsRestGroups(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get(f'/api/v2/manage/groups/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_update_group_should_return_200(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_name': 'new_name'}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
+        self.assertEqual(200, response.status_code)

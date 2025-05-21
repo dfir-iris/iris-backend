@@ -58,6 +58,9 @@ class Groups:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def update(self, identifier):
+        return response_api_success(None)
+
 
 def create_groups_blueprint():
     blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
@@ -68,5 +71,8 @@ def create_groups_blueprint():
 
     get_group = wrap_with_permission_checks(groups.get, Permissions.server_administrator)
     blueprint.add_url_rule('/<int:identifier>', view_func=get_group, methods=['GET'])
+
+    update_group = wrap_with_permission_checks(groups.update, Permissions.server_administrator)
+    blueprint.add_url_rule('/<int:identifier>', view_func=update_group, methods=['PUT'])
 
     return blueprint
