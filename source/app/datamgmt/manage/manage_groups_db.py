@@ -42,8 +42,10 @@ def get_groups_list():
 
     return groups
 
+
 def update_group():
     db.session.commit()
+
 
 def get_groups_list_hr_perms():
     groups = get_groups_list()

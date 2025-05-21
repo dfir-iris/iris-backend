@@ -37,6 +37,7 @@ def groups_get(identifier) -> Group:
         raise ObjectNotFoundError()
     return group
 
+
 def groups_update(group_updated: Group) -> Group:
     update_group()
     return group_updated
