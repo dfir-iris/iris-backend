@@ -99,7 +99,7 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
-        body = {'group_name': 'new_name'}
+        body = {'group_name': 'new_name', 'group_description': 'new_description'}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(200, response.status_code)
 
