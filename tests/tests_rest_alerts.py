@@ -268,7 +268,7 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : 'new_title'})
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title': 'new_title'})
         self.assertEqual(200, response.status_code)
 
     def test_update_alert_should_return_alert_title(self):
@@ -281,7 +281,7 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
         alert_title = 'new_title'
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' :alert_title}).json()
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title': alert_title}).json()
         self.assertEqual(alert_title, response['alert_title'])
     
     def test_update_alert_should_return_alert_uuid(self):
@@ -295,11 +295,11 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
         uuid = response['alert_uuid']
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title' : alert_title}).json()
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title': alert_title}).json()
         self.assertEqual(uuid, response['alert_uuid'])
 
     def test_update_alert_should_return_404_when_alert_not_found(self):
-        response = self._subject.update(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', {'alert_title' : 'alert_title'})
+        response = self._subject.update(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', {'alert_title': 'alert_title'})
         self.assertEqual(404, response.status_code)
 
     def test_update_alert_should_return_403_when_user_has_no_permission_to_read_alert(self):
@@ -335,7 +335,7 @@ class TestsRestAlerts(TestCase):
         }
         response = self._subject.create('/api/v2/alerts', body).json()
         identifier = response['alert_id']
-        response = user.update(f'/api/v2/alerts/{identifier}', {'alert_title' : 'new_title'})
+        response = user.update(f'/api/v2/alerts/{identifier}', {'alert_title': 'new_title'})
         self.assertEqual(404, response.status_code)
 
     def test_update_alert_should_update_alert_context(self):
@@ -348,7 +348,7 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create('api/v2/alerts', body).json()
         identifier = response['alert_id']
         alert_context = {'context_key': 'key'}
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_context' : alert_context}).json()
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_context': alert_context}).json()
         self.assertEqual(alert_context, response['alert_context'])
 
     def test_update_alert_should_update_alert_source_content(self):
@@ -365,7 +365,7 @@ class TestsRestAlerts(TestCase):
             'contextId': '206e2965-6533-48a6-ba9e-794364a84bf9',
             'description': 'Contoso user performed 11 suspicious activities MITRE'
         }
-        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_source_content' : alert_source_content}).json()
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_source_content': alert_source_content}).json()
         self.assertEqual(alert_source_content, response['alert_source_content'])
 
     def test_create_alert_should_return_asset_name_when_we_add_asset(self):
