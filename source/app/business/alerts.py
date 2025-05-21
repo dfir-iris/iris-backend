@@ -106,12 +106,8 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
 def alerts_delete(alert: Alert):
 
     delete_similar_alert_cache(alert.alert_id)
-
     delete_related_alerts_cache([alert.alert_id])
-
     delete_alert(alert)
 
     call_modules_hook('on_postload_alert_delete', data=alert.alert_id)
-
-    track_activity(f"delete alert #{alert.alert_id}", ctx_less=True)
-
+    track_activity(f'delete alert #{alert.alert_id}', ctx_less=True)
