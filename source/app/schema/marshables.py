@@ -35,7 +35,6 @@ from marshmallow.validate import Length
 from marshmallow_sqlalchemy import auto_field
 from pathlib import Path
 from sqlalchemy import func
-from sqlalchemy.orm import aliased
 from typing import Any
 from typing import Dict
 from typing import List
@@ -684,31 +683,22 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
         unknown = EXCLUDE
 
     @staticmethod
-    def is_unique_for_customer(customer_id, request_data):
+    def is_unique_for_cid(case_id, request_data):
         """
         Check if the asset is unique for the customer
         """
 
-        if request_data.get('asset_name') is None:
-            raise ValidationError("Asset name is required", field_name="asset_name")
-
-        case_alias = aliased(Cases)
-        asset_alias = aliased(CaseAssets)
-
-        asset = db.session.query(
-            asset_alias.asset_id
-        ).join(
-            case_alias, asset_alias.case_id == case_alias.case_id
-        ).filter(
-            func.lower(asset_alias.asset_name) == request_data.get('asset_name').lower(),
-            asset_alias.asset_type_id == request_data.get('asset_type_id'),
-            asset_alias.asset_id != request_data.get('asset_id'),
-            case_alias.client_id == customer_id
+        asset = CaseAssets.query.filter(
+            func.lower(CaseAssets.asset_name) == func.lower(request_data.get('asset_name')),
+            CaseAssets.asset_type_id == request_data.get('asset_type_id'),
+            CaseAssets.asset_id != request_data.get('asset_id'),
+            CaseAssets.case_id == case_id
         ).first()
-        if asset is not None:
-            return asset
 
-        return None
+        if asset is not None:
+            raise ValidationError('Asset name already exists in this case', field_name='asset_name')
+
+        return True
 
     @pre_load
     def verify_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
