@@ -35,7 +35,6 @@ from marshmallow.validate import Length
 from marshmallow_sqlalchemy import auto_field
 from pathlib import Path
 from sqlalchemy import func
-from sqlalchemy.orm import aliased
 from typing import Any
 from typing import Dict
 from typing import List
