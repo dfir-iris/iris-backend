@@ -135,3 +135,12 @@ class TestsRestGroups(TestCase):
         body = {'group_description': 'new_description'}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(400, response.status_code)
+
+    def test_update_group_should_return_403_when_user_has_no_permission_to_update_group(self):
+        user = self._subject.create_dummy_user()
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_description': 'new_description'}
+        response = user.update(f'/api/v2/manage/groups/{identifier}', body)
+        self.assertEqual(403, response.status_code)
