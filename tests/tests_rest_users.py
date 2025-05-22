@@ -36,3 +36,14 @@ class TestsRestUsers(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get('/manage/users/list')
         self.assertEqual(403, response.status_code)
+
+    def test_create_user_should_return_200(self):
+        body = {
+            "user_name": "string",
+            "user_login": "string",
+            "user_email": "string",
+            "user_password": "string",
+            "user_is_service_account": True
+        }
+        response = self._subject.create('api/v2/manage/users', body)
+        self.assertEqual(200, response.status_code)

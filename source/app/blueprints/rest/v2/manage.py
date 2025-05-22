@@ -19,8 +19,12 @@
 from flask import Blueprint
 
 from app.blueprints.rest.v2.manage_routes.groups import create_groups_blueprint
+from app.blueprints.rest.v2.manage_routes.users import create_users_blueprint
 
 manage_v2_blueprint = Blueprint('manage', __name__, url_prefix='/manage')
 
 groups_blueprint = create_groups_blueprint()
 manage_v2_blueprint.register_blueprint(groups_blueprint)
+
+users_blueprint = create_users_blueprint()
+manage_v2_blueprint.register_blueprint(users_blueprint)
