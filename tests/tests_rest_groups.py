@@ -176,3 +176,11 @@ class TestsRestGroups(TestCase):
     def test_delete_group_should_return_404_when_group_not_found(self):
         response = self._subject.delete(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
+
+    def test_delete_group_should_return_403_when_user_is_denied_permission_to_access_group(self):
+        user = self._subject.create_dummy_user()
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        response = user.delete(f'/api/v2/manage/groups/{identifier}')
+        self.assertEqual(403, response.status_code)
