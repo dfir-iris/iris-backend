@@ -144,3 +144,8 @@ class TestsRestGroups(TestCase):
         body = {'group_description': 'new_description'}
         response = user.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(403, response.status_code)
+
+    def test_update_group_should_return_404_when_group_not_found(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.update(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
+        self.assertEqual(404, response.status_code)
