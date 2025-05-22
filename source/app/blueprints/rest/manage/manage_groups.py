@@ -93,6 +93,7 @@ def manage_groups_add():
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/groups/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_update(cur_id):
 
