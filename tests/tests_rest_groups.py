@@ -164,3 +164,11 @@ class TestsRestGroups(TestCase):
         identifier = response['group_id']
         response = self._subject.delete(f'/api/v2/manage/groups/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_get_group_should_return_404_after_delete_group(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        self._subject.delete(f'/api/v2/manage/groups/{identifier}')
+        response = self._subject.get(f'/api/v2/manage/groups/{identifier}')
+        self.assertEqual(404, response.status_code)
