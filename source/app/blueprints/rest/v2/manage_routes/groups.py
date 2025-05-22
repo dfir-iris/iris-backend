@@ -24,11 +24,14 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.business.groups import groups_get
 from app.business.groups import groups_update
+from app.business.groups import groups_delete
+from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 from app.models.authorization import Permissions
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -80,9 +83,13 @@ class Groups:
         except ObjectNotFoundError:
             return response_api_not_found()
 
-
     def delete(self, identifier):
-        return response_api_success(None)
+        try :
+            group = groups_get(identifier)
+            groups_delete(group)
+            return response_api_deleted()
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
 
 def create_groups_blueprint():

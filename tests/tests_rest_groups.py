@@ -158,9 +158,9 @@ class TestsRestGroups(TestCase):
         response = user.update(f'/api/v2/manage/groups/{group_identifier}', body)
         self.assertEqual(400, response.status_code)
 
-    def test_delete_group_should_return_200(self):
+    def test_delete_group_should_return_204(self):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
         response = self._subject.delete(f'/api/v2/manage/groups/{identifier}')
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(204, response.status_code)
