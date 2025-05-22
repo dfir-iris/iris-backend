@@ -172,3 +172,7 @@ class TestsRestGroups(TestCase):
         self._subject.delete(f'/api/v2/manage/groups/{identifier}')
         response = self._subject.get(f'/api/v2/manage/groups/{identifier}')
         self.assertEqual(404, response.status_code)
+
+    def test_delete_group_should_return_404_when_group_not_found(self):
+        response = self._subject.delete(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)

@@ -88,8 +88,12 @@ class Groups:
             group = groups_get(identifier)
             groups_delete(group)
             return response_api_deleted()
+        
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 def create_groups_blueprint():
