@@ -89,9 +89,6 @@ class Groups:
             groups_delete(group)
             return response_api_deleted()
 
-        except ValidationError as e:
-            return response_api_error('Data error', data=e.messages)
-
         except ObjectNotFoundError:
             return response_api_not_found()
 
