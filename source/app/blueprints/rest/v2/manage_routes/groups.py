@@ -81,6 +81,10 @@ class Groups:
             return response_api_not_found()
 
 
+    def delete(self, identifier):
+        return response_api_success(None)
+
+
 def create_groups_blueprint():
     blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
     groups = Groups()
@@ -93,5 +97,8 @@ def create_groups_blueprint():
 
     update_group = wrap_with_permission_checks(groups.update, Permissions.server_administrator)
     blueprint.add_url_rule('/<int:identifier>', view_func=update_group, methods=['PUT'])
+
+    delete_group = wrap_with_permission_checks(groups.delete, Permissions.server_administrator)
+    blueprint.add_url_rule('/<int:identifier>', view_func=delete_group, methods=['DELETE'])
 
     return blueprint
