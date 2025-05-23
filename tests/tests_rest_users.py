@@ -88,7 +88,7 @@ class TestsRestUsers(TestCase):
     def test_create_user_should_return_403_when_user_has_no_permission_to_create_user(self):
         user = self._subject.create_dummy_user()
         body = {
-            'user_name': 12345,
+            'user_name': 'new_user',
             'user_login': 'new_user_login',
             'user_email': 'new_user_email',
             'user_password': 'NEW_user_password_17_@',
