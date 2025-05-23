@@ -33,7 +33,6 @@ from app.business.groups import groups_update
 from app.business.groups import groups_delete
 from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
-from app.models.authorization import Permissions
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.access_control.utils import ac_flag_match_mask
 from app.iris_engine.access_control.utils import ac_ldp_group_update
