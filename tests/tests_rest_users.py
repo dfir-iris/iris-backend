@@ -84,3 +84,16 @@ class TestsRestUsers(TestCase):
         }
         response = self._subject.create('api/v2/manage/users', body)
         self.assertEqual(400, response.status_code)
+
+    def test_create_user_should_return_403_when_user_has_no_permission_to_create_user(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'user_name': 12345,
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = user.create('api/v2/manage/users', body)
+        self.assertEqual(403, response.status_code)
