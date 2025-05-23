@@ -44,6 +44,8 @@ class Users:
             user = self._load(request_data)
             user = user_create(user, request_data['active'])
             result = self._schema.dump(user)
+            result['user_api_key'] = user.api_key
+            del result['user_password']
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
