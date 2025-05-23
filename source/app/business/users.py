@@ -59,6 +59,6 @@ def user_create(user: User, active) -> User:
                            user_password=user.password,
                            user_active=active,
                            user_is_service_account=user.is_service_account)
-    
+
     track_activity(f"created user {user.user}", ctx_less=True)
     return user
