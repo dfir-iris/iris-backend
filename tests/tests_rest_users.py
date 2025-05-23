@@ -39,10 +39,10 @@ class TestsRestUsers(TestCase):
 
     def test_create_user_should_return_200(self):
         body = {
-            "user_name": "string",
-            "user_login": "string",
-            "user_email": "string",
-            "user_password": "string",
+            "user_name": "new_user",
+            "user_login": "new_user_login",
+            "user_email": "new_user_email",
+            "user_password": "new_user_password",
             "user_is_service_account": True
         }
         response = self._subject.create('api/v2/manage/users', body)
