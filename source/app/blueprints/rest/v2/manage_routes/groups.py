@@ -35,6 +35,7 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.access_control.utils import ac_flag_match_mask
 from app.iris_engine.access_control.utils import ac_ldp_group_update
 
+
 class Groups:
 
     def __init__(self):
