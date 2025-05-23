@@ -37,13 +37,14 @@ class TestsRestUsers(TestCase):
         response = user.get('/manage/users/list')
         self.assertEqual(403, response.status_code)
 
-    def test_create_user_should_return_200(self):
+    def test_create_user_should_return_201(self):
         body = {
             "user_name": "new_user",
             "user_login": "new_user_login",
             "user_email": "new_user_email",
-            "user_password": "new_user_password",
-            "user_is_service_account": True
+            "user_password": "NEW_user_password_17_@",
+            "user_is_service_account": True,
+            "user_isadmin": True,
         }
         response = self._subject.create('api/v2/manage/users', body)
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(201, response.status_code)

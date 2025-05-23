@@ -17,12 +17,15 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import request
+from marshmallow import ValidationError
 
-from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.access_controls import wrap_with_permission_checks
 from app.models.authorization import Permissions
 from app.schema.marshables import UserSchema
-
+from app.business.users import user_create
 
 class Users:
 
@@ -33,7 +36,16 @@ class Users:
         return self._schema.load(request_data)
 
     def create(self):
-        return response_api_success(None)
+        try:
+            request_data = request.get_json()
+            request_data['user_id'] = 0
+            request_data['active'] = request_data.get('active', True)
+            user = self._load(request_data)
+            user = user_create(user, request_data['active'])
+            result = self._schema.dump(user)
+            return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
 
 def create_users_blueprint():

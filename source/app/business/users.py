@@ -16,9 +16,11 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from app import db
+from app.models.authorization import User
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_users_db import get_active_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
+from app.datamgmt.manage.manage_users_db import create_user
 from app.iris_engine.utils.tracker import track_activity
 
 
@@ -47,4 +49,15 @@ def retrieve_user_by_username(username: str):
     if not user:
         track_activity(f'someone tried to log in with user \'{username}\', which does not exist',
                        ctx_less=True, display_in_ui=False)
+    return user
+
+
+def user_create(user: User, active) -> User:
+    user = create_user(user_name=user.name,
+                           user_login=user.user,
+                           user_email=user.email,
+                           user_password=user.password,
+                           user_active=active,
+                           user_is_service_account=user.is_service_account)
+
     return user
