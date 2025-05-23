@@ -75,6 +75,9 @@ class Groups:
             result = self._schema.dump(group)
             return response_api_success(result)
 
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
         except ObjectNotFoundError:
             return response_api_not_found()
 
