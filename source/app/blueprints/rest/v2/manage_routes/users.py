@@ -27,6 +27,7 @@ from app.models.authorization import Permissions
 from app.schema.marshables import UserSchema
 from app.business.users import user_create
 
+
 class Users:
 
     def __init__(self):
