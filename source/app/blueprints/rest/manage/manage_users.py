@@ -25,6 +25,7 @@ from flask import request
 from app import app
 from app import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_users_db import add_case_access_to_user
 from app.datamgmt.manage.manage_users_db import update_user_customers
@@ -107,6 +108,7 @@ def manage_users_filter():
 
 
 @manage_users_rest_blueprint.route('/manage/users/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/users')
 @ac_api_requires(Permissions.server_administrator)
 def add_user():
     try:
