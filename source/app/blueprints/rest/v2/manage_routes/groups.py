@@ -19,7 +19,7 @@
 from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
-
+from app import db
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
@@ -29,17 +29,19 @@ from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.business.groups import groups_get
 from app.business.groups import groups_update
-from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
-
+from app.models.authorization import Permissions
+from app.iris_engine.access_control.iris_user import iris_current_user
+from app.iris_engine.access_control.utils import ac_flag_match_mask
+from app.iris_engine.access_control.utils import ac_ldp_group_update
 
 class Groups:
 
     def __init__(self):
         self._schema = AuthorizationGroupSchema()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
     def create(self):
         try:
@@ -63,7 +65,11 @@ class Groups:
         try:
             group = groups_get(identifier)
             request_data = request.get_json()
-            updated_group = self._load(request_data)
+            request_data['group_id'] = identifier
+            if not ac_flag_match_mask(request_data['group_permissions'], Permissions.server_administrator.value) and ac_ldp_group_update(iris_current_user.id):
+                db.session.rollback()
+                return response_api_error('That might not be a good idea Dave', data='Update the group permissions will lock you out')
+            updated_group = self._load(request_data, instance=group, partial=True)
             group = groups_update(updated_group)
             result = self._schema.dump(group)
             return response_api_success(result)

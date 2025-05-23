@@ -99,7 +99,7 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
-        body = {'group_name': 'new_name', 'group_description': 'new_description'}
+        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_permissions': 1}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(200, response.status_code)
 
@@ -108,7 +108,7 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
-        body = {'group_name': new_name, 'group_description': 'new_description'}
+        body = {'group_name': new_name, 'group_description': 'new_description', 'group_permissions': 1}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
         self.assertEqual(new_name, response['group_name'])
 
@@ -116,23 +116,15 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
-        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_auto_follow' : True}
+        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_permissions': 1, 'group_auto_follow' : True}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
         self.assertEqual(True, response['group_auto_follow'])
-    
-    def test_update_group_should_return_400_when_field_group_description_is_missing(self):
-        body = {'group_name': 'name', 'group_description': 'description'}
-        response = self._subject.create('/api/v2/manage/groups', body).json()
-        identifier = response['group_id']
-        body = {'group_name': 'new_name'}
-        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
-        self.assertEqual(400, response.status_code)
 
     def test_update_group_should_return_400_when_field_group_name_is_missing(self):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
-        body = {'group_description': 'new_description'}
+        body = {'group_description': 'new_description', 'group_permissions': 1}
         response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(400, response.status_code)
 
@@ -141,11 +133,11 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description'}
         response = self._subject.create('/api/v2/manage/groups', body).json()
         identifier = response['group_id']
-        body = {'group_description': 'new_description'}
+        body = {'group_description': 'new_description', 'group_permissions': 1}
         response = user.update(f'/api/v2/manage/groups/{identifier}', body)
         self.assertEqual(403, response.status_code)
 
     def test_update_group_should_return_404_when_group_not_found(self):
-        body = {'group_name': 'name', 'group_description': 'description'}
+        body = {'group_name': 'name', 'group_description': 'description', 'group_permissions': 1}
         response = self._subject.update(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
