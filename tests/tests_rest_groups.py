@@ -21,6 +21,7 @@ from unittest import TestCase
 from iris import Iris
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 
 
 class TestsRestGroups(TestCase):
@@ -141,3 +142,18 @@ class TestsRestGroups(TestCase):
         body = {'group_name': 'name', 'group_description': 'description', 'group_permissions': 1}
         response = self._subject.update(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
+
+#    def test_update_group_when_new_user_in_group_with_permissions_admin(self):
+#        body = {
+#            'group_name': 'Customer server administrator',
+#            'group_description': 'Group with permission server administrator',
+#            'group_permissions': [_PERMISSION_SERVER_ADMINISTRATOR]
+#        }
+#        response = self._subject.create('/manage/groups/add', body).json()
+#        group_identifier = response['data']['group_id']
+#        user = self._subject.create_dummy_user()
+#        body = {'groups_membership': [group_identifier]}
+#        self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
+#        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_permissions': 0x0}
+#        response = user.update(f'/api/v2/manage/groups/{group_identifier}', body)
+#        self.assertEqual(200, response.status_code)
