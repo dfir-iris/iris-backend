@@ -21,6 +21,7 @@ from unittest import TestCase
 from iris import Iris
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 
 
 class TestsRestGroups(TestCase):
