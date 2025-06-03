@@ -19,7 +19,7 @@
 from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
-from app import db
+
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
