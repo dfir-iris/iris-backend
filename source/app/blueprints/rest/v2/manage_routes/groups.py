@@ -67,12 +67,11 @@ class Groups:
             group = groups_get(identifier)
             request_data = request.get_json()
             request_data['group_id'] = identifier
-            if not ac_flag_match_mask(request_data['group_permissions'], Permissions.server_administrator.value) and ac_ldp_group_update(iris_current_user.id):
-                db.session.rollback()
-                return response_api_error('That might not be a good idea Dave', data='Update the group permissions will lock you out')
             updated_group = self._load(request_data, instance=group, partial=True)
-            group = groups_update(updated_group)
-            result = self._schema.dump(group)
+            if not ac_flag_match_mask(request_data['group_permissions'], Permissions.server_administrator.value) and ac_ldp_group_update(iris_current_user.id):
+                return response_api_error('That might not be a good idea Dave', data='Update the group permissions will lock you out')
+            groups_update()
+            result = self._schema.dump(updated_group)
             return response_api_success(result)
 
         except ValidationError as e:

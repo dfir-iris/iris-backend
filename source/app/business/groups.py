@@ -38,6 +38,5 @@ def groups_get(identifier) -> Group:
     return group
 
 
-def groups_update(group_updated: Group) -> Group:
+def groups_update():
     update_group()
-    return group_updated
