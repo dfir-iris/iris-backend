@@ -53,12 +53,12 @@ def retrieve_user_by_username(username: str):
 
 
 def user_create(user: User, active) -> User:
-    user = create_user(user_name=user.name,
-                           user_login=user.user,
-                           user_email=user.email,
-                           user_password=user.password,
-                           user_active=active,
-                           user_is_service_account=user.is_service_account)
+    user = create_user(user.name,
+                       user.user,
+                       user.email,
+                       user.password,
+                       active,
+                       user.is_service_account)
 
     track_activity(f"created user {user.user}", ctx_less=True)
     return user
