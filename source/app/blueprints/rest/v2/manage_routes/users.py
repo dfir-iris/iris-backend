@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.schema.marshables import UserSchema
 from app.models.authorization import Permissions
@@ -33,6 +34,7 @@ users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 def _load(request_data):
     user_schema = UserSchema()
     return user_schema.load(request_data)
+
 
 @users_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
@@ -51,3 +53,9 @@ def create_users():
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
+
+
+@users_blueprint.get('/<int:identifier>')
+@ac_api_requires(Permissions.server_administrator)
+def get_users(identifier):
+    return response_api_success(None)

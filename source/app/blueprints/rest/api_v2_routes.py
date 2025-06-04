@@ -31,8 +31,6 @@ from app.blueprints.rest.v2.tasks import tasks_blueprint
 
 # Create root /api/v2 blueprint
 rest_v2_blueprint = Blueprint('rest_v2', __name__, url_prefix='/api/v2')
-rest_v2_manage_blueprint = Blueprint('rest_v2_manage', __name__, url_prefix='/api/v2/manage')
-
 
 # Register child blueprints
 rest_v2_blueprint.register_blueprint(cases_blueprint)
