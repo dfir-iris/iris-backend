@@ -20,42 +20,34 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
+from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
-from app.blueprints.access_controls import wrap_with_permission_checks
-from app.models.authorization import Permissions
 from app.schema.marshables import UserSchema
+from app.models.authorization import Permissions
 from app.business.users import user_create
 
+users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
-class Users:
 
-    def __init__(self):
-        self._schema = UserSchema()
+def _load(request_data):
+    user_schema = UserSchema()
+    return user_schema.load(request_data)
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+@users_blueprint.post('')
+@ac_api_requires(Permissions.server_administrator)
+def create_users():
 
-    def create(self):
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
             request_data['active'] = request_data.get('active', True)
-            user = self._load(request_data)
+            user = _load(request_data)
             user = user_create(user, request_data['active'])
-            result = self._schema.dump(user)
+            user_schema = UserSchema()
+            result = user_schema.dump(user)
             result['user_api_key'] = user.api_key
             del result['user_password']
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
-
-
-def create_users_blueprint():
-    blueprint = Blueprint('rest_v2_users', __name__, url_prefix='/users')
-    users = Users()
-
-    create_user = wrap_with_permission_checks(users.create, Permissions.server_administrator)
-    blueprint.add_url_rule('', view_func=create_user, methods=['POST'])
-
-    return blueprint
