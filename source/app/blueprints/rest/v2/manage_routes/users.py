@@ -75,14 +75,16 @@ def get_users(identifier):
 def put(identifier):
 
     try:
-        user = get_users(identifier)
+        user = user_get(identifier)
         user_schema = UserSchema()
         request_data = request.get_json()
         request_data['user_id'] = identifier
         _load(request_data, instance=user, partial=True)
         user_update(user, request_data['user_password'])
-
         return response_api_success(user_schema.dump(user))
 
     except ValidationError as e:
         return response_api_error('Data error', data=e.messages)
+
+    except ObjectNotFoundError:
+        return response_api_not_found()

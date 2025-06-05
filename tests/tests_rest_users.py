@@ -308,3 +308,15 @@ class TestsRestUsers(TestCase):
         }
         response = user.update(f'api/v2/manage/users/{identifier}', body)
         self.assertEqual(403, response.status_code)
+
+    def test_update_user_should_return_404_when_user_not_found(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.update(f'api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
+        self.assertEqual(404, response.status_code)
