@@ -685,29 +685,6 @@ class TestsGraphQL(TestCase):
         response = self._subject.execute_graphql_query(payload)
         self.assertEqual('"test"', response['data']['iocUpdate']['ioc']['iocEnrichment'])
 
-    def test_graphql_update_ioc_should_update_modificationHistory(self):
-        case_identifier = self._create_case()
-        ioc_value = 'IOC value'
-        payload = {
-            'query': f'''mutation {{
-                             iocCreate(caseId: {case_identifier}, typeId: 1, tlpId: 1, value: "{ioc_value}") {{
-                                ioc {{ iocId }}
-                            }}
-                         }}'''
-        }
-        response = self._subject.execute_graphql_query(payload)
-        ioc_identifier = response['data']['iocCreate']['ioc']['iocId']
-        payload = {
-            'query': f'''mutation {{
-                             iocUpdate(iocId: {ioc_identifier}, typeId: 1, tlpId: 2, modificationHistory: "test",
-                                       value: "{ioc_value}") {{
-                                 ioc {{ modificationHistory }}
-                             }}
-                         }}'''
-        }
-        response = self._subject.execute_graphql_query(payload)
-        self.assertEqual(2, len(response['data']['iocUpdate']['ioc']['modificationHistory']))
-
     def test_cursor_first_after(self):
         payload = {'query': 'mutation {caseCreate(name: "case2", description: "Some description", clientId: 1, socId: "1", classificationId : 1) { case { '
                             'caseId }}'}

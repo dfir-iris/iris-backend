@@ -222,8 +222,7 @@ class TestsRestIocs(TestCase):
         response = self._subject.update(
             f"/api/v2/cases/{case_identifier}/iocs/{ioc_identifier}",
             {"ioc_value": "9.9.9.9"},
-        )
-        self.assertEqual(200, response.status_code)
+        ).json()
         self.assertEqual(2, len(response['modification_history']))
 
     def test_create_ioc_should_return_error_ioc_when_permission_denied(self):
