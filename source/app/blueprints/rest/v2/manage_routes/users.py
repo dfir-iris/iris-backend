@@ -59,7 +59,7 @@ def create_users():
 @users_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
 def get_users(identifier):
-    
+
     try:
         user = user_get(identifier)
         return response_api_success(user)
