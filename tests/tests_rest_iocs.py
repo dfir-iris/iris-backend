@@ -40,6 +40,12 @@ class TestsRestIocs(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
         self.assertEqual(1, response['ioc_type_id'])
 
+    def test_create_ioc_should_return_correct_ioc_history(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        self.assertEqual(1, len(response['modification_history']))
+
     def test_get_ioc_should_return_ioc_type_id(self):
         ioc_type_id = 1
         case_identifier = self._subject.create_dummy_case()
@@ -206,6 +212,19 @@ class TestsRestIocs(TestCase):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/iocs/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', {'ioc_type_id': '123456789'})
         self.assertEqual(404, response.status_code)
+
+    def test_update_ioc_should_return_correct_ioc_history(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        ioc_identifier = response['ioc_id']
+        self.assertEqual(1, len(response['modification_history']))
+        response = self._subject.update(
+            f"/api/v2/cases/{case_identifier}/iocs/{ioc_identifier}",
+            {"ioc_value": "9.9.9.9"},
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(2, len(response['modification_history']))
 
     def test_create_ioc_should_return_error_ioc_when_permission_denied(self):
         user = self._subject.create_dummy_user()

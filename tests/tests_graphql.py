@@ -706,7 +706,7 @@ class TestsGraphQL(TestCase):
                          }}'''
         }
         response = self._subject.execute_graphql_query(payload)
-        self.assertEqual('"test"', response['data']['iocUpdate']['ioc']['modificationHistory'])
+        self.assertEqual(2, len(response['data']['iocUpdate']['ioc']['modificationHistory']))
 
     def test_cursor_first_after(self):
         payload = {'query': 'mutation {caseCreate(name: "case2", description: "Some description", clientId: 1, socId: "1", classificationId : 1) { case { '
