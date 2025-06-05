@@ -27,6 +27,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.schema.marshables import UserSchema
 from app.models.authorization import Permissions
 from app.business.users import user_create
+from app.business.users import user_get
 
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
@@ -58,4 +59,9 @@ def create_users():
 @users_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
 def get_users(identifier):
-    return response_api_success(None)
+    
+    try:
+        user = user_get(identifier)
+        return response_api_success(user)
+    except ValidationError as e:
+        return response_api_error('Invalid user ID', data=e.messages)

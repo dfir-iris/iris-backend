@@ -19,6 +19,7 @@ from app import db
 from app.models.authorization import User
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_users_db import get_active_user
+from app.datamgmt.manage.manage_users_db import get_user_details
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
 from app.iris_engine.utils.tracker import track_activity
@@ -55,10 +56,16 @@ def retrieve_user_by_username(username: str):
 def user_create(user: User, active) -> User:
     user = create_user(user.name,
                        user.user,
-                       user.email,
                        user.password,
+                       user.email,
                        active,
+                       None,
                        user.is_service_account)
 
     track_activity(f"created user {user.user}", ctx_less=True)
+    return user
+
+
+def user_get(identifier) -> User:
+    user = get_user_details(identifier)
     return user
