@@ -36,3 +36,64 @@ class TestsRestUsers(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get('/manage/users/list')
         self.assertEqual(403, response.status_code)
+
+    def test_create_user_should_return_201(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('api/v2/manage/users', body)
+        self.assertEqual(201, response.status_code)
+
+    def test_create_user_should_return_user_name(self):
+        user_name = 'user_test'
+        body = {
+            'user_name': user_name,
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('api/v2/manage/users', body).json()
+        self.assertEqual(user_name, response['user_name'])
+
+    def test_create_user_should_return_400_when_user_name_field_is_missing(self):
+        body = {
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('api/v2/manage/users', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_create_user_should_return_400_when_user_name_is_not_a_string(self):
+        body = {
+            'user_name': 12345,
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('api/v2/manage/users', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_create_user_should_return_403_when_user_has_no_permission_to_create_user(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = user.create('api/v2/manage/users', body)
+        self.assertEqual(403, response.status_code)
