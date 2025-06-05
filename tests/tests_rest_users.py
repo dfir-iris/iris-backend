@@ -218,3 +218,25 @@ class TestsRestUsers(TestCase):
         identifier = response['id']
         response = user.get(f'api/v2/manage/users/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_update_user_should_return_200(self):
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['id']
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.update(f'/api/v2/manage/users/{identifier}', body)
+        self.assertEqual(200, response.status_code)

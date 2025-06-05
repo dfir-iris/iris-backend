@@ -67,3 +67,8 @@ def get_users(identifier):
         return response_api_success(user)
     except ObjectNotFoundError:
             return response_api_not_found()
+
+@users_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def put(identifier):
+    return response_api_success(None)
