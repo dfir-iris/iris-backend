@@ -21,6 +21,7 @@ from unittest import TestCase
 from iris import Iris
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 
 
 class TestsRestGroups(TestCase):
@@ -94,3 +95,65 @@ class TestsRestGroups(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get(f'/api/v2/manage/groups/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_update_group_should_return_200(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_permissions': 1}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
+        self.assertEqual(200, response.status_code)
+
+    def test_update_group_should_return_field_group_name(self):
+        new_name = 'new_name'
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_name': new_name, 'group_description': 'new_description', 'group_permissions': 1}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
+        self.assertEqual(new_name, response['group_name'])
+
+    def test_update_group_should_return_field_group_auto_follow(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_permissions': 1, 'group_auto_follow' : True}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body).json()
+        self.assertEqual(True, response['group_auto_follow'])
+
+    def test_update_group_should_return_400_when_field_group_name_is_missing(self):
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_description': 'new_description', 'group_permissions': 1}
+        response = self._subject.update(f'/api/v2/manage/groups/{identifier}', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_update_group_should_return_403_when_user_has_no_permission_to_update_group(self):
+        user = self._subject.create_dummy_user()
+        body = {'group_name': 'name', 'group_description': 'description'}
+        response = self._subject.create('/api/v2/manage/groups', body).json()
+        identifier = response['group_id']
+        body = {'group_description': 'new_description', 'group_permissions': 1}
+        response = user.update(f'/api/v2/manage/groups/{identifier}', body)
+        self.assertEqual(403, response.status_code)
+
+    def test_update_group_should_return_404_when_group_not_found(self):
+        body = {'group_name': 'name', 'group_description': 'description', 'group_permissions': 1}
+        response = self._subject.update(f'/api/v2/manage/groups/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
+        self.assertEqual(404, response.status_code)
+
+    def test_update_group_should_return_400_when_new_user_in_group_with_permissions_admin(self):
+        body = {
+            'group_name': 'Customer server administrator',
+            'group_description': 'Group with permission server administrator',
+            'group_permissions': [_PERMISSION_SERVER_ADMINISTRATOR]
+        }
+        response = self._subject.create('/manage/groups/add', body).json()
+        group_identifier = response['data']['group_id']
+        user = self._subject.create_dummy_user()
+        body = {'groups_membership': [group_identifier]}
+        self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
+        body = {'group_name': 'new_name', 'group_description': 'new_description', 'group_permissions': 0x0}
+        response = user.update(f'/api/v2/manage/groups/{group_identifier}', body)
+        self.assertEqual(400, response.status_code)

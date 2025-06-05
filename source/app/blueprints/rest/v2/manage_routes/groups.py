@@ -28,8 +28,12 @@ from app.blueprints.access_controls import wrap_with_permission_checks
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.business.groups import groups_get
-from app.models.authorization import Permissions
+from app.business.groups import groups_update
 from app.business.errors import ObjectNotFoundError
+from app.models.authorization import Permissions
+from app.iris_engine.access_control.iris_user import iris_current_user
+from app.iris_engine.access_control.utils import ac_flag_match_mask
+from app.iris_engine.access_control.utils import ac_ldp_group_update
 
 
 class Groups:
@@ -37,8 +41,8 @@ class Groups:
     def __init__(self):
         self._schema = AuthorizationGroupSchema()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
     def create(self):
         try:
@@ -58,6 +62,24 @@ class Groups:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def update(self, identifier):
+        try:
+            group = groups_get(identifier)
+            request_data = request.get_json()
+            request_data['group_id'] = identifier
+            updated_group = self._load(request_data, instance=group, partial=True)
+            if not ac_flag_match_mask(request_data['group_permissions'], Permissions.server_administrator.value) and ac_ldp_group_update(iris_current_user.id):
+                return response_api_error('That might not be a good idea Dave', data='Update the group permissions will lock you out')
+            groups_update()
+            result = self._schema.dump(updated_group)
+            return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 def create_groups_blueprint():
     blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
@@ -68,5 +90,8 @@ def create_groups_blueprint():
 
     get_group = wrap_with_permission_checks(groups.get, Permissions.server_administrator)
     blueprint.add_url_rule('/<int:identifier>', view_func=get_group, methods=['GET'])
+
+    update_group = wrap_with_permission_checks(groups.update, Permissions.server_administrator)
+    blueprint.add_url_rule('/<int:identifier>', view_func=update_group, methods=['PUT'])
 
     return blueprint
