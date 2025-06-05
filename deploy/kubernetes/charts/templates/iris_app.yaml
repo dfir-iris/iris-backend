@@ -1,32 +1,12 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: iris-root-ca-cert-secret-app
-  labels:
-    app: {{ .Values.irisworker.app }}
-type: Opaque
-data:
-{{ (.Files.Glob "certificates/rootCA/irisRootCACert.pem").AsSecrets | indent 2 }}
----
-apiVersion: v1
-kind: Secret
-metadata:
   name: iris-ldap-certs-secret-app
   labels:
     app: {{ .Values.irisworker.app }}
 type: Opaque
 data:
 {{ (.Files.Glob "certificates/ldap/*").AsSecrets | indent 2 }}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: iris-certs-dir-rootca-secrets-app
-  labels:
-    app: {{ .Values.irisworker.app }}
-type: Opaque
-data:
-{{ (.Files.Glob "certificates/rootCA/*").AsSecrets | indent 2 }}
 ---
 apiVersion: v1
 kind: Secret
@@ -141,13 +121,6 @@ spec:
               name: user-templates
             - mountPath: /home/iris/server_data
               name: server-data
-            - mountPath: /etc/irisRootCACert.pem
-              name: iris-root-ca-cert
-              subPath: irisRootCACert.pem
-              readOnly: true
-            - mountPath: /home/iris/certificates/rootCA
-              name: iris-certs-dir-rootca
-              readOnly: true
             - mountPath: /home/iris/certificates/web_certificates
               name: iris-certs-dir-webcerts
               readOnly: true
@@ -161,15 +134,9 @@ spec:
           emptyDir: {}
         - name: server-data
           emptyDir: {}
-        - name: iris-root-ca-cert
-          secret:
-            secretName: iris-root-ca-cert-secret-app
         - name: iris-ldap-certs
           secret:
             secretName: iris-ldap-certs-secret-app
-        - name: iris-certs-dir-rootca
-          secret:
-            secretName: iris-certs-dir-rootca-secrets-app
         - name: iris-certs-dir-webcerts
           secret:
             secretName: iris-certs-dir-webcerts-secrets-app
