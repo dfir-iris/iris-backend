@@ -18,6 +18,7 @@
 from app import db
 from app.models.authorization import User
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_users_db import get_active_user
 from app.datamgmt.manage.manage_users_db import get_user_details
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
@@ -68,4 +69,6 @@ def user_create(user: User, active) -> User:
 
 def user_get(identifier) -> User:
     user = get_user_details(identifier)
+    if not user :
+        raise ObjectNotFoundError()
     return user

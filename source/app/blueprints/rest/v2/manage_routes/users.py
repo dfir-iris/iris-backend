@@ -24,8 +24,10 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.schema.marshables import UserSchema
 from app.models.authorization import Permissions
+from app.business.errors import ObjectNotFoundError
 from app.business.users import user_create
 from app.business.users import user_get
 
@@ -63,5 +65,5 @@ def get_users(identifier):
     try:
         user = user_get(identifier)
         return response_api_success(user)
-    except ValidationError as e:
-        return response_api_error('Invalid user ID', data=e.messages)
+    except ObjectNotFoundError:
+            return response_api_not_found()

@@ -19,6 +19,8 @@
 from unittest import TestCase
 from iris import Iris
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestUsers(TestCase):
 
@@ -152,3 +154,8 @@ class TestsRestUsers(TestCase):
         identifier = response['id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_email,  response['user_email'])
+
+
+    def test_get_user_should_return_404_when_user_not_found(self):
+        response = self._subject.get(f'api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
