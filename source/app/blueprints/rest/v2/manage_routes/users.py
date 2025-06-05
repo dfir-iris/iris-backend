@@ -30,13 +30,14 @@ from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 from app.business.users import user_create
 from app.business.users import user_get
+from app.business.users import user_update
 
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
-def _load(request_data):
+def _load(request_data, **kwargs):
     user_schema = UserSchema()
-    return user_schema.load(request_data)
+    return user_schema.load(request_data, **kwargs)
 
 
 @users_blueprint.post('')
@@ -71,4 +72,16 @@ def get_users(identifier):
 @users_blueprint.put('/<int:identifier>')
 @ac_api_requires()
 def put(identifier):
-    return response_api_success(None)
+
+    try:
+        user = get_users(identifier)
+        user_schema = UserSchema()
+        request_data = request.get_json()
+        request_data['user_id'] = identifier
+        _load(request_data, instance=user, partial=True)
+        user_update(user, request_data['user_password'])
+
+        return response_api_success(user_schema.dump(user))
+
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.messages)
