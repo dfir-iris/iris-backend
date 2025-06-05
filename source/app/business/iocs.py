@@ -33,6 +33,7 @@ from app.iris_engine.utils.tracker import track_activity
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.case.case_iocs_db import get_ioc
+from app.util import add_obj_history_entry
 
 
 def _load(request_data):
@@ -100,6 +101,7 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
             raise BusinessProcessingError('Not a valid IOC type')
 
         update_ioc_state(ioc.case_id)
+        add_obj_history_entry(ioc, 'updated ioc')
         db.session.commit()
 
         ioc_sc = call_modules_hook('on_postload_ioc_update', data=ioc_sc, caseid=ioc.case_id)
