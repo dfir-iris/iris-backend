@@ -29,6 +29,8 @@ fi
 
 printf "Running ${target} ...\n"
 
+trap 'pkill "^(celery|gunicorn)"; exit 0' TERM INT
+
 if [[ "${target}" == iris-worker ]] ; then
     if [[ -z $NUMBER_OF_CHILD ]]; then
         celery -A app.celery worker -E -B -l $LOG_LEVEL &
@@ -39,5 +41,4 @@ else
     gunicorn app:app --bind 0.0.0.0:8000 --timeout 180 --worker-connections 1000 --threads 100 -w 1 --log-level=info &
 fi
 
-while true; do sleep 2; done
-
+while :; do tail -f /dev/null & wait $!; done
