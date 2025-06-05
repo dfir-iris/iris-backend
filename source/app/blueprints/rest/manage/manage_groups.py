@@ -131,6 +131,7 @@ def manage_groups_update(cur_id):
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/groups/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_delete(cur_id):
 
