@@ -71,7 +71,7 @@ def get_users(identifier):
 
 
 @users_blueprint.put('/<int:identifier>')
-@ac_api_requires()
+@ac_api_requires(Permissions.server_administrator)
 def put(identifier):
 
     try:
