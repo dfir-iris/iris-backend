@@ -215,7 +215,7 @@ def add_task(task, assignee_id_list, user_id, caseid):
 
     db.session.add(task)
 
-    update_tasks_state(caseid=caseid)
+    update_tasks_state(caseid=caseid, userid=user_id)
     db.session.commit()
 
     update_task_status(task.task_status_id, task.id, caseid)
