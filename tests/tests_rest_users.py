@@ -75,6 +75,19 @@ class TestsRestUsers(TestCase):
         response = self._subject.create('api/v2/manage/users', body).json()
         self.assertEqual(user_email, response['user_email'])
 
+    def test_create_user_should_return_user_is_service_account(self):
+        user_is_service_account = True
+        body = {
+            'user_name': 'user_test',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': user_is_service_account,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('api/v2/manage/users', body).json()
+        self.assertEqual(user_is_service_account, response['user_is_service_account'])
+
     def test_create_user_should_return_400_when_user_name_field_is_missing(self):
         body = {
             'user_login': 'new_user_login',
