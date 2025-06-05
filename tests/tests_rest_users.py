@@ -263,3 +263,25 @@ class TestsRestUsers(TestCase):
         }
         response = self._subject.update(f'/api/v2/manage/users/{identifier}', body).json()
         self.assertEqual(user_name, response['user_name'])
+
+    def test_update_user_should_return_400_when_field_is_user_name_incorrect(self):
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['id']
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.update(f'/api/v2/manage/users/{identifier}', body)
+        self.assertEqual(400, response.status_code)
