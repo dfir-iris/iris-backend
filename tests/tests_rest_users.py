@@ -155,6 +155,21 @@ class TestsRestUsers(TestCase):
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_email, response['user_email'])
 
+    def test_get_user_should_return_user_name(self):
+        user_name = 'new_user'
+        body = {
+            'user_name': user_name,
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['id']
+        response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
+        self.assertEqual(user_name, response['user_name'])
+
     def test_get_user_should_return_404_when_user_not_found(self):
         response = self._subject.get(f'api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
