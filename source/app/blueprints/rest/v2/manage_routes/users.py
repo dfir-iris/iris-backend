@@ -39,6 +39,7 @@ def _load(request_data, **kwargs):
     user_schema = UserSchema()
     return user_schema.load(request_data, **kwargs)
 
+
 def schema_without_field(user):
     user_schema = UserSchema(exclude=('user_password',
                                           'mfa_secrets',
@@ -50,6 +51,7 @@ def schema_without_field(user):
                                           'in_dark_mode'))
     data = user_schema.dump(user)
     return data
+
 
 @users_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
