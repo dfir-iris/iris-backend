@@ -185,6 +185,38 @@ jobs:
         run: |
           docker compose down
 
+  test-database-migration:
+    name: Datbase migration tests
+    runs-on: ubuntu-22.04
+    needs:
+      - build-docker-db
+      - build-docker-nginx
+      - build-docker-app
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iriswebapp_*
+          path: ${{ runner.temp }}
+          merge-multiple: true
+      - name: Load docker images
+        run: |
+          docker load --input ${{ runner.temp }}/iriswebapp_db.tar
+          docker load --input ${{ runner.temp }}/iriswebapp_nginx.tar
+          docker load --input ${{ runner.temp }}/iriswebapp_app.tar
+      - name: Check out iris
+        uses: actions/checkout@v4
+      - name: Start development server
+        run: |
+          # Even though, we use --env-file option when running docker compose, this is still necessary, because the compose has a env_file attribute :(
+          # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env
+          cp tests/data/basic.env .env
+          docker compose --file docker-compose.dev.yml up --detach
+      - name: Run tests
+        working-directory: tests_database_migration
+        run: |
+          PYTHONUNBUFFERED=true python -m unittest --verbose
+
   test-e2e:
     name: End to end tests
     runs-on: ubuntu-22.04
