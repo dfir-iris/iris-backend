@@ -64,8 +64,25 @@ def create_users():
 def get_users(identifier):
 
     try:
-        user = user_get(identifier)
-        return response_api_success(user)
+        user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
+        user_schema = UserSchema(exclude=('user_password',
+                                          'mfa_secrets',
+                                          'mfa_setup_complete',
+                                          'webauthn_credentials',
+                                          'has_deletion_confirmation',
+                                          'has_mini_sidebar',
+                                          'user_isadmin',
+                                          'in_dark_mode'))
+        data = user_schema.dump(user)
+        data['user_groups'] = group
+        data['user_organisations'] = organisation
+        data['user_permissions'] = effective_permissions
+        data['user_customers'] = user_clients
+        data['user_primary_organisation_id'] = primary_organisation_id
+        data['user_cases_access'] = cases_access
+        if user_api_key != '':
+            data['user_api_key'] = user_api_key
+        return response_api_success(data)
     except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -75,13 +92,29 @@ def get_users(identifier):
 def put(identifier):
 
     try:
-        user = user_get(identifier)
-        user_schema = UserSchema()
+        user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
         request_data = request.get_json()
         request_data['user_id'] = identifier
-        _load(request_data, instance=user, partial=True)
-        user_update(user, request_data['user_password'])
-        return response_api_success(user_schema.dump(user))
+        user_updated = _load(request_data, instance=user, partial=True)
+        user_update(user_updated, request_data['user_password'])
+        user_schema = UserSchema(exclude=('user_password',
+                                          'mfa_secrets',
+                                          'mfa_setup_complete',
+                                          'webauthn_credentials',
+                                          'has_deletion_confirmation',
+                                          'has_mini_sidebar',
+                                          'user_isadmin',
+                                          'in_dark_mode'))
+        data = user_schema.dump(user_updated)
+        data['user_groups'] = group
+        data['user_organisations'] = organisation
+        data['user_permissions'] = effective_permissions
+        data['user_customers'] = user_clients
+        data['user_primary_organisation_id'] = primary_organisation_id
+        data['user_cases_access'] = cases_access
+        if user_api_key != '':
+            data['user_api_key'] = user_api_key
+        return response_api_success(data)
 
     except ValidationError as e:
         return response_api_error('Data error', data=e.messages)
