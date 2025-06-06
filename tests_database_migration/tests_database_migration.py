@@ -22,7 +22,6 @@ from pathlib import Path
 import gzip
 import tempfile
 import shutil
-import time
 
 from docker import Docker
 
