@@ -25,22 +25,25 @@ class Docker:
         self._docker_compose_path = docker_compose_path
         self._docker_compose_file = docker_compose_file
 
+    def _call_docker(self, command, **kwargs):
+        command = ['docker'] + command
+        subprocess.check_call(command, **kwargs)
+
     def compose_up(self, service=None):
-        command = ['docker', 'compose', '-f', self._docker_compose_file, 'up', '--detach', '--wait']
+        command = ['compose', '-f', self._docker_compose_file, 'up', '--detach', '--wait']
         if service:
             command = command + [service]
-        subprocess.check_call(command, cwd=self._docker_compose_path)
-
-    def exec(self, container, stdin, command):
-        subprocess.check_output(['docker', 'exec', '--interactive', container] + command, stdin=stdin)
+        self._call_docker(command, cwd=self._docker_compose_path)
 
     def extract_logs(self, service):
         return subprocess.check_output(['docker', 'compose', '-f', self._docker_compose_file, 'logs', '--no-color', service],
                                        cwd=self._docker_compose_path, universal_newlines=True)
 
     def compose_down(self):
-        subprocess.check_call(['docker', 'compose', '-f', self._docker_compose_file, 'down'],
-                              cwd=self._docker_compose_path)
+        self._call_docker(['compose', '-f', self._docker_compose_file, 'down'], cwd=self._docker_compose_path)
+
+    def exec(self, container, stdin, command):
+        self._call_docker(['exec', '--interactive', container] + command, stdin=stdin)
 
     def volume_rm(self, volume_name):
-        subprocess.check_call(['docker', 'volume', 'rm', volume_name])
+        self._call_docker(['volume', 'rm', volume_name])
