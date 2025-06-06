@@ -515,6 +515,7 @@ def get_user_details(user_id, include_api_key=False):
 
     return row
 
+
 def get_user_details_api_v2(user_id, include_api_key=False):
 
     user = User.query.filter(User.id == user_id).first()
@@ -534,6 +535,7 @@ def get_user_details_api_v2(user_id, include_api_key=False):
         primary_organisation_id = 0
 
     return user, get_user_groups(user_id), get_user_organisations(user_id), get_user_effective_permissions(user_id), get_user_cases_access(user_id), get_user_clients(user_id), primary_organisation_id, user_api_key
+
 
 def add_case_access_to_user(user, cases_list, access_level):
     if not user:
