@@ -37,12 +37,16 @@ class TestsDatabaseMigration(TestCase):
         self._docker.compose_down()
         self._docker.volume_rm('iris-web_db_data')
 
+    @staticmethod
+    def _extract_database_dump(name, destination_file):
+        with gzip.open(f'database_dumps/{name}.gz', 'rb') as database_dump:
+            shutil.copyfileobj(database_dump, destination_file)
+
     def _dump_database(self, name):
         with tempfile.TemporaryFile() as temporary_file:
-            with gzip.open(f'database_dumps/{name}.gz', 'rb') as database_dump:
-                shutil.copyfileobj(database_dump, temporary_file)
-                temporary_file.seek(0)
-                self._docker.exec('iriswebapp_db', temporary_file, ['psql', '-U', 'postgres', '-d', 'iris_db'])
+            self._extract_database_dump(name, temporary_file)
+            temporary_file.seek(0)
+            self._docker.exec('iriswebapp_db', temporary_file, ['psql', '-U', 'postgres', '-d', 'iris_db'])
 
     def test_update_from_v2_4_14_should_not_fail(self):
         self._docker.compose_up('db')
