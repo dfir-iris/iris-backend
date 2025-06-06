@@ -40,7 +40,7 @@ def _load(request_data, **kwargs):
     return user_schema.load(request_data, **kwargs)
 
 
-def schema_without_field(user):
+def schema_without_fields(user):
     user_schema = UserSchema(exclude=('user_password',
                                     'mfa_secrets',
                                     'mfa_setup_complete',
@@ -78,7 +78,7 @@ def get_users(identifier):
 
     try:
         user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
-        data = schema_without_field(user)
+        data = schema_without_fields(user)
         data['user_groups'] = group
         data['user_organisations'] = organisation
         data['user_permissions'] = effective_permissions
@@ -102,7 +102,7 @@ def put(identifier):
         request_data['user_id'] = identifier
         user_updated = _load(request_data, instance=user, partial=True)
         user_update(user_updated, request_data['user_password'])
-        data = schema_without_field(user)
+        data = schema_without_fields(user)
         data['user_groups'] = group
         data['user_organisations'] = organisation
         data['user_permissions'] = effective_permissions
