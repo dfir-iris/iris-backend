@@ -186,7 +186,7 @@ jobs:
           docker compose down
 
   test-database-migration:
-    name: Datbase migration tests
+    name: Database migration tests
     runs-on: ubuntu-22.04
     needs:
       - build-docker-db
