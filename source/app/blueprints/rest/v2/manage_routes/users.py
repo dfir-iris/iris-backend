@@ -42,13 +42,13 @@ def _load(request_data, **kwargs):
 
 def schema_without_field(user):
     user_schema = UserSchema(exclude=('user_password',
-                                          'mfa_secrets',
-                                          'mfa_setup_complete',
-                                          'webauthn_credentials',
-                                          'has_deletion_confirmation',
-                                          'has_mini_sidebar',
-                                          'user_isadmin',
-                                          'in_dark_mode'))
+                                    'mfa_secrets',
+                                    'mfa_setup_complete',
+                                    'webauthn_credentials',
+                                    'has_deletion_confirmation',
+                                    'has_mini_sidebar',
+                                    'user_isadmin',
+                                    'in_dark_mode'))
     data = user_schema.dump(user)
     return data
 
