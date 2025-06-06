@@ -520,9 +520,6 @@ def get_user_details_api_v2(user_id, include_api_key=False):
 
     user = User.query.filter(User.id == user_id).first()
 
-    if not user:
-        return None
-
     if include_api_key:
         user_api_key = user.api_key
     else:

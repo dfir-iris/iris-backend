@@ -69,7 +69,9 @@ def user_create(user: User, active) -> User:
 
 
 def user_get(identifier) -> User:
-    user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = get_user_details_api_v2(identifier)
+    resultat = get_user_details_api_v2(identifier)
+    if resultat is not None:
+        user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = resultat
     if not user :
         raise ObjectNotFoundError()
     return user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key
