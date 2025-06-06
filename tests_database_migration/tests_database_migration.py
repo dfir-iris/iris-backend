@@ -1,0 +1,51 @@
+#  IRIS Source Code
+#  Copyright (C) 2025 - DFIR-IRIS
+#  contact@dfir-iris.org
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 3 of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#  Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+
+from unittest import TestCase
+from pathlib import Path
+import gzip
+import tempfile
+import shutil
+import time
+
+from docker import Docker
+
+_IRIS_PATH = Path('..')
+
+
+class TestsDatabaseMigration(TestCase):
+
+    def setUp(self) -> None:
+        self._docker = Docker(_IRIS_PATH, 'docker-compose.dev.yml')
+
+    def tearDown(self):
+        self._docker.compose_down()
+        self._docker.volume_rm('iris-web_db_data')
+
+    def _dump_database(self, name):
+        with tempfile.TemporaryFile() as temporary_file:
+            with gzip.open(f'database_dumps/{name}.gz', 'rb') as database_dump:
+                shutil.copyfileobj(database_dump, temporary_file)
+                temporary_file.seek(0)
+                self._docker.exec('iriswebapp_db', temporary_file, ['psql', '-U', 'postgres', '-d', 'iris_db'])
+
+    def test_update_from_v2_4_14_should_not_fail(self):
+        self._docker.compose_up('db')
+        self._dump_database('v2.4.14_empty')
+        self._docker.compose_up()
