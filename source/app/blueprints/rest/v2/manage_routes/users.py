@@ -39,6 +39,17 @@ def _load(request_data, **kwargs):
     user_schema = UserSchema()
     return user_schema.load(request_data, **kwargs)
 
+def schema_without_field(user):
+    user_schema = UserSchema(exclude=('user_password',
+                                          'mfa_secrets',
+                                          'mfa_setup_complete',
+                                          'webauthn_credentials',
+                                          'has_deletion_confirmation',
+                                          'has_mini_sidebar',
+                                          'user_isadmin',
+                                          'in_dark_mode'))
+    data = user_schema.dump(user)
+    return data
 
 @users_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
@@ -65,15 +76,7 @@ def get_users(identifier):
 
     try:
         user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
-        user_schema = UserSchema(exclude=('user_password',
-                                          'mfa_secrets',
-                                          'mfa_setup_complete',
-                                          'webauthn_credentials',
-                                          'has_deletion_confirmation',
-                                          'has_mini_sidebar',
-                                          'user_isadmin',
-                                          'in_dark_mode'))
-        data = user_schema.dump(user)
+        data = schema_without_field(user)
         data['user_groups'] = group
         data['user_organisations'] = organisation
         data['user_permissions'] = effective_permissions
@@ -97,15 +100,7 @@ def put(identifier):
         request_data['user_id'] = identifier
         user_updated = _load(request_data, instance=user, partial=True)
         user_update(user_updated, request_data['user_password'])
-        user_schema = UserSchema(exclude=('user_password',
-                                          'mfa_secrets',
-                                          'mfa_setup_complete',
-                                          'webauthn_credentials',
-                                          'has_deletion_confirmation',
-                                          'has_mini_sidebar',
-                                          'user_isadmin',
-                                          'in_dark_mode'))
-        data = user_schema.dump(user_updated)
+        data = schema_without_field(user)
         data['user_groups'] = group
         data['user_organisations'] = organisation
         data['user_permissions'] = effective_permissions
