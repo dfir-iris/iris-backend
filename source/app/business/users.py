@@ -32,12 +32,13 @@ class UserData:
         result = get_user_details_return_user(identifier)
         if result is not None:
             self.user, self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key = result
-    
+
     def get_user(self):
         return self.user
-    
+
     def get_others(self):
         return self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key
+
 
 def users_reset_mfa(user_id: int = None):
     """
