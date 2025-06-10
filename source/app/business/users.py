@@ -34,6 +34,8 @@ class UserData:
             self.user, self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key = result
 
     def get_user(self):
+        if not self.user:
+            raise ObjectNotFoundError()
         return self.user
 
     def get_others(self):
@@ -83,9 +85,6 @@ def user_create(user: User, active) -> User:
 
 def user_get(identifier) -> User:
     data = UserData(identifier)
-    user = data.get_user()
-    if not user :
-        raise ObjectNotFoundError()
     return data
 
 
