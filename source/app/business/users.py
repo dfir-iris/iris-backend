@@ -20,10 +20,25 @@ from app.models.authorization import User
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_users_db import get_active_user
-from app.datamgmt.manage.manage_users_db import get_user_details
+from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
 from app.iris_engine.utils.tracker import track_activity
+
+
+class UserData:
+    def __init__(self, identifier):
+        result = get_user_details_return_user(identifier)
+        if result is not None:
+            self.user, self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key = result
+
+    def get_user(self):
+        if not self.user:
+            raise ObjectNotFoundError()
+        return self.user
+
+    def get_others(self):
+        return self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key
 
 
 def users_reset_mfa(user_id: int = None):
@@ -68,7 +83,5 @@ def user_create(user: User, active) -> User:
 
 
 def user_get(identifier) -> User:
-    user = get_user_details(identifier)
-    if not user :
-        raise ObjectNotFoundError()
-    return user
+    data = UserData(identifier)
+    return data

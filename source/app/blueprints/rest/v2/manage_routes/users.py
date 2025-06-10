@@ -39,6 +39,31 @@ def _load(request_data):
     return user_schema.load(request_data)
 
 
+def schema_without_fields(user):
+    user_schema = UserSchema(exclude=('user_password',
+                                    'mfa_secrets',
+                                    'mfa_setup_complete',
+                                    'webauthn_credentials',
+                                    'has_deletion_confirmation',
+                                    'has_mini_sidebar',
+                                    'user_isadmin',
+                                    'in_dark_mode'))
+    data = user_schema.dump(user)
+    return data
+
+
+def add_infos_to_data(data, user_data):
+    data['user_groups'] = user_data.group
+    data['user_organisations'] = user_data.organisation
+    data['user_permissions'] = user_data.effective_permissions
+    data['user_customers'] = user_data.user_clients
+    data['user_primary_organisation_id'] = user_data.primary_organisation_id
+    data['user_cases_access'] = user_data.cases_access
+    if user_data.user_api_key != '':
+        data['user_api_key'] = user_data.user_api_key
+    return data
+
+
 @users_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
 def create_users():
@@ -63,7 +88,9 @@ def create_users():
 def get_users(identifier):
 
     try:
-        user = user_get(identifier)
-        return response_api_success(user)
+        data = user_get(identifier)
+        data_without_fields = schema_without_fields(data.get_user())
+        new_data = add_infos_to_data(data_without_fields, data)
+        return response_api_success(new_data)
     except ObjectNotFoundError:
             return response_api_not_found()
