@@ -27,6 +27,18 @@ from app.datamgmt.manage.manage_users_db import update_user
 from app.iris_engine.utils.tracker import track_activity
 
 
+class UserData:
+    def __init__(self, identifier):
+        result = get_user_details_return_user(identifier)
+        if result is not None:
+            self.user, self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key = result
+    
+    def get_user(self):
+        return self.user
+    
+    def get_others(self):
+        return self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key
+
 def users_reset_mfa(user_id: int = None):
     """
     Resets a user MFA by setting to none its MFA token
@@ -69,12 +81,11 @@ def user_create(user: User, active) -> User:
 
 
 def user_get(identifier) -> User:
-    resultat = get_user_details_return_user(identifier)
-    if resultat is not None:
-        user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = resultat
+    data = UserData(identifier)
+    user = data.get_user()
     if not user :
         raise ObjectNotFoundError()
-    return user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key
+    return data
 
 
 def user_update(user: User, user_password: str = None) -> User:

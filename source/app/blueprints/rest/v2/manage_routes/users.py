@@ -53,15 +53,15 @@ def schema_without_fields(user):
     return data
 
 
-def add_infos_to_data(data, group, organisation, effective_permissions, user_clients, primary_organisation_id, cases_access, user_api_key):
-    data['user_groups'] = group
-    data['user_organisations'] = organisation
-    data['user_permissions'] = effective_permissions
-    data['user_customers'] = user_clients
-    data['user_primary_organisation_id'] = primary_organisation_id
-    data['user_cases_access'] = cases_access
-    if user_api_key != '':
-        data['user_api_key'] = user_api_key
+def add_infos_to_data(data, user_data):
+    data['user_groups'] = user_data.group
+    data['user_organisations'] = user_data.organisation
+    data['user_permissions'] = user_data.effective_permissions
+    data['user_customers'] = user_data.user_clients
+    data['user_primary_organisation_id'] = user_data.primary_organisation_id
+    data['user_cases_access'] = user_data.cases_access
+    if user_data.user_api_key != '':
+        data['user_api_key'] = user_data.user_api_key
     return data
 
 
@@ -89,9 +89,9 @@ def create_users():
 def get_users(identifier):
 
     try:
-        user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
-        data = schema_without_fields(user)
-        new_data = add_infos_to_data(data, group, organisation, effective_permissions, user_clients, primary_organisation_id, cases_access, user_api_key)
+        data = user_get(identifier)
+        data_without_fields = schema_without_fields(data.get_user())
+        new_data = add_infos_to_data(data_without_fields, data)
         return response_api_success(new_data)
     except ObjectNotFoundError:
             return response_api_not_found()
@@ -102,13 +102,13 @@ def get_users(identifier):
 def put(identifier):
 
     try:
-        user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
+        data = user_get(identifier)
         request_data = request.get_json()
         request_data['user_id'] = identifier
-        user_updated = _load(request_data, instance=user, partial=True)
+        user_updated = _load(request_data, instance=data.get_user(), partial=True)
         user_update(user_updated, request_data.get('user_password'))
-        data = schema_without_fields(user)
-        new_data = add_infos_to_data(data, group, organisation, effective_permissions, user_clients, primary_organisation_id, cases_access, user_api_key)
+        data_without_fields = schema_without_fields(data.get_user())
+        new_data = add_infos_to_data(data_without_fields, data)
         return response_api_success(new_data)
 
     except ValidationError as e:
