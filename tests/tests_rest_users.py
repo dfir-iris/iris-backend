@@ -260,6 +260,7 @@ class TestsRestUsers(TestCase):
             'user_password': 'User_password_17_@',
             'user_is_service_account': True,
             'user_isadmin': True,
+
         }
         response = self._subject.update(f'/api/v2/manage/users/{identifier}', body).json()
         self.assertEqual(user_name, response['user_name'])
@@ -320,3 +321,19 @@ class TestsRestUsers(TestCase):
         }
         response = self._subject.update(f'api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
+
+    def test_update_user_when_body_is_empty_should_return_200(self):
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['id']
+        user_name = 'new_user'
+        body = {}
+        response = self._subject.update(f'/api/v2/manage/users/{identifier}', body)
+        self.assertEqual(200, response.status_code)

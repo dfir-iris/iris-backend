@@ -101,7 +101,7 @@ def put(identifier):
         request_data = request.get_json()
         request_data['user_id'] = identifier
         user_updated = _load(request_data, instance=user, partial=True)
-        user_update(user_updated, request_data['user_password'])
+        user_update(user_updated, request_data.get('user_password'))
         data = schema_without_fields(user)
         data['user_groups'] = group
         data['user_organisations'] = organisation

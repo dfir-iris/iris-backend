@@ -77,7 +77,7 @@ def user_get(identifier) -> User:
     return user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key
 
 
-def user_update(user: User, user_password) -> User:
+def user_update(user: User, user_password: str = None) -> User:
     user = update_user(password=user_password, user=user)
     track_activity(f"updated user {user.user}", ctx_less=True)
     db.session.commit()
