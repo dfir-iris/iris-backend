@@ -62,7 +62,7 @@ def add_infos_to_data(data, group, organisation, effective_permissions, user_cli
     data['user_cases_access'] = cases_access
     if user_api_key != '':
         data['user_api_key'] = user_api_key
-    return data 
+    return data
 
 
 @users_blueprint.post('')
