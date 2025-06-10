@@ -333,6 +333,5 @@ class TestsRestUsers(TestCase):
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
         identifier = response['id']
-        body = {}
-        response = self._subject.update(f'/api/v2/manage/users/{identifier}', body)
+        response = self._subject.update(f'/api/v2/manage/users/{identifier}', {})
         self.assertEqual(200, response.status_code)
