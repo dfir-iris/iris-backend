@@ -516,7 +516,7 @@ def get_user_details(user_id, include_api_key=False):
     return row
 
 
-def get_user_details_api_v2(user_id, include_api_key=False):
+def get_user_details_return_user(user_id, include_api_key=False):
 
     user = User.query.filter(User.id == user_id).first()
 

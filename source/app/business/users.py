@@ -20,7 +20,7 @@ from app.models.authorization import User
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_users_db import get_active_user
-from app.datamgmt.manage.manage_users_db import get_user_details_api_v2
+from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
 from app.datamgmt.manage.manage_users_db import update_user
@@ -69,7 +69,7 @@ def user_create(user: User, active) -> User:
 
 
 def user_get(identifier) -> User:
-    resultat = get_user_details_api_v2(identifier)
+    resultat = get_user_details_return_user(identifier)
     if resultat is not None:
         user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = resultat
     if not user :
