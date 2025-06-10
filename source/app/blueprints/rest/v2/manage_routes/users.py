@@ -107,7 +107,7 @@ def put(identifier):
         request_data['user_id'] = identifier
         user_updated = _load(request_data, instance=data.get_user(), partial=True)
         user_update(user_updated, request_data.get('user_password'))
-        data_without_fields = schema_without_fields(data.get_user())
+        data_without_fields = schema_without_fields(user_updated)
         new_data = add_infos_to_data(data_without_fields, data)
         return response_api_success(new_data)
 
