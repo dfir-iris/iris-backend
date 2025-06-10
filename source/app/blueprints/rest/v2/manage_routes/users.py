@@ -53,6 +53,18 @@ def schema_without_fields(user):
     return data
 
 
+def add_infos_to_data(data, group, organisation, effective_permissions, user_clients, primary_organisation_id, cases_access, user_api_key):
+    data['user_groups'] = group
+    data['user_organisations'] = organisation
+    data['user_permissions'] = effective_permissions
+    data['user_customers'] = user_clients
+    data['user_primary_organisation_id'] = primary_organisation_id
+    data['user_cases_access'] = cases_access
+    if user_api_key != '':
+        data['user_api_key'] = user_api_key
+    return data 
+
+
 @users_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
 def create_users():
@@ -79,15 +91,8 @@ def get_users(identifier):
     try:
         user, group, organisation, effective_permissions, cases_access, user_clients, primary_organisation_id, user_api_key = user_get(identifier)
         data = schema_without_fields(user)
-        data['user_groups'] = group
-        data['user_organisations'] = organisation
-        data['user_permissions'] = effective_permissions
-        data['user_customers'] = user_clients
-        data['user_primary_organisation_id'] = primary_organisation_id
-        data['user_cases_access'] = cases_access
-        if user_api_key != '':
-            data['user_api_key'] = user_api_key
-        return response_api_success(data)
+        new_data = add_infos_to_data(data, group, organisation, effective_permissions, user_clients, primary_organisation_id, cases_access, user_api_key)
+        return response_api_success(new_data)
     except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -103,15 +108,8 @@ def put(identifier):
         user_updated = _load(request_data, instance=user, partial=True)
         user_update(user_updated, request_data.get('user_password'))
         data = schema_without_fields(user)
-        data['user_groups'] = group
-        data['user_organisations'] = organisation
-        data['user_permissions'] = effective_permissions
-        data['user_customers'] = user_clients
-        data['user_primary_organisation_id'] = primary_organisation_id
-        data['user_cases_access'] = cases_access
-        if user_api_key != '':
-            data['user_api_key'] = user_api_key
-        return response_api_success(data)
+        new_data = add_infos_to_data(data, group, organisation, effective_permissions, user_clients, primary_organisation_id, cases_access, user_api_key)
+        return response_api_success(new_data)
 
     except ValidationError as e:
         return response_api_error('Data error', data=e.messages)

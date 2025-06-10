@@ -313,8 +313,8 @@ class TestsRestUsers(TestCase):
     def test_update_user_should_return_404_when_user_not_found(self):
         body = {
             'user_name': 'new_user',
-            'user_login': 'user_login',
-            'user_email': 'user_email',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
             'user_password': 'User_password_17_@',
             'user_is_service_account': True,
             'user_isadmin': True,
