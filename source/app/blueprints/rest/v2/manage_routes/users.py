@@ -25,7 +25,7 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
-from app.schema.marshables import UserSchema
+from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 from app.business.users import user_create
@@ -37,7 +37,7 @@ users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 class Users:
 
     def __init__(self):
-        self._schema = UserSchema()
+        self._schema = UserSchemaForAPIV2()
 
     def _load(self, request_data):
         return self._schema.load(request_data)
