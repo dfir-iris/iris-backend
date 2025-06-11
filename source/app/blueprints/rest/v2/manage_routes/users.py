@@ -63,8 +63,9 @@ class Users:
     def get(self, identifier):
 
         try:
-            data = user_get(identifier)
-            return response_api_success(data)
+            user = user_get(identifier)
+            result = self._schema.dump(user)
+            return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
 
