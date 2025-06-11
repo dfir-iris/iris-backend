@@ -58,7 +58,6 @@ class Users:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
-
     @users_blueprint.get('/<int:identifier>')
     @ac_api_requires(Permissions.server_administrator)
     def get(self, identifier):
