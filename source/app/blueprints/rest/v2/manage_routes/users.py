@@ -34,48 +34,24 @@ from app.business.users import user_get
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
-def _load(request_data):
-    user_schema = UserSchema()
-    return user_schema.load(request_data)
+class Users:
 
+    def __init__(self):
+        self._schema = UserSchema()
 
-def schema_without_fields(user):
-    user_schema = UserSchema(exclude=('user_password',
-                                    'mfa_secrets',
-                                    'mfa_setup_complete',
-                                    'webauthn_credentials',
-                                    'has_deletion_confirmation',
-                                    'has_mini_sidebar',
-                                    'user_isadmin',
-                                    'in_dark_mode'))
-    data = user_schema.dump(user)
-    return data
+    def _load(self, request_data):
+        return self._schema.load(request_data)
 
-
-def add_infos_to_data(data, user_data):
-    data['user_groups'] = user_data.group
-    data['user_organisations'] = user_data.organisation
-    data['user_permissions'] = user_data.effective_permissions
-    data['user_customers'] = user_data.user_clients
-    data['user_primary_organisation_id'] = user_data.primary_organisation_id
-    data['user_cases_access'] = user_data.cases_access
-    if user_data.user_api_key != '':
-        data['user_api_key'] = user_data.user_api_key
-    return data
-
-
-@users_blueprint.post('')
-@ac_api_requires(Permissions.server_administrator)
-def create_users():
-
+    @users_blueprint.post('')
+    @ac_api_requires(Permissions.server_administrator)
+    def create(self):
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
             request_data['active'] = request_data.get('active', True)
-            user = _load(request_data)
+            user = self._load(request_data)
             user = user_create(user, request_data['active'])
-            user_schema = UserSchema()
-            result = user_schema.dump(user)
+            result = self._schema.dump(user)
             result['user_api_key'] = user.api_key
             del result['user_password']
             return response_api_created(result)
@@ -83,14 +59,28 @@ def create_users():
             return response_api_error('Data error', data=e.messages)
 
 
-@users_blueprint.get('/<int:identifier>')
-@ac_api_requires(Permissions.server_administrator)
-def get_users(identifier):
+    @users_blueprint.get('/<int:identifier>')
+    @ac_api_requires(Permissions.server_administrator)
+    def get(self, identifier):
 
-    try:
-        data = user_get(identifier)
-        data_without_fields = schema_without_fields(data.get_user())
-        new_data = add_infos_to_data(data_without_fields, data)
-        return response_api_success(new_data)
-    except ObjectNotFoundError:
+        try:
+            data = user_get(identifier)
+            return response_api_success(data)
+        except ObjectNotFoundError:
             return response_api_not_found()
+
+
+users = Users()
+users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
+
+
+@users_blueprint.post('')
+@ac_api_requires(Permissions.server_administrator)
+def create_user():
+    return users.create()
+
+
+@users_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_event(identifier):
+    return users.get(identifier)
