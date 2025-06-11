@@ -26,6 +26,7 @@ class RestApi:
 
     def __init__(self, url, api_key):
         self._url = url
+        self._api_key = api_key
         self._headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
 
     def _build_url(self, path):
@@ -72,3 +73,12 @@ class RestApi:
             return True
         except ConnectionError:
             return False
+
+    def post_multipart_encoded_file(self, path, data, file_path):
+        headers = {'Authorization': f'Bearer {self._api_key}'}
+        with open(file_path, 'rb') as file:
+            url = self._build_url(path)
+            response = requests.post(url, headers=headers, data=data, files={'file': file})
+            response_as_string = self._convert_response_to_string(response)
+            print(f'POST {url} {data} {file_path} => {response_as_string}')
+            return response

@@ -51,6 +51,9 @@ class Iris:
     def delete(self, path):
         return self._api.delete(path)
 
+    def post_multipart_encoded_file(self, path, data, file_path):
+        return self._api.post_multipart_encoded_file(path, data, file_path)
+
     def _create_user(self, user_name):
         body = {
             'user_name': user_name,
