@@ -8,6 +8,7 @@ Create Date: 2025-06-12 00:33:12.873850
 from alembic import op
 import sqlalchemy as sa
 
+from app.alembic.alembic_utils import _table_has_column
 
 # revision identifiers, used by Alembic.
 revision = 'afcff5ebcf7c'
@@ -17,8 +18,23 @@ depends_on = None
 
 
 def upgrade():
-    pass
+    if not _table_has_column(
+        "server_settings",
+        "force_confirmation_before_delete",
+    ):
+        op.add_column(
+            "server_settings",
+            sa.Column(
+                "force_confirmation_before_delete",
+                sa.Boolean,
+                default=False,
+            ),
+        )
 
 
 def downgrade():
-    pass
+    if _table_has_column(
+        "server_settings",
+        "force_confirmation_before_delete",
+    ):
+        op.drop_column("server_settings", "force_confirmation_before_delete")
