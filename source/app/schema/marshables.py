@@ -2540,15 +2540,17 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_primary_organisation_id: Optional[int] = fields.Integer(required=False)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
 
-    groups = ma.Nested(AuthorizationGroupSchema, many=True)
-    organisations = ma.Nested(AuthorizationOrganisationSchema, many=True)
-    clients = ma.Nested(CustomerSchema, many=True)
+    user_groups = ma.Nested(AuthorizationGroupSchema, many=True)
+    user_organisations = ma.Nested(AuthorizationOrganisationSchema, many=True)
+    user_customers = ma.Nested(CustomerSchema, many=True)
 
     class Meta:
         model = User
         load_instance = True
         include_fk = True
-        exclude = ['api_key', 'password', 'ctx_case', 'ctx_human_case', 'user', 'name', 'email', 'is_service_account']
+        exclude = ['api_key', 'password', 'ctx_case', 'ctx_human_case', 'user', 'name', 'email', 
+                   'is_service_account', 'has_deletion_confirmation', 'mfa_secrets',
+                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode']
         unknown = EXCLUDE
 
     @pre_load()
