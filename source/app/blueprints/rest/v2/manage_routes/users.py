@@ -65,6 +65,8 @@ class Users:
         try:
             user = user_get(identifier)
             result = self._schema.dump(user)
+            result['user_api_key'] = user.api_key
+            del result['user_password']
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
