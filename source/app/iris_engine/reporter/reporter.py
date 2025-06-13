@@ -45,6 +45,21 @@ def get_docid():
     return '{}'.format(datetime.utcnow().strftime('%y%m%d_%H%M'))
 
 
+def get_case_info(case_identifier):
+    case_info = cases_export_to_json(case_identifier)
+
+    # Get customer, user and case title
+    case_info['doc_id'] = get_docid()
+    case_info['user'] = iris_current_user.name
+
+    # Set date
+    case_info['date'] = datetime.utcnow().strftime("%Y-%m-%d")
+    customer_name = case_info['case'].get('client').get('customer_name')
+    case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
+
+    return case_info
+
+
 class IrisMakeDocReport:
     """
     Generates a DOCX report for the case
@@ -63,7 +78,7 @@ class IrisMakeDocReport:
         :return:
         """
         if doc_type == 'Investigation':
-            case_info = self._get_case_info()
+            case_info = get_case_info(self._caseid)
         elif doc_type == 'Activities':
             case_info = self._get_activity_info()
         else:
@@ -102,7 +117,7 @@ class IrisMakeDocReport:
     def _get_activity_info(self):
         auto_activities = get_auto_activities(self._caseid)
         manual_activities = get_manual_activities(self._caseid)
-        case_info_in = self._get_case_info()
+        case_info_in = get_case_info(self._caseid)
 
         # Format information and generate the activity report #
         doc_id = '{}'.format(datetime.utcnow().strftime("%y%m%d_%H%M"))
@@ -119,24 +134,6 @@ class IrisMakeDocReport:
                      },
             'doc_id': doc_id
         }
-
-        return case_info
-
-    def _get_case_info(self):
-        """
-        Retrieve information of the case
-        :return:
-        """
-        case_info = cases_export_to_json(self._caseid)
-
-        # Get customer, user and case title
-        case_info['doc_id'] = get_docid()
-        case_info['user'] = iris_current_user.name
-
-        # Set date
-        case_info['date'] = datetime.utcnow().strftime("%Y-%m-%d")
-        customer_name = case_info['case'].get('client').get('customer_name')
-        case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
 
@@ -163,7 +160,7 @@ class IrisMakeMdReport:
             _type_: case info
         """
         if doc_type == 'Investigation':
-            case_info = self._get_case_info()
+            case_info = get_case_info(self._caseid)
         elif doc_type == 'Activities':
             case_info = self._get_activity_info()
         else:
@@ -184,8 +181,6 @@ class IrisMakeMdReport:
             CaseTemplateReport.id == self._report_id).first()
 
         _, report_format = os.path.splitext(report.internal_reference)
-
-        case_info['case']['for_customer'] = f"{case_info['case'].get('client').get('customer_name')} (legacy::use client.customer_name)"
 
         # Prepare report name
         name = "{}".format(("{}" + str(report_format)).format(report.naming_format))
@@ -220,7 +215,7 @@ class IrisMakeMdReport:
     def _get_activity_info(self):
         auto_activities = get_auto_activities(self._caseid)
         manual_activities = get_manual_activities(self._caseid)
-        case_info_in = self._get_case_info()
+        case_info_in = get_case_info(self._caseid)
 
         # Format information and generate the activity report #
         doc_id = datetime.utcnow().strftime("%y%m%d_%H%M")
@@ -237,21 +232,5 @@ class IrisMakeMdReport:
                      },
             'doc_id': doc_id
         }
-
-        return case_info
-
-    def _get_case_info(self):
-        """
-        Retrieve information of the case
-        :return:
-        """
-        case_info = cases_export_to_json(self._caseid)
-
-        # Get customer, user and case title
-        case_info['doc_id'] = get_docid()
-        case_info['user'] = iris_current_user.name
-
-        # Set date
-        case_info['date'] = datetime.utcnow().strftime("%Y-%m-%d")
 
         return case_info
