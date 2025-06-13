@@ -199,7 +199,7 @@ def export_case_notes_json(case_id):
         note_comments = get_case_note_comments(note.note_id)
         serialized_note = note_schema.dump(note)
         serialized_note['comments'] = comments_schema.dump(note_comments)
-        serialized_note["note_content"] = process_md_images_links_for_report(serialized_note["note_content"])
+        serialized_note['note_content'] = process_md_images_links_for_report(serialized_note['note_content'])
 
         serialized_notes.append(serialized_note)
 

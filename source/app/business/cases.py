@@ -228,7 +228,7 @@ def cases_export_to_json(case_id):
     case = export_caseinfo_json(case_id)
 
     if not case:
-        export['errors'] = ["Invalid case number"]
+        export['errors'] = ['Invalid case number']
         return export
 
     case['description'] = process_md_images_links_for_report(case['description'])
@@ -252,7 +252,7 @@ def cases_export_to_report_json(case_id):
     case = export_caseinfo_json(case_id)
 
     if not case:
-        export['errors'] = ["Invalid case number"]
+        export['errors'] = ['Invalid case number']
         return export
 
     case['description'] = process_md_images_links_for_report(case['description'])

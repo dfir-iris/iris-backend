@@ -43,7 +43,7 @@ log.basicConfig(level=log.INFO, format=LOG_FORMAT)
 
 
 def get_docid():
-    return '{}'.format(datetime.utcnow().strftime("%y%m%d_%H%M"))
+    return '{}'.format(datetime.utcnow().strftime('%y%m%d_%H%M'))
 
 
 class IrisMakeDocReport:
