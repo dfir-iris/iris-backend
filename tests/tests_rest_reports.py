@@ -81,7 +81,6 @@ class TestsRestReports(TestCase):
                                      {'cid': case_identifier, 'safe': True})
         self.assertEqual('IrisInitialClient (legacy::use client.customer_name)', response.text)
 
-
     def test_generate_md_activities_report_should_render_variable_case_for_customer_when(self):
         data = {'report_name': 'name', 'report_type': 2, 'report_language': 1, 'report_description': 'description',
                 'report_name_format': 'report_name_format'}
