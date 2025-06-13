@@ -46,20 +46,7 @@ def get_docid():
     return '{}'.format(datetime.utcnow().strftime("%y%m%d_%H%M"))
 
 
-class IrisReportMaker(object):
-    """
-    IRIS generical report maker
-    """
-
-    def __init__(self, tmp_dir, report_id, caseid, safe_mode=False):
-        self._tmp = tmp_dir
-        self._report_id = report_id
-        self._case_info = {}
-        self._caseid = caseid
-        self.safe_mode = safe_mode
-
-
-class IrisMakeDocReport(IrisReportMaker):
+class IrisMakeDocReport:
     """
     Generates a DOCX report for the case
     """
@@ -155,7 +142,7 @@ class IrisMakeDocReport(IrisReportMaker):
         return case_info
 
 
-class IrisMakeMdReport(IrisReportMaker):
+class IrisMakeMdReport:
     """
     Generates a MD report for the case
     """
