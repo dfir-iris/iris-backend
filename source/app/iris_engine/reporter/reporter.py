@@ -25,7 +25,6 @@ from datetime import datetime
 from app.iris_engine.access_control.iris_user import iris_current_user
 from docx_generator.docx_generator import DocxGenerator
 from docx_generator.exceptions import rendering_error
-from sqlalchemy import desc
 
 from app import app
 from app.business.cases import cases_export_to_report_json
@@ -33,16 +32,8 @@ from app.business.cases import cases_export_to_json
 
 from app.datamgmt.activities.activities_db import get_auto_activities
 from app.datamgmt.activities.activities_db import get_manual_activities
-from app.datamgmt.case.case_db import case_get_desc_crc
 
-from app.models.models import AssetsType
-from app.models.models import CaseAssets
-from app.models.models import CaseEventsAssets
-from app.models.models import CaseReceivedFile
 from app.models.models import CaseTemplateReport
-from app.models.cases import CasesEvent
-from app.models.iocs import Ioc
-from app.models.models import IocAssetLink
 
 from app.iris_engine.reporter.ImageHandler import ImageHandler
 from app.iris_engine.utils.common import IrisJinjaEnv
