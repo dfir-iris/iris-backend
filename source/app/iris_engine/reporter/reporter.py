@@ -41,21 +41,44 @@ LOG_FORMAT = '%(asctime)s :: %(levelname)s :: %(module)s :: %(funcName)s :: %(me
 log.basicConfig(level=log.INFO, format=LOG_FORMAT)
 
 
-def get_docid():
+def _get_docid():
     return '{}'.format(datetime.utcnow().strftime('%y%m%d_%H%M'))
 
 
-def get_case_info(case_identifier):
+def _get_case_info(case_identifier):
     case_info = cases_export_to_json(case_identifier)
 
     # Get customer, user and case title
-    case_info['doc_id'] = get_docid()
+    case_info['doc_id'] = _get_docid()
     case_info['user'] = iris_current_user.name
 
     # Set date
     case_info['date'] = datetime.utcnow().strftime("%Y-%m-%d")
     customer_name = case_info['case'].get('client').get('customer_name')
     case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
+
+    return case_info
+
+
+def _get_activity_info(case_identifier):
+    auto_activities = get_auto_activities(case_identifier)
+    manual_activities = get_manual_activities(case_identifier)
+    case_info_in = _get_case_info(case_identifier)
+
+    doc_id = _get_docid()
+
+    case_info = {
+        'auto_activities': auto_activities,
+        'manual_activities': manual_activities,
+        'date': datetime.utcnow(),
+        'gen_user': iris_current_user.name,
+        'case': {'name': case_info_in['case'].get('name'),
+                 'open_date': case_info_in['case'].get('open_date'),
+                 'for_customer': case_info_in['case'].get('for_customer'),
+                 'client': case_info_in['case'].get('client')
+                 },
+        'doc_id': doc_id
+    }
 
     return case_info
 
@@ -78,9 +101,9 @@ class IrisMakeDocReport:
         :return:
         """
         if doc_type == 'Investigation':
-            case_info = get_case_info(self._caseid)
+            case_info = _get_case_info(self._caseid)
         elif doc_type == 'Activities':
-            case_info = self._get_activity_info()
+            case_info = _get_activity_info(self._caseid)
         else:
             log.error("Unknown report type")
             return None
@@ -114,30 +137,6 @@ class IrisMakeDocReport:
 
             return None, e.__str__()
 
-    def _get_activity_info(self):
-        auto_activities = get_auto_activities(self._caseid)
-        manual_activities = get_manual_activities(self._caseid)
-        case_info_in = get_case_info(self._caseid)
-
-        # Format information and generate the activity report #
-        doc_id = '{}'.format(datetime.utcnow().strftime("%y%m%d_%H%M"))
-
-        case_info = {
-            'auto_activities': auto_activities,
-            'manual_activities': manual_activities,
-            'date': datetime.utcnow(),
-            'gen_user': iris_current_user.name,
-            'case': {'name': case_info_in['case'].get('name'),
-                     'open_date': case_info_in['case'].get('open_date'),
-                     'for_customer': case_info_in['case'].get('for_customer'),
-                     'client': case_info_in['case'].get('client')
-                     },
-            'doc_id': doc_id
-        }
-
-        return case_info
-
-
 class IrisMakeMdReport:
     """
     Generates a MD report for the case
@@ -160,9 +159,9 @@ class IrisMakeMdReport:
             _type_: case info
         """
         if doc_type == 'Investigation':
-            case_info = get_case_info(self._caseid)
+            case_info = _get_case_info(self._caseid)
         elif doc_type == 'Activities':
-            case_info = self._get_activity_info()
+            case_info = _get_activity_info(self._caseid)
         else:
             log.error("Unknown report type")
             return None
@@ -211,26 +210,3 @@ class IrisMakeMdReport:
             return None, e.__str__()
 
         return output_file_path, 'Report generated'
-
-    def _get_activity_info(self):
-        auto_activities = get_auto_activities(self._caseid)
-        manual_activities = get_manual_activities(self._caseid)
-        case_info_in = get_case_info(self._caseid)
-
-        # Format information and generate the activity report #
-        doc_id = datetime.utcnow().strftime("%y%m%d_%H%M")
-
-        case_info = {
-            'auto_activities': auto_activities,
-            'manual_activities': manual_activities,
-            'date': datetime.utcnow(),
-            'gen_user': iris_current_user.name,
-            'case': {'name': case_info_in['case'].get('name'),
-                     'open_date': case_info_in['case'].get('open_date'),
-                     'for_customer': case_info_in['case'].get('for_customer'),
-                     'client': case_info_in['case'].get('client')
-                     },
-            'doc_id': doc_id
-        }
-
-        return case_info
