@@ -37,7 +37,7 @@ class TestsRestReports(TestCase):
         data = {'report_name': 'name', 'report_type': 1, 'report_language': 1, 'report_description': 'description',
                 'report_name_format': 'report_name_format'}
         response = self._subject.post_multipart_encoded_file('/manage/templates/add', data,
-                                                          'data/report_templates/empty_report_template.docx').json()
+                                                             'data/report_templates/empty_report_template.docx').json()
         report_identifier = response['data']['report_id']
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
