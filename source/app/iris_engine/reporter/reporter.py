@@ -51,6 +51,10 @@ LOG_FORMAT = '%(asctime)s :: %(levelname)s :: %(module)s :: %(funcName)s :: %(me
 log.basicConfig(level=log.INFO, format=LOG_FORMAT)
 
 
+def get_docid():
+    return '{}'.format(datetime.utcnow().strftime("%y%m%d_%H%M"))
+
+
 class IrisReportMaker(object):
     """
     IRIS generical report maker
@@ -62,11 +66,6 @@ class IrisReportMaker(object):
         self._case_info = {}
         self._caseid = caseid
         self.safe_mode = safe_mode
-
-    @staticmethod
-    def get_docid():
-        return '{}'.format(
-            datetime.utcnow().strftime("%y%m%d_%H%M"))
 
 
 class IrisMakeDocReport(IrisReportMaker):
@@ -154,7 +153,7 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info = cases_export_to_report_json(self._caseid)
 
         # Get customer, user and case title
-        case_info['doc_id'] = IrisMakeDocReport.get_docid()
+        case_info['doc_id'] = get_docid()
         case_info['user'] = iris_current_user.name
 
         # Set date
@@ -163,12 +162,6 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
-
-    @staticmethod
-    def get_docid():
-        return '{}'.format(
-            datetime.utcnow().strftime("%y%m%d_%H%M"))
-
 
 class IrisMakeMdReport(IrisReportMaker):
     """
@@ -277,7 +270,7 @@ class IrisMakeMdReport(IrisReportMaker):
         case_info = cases_export_to_json(self._caseid)
 
         # Get customer, user and case title
-        case_info['doc_id'] = IrisReportMaker.get_docid()
+        case_info['doc_id'] = get_docid()
         case_info['user'] = iris_current_user.name
 
         # Set date
