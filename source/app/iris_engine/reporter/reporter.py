@@ -64,17 +64,6 @@ class IrisReportMaker(object):
         self.safe_mode = safe_mode
 
     @staticmethod
-    def get_case_summary(caseid):
-        """
-        Retrieve the case summary from thehive
-        :return:
-        """
-
-        _crc32, descr = case_get_desc_crc(caseid)
-
-        return descr
-
-    @staticmethod
     def get_case_files(caseid):
         """
         Retrieve the list of files with their hashes
@@ -299,17 +288,6 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
-
-    @staticmethod
-    def get_case_summary(caseid):
-        """
-        Retrieve the case summary from thehive
-        :return:
-        """
-
-        _crc32, descr = case_get_desc_crc(caseid)
-
-        return descr
 
     @staticmethod
     def get_case_files(caseid):
