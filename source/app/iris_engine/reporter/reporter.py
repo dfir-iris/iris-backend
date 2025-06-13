@@ -137,6 +137,7 @@ class IrisMakeDocReport:
 
             return None, e.__str__()
 
+
 class IrisMakeMdReport:
     """
     Generates a MD report for the case
