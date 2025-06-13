@@ -59,3 +59,13 @@ class TestsRestReports(TestCase):
             document = Document(content)
             self.assertEqual('IrisInitialClient', document.paragraphs[0].text)
 
+    def test_generate_md_report_should_render_variable_case_name(self):
+        data = {'report_name': 'name', 'report_type': 1, 'report_language': 1, 'report_description': 'description',
+                'report_name_format': 'report_name_format'}
+        response = self._subject.post_multipart_encoded_file('/manage/templates/add', data,
+                                                          'data/report_templates/variable_case_name.md').json()
+        report_identifier = response['data']['report_id']
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
+                                     {'cid': case_identifier, 'safe': True})
+        self.assertEqual(f'#{case_identifier} - case name', response.text)
