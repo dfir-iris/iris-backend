@@ -64,51 +64,6 @@ class IrisReportMaker(object):
         self.safe_mode = safe_mode
 
     @staticmethod
-    def get_case_assets(caseid):
-        """
-        Retrieve the assets linked ot the case
-        :return:
-        """
-        ret = []
-
-        res = CaseAssets.query.distinct().with_entities(
-            CaseAssets.asset_id,
-            CaseAssets.asset_name,
-            CaseAssets.asset_description,
-            CaseAssets.asset_compromised.label('compromised'),
-            AssetsType.asset_name.label("type"),
-            CaseAssets.custom_attributes,
-            CaseAssets.asset_tags
-        ).filter(
-            CaseAssets.case_id == caseid
-        ).join(
-            CaseAssets.asset_type
-        ).order_by(desc(CaseAssets.asset_compromised)).all()
-
-        for row in res:
-            row = row._asdict()
-            row['light_asset_description'] = row['asset_description']
-
-            ial = IocAssetLink.query.with_entities(
-                Ioc.ioc_value,
-                Ioc.ioc_type,
-                Ioc.ioc_description
-            ).filter(
-                IocAssetLink.asset_id == row['asset_id']
-            ).join(
-                IocAssetLink.ioc
-            ).all()
-
-            if ial:
-                row['asset_ioc'] = [row._asdict() for row in ial]
-            else:
-                row['asset_ioc'] = []
-
-            ret.append(row)
-
-        return ret
-
-    @staticmethod
     def get_docid():
         return '{}'.format(
             datetime.utcnow().strftime("%y%m%d_%H%M"))
@@ -208,51 +163,6 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
-
-    @staticmethod
-    def get_case_assets(caseid):
-        """
-        Retrieve the assets linked ot the case
-        :return:
-        """
-        ret = []
-
-        res = CaseAssets.query.distinct().with_entities(
-            CaseAssets.asset_id,
-            CaseAssets.asset_name,
-            CaseAssets.asset_description,
-            CaseAssets.asset_compromise_status_id.label('compromise_status'),
-            AssetsType.asset_name.label("type"),
-            CaseAssets.custom_attributes,
-            CaseAssets.asset_tags
-        ).filter(
-            CaseAssets.case_id == caseid
-        ).join(
-            CaseAssets.asset_type
-        ).order_by(desc(CaseAssets.asset_compromise_status_id)).all()
-
-        for row in res:
-            row = row._asdict()
-            row['light_asset_description'] = row['asset_description']
-
-            ial = IocAssetLink.query.with_entities(
-                Ioc.ioc_value,
-                Ioc.ioc_type,
-                Ioc.ioc_description
-            ).filter(
-                IocAssetLink.asset_id == row['asset_id']
-            ).join(
-                IocAssetLink.ioc
-            ).all()
-
-            if ial:
-                row['asset_ioc'] = [row._asdict() for row in ial]
-            else:
-                row['asset_ioc'] = []
-
-            ret.append(row)
-
-        return ret
 
     @staticmethod
     def get_docid():
