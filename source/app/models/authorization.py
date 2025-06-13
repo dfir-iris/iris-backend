@@ -109,6 +109,9 @@ class Group(db.Model):
     group_auto_follow = Column(Boolean, nullable=False, default=False)
     group_auto_follow_access_level = Column(BigInteger, nullable=False, default=0)
 
+    group_users = relationship('UserGroup', back_populates='group')
+    users = relationship('User', secondary='user_group', viewonly=True)
+
     UniqueConstraint('group_name')
 
 
@@ -172,11 +175,12 @@ class UserGroup(db.Model):
     __tablename__ = "user_group"
 
     id = Column(BigInteger, primary_key=True, nullable=False)
-    user_id = Column(BigInteger, ForeignKey('user.id'), nullable=False)
-    group_id = Column(BigInteger, ForeignKey('groups.group_id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey('user.id'), nullable=False, primary_key=True)
+    group_id = Column(BigInteger, ForeignKey('groups.group_id'), nullable=False, primary_key=True)
 
-    user = relationship('User')
-    group = relationship('Group')
+    user = relationship('User', back_populates='user_groups')
+    group = relationship('Group', back_populates='group_users')
+
 
     UniqueConstraint('user_id', 'group_id')
 
@@ -222,6 +226,8 @@ class User(UserMixin, db.Model):
     user_groups = relationship('UserGroup', back_populates='user')
     user_organisations = relationship('UserOrganisation', back_populates='user')
     user_customers = relationship('UserClient', back_populates='user')
+
+    groups = relationship('Group', secondary='user_group', viewonly=True)
 
     def __init__(self, user: str, name: str, email: str, password: str, active: bool,
                  external_id: str = None, is_service_account: bool = False, mfa_secret: str = None,
