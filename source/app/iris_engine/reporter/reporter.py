@@ -204,14 +204,6 @@ class IrisReportMaker(object):
         return '{}'.format(
             datetime.utcnow().strftime("%y%m%d_%H%M"))
 
-    @staticmethod
-    def markdown_to_text(markdown_string):
-        """
-        Converts a markdown string to plaintext
-        """
-        return markdown_string.replace('\n', '</w:t></w:r><w:r/></w:p><w:p><w:r><w:t xml:space="preserve">').replace(
-            '#', '')
-
 
 class IrisMakeDocReport(IrisReportMaker):
     """
@@ -448,14 +440,6 @@ class IrisMakeDocReport(IrisReportMaker):
     def get_docid():
         return '{}'.format(
             datetime.utcnow().strftime("%y%m%d_%H%M"))
-
-    @staticmethod
-    def markdown_to_text(markdown_string):
-        """
-        Converts a markdown string to plaintext
-        """
-        return markdown_string.replace('\n', '</w:t></w:r><w:r/></w:p><w:p><w:r><w:t xml:space="preserve">').replace(
-            '#', '')
 
 
 class IrisMakeMdReport(IrisReportMaker):
