@@ -227,7 +227,7 @@ class IrisMakeMdReport:
             'gen_user': iris_current_user.name,
             'case': {'name': case_info_in['case'].get('name'),
                      'open_date': case_info_in['case'].get('open_date'),
-                     'for_customer': case_info_in['case'].get('client').get('customer_name'),
+                     'for_customer': case_info_in['case'].get('for_customer'),
                      'client': case_info_in['case'].get('client')
                      },
             'doc_id': doc_id

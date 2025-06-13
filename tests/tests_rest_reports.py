@@ -80,3 +80,15 @@ class TestsRestReports(TestCase):
         response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
                                      {'cid': case_identifier, 'safe': True})
         self.assertEqual('IrisInitialClient (legacy::use client.customer_name)', response.text)
+
+
+    def test_generate_md_activities_report_should_render_variable_case_for_customer_when(self):
+        data = {'report_name': 'name', 'report_type': 2, 'report_language': 1, 'report_description': 'description',
+                'report_name_format': 'report_name_format'}
+        response = self._subject.post_multipart_encoded_file('/manage/templates/add', data,
+                                                          'data/report_templates/variable_case_for_customer.md').json()
+        report_identifier = response['data']['report_id']
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/case/report/generate-activities/{report_identifier}',
+                                     {'cid': case_identifier, 'safe': True})
+        self.assertEqual('IrisInitialClient (legacy::use client.customer_name)', response.text)
