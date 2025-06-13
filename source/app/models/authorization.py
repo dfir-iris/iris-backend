@@ -178,7 +178,6 @@ class UserGroup(db.Model):
     user = relationship('User')
     group = relationship('Group')
 
-
     UniqueConstraint('user_id', 'group_id')
 
 
@@ -224,6 +223,7 @@ class User(UserMixin, db.Model):
     user_customers = relationship('UserClient', back_populates='user')
 
     groups = relationship('Group', secondary='user_group', viewonly=True)
+    organisations = relationship('Organisation', secondary='user_organisation', viewonly=True)
 
     def __init__(self, user: str, name: str, email: str, password: str, active: bool,
                  external_id: str = None, is_service_account: bool = False, mfa_secret: str = None,
