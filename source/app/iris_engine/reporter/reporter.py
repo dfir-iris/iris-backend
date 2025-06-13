@@ -154,6 +154,7 @@ class IrisMakeDocReport(IrisReportMaker):
 
         return case_info
 
+
 class IrisMakeMdReport(IrisReportMaker):
     """
     Generates a MD report for the case
