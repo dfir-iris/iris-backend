@@ -27,7 +27,6 @@ from docx_generator.docx_generator import DocxGenerator
 from docx_generator.exceptions import rendering_error
 
 from app import app
-from app.business.cases import cases_export_to_report_json
 from app.business.cases import cases_export_to_json
 
 from app.datamgmt.activities.activities_db import get_auto_activities
@@ -128,7 +127,7 @@ class IrisMakeDocReport:
         Retrieve information of the case
         :return:
         """
-        case_info = cases_export_to_report_json(self._caseid)
+        case_info = cases_export_to_json(self._caseid)
 
         # Get customer, user and case title
         case_info['doc_id'] = get_docid()
