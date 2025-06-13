@@ -2542,10 +2542,10 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
 
     user_groups = ma.Nested(AuthorizationGroupSchema, many=True, attribute='groups', only=['group_name', 'group_id', 'group_uuid'])
-    user_permissions = ma.Nested(AuthorizationGroupSchema, many=True, attribute='permissions',only=['group_name', 'group_permissions'])
+    user_permissions = ma.Nested(AuthorizationGroupSchema, many=True, attribute='permissions', only=['group_name', 'group_permissions'])
     user_organisations = ma.Nested(AuthorizationOrganisationSchema, many=True, attribute='organisations', only=['org_name', 'org_id', 'org_uuid'])
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
-    user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level','case_id', 'case_name'])
+    user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
     #user_primary_organisation_id = ma.Nested(AuthorizationOrganisationSchema)
 
     class Meta:
