@@ -64,28 +64,6 @@ class IrisReportMaker(object):
         self.safe_mode = safe_mode
 
     @staticmethod
-    def get_case_ioc(caseid):
-        """
-        Retrieve the list of IOC linked to the case
-        :return:
-        """
-        res = Ioc.query.distinct().with_entities(
-            Ioc.ioc_value,
-            Ioc.ioc_type,
-            Ioc.ioc_description,
-            Ioc.ioc_tags,
-            Ioc.custom_attributes
-        ).filter(
-            Ioc.case_id == caseid
-        ).order_by(Ioc.ioc_type).all()
-
-        if res:
-            return [row._asdict() for row in res]
-
-        else:
-            return []
-
-    @staticmethod
     def get_case_assets(caseid):
         """
         Retrieve the assets linked ot the case
@@ -230,28 +208,6 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
-
-    @staticmethod
-    def get_case_ioc(caseid):
-        """
-        Retrieve the list of IOC linked to the case
-        :return:
-        """
-        res = Ioc.query.distinct().with_entities(
-            Ioc.ioc_value,
-            Ioc.ioc_type,
-            Ioc.ioc_description,
-            Ioc.ioc_tags,
-            Ioc.custom_attributes
-        ).filter(
-            Ioc.case_id == caseid
-        ).order_by(Ioc.ioc_type).all()
-
-        if res:
-            return [row._asdict() for row in res]
-
-        else:
-            return []
 
     @staticmethod
     def get_case_assets(caseid):
