@@ -64,41 +64,6 @@ class IrisReportMaker(object):
         self.safe_mode = safe_mode
 
     @staticmethod
-    def get_case_timeline(caseid):
-        """
-        Retrieve the case timeline
-        :return:
-        """
-        timeline = CasesEvent.query.filter(
-            CasesEvent.case_id == caseid
-        ).order_by(
-            CasesEvent.event_date
-        ).all()
-
-        tim = []
-        for row in timeline:
-            ras = row
-            setattr(ras, 'asset', None)
-
-            as_list = CaseEventsAssets.query.with_entities(
-                CaseAssets.asset_id,
-                CaseAssets.asset_name,
-                AssetsType.asset_name.label('type')
-            ).filter(
-                CaseEventsAssets.event_id == row.event_id
-            ).join(CaseEventsAssets.asset, CaseAssets.asset_type).all()
-
-            alki = []
-            for asset in as_list:
-                alki.append(f'{asset.asset_name} ({asset.type})')
-
-            setattr(ras, 'asset', "\r\n".join(alki))
-
-            tim.append(ras)
-
-        return tim
-
-    @staticmethod
     def get_case_ioc(caseid):
         """
         Retrieve the list of IOC linked to the case
@@ -265,41 +230,6 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
-
-    @staticmethod
-    def get_case_timeline(caseid):
-        """
-        Retrieve the case timeline
-        :return:
-        """
-        timeline = CasesEvent.query.filter(
-            CasesEvent.case_id == caseid
-        ).order_by(
-            CasesEvent.event_date
-        ).all()
-
-        tim = []
-        for row in timeline:
-            ras = row
-            setattr(ras, 'asset', None)
-
-            as_list = CaseEventsAssets.query.with_entities(
-                CaseAssets.asset_id,
-                CaseAssets.asset_name,
-                AssetsType.asset_name.label('type')
-            ).filter(
-                CaseEventsAssets.event_id == row.event_id
-            ).join(CaseEventsAssets.asset, CaseAssets.asset_type).all()
-
-            alki = []
-            for asset in as_list:
-                alki.append(f'{asset.asset_name} ({asset.type})')
-
-            setattr(ras, 'asset', "\r\n".join(alki))
-
-            tim.append(ras)
-
-        return tim
 
     @staticmethod
     def get_case_ioc(caseid):
