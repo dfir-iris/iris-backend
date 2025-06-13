@@ -64,29 +64,6 @@ class IrisReportMaker(object):
         self.safe_mode = safe_mode
 
     @staticmethod
-    def get_case_files(caseid):
-        """
-        Retrieve the list of files with their hashes
-        :return:
-        """
-        files = CaseReceivedFile.query.filter(
-            CaseReceivedFile.case_id == caseid
-        ).with_entities(
-            CaseReceivedFile.filename,
-            CaseReceivedFile.date_added,
-            CaseReceivedFile.file_hash,
-            CaseReceivedFile.custom_attributes
-        ).order_by(
-            CaseReceivedFile.date_added
-        ).all()
-
-        if files:
-            return [row._asdict() for row in files]
-
-        else:
-            return []
-
-    @staticmethod
     def get_case_timeline(caseid):
         """
         Retrieve the case timeline
@@ -288,29 +265,6 @@ class IrisMakeDocReport(IrisReportMaker):
         case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
 
         return case_info
-
-    @staticmethod
-    def get_case_files(caseid):
-        """
-        Retrieve the list of files with their hashes
-        :return:
-        """
-        files = CaseReceivedFile.query.filter(
-            CaseReceivedFile.case_id == caseid
-        ).with_entities(
-            CaseReceivedFile.filename,
-            CaseReceivedFile.date_added,
-            CaseReceivedFile.file_hash,
-            CaseReceivedFile.custom_attributes
-        ).order_by(
-            CaseReceivedFile.date_added
-        ).all()
-
-        if files:
-            return [row._asdict() for row in files]
-
-        else:
-            return []
 
     @staticmethod
     def get_case_timeline(caseid):
