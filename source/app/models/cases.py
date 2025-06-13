@@ -86,6 +86,7 @@ class Cases(db.Model):
     state = relationship('CaseState', back_populates='cases')
 
     review_status = relationship('ReviewStatus')
+    cases_access = relationship('UserCaseAccess',back_populates='case')
 
     def __init__(self,
                  name=None,
