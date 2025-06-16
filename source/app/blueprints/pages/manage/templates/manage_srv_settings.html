@@ -156,6 +156,18 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <h2 class="mt-4">Prompt Confirmation Box Before Deleting Objects</h2>
+                                    <p>If set, users are required to answer a confirmation before deleting an object</p>
+                                    <div class="row mb-4">
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <label class="form-check-label">
+                                                    <input class="form-check-input" type="checkbox" id="force_confirmation_before_delete" name="force_confirmation_before_delete" {% if settings.force_confirmation_before_delete %}checked{% endif %}>
+                                                    <span class="form-check-sign">Force confirmation before deleting objects</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
                             </form>
                             <div class="float-right mt-4">
                                 <button class="btn btn-outline-primary float-right" id="save_srv_settings" type="button" onclick="update_settings()">Save changes</button>

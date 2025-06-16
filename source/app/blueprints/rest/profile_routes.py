@@ -32,6 +32,7 @@ from app.iris_engine.access_control.utils import ac_get_effective_permissions_of
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
+from app.models.models import ServerSettings
 from app.schema.marshables import UserSchema
 from app.schema.marshables import BasicUserSchema
 from app.blueprints.access_controls import ac_api_requires
@@ -184,7 +185,12 @@ def profile_whoami():
         return response_error("Invalid user ID")
 
     user_schema = BasicUserSchema()
-    return response_success(data=user_schema.dump(user))
+    data = user_schema.dump(user)
+    srv_settings = ServerSettings.query.first()
+
+    if srv_settings.force_confirmation_before_delete:
+        data["has_deletion_confirmation"] = True
+    return response_success(data=data)
 
 
 @profile_rest_blueprint.route('/user/is-admin', methods=['GET'])

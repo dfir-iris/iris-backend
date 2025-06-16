@@ -706,6 +706,7 @@ class ServerSettings(db.Model):
     password_policy_digit = Column(Boolean)
     password_policy_special_chars = Column(Text)
     enforce_mfa = Column(Boolean)
+    force_confirmation_before_delete = Column(Boolean)
 
 
 class Comments(db.Model):
