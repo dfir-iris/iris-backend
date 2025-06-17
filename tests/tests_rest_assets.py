@@ -301,7 +301,7 @@ class TestsRestAssets(TestCase):
         case_identifier = self._subject.create_dummy_case()
 
         body = {
-	        'CSVData': 'asset_name,asset_type_name,asset_description,asset_ip,asset_domain,asset_tags\n    "My computer","Mac - Computer","Computer of Mme Michu","192.168.15.5","iris.local","Compta|Mac"'
+            'CSVData': 'asset_name,asset_type_name,asset_description,asset_ip,asset_domain,asset_tags\n    "My computer","Mac - Computer","Computer of Mme Michu","192.168.15.5","iris.local","Compta|Mac"'
         }
         response = self._subject.create('/case/assets/upload', body, query_parameters={'cid': case_identifier})
         self.assertEqual(200, response.status_code)
