@@ -31,12 +31,6 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --output-format=github
-          src: ./source
-      - name: Check tests with ruff
-        uses: astral-sh/ruff-action@v3
-        with:
-          args: check --output-format=github
-          src: ./tests
 
   build-docker-db:
     name: Build docker db
@@ -184,6 +178,34 @@ jobs:
       - name: Stop development server
         run: |
           docker compose down
+
+  test-database-migration:
+    name: Database migration tests
+    runs-on: ubuntu-22.04
+    needs:
+      - build-docker-db
+      - build-docker-nginx
+      - build-docker-app
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: iriswebapp_*
+          path: ${{ runner.temp }}
+          merge-multiple: true
+      - name: Load docker images
+        run: |
+          docker load --input ${{ runner.temp }}/iriswebapp_db.tar
+          docker load --input ${{ runner.temp }}/iriswebapp_nginx.tar
+          docker load --input ${{ runner.temp }}/iriswebapp_app.tar
+      - name: Check out iris
+        uses: actions/checkout@v4
+      - name: Set up .env file
+        # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env?
+        run: cp tests/data/basic.env .env
+      - name: Run tests
+        working-directory: tests_database_migration
+        run: PYTHONUNBUFFERED=true python -m unittest --verbose
 
   test-e2e:
     name: End to end tests
