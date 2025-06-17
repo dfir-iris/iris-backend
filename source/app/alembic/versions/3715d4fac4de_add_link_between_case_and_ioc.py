@@ -337,7 +337,7 @@ def upgrade():
                         {"event_id": ev_id, "ioc_id": new_ioc_id, "case_id": link_case_id},
                     )
 
-    # op.drop_table('ioc_link')
+    op.drop_table('ioc_link')
 
     # Finally, ensure case_id is nullable or not as needed.
     op.alter_column('ioc', 'case_id', nullable=True)
