@@ -7,6 +7,7 @@ Create Date: 2025-06-12 00:33:12.873850
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import text
 
 from app.alembic.alembic_utils import _table_has_column
 
@@ -30,6 +31,7 @@ def upgrade():
                 default=False,
             ),
         )
+        op.execute(text("COMMIT"))
 
 
 def downgrade():
