@@ -57,15 +57,28 @@ def download_case_activity(report_id, caseid):
 
     tmp_dir = tempfile.mkdtemp()
 
-    call_modules_hook('on_preload_activities_report_create', data=report_id, caseid=caseid)
+    try:
+        fpath = generate_activities_report(caseid, report_id, safe_mode, tmp_dir)
 
-    report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
-    if not report:
+    except ObjectNotFoundError:
         return response_error('Unknown report', status=404)
 
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
+
+    resp = send_file(fpath, as_attachment=True)
+    file_remover.cleanup_once_done(resp, tmp_dir)
+
+    return resp
+
+
+def generate_activities_report(caseid, report_id, safe_mode, tmp_dir):
+    call_modules_hook('on_preload_activities_report_create', data=report_id, caseid=caseid)
+    report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
+    if not report:
+        raise ObjectNotFoundError()
     # Get file extension
     _, report_format = os.path.splitext(report.internal_reference)
-
     # Depending on the template format, the generation process is different
     if report_format == '.docx':
         mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
@@ -76,19 +89,13 @@ def download_case_activity(report_id, caseid):
         fpath, logs = mreport.generate_md_report('Activities')
 
     else:
-        return response_error('Report error', 'Unknown report format.')
-
+        raise BusinessProcessingError('Report error', data='Unknown report format.')
     if fpath is None:
         track_activity('failed to generate a report')
-        return response_error(msg='Failed to generate the report', data=logs)
-
+        raise BusinessProcessingError('Failed to generate the report', data=logs)
     call_modules_hook('on_postload_activities_report_create', data=report_id, caseid=caseid)
     track_activity('generated a report')
-
-    resp = send_file(fpath, as_attachment=True)
-    file_remover.cleanup_once_done(resp, tmp_dir)
-
-    return resp
+    return fpath
 
 
 @reports_rest_blueprint.route('/case/report/generate-investigation/<int:report_id>', methods=['GET'])
