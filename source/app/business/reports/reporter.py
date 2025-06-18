@@ -22,6 +22,7 @@ import logging as log
 import os
 from datetime import datetime
 
+from app.business.errors import BusinessProcessingError
 from app.iris_engine.access_control.iris_user import iris_current_user
 from docx_generator.docx_generator import DocxGenerator
 from docx_generator.exceptions import rendering_error
@@ -31,6 +32,7 @@ from app.business.cases import cases_export_to_json
 
 from app.datamgmt.activities.activities_db import get_auto_activities
 from app.datamgmt.activities.activities_db import get_manual_activities
+from app.iris_engine.utils.tracker import track_activity
 
 from app.models.models import CaseTemplateReport
 
@@ -104,8 +106,9 @@ class IrisMakeDocReport:
         elif doc_type == 'Activities':
             case_info = _get_activity_info(self._caseid)
         else:
-            log.error("Unknown report type")
-            return None
+            log.error('Unknown report type')
+            track_activity('failed to generate report')
+            raise BusinessProcessingError('Unknown report type')
 
         report = CaseTemplateReport.query.filter(CaseTemplateReport.id == self._report_id).first()
 
@@ -130,11 +133,11 @@ class IrisMakeDocReport:
                                     output_file_path
                                     )
 
-            return output_file_path, ""
+            return output_file_path
 
         except rendering_error.RenderingError as e:
-
-            return None, e.__str__()
+            track_activity('failed to generate report')
+            raise BusinessProcessingError('Failed to generate the report', e.__str__())
 
 
 class IrisMakeMdReport:
@@ -148,7 +151,7 @@ class IrisMakeMdReport:
         self._caseid = caseid
         self.safe_mode = safe_mode
 
-    def get_case_info(self, doc_type):
+    def _get_case_info(self, doc_type):
         """Returns case information
 
         Args:
@@ -158,21 +161,20 @@ class IrisMakeMdReport:
             _type_: case info
         """
         if doc_type == 'Investigation':
-            case_info = _get_case_info(self._caseid)
-        elif doc_type == 'Activities':
-            case_info = _get_activity_info(self._caseid)
-        else:
-            log.error("Unknown report type")
-            return None
-        return case_info
+            return _get_case_info(self._caseid)
+        if doc_type == 'Activities':
+            return _get_activity_info(self._caseid)
+
+        return None
 
     def generate_md_report(self, doc_type):
         """
         Generate report file
         """
-        case_info = self.get_case_info(doc_type)
+        case_info = self._get_case_info(doc_type)
         if case_info is None:
-            return None
+            track_activity('failed to generate report')
+            raise BusinessProcessingError('Unknown report type')
 
         # Get file extension
         report = CaseTemplateReport.query.filter(
@@ -206,6 +208,7 @@ class IrisMakeMdReport:
 
         except Exception as e:
             log.exception(f'Error while generating report: {e}')
-            return None, e.__str__()
+            track_activity('failed to generate report')
+            raise BusinessProcessingError('Failed to generate the report', e.__str__())
 
-        return output_file_path, 'Report generated'
+        return output_file_path

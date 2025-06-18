@@ -35,17 +35,15 @@ def generate_investigation_report(caseid, report_id, safe_mode, tmp_dir):
     _, report_format = os.path.splitext(report.internal_reference)
     if report_format in ('.md', '.html'):
         mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
-        fpath, logs = mreport.generate_md_report('Investigation')
+        fpath = mreport.generate_md_report('Investigation')
 
     elif report_format == '.docx':
         mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
-        fpath, logs = mreport.generate_doc_report('Investigation')
+        fpath = mreport.generate_doc_report('Investigation')
 
     else:
         raise BusinessProcessingError('Report error', data='Unknown report format.')
-    if fpath is None:
-        track_activity('failed to generate the report')
-        raise BusinessProcessingError('Failed to generate the report', data=logs)
+
     with open(fpath, 'rb') as rfile:
         encoded_file = base64.b64encode(rfile.read()).decode('utf-8')
     res = get_case(caseid)
@@ -71,16 +69,15 @@ def generate_activities_report(caseid, report_id, safe_mode, tmp_dir):
     # Depending on the template format, the generation process is different
     if report_format == '.docx':
         mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
-        fpath, logs = mreport.generate_doc_report('Activities')
+        fpath = mreport.generate_doc_report('Activities')
 
     elif report_format in ('.md', '.html'):
         mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
-        fpath, logs = mreport.generate_md_report('Activities')
+        fpath = mreport.generate_md_report('Activities')
 
     else:
         raise BusinessProcessingError('Report error', data='Unknown report format.')
     if fpath is None:
-        track_activity('failed to generate a report')
         raise BusinessProcessingError('Failed to generate the report', data=logs)
     call_modules_hook('on_postload_activities_report_create', data=report_id, caseid=caseid)
     track_activity('generated a report')
