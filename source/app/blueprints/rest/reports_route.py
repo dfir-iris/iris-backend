@@ -99,51 +99,53 @@ def generate_report(report_id, caseid):
     safe_mode = False
 
     call_modules_hook('on_preload_report_create', data=report_id, caseid=caseid)
-    if report_id:
-        report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
-        if report:
-            tmp_dir = tempfile.mkdtemp()
+    if not report_id:
+        return response_error('Unknown report', status=404)
 
-            if request.args.get('safe-mode') == 'true':
-                safe_mode = True
+    report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
+    if not report:
+        return response_error('Unknown report', status=404)
 
-            _, report_format = os.path.splitext(report.internal_reference)
+    tmp_dir = tempfile.mkdtemp()
 
-            if report_format in (".md", ".html"):
-                mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
-                fpath, logs = mreport.generate_md_report('Investigation')
+    if request.args.get('safe-mode') == 'true':
+        safe_mode = True
 
-            elif report_format == ".docx":
-                mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
-                fpath, logs = mreport.generate_doc_report('Investigation')
+    _, report_format = os.path.splitext(report.internal_reference)
 
-            else:
-                return response_error("Report error", "Unknown report format.")
+    if report_format in ('.md', '.html'):
+        mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
+        fpath, logs = mreport.generate_md_report('Investigation')
 
-            if fpath is None:
-                track_activity("failed to generate the report")
-                return response_error(msg="Failed to generate the report", data=logs)
+    elif report_format == '.docx':
+        mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
+        fpath, logs = mreport.generate_doc_report('Investigation')
 
-            with open(fpath, 'rb') as rfile:
-                encoded_file = base64.b64encode(rfile.read()).decode('utf-8')
+    else:
+        return response_error('Report error', 'Unknown report format.')
 
-            res = get_case(caseid)
+    if fpath is None:
+        track_activity('failed to generate the report')
+        return response_error(msg='Failed to generate the report', data=logs)
 
-            _data = {
-                'report_id': report_id,
-                'file_path': fpath,
-                'case_id': res.case_id,
-                'user_name': res.user.name,
-                'file': encoded_file
-            }
+    with open(fpath, 'rb') as rfile:
+        encoded_file = base64.b64encode(rfile.read()).decode('utf-8')
 
-            call_modules_hook('on_postload_report_create', data=_data, caseid=caseid)
+    res = get_case(caseid)
 
-            resp = send_file(fpath, as_attachment=True)
-            file_remover.cleanup_once_done(resp, tmp_dir)
+    _data = {
+        'report_id': report_id,
+        'file_path': fpath,
+        'case_id': res.case_id,
+        'user_name': res.user.name,
+        'file': encoded_file
+    }
 
-            track_activity("generated a report")
+    call_modules_hook('on_postload_report_create', data=_data, caseid=caseid)
 
-            return resp
+    resp = send_file(fpath, as_attachment=True)
+    file_remover.cleanup_once_done(resp, tmp_dir)
 
-    return response_error("Unknown report", status=404)
+    track_activity('generated a report')
+
+    return resp
