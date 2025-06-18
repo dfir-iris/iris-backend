@@ -91,7 +91,6 @@ class IrisMakeDocReport:
     def __init__(self, tmp_dir, report_id, caseid, safe_mode=False):
         self._tmp = tmp_dir
         self._report_id = report_id
-        self._case_info = {}
         self._caseid = caseid
         self._safe_mode = safe_mode
 
@@ -146,7 +145,6 @@ class IrisMakeMdReport:
     def __init__(self, tmp_dir, report_id, caseid, safe_mode=False):
         self._tmp = tmp_dir
         self._report_id = report_id
-        self._case_info = {}
         self._caseid = caseid
         self.safe_mode = safe_mode
 
