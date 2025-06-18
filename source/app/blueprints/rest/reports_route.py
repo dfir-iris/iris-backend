@@ -47,21 +47,19 @@ file_remover = FileRemover()
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def download_case_activity(report_id, caseid):
-
-    call_modules_hook('on_preload_activities_report_create', data=report_id, caseid=caseid)
     if not report_id:
         return response_error('Unknown report', status=404)
+    safe_mode = False
+    if request.args.get('safe-mode') == 'true':
+        safe_mode = True
+
+    tmp_dir = tempfile.mkdtemp()
+
+    call_modules_hook('on_preload_activities_report_create', data=report_id, caseid=caseid)
 
     report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
     if not report:
         return response_error('Unknown report', status=404)
-
-    tmp_dir = tempfile.mkdtemp()
-
-    safe_mode = False
-
-    if request.args.get('safe-mode') == 'true':
-        safe_mode = True
 
     # Get file extension
     _, report_format = os.path.splitext(report.internal_reference)
@@ -83,10 +81,10 @@ def download_case_activity(report_id, caseid):
         return response_error(msg='Failed to generate the report', data=logs)
 
     call_modules_hook('on_postload_activities_report_create', data=report_id, caseid=caseid)
+    track_activity('generated a report')
+
     resp = send_file(fpath, as_attachment=True)
     file_remover.cleanup_once_done(resp, tmp_dir)
-
-    track_activity('generated a report')
 
     return resp
 
@@ -95,21 +93,19 @@ def download_case_activity(report_id, caseid):
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def generate_report(report_id, caseid):
-
-    safe_mode = False
-
-    call_modules_hook('on_preload_report_create', data=report_id, caseid=caseid)
     if not report_id:
         return response_error('Unknown report', status=404)
+    safe_mode = False
+    if request.args.get('safe-mode') == 'true':
+        safe_mode = True
+
+    tmp_dir = tempfile.mkdtemp()
+
+    call_modules_hook('on_preload_report_create', data=report_id, caseid=caseid)
 
     report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
     if not report:
         return response_error('Unknown report', status=404)
-
-    tmp_dir = tempfile.mkdtemp()
-
-    if request.args.get('safe-mode') == 'true':
-        safe_mode = True
 
     _, report_format = os.path.splitext(report.internal_reference)
 
@@ -142,10 +138,9 @@ def generate_report(report_id, caseid):
     }
 
     call_modules_hook('on_postload_report_create', data=_data, caseid=caseid)
+    track_activity('generated a report')
 
     resp = send_file(fpath, as_attachment=True)
     file_remover.cleanup_once_done(resp, tmp_dir)
-
-    track_activity('generated a report')
 
     return resp
