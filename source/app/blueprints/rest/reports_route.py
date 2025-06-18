@@ -25,8 +25,8 @@ from flask import request
 from flask import send_file
 
 from app.iris_engine.module_handler.module_handler import call_modules_hook
-from app.iris_engine.reporter.reporter import IrisMakeDocReport
-from app.iris_engine.reporter.reporter import IrisMakeMdReport
+from app.business.reports.reporter import IrisMakeDocReport
+from app.business.reports.reporter import IrisMakeMdReport
 from app.iris_engine.utils.tracker import track_activity
 
 from app.models.models import CaseTemplateReport

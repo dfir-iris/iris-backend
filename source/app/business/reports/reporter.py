@@ -34,7 +34,7 @@ from app.datamgmt.activities.activities_db import get_manual_activities
 
 from app.models.models import CaseTemplateReport
 
-from app.iris_engine.reporter.ImageHandler import ImageHandler
+from app.business.reports.ImageHandler import ImageHandler
 from app.iris_engine.utils.common import IrisJinjaEnv
 
 LOG_FORMAT = '%(asctime)s :: %(levelname)s :: %(module)s :: %(funcName)s :: %(message)s'
