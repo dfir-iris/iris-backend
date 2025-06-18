@@ -25,8 +25,7 @@ from flask import send_file
 from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
 from app.iris_engine.module_handler.module_handler import call_modules_hook
-from app.business.reports.reporter import generate_activities_report
-from app.business.reports.reporter import generate_investigation_report
+from app.business.reports.reports import generate_investigation_report, generate_activities_report
 
 from app.models.authorization import CaseAccessLevel
 
