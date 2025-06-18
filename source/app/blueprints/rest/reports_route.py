@@ -24,6 +24,8 @@ from flask import Blueprint
 from flask import request
 from flask import send_file
 
+from app.business.errors import ObjectNotFoundError
+from app.business.errors import BusinessProcessingError
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.business.reports.reporter import IrisMakeDocReport
 from app.business.reports.reporter import IrisMakeMdReport
@@ -103,12 +105,26 @@ def generate_report(report_id, caseid):
 
     call_modules_hook('on_preload_report_create', data=report_id, caseid=caseid)
 
-    report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
-    if not report:
+    try:
+        fpath = generate_investigation_report(caseid, report_id, safe_mode, tmp_dir)
+
+    except ObjectNotFoundError:
         return response_error('Unknown report', status=404)
 
-    _, report_format = os.path.splitext(report.internal_reference)
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
+    resp = send_file(fpath, as_attachment=True)
+    file_remover.cleanup_once_done(resp, tmp_dir)
+
+    return resp
+
+
+def generate_investigation_report(caseid, report_id, safe_mode, tmp_dir):
+    report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
+    if not report:
+        raise ObjectNotFoundError()
+    _, report_format = os.path.splitext(report.internal_reference)
     if report_format in ('.md', '.html'):
         mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
         fpath, logs = mreport.generate_md_report('Investigation')
@@ -118,17 +134,13 @@ def generate_report(report_id, caseid):
         fpath, logs = mreport.generate_doc_report('Investigation')
 
     else:
-        return response_error('Report error', 'Unknown report format.')
-
+        raise BusinessProcessingError('Report error', data='Unknown report format.')
     if fpath is None:
         track_activity('failed to generate the report')
-        return response_error(msg='Failed to generate the report', data=logs)
-
+        raise BusinessProcessingError('Failed to generate the report', data=logs)
     with open(fpath, 'rb') as rfile:
         encoded_file = base64.b64encode(rfile.read()).decode('utf-8')
-
     res = get_case(caseid)
-
     _data = {
         'report_id': report_id,
         'file_path': fpath,
@@ -136,11 +148,6 @@ def generate_report(report_id, caseid):
         'user_name': res.user.name,
         'file': encoded_file
     }
-
     call_modules_hook('on_postload_report_create', data=_data, caseid=caseid)
     track_activity('generated a report')
-
-    resp = send_file(fpath, as_attachment=True)
-    file_remover.cleanup_once_done(resp, tmp_dir)
-
-    return resp
+    return fpath
