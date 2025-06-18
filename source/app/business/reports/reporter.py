@@ -85,6 +85,23 @@ def _get_activity_info(case_identifier):
     return case_info
 
 
+def _get_case_info_according_to_type(case_identifier, doc_type):
+    """Returns case information
+
+    Args:
+        doc_type (_type_): Investigation or Activities report
+
+    Returns:
+        _type_: case info
+    """
+    if doc_type == 'Investigation':
+        return _get_case_info(case_identifier)
+    if doc_type == 'Activities':
+        return _get_activity_info(case_identifier)
+
+    return None
+
+
 class IrisMakeDocReport:
     """
     Generates a DOCX report for the case
@@ -97,15 +114,8 @@ class IrisMakeDocReport:
         self._safe_mode = safe_mode
 
     def generate_doc_report(self, doc_type):
-        """
-        Actually generates the report
-        :return:
-        """
-        if doc_type == 'Investigation':
-            case_info = _get_case_info(self._caseid)
-        elif doc_type == 'Activities':
-            case_info = _get_activity_info(self._caseid)
-        else:
+        case_info = _get_case_info_according_to_type(self._caseid, doc_type)
+        if case_info is None:
             log.error('Unknown report type')
             track_activity('failed to generate report')
             raise BusinessProcessingError('Unknown report type')
@@ -151,27 +161,8 @@ class IrisMakeMdReport:
         self._caseid = caseid
         self.safe_mode = safe_mode
 
-    def _get_case_info(self, doc_type):
-        """Returns case information
-
-        Args:
-            doc_type (_type_): Investigation or Activities report
-
-        Returns:
-            _type_: case info
-        """
-        if doc_type == 'Investigation':
-            return _get_case_info(self._caseid)
-        if doc_type == 'Activities':
-            return _get_activity_info(self._caseid)
-
-        return None
-
     def generate_md_report(self, doc_type):
-        """
-        Generate report file
-        """
-        case_info = self._get_case_info(doc_type)
+        case_info = _get_case_info_according_to_type(self._caseid, doc_type)
         if case_info is None:
             track_activity('failed to generate report')
             raise BusinessProcessingError('Unknown report type')
