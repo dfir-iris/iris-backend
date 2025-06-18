@@ -75,7 +75,7 @@ class TestsRestIocs(TestCase):
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}/iocs/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
 
-    def test_get_iocs_should_not_fail(self):
+    def test_get_iocs_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/iocs')
         self.assertEqual(200, response.status_code)

@@ -13,7 +13,7 @@ from app.alembic.alembic_utils import _table_has_column
 
 # revision identifiers, used by Alembic.
 revision = 'afcff5ebcf7c'
-down_revision = 'd5a720d1b99b'
+down_revision = '3715d4fac4de'
 branch_labels = None
 depends_on = None
 

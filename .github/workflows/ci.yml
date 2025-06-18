@@ -205,7 +205,11 @@ jobs:
         run: cp tests/data/basic.env .env
       - name: Run tests
         working-directory: tests_database_migration
-        run: PYTHONUNBUFFERED=true python -m unittest --verbose
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          PYTHONUNBUFFERED=true python -m unittest --verbose
 
   test-e2e:
     name: End to end tests

@@ -23,7 +23,8 @@ import gzip
 import tempfile
 import shutil
 
-from docker import Docker
+from test_harness.docker import Docker
+from test_harness.iris import Iris
 
 _IRIS_PATH = Path('..')
 
@@ -52,3 +53,14 @@ class TestsDatabaseMigration(TestCase):
         self._docker.compose_up('db')
         self._dump_database('v2.4.14_empty')
         self._docker.compose_up()
+
+    def test_get_iocs_should_return_200_after_update_from_v2_4_22(self):
+        self._docker.compose_up('db')
+        self._dump_database('v2.4.22_empty')
+        self._docker.compose_up()
+
+        subject = Iris()
+        case_identifier = subject.create_dummy_case()
+        response = subject.get(f'/api/v2/cases/{case_identifier}/iocs')
+        self.assertEqual(200, response.status_code)
+
