@@ -77,8 +77,6 @@ def generate_activities_report(caseid, report_id, safe_mode, tmp_dir):
 
     else:
         raise BusinessProcessingError('Report error', data='Unknown report format.')
-    if fpath is None:
-        raise BusinessProcessingError('Failed to generate the report', data=logs)
     call_modules_hook('on_postload_activities_report_create', data=report_id, caseid=caseid)
     track_activity('generated a report')
     return fpath
