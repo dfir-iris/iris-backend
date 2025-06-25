@@ -39,3 +39,9 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 'directory_name'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
         self.assertEqual('directory_name', response['name'])
+
+    def test_create_note_directory_should_ignore_field_id_when_set(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name', 'id': 124}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body)
+        self.assertEqual(201, response.status_code)

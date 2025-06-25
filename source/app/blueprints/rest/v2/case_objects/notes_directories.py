@@ -42,6 +42,7 @@ class NotesDirectories:
 
     def create(self, case_identifier):
         request_data = request.get_json()
+        request_data.pop('id')
         request_data['case_id'] = case_identifier
         directory = self._load(request_data)
         notes_directory_create(directory)
