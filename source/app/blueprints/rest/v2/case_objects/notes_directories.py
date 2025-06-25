@@ -17,19 +17,42 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.schema.marshables import CaseNoteDirectorySchema
+
+from app import db
+from app.iris_engine.utils.tracker import track_activity
+
+
+def notes_directory_create(directory):
+    db.session.add(directory)
+    db.session.commit()
 
 
 class NotesDirectories:
 
+    def __init__(self):
+        self._schema = CaseNoteDirectorySchema()
+
+    def _load(self, request_data):
+        return self._schema.load(request_data)
+
     def create(self, case_identifier):
-        return response_api_created(None)
+        request_data = request.get_json()
+        request_data['case_id'] = case_identifier
+        directory = self._load(request_data)
+        notes_directory_create(directory)
+        result = self._schema.dump(directory)
+
+        track_activity(f"added directory '{directory.name}'", caseid=case_identifier)
+        return response_api_created(result)
 
 
 notes_directories = NotesDirectories()
-case_notes_directories_blueprint = Blueprint('case_notes_directoriesrest_v2', __name__, url_prefix='/<int:case_identifier>/notes-directories')
+case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', __name__, url_prefix='/<int:case_identifier>/notes-directories')
 
 
 @case_notes_directories_blueprint.post('')

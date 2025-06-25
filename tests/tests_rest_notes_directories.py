@@ -33,3 +33,9 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 'directory_name'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body)
         self.assertEqual(201, response.status_code)
+
+    def test_create_note_directory_should_set_name(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        self.assertEqual('directory_name', response['name'])
