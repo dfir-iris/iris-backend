@@ -54,7 +54,7 @@ def create_note(case_identifier):
         return ac_api_return_access_denied(caseid=case_identifier)
 
     try:
-        note = notes_create(request_json=request.get_json(), case_identifier=case_identifier)
+        note = notes_create(request.get_json(), case_identifier)
 
         schema = CaseNoteSchema()
         return response_api_created(schema.dump(note))
