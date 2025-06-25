@@ -32,6 +32,7 @@ from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.rest.v2.case_objects.assets import case_assets_blueprint
 from app.blueprints.rest.v2.case_objects.iocs import case_iocs_blueprint
 from app.blueprints.rest.v2.case_objects.notes import case_notes_blueprint
+from app.blueprints.rest.v2.case_objects.notes_directories import case_notes_directories_blueprint
 from app.blueprints.rest.v2.case_objects.tasks import case_tasks_blueprint
 from app.blueprints.rest.v2.case_objects.evidences import case_evidences_blueprint
 from app.blueprints.rest.v2.case_objects.events import case_events_blueprint
@@ -56,6 +57,7 @@ cases_blueprint = Blueprint('cases',
                             url_prefix='/cases')
 cases_blueprint.register_blueprint(case_assets_blueprint)
 cases_blueprint.register_blueprint(case_iocs_blueprint)
+cases_blueprint.register_blueprint(case_notes_directories_blueprint)
 cases_blueprint.register_blueprint(case_notes_blueprint)
 cases_blueprint.register_blueprint(case_tasks_blueprint)
 cases_blueprint.register_blueprint(case_evidences_blueprint)
