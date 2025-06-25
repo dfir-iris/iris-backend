@@ -168,6 +168,14 @@ jobs:
           # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env
           cp tests/data/basic.env .env
           docker compose --file docker-compose.dev.yml up --detach --wait
+      - name: Inspect development server start failure
+        if: ${{ failure() || cancelled() }}
+        run: |
+          docker ps --all
+          docker inspect --format "{{json .State}}" iriswebapp_db | jq
+          docker inspect --format "{{json .State}}" iriswebapp_nginx | jq
+          docker inspect --format "{{json .State}}" iriswebapp_app | jq
+          docker compose logs
       - name: Run tests
         working-directory: tests
         run: |
