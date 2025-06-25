@@ -22,14 +22,7 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.schema.marshables import CaseNoteDirectorySchema
-
-from app import db
-from app.iris_engine.utils.tracker import track_activity
-
-
-def notes_directory_create(directory):
-    db.session.add(directory)
-    db.session.commit()
+from app.business.notes_directories import notes_directory_create
 
 
 class NotesDirectories:
@@ -42,13 +35,13 @@ class NotesDirectories:
 
     def create(self, case_identifier):
         request_data = request.get_json()
-        request_data.pop('id')
+        request_data.pop('id', None)
         request_data['case_id'] = case_identifier
         directory = self._load(request_data)
+
         notes_directory_create(directory)
         result = self._schema.dump(directory)
 
-        track_activity(f"added directory '{directory.name}'", caseid=case_identifier)
         return response_api_created(result)
 
 
