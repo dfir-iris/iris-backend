@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
-from unittest import skip
 from iris import Iris
 
 from time import sleep
@@ -72,7 +71,6 @@ class TestsRestMiscellaneous(TestCase):
     #      - then it gets the Celery 'on_postload_case_create' task and merges the incoming case data with the state of database
     #        since, by then, the case has already been removed from database, on the identifier and the fields with a server_default are filled
     #        in particulier, client_id is None, and the code fails during the commit
-    @skip
     def test_delete_case_should_set_module_state_to_success(self):
         response = self._subject.get('/manage/modules/list').json()
         module_identifier = None
