@@ -1,6 +1,9 @@
 ## @section rabbitmq Configuration
 ##
 rabbitmq:
+  ## @param rabbitmq.enable Enable RabbitMQ deployment
+  ##
+  enable: true
   ## @param rabbitmq.app App name for rabbitmq
   ##
   app: rabbitmq
@@ -33,6 +36,9 @@ rabbitmq:
 ## @section PostgreSQL Configuration
 ##
 postgres:
+  ## @param postgres.enable Enable PostgreSQL deployment
+  ##
+  enable: true
   ## @param postgres.app PostgreSQL App
   ##
   app: postgres
@@ -125,6 +131,19 @@ irisapp:
   DB_RETRY_COUNT: 5
   DB_RETRY_DELAY: 5
   INTERFACE_HTTPS_PORT: 443
+  
+  ## @param irisapp.envFromSecret Environment variables from a secret
+  ##
+  envFromSecret:
+    name: postgres-secret
+    keys:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_ADMIN_USER
+      - POSTGRES_ADMIN_PASSWORD
+      - POSTGRES_PORT
+      - POSTGRES_SERVER
+
   ## @param irisapp.securityContext securityContext for irisapp
   ##
   securityContext: {}
@@ -179,6 +198,19 @@ irisworker:
   POSTGRES_SERVER: postgres.<name_space>.svc.cluster.local
   IRIS_SECRET_KEY: AVerySuperSecretKey-SoNotThisOne
   IRIS_SECURITY_PASSWORD_SALT: ARandomSalt-NotThisOneEither
+  
+  ## @param irisapp.envFromSecret Environment variables from a secret
+  ##
+  envFromSecret:
+    name: postgres-secret
+    keys:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_ADMIN_USER
+      - POSTGRES_ADMIN_PASSWORD
+      - POSTGRES_PORT
+      - POSTGRES_SERVER
+
   ## @param irisworker.securityContext securityContext for irisworker
   ##
   securityContext: {}

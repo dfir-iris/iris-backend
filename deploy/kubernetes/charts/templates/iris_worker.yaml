@@ -49,23 +49,17 @@ spec:
           - name: DOCKERIZED
             value: {{ .Values.irisworker.DOCKERIZED | quote }}
 
-          - name: POSTGRES_USER
-            value: {{ .Values.irisworker.POSTGRES_USER | quote }}
-
-          - name:  POSTGRES_PASSWORDD
-            value: {{ .Values.irisworker.POSTGRES_PASSWORD | quote }}
-
-          - name:  POSTGRES_ADMIN_USER
-            value: {{ .Values.irisworker.POSTGRES_ADMIN_USER | quote }}
-
-          - name:  POSTGRES_ADMIN_PASSWORD
-            value: {{ .Values.irisworker.POSTGRES_ADMIN_PASSWORD | quote }}    
-
-          - name:  POSTGRES_PORT
-            value: {{ .Values.irisworker.POSTGRES_PORT | quote }}   
-
-          - name:  POSTGRES_SERVER
-            value: {{ .Values.irisworker.POSTGRES_SERVER | quote }}  
+          {{- range $key := list "POSTGRES_USER" "POSTGRES_PASSWORD" "POSTGRES_ADMIN_USER" "POSTGRES_ADMIN_PASSWORD" "POSTGRES_PORT" "POSTGRES_SERVER" }}
+          - name: {{ $key }}
+            {{- if and (hasKey $.Values.irisworker "envFromSecret") (has $key $.Values.irisworker.envFromSecret.keys) }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ $.Values.irisworker.envFromSecret.name }}
+                key: {{ $key }}
+            {{- else }}
+            value: {{ index $.Values.irisworker $key | quote }}
+            {{- end }}
+          {{- end }}
 
           - name:  IRIS_SECRET_KEY
             value: {{ .Values.irisworker.IRIS_SECRET_KEY | quote }}
