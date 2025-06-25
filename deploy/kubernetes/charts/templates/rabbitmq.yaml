@@ -1,3 +1,4 @@
+{{- if .Values.rabbitmq.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,3 +40,4 @@ spec:
   selector:
     app: {{ .Values.rabbitmq.app }}
 ---
+{{- end }}

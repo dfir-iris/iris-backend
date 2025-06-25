@@ -1,3 +1,4 @@
+{{- if .Values.postgres.enabled }}
 ---    
 # Here I have used a hostpath
 # Local volumes can only be used as a statically created PersistentVolume. Dynamic provisioning is not supported.
@@ -108,3 +109,4 @@ spec:
   selector:
    app: {{ .Values.postgres.app }}
 ---  
+{{- end }}
