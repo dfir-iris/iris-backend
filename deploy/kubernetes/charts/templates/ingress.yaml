@@ -14,12 +14,24 @@ spec:
         paths:
         {{- range $path := $host.paths }}
         - path: {{ $path.path }}
-          pathType: Prefix
+          pathType: {{ default "ImplementationSpecific" $path.pathType}}
           backend:
             service:
-              name: {{ $path.serviceName }}
+              name: {{- if hasKey $path "serviceName" -}}
+                      {{- $path.serviceName | indent 1}}
+                    {{- else if hasKey $.Values.irisapp "name" -}}
+                      {{- $.Values.irisapp.name | indent 1}}
+                    {{- else -}}
+                      {{- fail "Missing 'serviceName' in ingress.hosts[].paths[] and no default in irisapp.name" }}
+                    {{- end }}
               port:
-                number: {{ $path.servicePort }}
+                number: {{- if hasKey $path "servicePort" -}}
+                          {{- printf "%v" $path.servicePort | indent 1}}
+                        {{- else if hasKey $.Values.irisapp.service "port" -}}
+                          {{- printf "%v" $.Values.irisapp.service.port | indent 1 }}
+                        {{- else -}}
+                          {{- fail "Missing 'servicePort' in ingress.hosts[].paths[] and no default in irisapp.service.port" }}
+                        {{- end }}
         {{- end }}
     {{- end }}
   {{- with .Values.ingress.tls }}
