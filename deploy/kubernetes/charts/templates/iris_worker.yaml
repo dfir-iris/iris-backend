@@ -61,6 +61,9 @@ spec:
             {{- end }}
           {{- end }}
 
+          - name: CELERY_BROKER
+            value: {{ .Values.irisworker.CELERY_BROKER | quote }}
+
           - name:  IRIS_SECRET_KEY
             value: {{ .Values.irisworker.IRIS_SECRET_KEY | quote }}
 
