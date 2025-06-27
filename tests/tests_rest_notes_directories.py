@@ -69,3 +69,11 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 'directory_name'}
         response = self._subject.create(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/notes-directories', body)
         self.assertEqual(404, response.status_code)
+
+    def test_create_note_directory_should_return_403_when_user_has_no_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        user = self._subject.create_dummy_user()
+        body = {'name': 'directory_name'}
+        response = user.create(f'/api/v2/cases/{case_identifier}/notes-directories', body)
+        self.assertEqual(403, response.status_code)

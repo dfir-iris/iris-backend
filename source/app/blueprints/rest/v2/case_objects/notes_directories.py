@@ -24,9 +24,12 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directory_create
 from app.business.cases import cases_exists
+from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.models.authorization import CaseAccessLevel
 
 
 class NotesDirectories:
@@ -40,6 +43,8 @@ class NotesDirectories:
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
 
         request_data = request.get_json()
         request_data.pop('id', None)
