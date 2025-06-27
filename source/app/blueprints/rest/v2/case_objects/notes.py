@@ -39,6 +39,28 @@ from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 
 
+class NotesCRUD:
+
+    def __init__(self):
+        self._schema = CaseNoteSchema()
+
+    def create(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            note = notes_create(request.get_json(), case_identifier)
+
+            return response_api_created(self._schema.dump(note))
+
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+
+notesOperations = NotesCRUD()
 case_notes_blueprint = Blueprint('case_notes',
                                  __name__,
                                  url_prefix='/<int:case_identifier>/notes')
@@ -47,20 +69,7 @@ case_notes_blueprint = Blueprint('case_notes',
 @case_notes_blueprint.post('')
 @ac_api_requires()
 def create_note(case_identifier):
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
-
-    try:
-        note = notes_create(request.get_json(), case_identifier)
-
-        schema = CaseNoteSchema()
-        return response_api_created(schema.dump(note))
-
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return notesOperations.create(case_identifier)
 
 
 @case_notes_blueprint.get('/<int:identifier>')
