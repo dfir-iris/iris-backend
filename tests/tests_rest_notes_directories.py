@@ -50,3 +50,9 @@ class TestsRestNotesDirectories(TestCase):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', {})
         self.assertEqual(400, response.status_code)
+
+    def test_create_note_directory_should_return_400_when_field_type_is_incorrect(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 10}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body)
+        self.assertEqual(400, response.status_code)
