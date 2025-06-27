@@ -23,8 +23,10 @@ from marshmallow import ValidationError
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directory_create
+from app.business.cases import cases_exists
 
 
 class NotesDirectories:
@@ -36,6 +38,9 @@ class NotesDirectories:
         return self._schema.load(request_data)
 
     def create(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
         request_data = request.get_json()
         request_data.pop('id', None)
         request_data['case_id'] = case_identifier
