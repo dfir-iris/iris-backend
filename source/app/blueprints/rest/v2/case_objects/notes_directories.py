@@ -18,9 +18,11 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_error
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directory_create
 
@@ -37,12 +39,16 @@ class NotesDirectories:
         request_data = request.get_json()
         request_data.pop('id', None)
         request_data['case_id'] = case_identifier
-        directory = self._load(request_data)
 
-        notes_directory_create(directory)
-        result = self._schema.dump(directory)
+        try:
+            directory = self._load(request_data)
 
-        return response_api_created(result)
+            notes_directory_create(directory)
+            result = self._schema.dump(directory)
+
+            return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
 
 
 notes_directories = NotesDirectories()
