@@ -212,6 +212,7 @@ def case_note_add(caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/notes-directories')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_directory_add(caseid):
