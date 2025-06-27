@@ -35,6 +35,10 @@ class Docker:
         subprocess.check_call(['docker', 'compose', '-f', self._docker_compose_file, 'down'],
                               cwd=self._docker_compose_path)
 
+    def extract_logs(self, service):
+        return subprocess.check_output(['docker', 'compose', '-f', self._docker_compose_file, 'logs', '--no-color', service],
+                                       cwd=self._docker_compose_path, universal_newlines=True)
+
     @staticmethod
     def exec(container, stdin, command):
         subprocess.check_call(['docker', 'exec', '--interactive', container] + command, stdin=stdin)

@@ -22,6 +22,8 @@ from pathlib import Path
 import gzip
 import tempfile
 import shutil
+from sqlalchemy import create_engine
+from sqlalchemy import inspect
 
 from test_harness.docker import Docker
 from test_harness.iris import Iris
@@ -64,3 +66,22 @@ class TestsDatabaseMigration(TestCase):
         response = subject.get(f'/api/v2/cases/{case_identifier}/iocs')
         self.assertEqual(200, response.status_code)
 
+    def test_update_from_v2_4_22_should_drop_table_ioc_links(self):
+        self._docker.compose_up('db')
+        self._dump_database('v2.4.22_empty')
+        self._docker.compose_up()
+
+        engine = create_engine('postgresql+psycopg2://postgres:__MUST_BE_CHANGED__@localhost:5432/iris_db')
+        inspection = inspect(engine)
+        logs = self._docker.extract_logs('app')
+        self.assertNotIn('ioc_link', inspection.get_table_names(), logs)
+
+    def test_update_from_v2_4_22_should_drop_table_ioc_links_when_there_is_an_ioc(self):
+        self._docker.compose_up('db')
+        self._dump_database('v2.4.22_with_ioc')
+        self._docker.compose_up()
+
+        engine = create_engine('postgresql+psycopg2://postgres:__MUST_BE_CHANGED__@localhost:5432/iris_db')
+        inspection = inspect(engine)
+        logs = self._docker.extract_logs('app')
+        self.assertNotIn('ioc_link', inspection.get_table_names(), logs)
