@@ -17,6 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
+from io import BytesIO
+from docx import Document
 
 from iris import Iris
 
@@ -43,3 +45,17 @@ class TestsRestReports(TestCase):
         response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
                                      {'cid': case_identifier, 'safe': True})
         self.assertEqual(200, response.status_code)
+
+    def test_generate_report_should_render_variable_case_for_customer(self):
+        data = {'report_name': 'name', 'report_type': 1, 'report_language': 1, 'report_description': 'description',
+                'report_name_format': 'report_name_format'}
+        response = self._subject.post_multipart_encoded_file('/manage/templates/add', data,
+                                                          'data/report_templates/variable_case_for_customer_report_template.docx').json()
+        report_identifier = response['data']['report_id']
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
+                                     {'cid': case_identifier, 'safe': True})
+        with BytesIO(response.content) as content:
+            document = Document(content)
+            self.assertEqual('IrisInitialClient', document.paragraphs[0].text)
+
