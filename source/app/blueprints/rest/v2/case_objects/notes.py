@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from marshmallow import ValidationError
 from flask import Blueprint
 from flask import request
 
@@ -37,8 +38,48 @@ from app.business.notes import notes_delete
 from app.business.cases import cases_exists
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
+class NotesCRUD:
+
+    def __init__(self):
+        self._schema = CaseNoteSchema()
+
+    def _load(self, request_data):
+        try:
+            return self._schema.load(request_data)
+        except ValidationError as e:
+            raise BusinessProcessingError('Data error', e.messages)
+
+    def create(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            request_data = call_deprecated_on_preload_modules_hook('note_create', request.get_json(),
+                                                                   case_identifier)
+
+            note_schema = CaseNoteSchema()
+            note_schema.verify_directory_id(request_data, caseid=case_identifier)
+
+            note = self._load(request_data)
+
+            note = notes_create(note, case_identifier)
+
+            return response_api_created(self._schema.dump(note))
+
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
+
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+
+notesOperations = NotesCRUD()
 case_notes_blueprint = Blueprint('case_notes',
                                  __name__,
                                  url_prefix='/<int:case_identifier>/notes')
@@ -47,20 +88,7 @@ case_notes_blueprint = Blueprint('case_notes',
 @case_notes_blueprint.post('')
 @ac_api_requires()
 def create_note(case_identifier):
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
-
-    try:
-        note = notes_create(request_json=request.get_json(), case_identifier=case_identifier)
-
-        schema = CaseNoteSchema()
-        return response_api_created(schema.dump(note))
-
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return notesOperations.create(case_identifier)
 
 
 @case_notes_blueprint.get('/<int:identifier>')

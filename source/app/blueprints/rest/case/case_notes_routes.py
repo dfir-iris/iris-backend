@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import marshmallow
+from marshmallow import ValidationError
 from datetime import datetime
 from flask import Blueprint
 from flask import request
@@ -109,7 +109,7 @@ def case_note_detail(cur_id, caseid):
 
         return response_success(data=note)
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
 
@@ -203,15 +203,24 @@ def case_note_add(caseid):
 
     try:
 
-        note = notes_create(request_json=request.get_json(), case_identifier=caseid)
+        request_data = call_modules_hook('on_preload_note_create', data=request.get_json(), caseid=caseid)
+        note_schema = CaseNoteSchema()
+        note_schema.verify_directory_id(request_data, caseid=caseid)
+
+        note = note_schema.load(request_data)
+        note = notes_create(note, caseid)
 
         return response_success(f"Note ID {note.note_id} created", data=addnote_schema.dump(note))
+
+    except ValidationError as e:
+        raise BusinessProcessingError('Data error', e.messages)
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/notes-directories')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_directory_add(caseid):
@@ -234,7 +243,7 @@ def case_directory_add(caseid):
         track_activity(f"added directory \"{new_directory.name}\"", caseid=caseid)
         return response_success('Directory added', data=directory_schema.dump(new_directory))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
 
@@ -264,7 +273,7 @@ def case_directory_update(dir_id, caseid):
         track_activity(f"modified directory \"{new_directory.name}\"", caseid=caseid)
         return response_success('Directory modified', data=directory_schema.dump(new_directory))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
     except Exception as e:
@@ -290,7 +299,7 @@ def case_directory_delete(dir_id, caseid):
 
         return response_error('Unable to delete directory')
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
 
@@ -417,7 +426,7 @@ def case_comment_note_add(cur_id, caseid):
         track_activity(f"note \"{note.note_title}\" commented", caseid=caseid)
         return response_success("Note commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
