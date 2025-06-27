@@ -34,14 +34,12 @@ spec:
                         {{- end }}
         {{- end }}
     {{- end }}
-  {{- with .Values.ingress.tls }}
+  {{- if and .Values.ingress.tls.enabled (gt (len .Values.ingress.tls.hosts) 0) }}
   tls:
-  {{- range . }}
-  - hosts:
-    {{- range .hosts }}
-    - {{ . }}
-    {{- end }}
-    secretName: {{ .secretName }}
-  {{- end }}
+    - hosts:
+      {{- range .Values.ingress.tls.hosts }}
+      - {{ . }}
+      {{- end }}
+      secretName: {{ .Values.ingress.tls.secretName }}
   {{- end }}
 {{- end }}
