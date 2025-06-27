@@ -41,6 +41,8 @@ class NotesDirectories:
         request_data['case_id'] = case_identifier
 
         try:
+            if request_data.get('parent_id') is not None:
+                self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier)
             directory = self._load(request_data)
 
             notes_directory_create(directory)
