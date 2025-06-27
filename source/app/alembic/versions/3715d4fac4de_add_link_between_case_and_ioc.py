@@ -40,6 +40,7 @@ def upgrade():
     ioc_links = conn.execute(text("SELECT ioc_id, case_id FROM ioc_link")).fetchall()
     if not ioc_links:
         # Nothing to migrate
+        op.drop_table('ioc_link')
         op.alter_column('ioc', 'case_id', nullable=True)
         return
 
