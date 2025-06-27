@@ -16,27 +16,22 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import os
 import tempfile
-import base64
 
 from flask import Blueprint
 from flask import request
 from flask import send_file
 
-from app.iris_engine.module_handler.module_handler import call_modules_hook
-from app.iris_engine.reporter.reporter import IrisMakeDocReport
-from app.iris_engine.reporter.reporter import IrisMakeMdReport
-from app.iris_engine.utils.tracker import track_activity
+from app.business.errors import ObjectNotFoundError
+from app.business.errors import BusinessProcessingError
+from app.business.reports.reports import generate_investigation_report, generate_activities_report
 
-from app.models.models import CaseTemplateReport
 from app.models.authorization import CaseAccessLevel
 
 from app.util import FileRemover
 from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
-from app.datamgmt.case.case_db import get_case
 
 reports_rest_blueprint = Blueprint('reports_rest', __name__)
 
@@ -47,101 +42,51 @@ file_remover = FileRemover()
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def download_case_activity(report_id, caseid):
+    if not report_id:
+        return response_error('Unknown report', status=404)
+    safe_mode = False
+    if request.args.get('safe-mode') == 'true':
+        safe_mode = True
 
-    call_modules_hook('on_preload_activities_report_create', data=report_id, caseid=caseid)
-    if report_id:
-        report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
-        if report:
-            tmp_dir = tempfile.mkdtemp()
+    tmp_dir = tempfile.mkdtemp()
 
-            safe_mode = False
+    try:
+        fpath = generate_activities_report(caseid, report_id, safe_mode, tmp_dir)
 
-            if request.args.get('safe-mode') == 'true':
-                safe_mode = True
+    except ObjectNotFoundError:
+        return response_error('Unknown report', status=404)
 
-            # Get file extension
-            _, report_format = os.path.splitext(report.internal_reference)
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
-            # Depending on the template format, the generation process is different
-            if report_format == ".docx":
-                mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
-                fpath, logs = mreport.generate_doc_report(doc_type="Activities")
+    resp = send_file(fpath, as_attachment=True)
+    file_remover.cleanup_once_done(resp, tmp_dir)
 
-            elif report_format in (".md", ".html"):
-                mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
-                fpath, logs = mreport.generate_md_report(doc_type="Activities")
-
-            else:
-                return response_error("Report error", "Unknown report format.")
-
-            if fpath is None:
-                track_activity("failed to generate a report")
-                return response_error(msg="Failed to generate the report", data=logs)
-
-            call_modules_hook('on_postload_activities_report_create', data=report_id, caseid=caseid)
-            resp = send_file(fpath, as_attachment=True)
-            file_remover.cleanup_once_done(resp, tmp_dir)
-
-            track_activity("generated a report")
-
-            return resp
-
-    return response_error("Unknown report", status=404)
+    return resp
 
 
 @reports_rest_blueprint.route('/case/report/generate-investigation/<int:report_id>', methods=['GET'])
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def generate_report(report_id, caseid):
-
+    if not report_id:
+        return response_error('Unknown report', status=404)
     safe_mode = False
+    if request.args.get('safe-mode') == 'true':
+        safe_mode = True
 
-    call_modules_hook('on_preload_report_create', data=report_id, caseid=caseid)
-    if report_id:
-        report = CaseTemplateReport.query.filter(CaseTemplateReport.id == report_id).first()
-        if report:
-            tmp_dir = tempfile.mkdtemp()
+    tmp_dir = tempfile.mkdtemp()
 
-            if request.args.get('safe-mode') == 'true':
-                safe_mode = True
+    try:
+        fpath = generate_investigation_report(caseid, report_id, safe_mode, tmp_dir)
 
-            _, report_format = os.path.splitext(report.internal_reference)
+    except ObjectNotFoundError:
+        return response_error('Unknown report', status=404)
 
-            if report_format in (".md", ".html"):
-                mreport = IrisMakeMdReport(tmp_dir, report_id, caseid, safe_mode)
-                fpath, logs = mreport.generate_md_report(doc_type="Investigation")
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
-            elif report_format == ".docx":
-                mreport = IrisMakeDocReport(tmp_dir, report_id, caseid, safe_mode)
-                fpath, logs = mreport.generate_doc_report(doc_type="Investigation")
+    resp = send_file(fpath, as_attachment=True)
+    file_remover.cleanup_once_done(resp, tmp_dir)
 
-            else:
-                return response_error("Report error", "Unknown report format.")
-
-            if fpath is None:
-                track_activity("failed to generate the report")
-                return response_error(msg="Failed to generate the report", data=logs)
-
-            with open(fpath, 'rb') as rfile:
-                encoded_file = base64.b64encode(rfile.read()).decode('utf-8')
-
-            res = get_case(caseid)
-
-            _data = {
-                'report_id': report_id,
-                'file_path': fpath,
-                'case_id': res.case_id,
-                'user_name': res.user.name,
-                'file': encoded_file
-            }
-
-            call_modules_hook('on_postload_report_create', data=_data, caseid=caseid)
-
-            resp = send_file(fpath, as_attachment=True)
-            file_remover.cleanup_once_done(resp, tmp_dir)
-
-            track_activity("generated a report")
-
-            return resp
-
-    return response_error("Unknown report", status=404)
+    return resp
