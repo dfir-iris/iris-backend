@@ -60,8 +60,8 @@ class NotesCRUD:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            request_data = call_deprecated_on_preload_modules_hook('on_preload_note_create',
-                                                                   request.get_json(), case_identifier)
+            request_data = call_deprecated_on_preload_modules_hook('note_create',request.get_json(),
+                                                                   case_identifier)
 
             note_schema = CaseNoteSchema()
             note_schema.verify_directory_id(request_data, caseid=case_identifier)
