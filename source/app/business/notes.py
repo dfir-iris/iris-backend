@@ -36,21 +36,8 @@ from app.schema.marshables import CaseNoteSchema
 from app.util import add_obj_history_entry
 
 
-def _load(request_data):
+def notes_create(note: Notes, case_identifier):
     try:
-        note_schema = CaseNoteSchema()
-        return note_schema.load(request_data)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
-
-
-def notes_create(request_data, case_identifier):
-    try:
-        note_schema = CaseNoteSchema()
-        note_schema.verify_directory_id(request_data, caseid=case_identifier)
-
-        note = _load(request_data)
-
         note.note_creationdate = datetime.utcnow()
         note.note_lastupdate = datetime.utcnow()
         note.note_user = iris_current_user.id
@@ -72,7 +59,7 @@ def notes_create(request_data, case_identifier):
         add_obj_history_entry(note, 'created note', commit=True)
         note = call_modules_hook('on_postload_note_create', data=note, caseid=case_identifier)
 
-        track_activity(f"created note \"{note.note_title}\"", caseid=case_identifier)
+        track_activity(f'created note "{note.note_title}"', caseid=case_identifier)
 
         return note
 

@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from marshmallow import ValidationError
 from flask import Blueprint
 from flask import request
 
@@ -45,6 +46,12 @@ class NotesCRUD:
     def __init__(self):
         self._schema = CaseNoteSchema()
 
+    def _load(self, request_data):
+        try:
+            return self._schema.load(request_data)
+        except ValidationError as e:
+            raise BusinessProcessingError('Data error', e.messages)
+
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
@@ -55,9 +62,18 @@ class NotesCRUD:
         try:
             request_data = call_deprecated_on_preload_modules_hook('on_preload_note_create',
                                                                    request.get_json(), case_identifier)
-            note = notes_create(request_data, case_identifier)
+
+            note_schema = CaseNoteSchema()
+            note_schema.verify_directory_id(request_data, caseid=case_identifier)
+
+            note = self._load(request_data)
+
+            note = notes_create(note, case_identifier)
 
             return response_api_created(self._schema.dump(note))
+
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
 
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
