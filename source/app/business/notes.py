@@ -44,15 +44,8 @@ def _load(request_data):
         raise BusinessProcessingError('Data error', e.messages)
 
 
-def notes_create(request_json, case_identifier):
-    """
-    Create a note.
-
-    :param request_json: The request data.
-    :param case_identifier: The case identifier.
-    """
+def notes_create(request_data, case_identifier):
     try:
-        request_data = call_modules_hook('on_preload_note_create', data=request_json, caseid=case_identifier)
         note_schema = CaseNoteSchema()
         note_schema.verify_directory_id(request_data, caseid=case_identifier)
 

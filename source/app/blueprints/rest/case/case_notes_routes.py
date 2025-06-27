@@ -203,7 +203,8 @@ def case_note_add(caseid):
 
     try:
 
-        note = notes_create(request_json=request.get_json(), case_identifier=caseid)
+        request_data = call_modules_hook('on_preload_note_create', data=request.get_json(), caseid=caseid)
+        note = notes_create(request_data, caseid)
 
         return response_success(f"Note ID {note.note_id} created", data=addnote_schema.dump(note))
 

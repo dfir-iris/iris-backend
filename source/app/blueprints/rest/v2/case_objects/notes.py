@@ -37,6 +37,7 @@ from app.business.notes import notes_delete
 from app.business.cases import cases_exists
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 class NotesCRUD:
@@ -52,7 +53,9 @@ class NotesCRUD:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            note = notes_create(request.get_json(), case_identifier)
+            request_data = call_deprecated_on_preload_modules_hook('on_preload_note_create',
+                                                                   request.get_json(), case_identifier)
+            note = notes_create(request_data, case_identifier)
 
             return response_api_created(self._schema.dump(note))
 
