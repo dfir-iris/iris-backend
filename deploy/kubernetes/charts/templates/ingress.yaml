@@ -4,7 +4,12 @@ kind: Ingress
 metadata:
   name: {{ .Values.ingress.name }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- if .Values.ingress.sslRedirect }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+    {{- with .Values.ingress.customAnnotations }}
+    {{ to toYaml . | nindent 4 }}
+    {{- else }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
