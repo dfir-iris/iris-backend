@@ -52,7 +52,6 @@ class Users:
             user = user_create(user, request_data['user_active'])
             result = self._schema.dump(user)
             result['user_api_key'] = user.api_key
-            del result['user_password']
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
@@ -65,7 +64,6 @@ class Users:
             user = user_get(identifier)
             result = self._schema.dump(user)
             result['user_api_key'] = user.api_key
-            del result['user_password']
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
