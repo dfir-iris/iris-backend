@@ -2586,20 +2586,17 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_name: str = auto_field('name', required=True, validate=Length(min=2))
     user_login: str = auto_field('user', required=True, validate=Length(min=2))
     user_email: str = auto_field('email', required=True, validate=Length(min=2))
+    user_active: bool = auto_field('active', required=True)
     user_password: Optional[str] = auto_field('password', required=False)
     user_isadmin: bool = fields.Boolean(required=True)
-    user_id: int = auto_field('id', required=True, dump_only=True)
-    user_uuid: str = auto_field('uuid', required=True, dump_only=True)
-    user_active: bool = auto_field('active', required=True, dump_only=True)
-    user_primary_organisation_id: Optional[int] = fields.Integer(required=False)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
 
     user_groups = ma.Nested(AuthorizationGroupSchema, many=True, attribute='groups', only=['group_name', 'group_id', 'group_uuid'])
     user_permissions = ma.Nested(AuthorizationGroupSchema, many=True, attribute='permissions', only=['group_name', 'group_permissions'])
-    user_organisations = fields.Method("get_user_organisations", only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
-    user_primary_organisation_id = fields.Method("get_user_primary_organisation",  only=['id'])
+    user_organisations = fields.Method('get_user_organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
+    user_primary_organisation_id = fields.Method('get_user_primary_organisation',  only=['id'])
 
     class Meta:
         model = User
@@ -2607,7 +2604,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         include_fk = True
         exclude = ['api_key', 'password', 'ctx_case', 'ctx_human_case', 'user', 'name', 'email',
                    'is_service_account', 'has_deletion_confirmation', 'mfa_secrets',
-                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'uuid', 'id']
+                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'active']
         unknown = EXCLUDE
 
     def get_user_primary_organisation(self, obj):

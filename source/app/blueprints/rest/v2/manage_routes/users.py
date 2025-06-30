@@ -30,7 +30,6 @@ from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 from app.business.users import user_create
 from app.business.users import user_get
-
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
@@ -48,9 +47,9 @@ class Users:
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
-            request_data['active'] = request_data.get('active', True)
+            request_data['user_active'] = request_data.get('user_active', True)
             user = self._load(request_data)
-            user = user_create(user, request_data['active'])
+            user = user_create(user, request_data['user_active'])
             result = self._schema.dump(user)
             result['user_api_key'] = user.api_key
             del result['user_password']
