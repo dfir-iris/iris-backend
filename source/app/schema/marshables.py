@@ -35,6 +35,7 @@ from marshmallow.validate import Length
 from marshmallow_sqlalchemy import auto_field
 from pathlib import Path
 from sqlalchemy import func
+from sqlalchemy import and_
 from typing import Any
 from typing import Dict
 from typing import List
@@ -90,6 +91,7 @@ from app.models.alerts import AlertResolutionStatus
 from app.models.authorization import Group
 from app.models.authorization import Organisation
 from app.models.authorization import User
+from app.models.authorization import UserOrganisation
 from app.models.cases import CaseState
 from app.models.cases import CaseProtagonist
 from app.schema.utils import assert_type_mml
@@ -2597,7 +2599,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_organisations = ma.Nested(AuthorizationOrganisationSchemaForAPIV2, many=True, attribute='organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
-    user_primary_organisation_id = ma.Nested(AuthorizationOrganisationSchemaForAPIV2, attribute='primary_organisations', only=['org_id'])
+    user_primary_organisation_id = fields.Method("get_user_primary_organisation",  only=['id'])
 
     class Meta:
         model = User
@@ -2607,6 +2609,31 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
                    'is_service_account', 'has_deletion_confirmation', 'mfa_secrets',
                    'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'uuid', 'id']
         unknown = EXCLUDE
+
+    def get_user_primary_organisation(self, obj):
+        uo = UserOrganisation.query.filter(
+        and_(UserOrganisation.user_id == obj.id,
+            UserOrganisation.is_primary_org == True)
+        ).all()
+
+        if not uo:
+           return None
+
+        uoe = None
+        index = 0
+        if len(uo) > 1:
+            for u in uo:
+                if index == 0:
+                    uoe = u
+                    continue
+                u.is_primary_org = False
+            db.session.commit()
+        else:
+            uoe = uo[0]
+        if uoe:
+            return uoe.org_id
+        else:
+            return 0
 
     @pre_load()
     def verify_username(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
