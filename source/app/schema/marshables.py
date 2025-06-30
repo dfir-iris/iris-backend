@@ -2596,7 +2596,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
     user_organisations = fields.Method('get_user_organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
-    user_primary_organisation_id = fields.Method('get_user_primary_organisation',  only=['id'])
+    user_primary_organisation_id = fields.Method('get_user_primary_organisation', only=['id'])
 
     class Meta:
         model = User
@@ -2631,7 +2631,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
             return uoe.org_id
         else:
             return 0
-    
+
     def get_user_organisations(self, obj):
         user_org = UserOrganisation.query.with_entities(
             Organisation.org_name,
