@@ -2596,7 +2596,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
 
     user_groups = ma.Nested(AuthorizationGroupSchema, many=True, attribute='groups', only=['group_name', 'group_id', 'group_uuid'])
     user_permissions = ma.Nested(AuthorizationGroupSchema, many=True, attribute='permissions', only=['group_name', 'group_permissions'])
-    user_organisations = ma.Nested(AuthorizationOrganisationSchemaForAPIV2, many=True, attribute='organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
+    user_organisations = fields.Method("get_user_organisations", only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
     user_primary_organisation_id = fields.Method("get_user_primary_organisation",  only=['id'])
@@ -2634,6 +2634,24 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
             return uoe.org_id
         else:
             return 0
+    
+    def get_user_organisations(self, obj):
+        user_org = UserOrganisation.query.with_entities(
+            Organisation.org_name,
+            Organisation.org_id,
+            Organisation.org_uuid,
+            UserOrganisation.is_primary_org
+        ).filter(
+            UserOrganisation.user_id == obj.id
+        ).join(
+            UserOrganisation.org
+        ).all()
+
+        output = []
+        for org in user_org:
+            output.append(org._asdict())
+
+        return output
 
     @pre_load()
     def verify_username(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
