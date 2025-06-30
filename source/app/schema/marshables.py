@@ -35,7 +35,6 @@ from marshmallow.validate import Length
 from marshmallow_sqlalchemy import auto_field
 from pathlib import Path
 from sqlalchemy import func
-from sqlalchemy import and_
 from typing import Any
 from typing import Dict
 from typing import List
@@ -43,7 +42,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 from werkzeug.datastructures import FileStorage
-
 from app import db
 from app import ma
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -91,13 +89,14 @@ from app.models.alerts import AlertResolutionStatus
 from app.models.authorization import Group
 from app.models.authorization import Organisation
 from app.models.authorization import User
-from app.models.authorization import UserOrganisation
 from app.models.cases import CaseState
 from app.models.cases import CaseProtagonist
 from app.schema.utils import assert_type_mml
 from app.schema.utils import file_sha256sum
 from app.schema.utils import stream_sha256sum
 from app.schema.utils import str_to_bool
+from app.business.users import get_primary_organisation
+from app.business.users import get_organisations
 
 
 ALLOWED_EXTENSIONS = {'png', 'svg'}
@@ -2608,47 +2607,11 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         unknown = EXCLUDE
 
     def get_user_primary_organisation(self, obj):
-        uo = UserOrganisation.query.filter(
-        and_(UserOrganisation.user_id == obj.id,
-            UserOrganisation.is_primary_org == True)
-        ).all()
-
-        if not uo:
-           return None
-
-        uoe = None
-        index = 0
-        if len(uo) > 1:
-            for u in uo:
-                if index == 0:
-                    uoe = u
-                    continue
-                u.is_primary_org = False
-            db.session.commit()
-        else:
-            uoe = uo[0]
-        if uoe:
-            return uoe.org_id
-        else:
-            return 0
+        return get_primary_organisation(obj.id)
 
     def get_user_organisations(self, obj):
-        user_org = UserOrganisation.query.with_entities(
-            Organisation.org_name,
-            Organisation.org_id,
-            Organisation.org_uuid,
-            UserOrganisation.is_primary_org
-        ).filter(
-            UserOrganisation.user_id == obj.id
-        ).join(
-            UserOrganisation.org
-        ).all()
+        return get_organisations(obj.id)
 
-        output = []
-        for org in user_org:
-            output.append(org._asdict())
-
-        return output
 
     @pre_load()
     def verify_username(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:

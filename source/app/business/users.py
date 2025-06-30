@@ -23,6 +23,8 @@ from app.datamgmt.manage.manage_users_db import get_active_user
 from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
+from app.datamgmt.manage.manage_users_db import get_user_organisations
+from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.iris_engine.utils.tracker import track_activity
 
 
@@ -72,3 +74,13 @@ def user_get(identifier) -> User:
     if not user :
         raise ObjectNotFoundError()
     return user
+
+def get_primary_organisation(user_id):
+    uoe = get_user_primary_org(user_id)
+    if uoe:
+        return uoe.org_id
+    else:
+        return 0
+
+def get_organisations(user_id):
+    return get_user_organisations(user_id)
