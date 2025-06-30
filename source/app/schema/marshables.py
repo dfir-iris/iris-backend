@@ -2586,7 +2586,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_email: str = auto_field('email', required=True, validate=Length(min=2))
     user_password: Optional[str] = auto_field('password', required=False)
     user_isadmin: bool = fields.Boolean(required=True)
-    user_id: Optional[int] = fields.Integer(required=False)
+    user_id: int = auto_field('id', required=True, dump_only=True)
     user_primary_organisation_id: Optional[int] = fields.Integer(required=False)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
 
@@ -2595,7 +2595,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_organisations = ma.Nested(AuthorizationOrganisationSchemaForAPIV2, many=True, attribute='organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
-    #user_primary_organisation_id = ma.Nested(AuthorizationOrganisationSchemaForAPIV2)
+    user_primary_organisation_id = ma.Nested(AuthorizationOrganisationSchemaForAPIV2)
 
     class Meta:
         model = User
