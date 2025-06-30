@@ -8,8 +8,8 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     {{- end }}
     {{- with .Values.ingress.customAnnotations }}
-    {{ to toYaml . | nindent 4 }}
-    {{- else }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
