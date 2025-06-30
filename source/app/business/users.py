@@ -75,12 +75,14 @@ def user_get(identifier) -> User:
         raise ObjectNotFoundError()
     return user
 
+
 def get_primary_organisation(user_id):
     uoe = get_user_primary_org(user_id)
     if uoe:
         return uoe.org_id
     else:
         return 0
+
 
 def get_organisations(user_id):
     return get_user_organisations(user_id)

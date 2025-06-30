@@ -2612,7 +2612,6 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     def get_user_organisations(self, obj):
         return get_organisations(obj.id)
 
-
     @pre_load()
     def verify_username(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Verifies that the username is not already taken.
