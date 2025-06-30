@@ -142,7 +142,7 @@ metadata:
   labels:
     app: {{ .Values.irisapp.app }}
 spec:
-  type: {{ .Values.irisapp.type }}
+  type: {{ .Values.irisapp.service.type }}
   ports:
    - port: {{ .Values.irisapp.service.port }}
      targetPort: {{ .Values.irisapp.service.targetPort }}
