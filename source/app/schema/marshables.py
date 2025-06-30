@@ -2587,7 +2587,8 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_password: Optional[str] = auto_field('password', required=False)
     user_isadmin: bool = fields.Boolean(required=True)
     user_id: int = auto_field('id', required=True, dump_only=True)
-    user_uuid: int = auto_field('uuid', required=True, dump_only=True)
+    user_uuid: str = auto_field('uuid', required=True, dump_only=True)
+    user_active: bool = auto_field('active', required=True, dump_only=True)
     user_primary_organisation_id: Optional[int] = fields.Integer(required=False)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
 
@@ -2596,7 +2597,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_organisations = ma.Nested(AuthorizationOrganisationSchemaForAPIV2, many=True, attribute='organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
     user_customers = ma.Nested(CustomerSchema, many=True, attribute='customers', only=['customer_name', 'customer_id'])
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
-    user_primary_organisation_id = ma.Nested(AuthorizationOrganisationSchemaForAPIV2)
+    user_primary_organisation_id = ma.Nested(AuthorizationOrganisationSchemaForAPIV2, attribute='primary_organisations', only=['org_id'])
 
     class Meta:
         model = User
@@ -2604,7 +2605,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         include_fk = True
         exclude = ['api_key', 'password', 'ctx_case', 'ctx_human_case', 'user', 'name', 'email',
                    'is_service_account', 'has_deletion_confirmation', 'mfa_secrets',
-                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id']
+                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'uuid', 'id']
         unknown = EXCLUDE
 
     @pre_load()

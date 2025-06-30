@@ -222,6 +222,7 @@ class User(UserMixin, db.Model):
     groups = relationship('Group', secondary='user_group', viewonly=True)
     permissions = relationship('Group', secondary='user_group', viewonly=True)
     organisations = relationship('Organisation', secondary='user_organisation', viewonly=True)
+    primary_organisations = relationship('Organisation', secondary='user_organisation', viewonly=True)
     customers = relationship('Client', secondary='user_client', viewonly=True)
     cases_access = relationship('UserCaseAccess', back_populates='user')
 
