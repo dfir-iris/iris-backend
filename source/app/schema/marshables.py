@@ -2587,6 +2587,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_password: Optional[str] = auto_field('password', required=False)
     user_isadmin: bool = fields.Boolean(required=True)
     user_id: int = auto_field('id', required=True, dump_only=True)
+    user_uuid: int = auto_field('uuid', required=True, dump_only=True)
     user_primary_organisation_id: Optional[int] = fields.Integer(required=False)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
 
