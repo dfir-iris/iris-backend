@@ -29,21 +29,6 @@ from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.iris_engine.utils.tracker import track_activity
 
 
-class UserData:
-    def __init__(self, identifier):
-        result = get_user_details_return_user(identifier)
-        if result is not None:
-            self.user, self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key = result
-
-    def get_user(self):
-        if not self.user:
-            raise ObjectNotFoundError()
-        return self.user
-
-    def get_others(self):
-        return self.group, self.organisation, self.effective_permissions, self.cases_access, self.user_clients, self.primary_organisation_id, self.user_api_key
-
-
 def users_reset_mfa(user_id: int = None):
     """
     Resets a user MFA by setting to none its MFA token
