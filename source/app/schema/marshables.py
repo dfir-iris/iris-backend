@@ -2144,55 +2144,6 @@ class AuthorizationOrganisationSchema(ma.SQLAlchemyAutoSchema):
         return data
 
 
-class AuthorizationOrganisationSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
-    """Schema for serializing and deserializing AuthorizationOrganisation objects.
-
-    This schema defines the fields to include when serializing and deserializing AuthorizationOrganisation objects.
-    It includes fields for the organization name and description.
-
-    """
-    org_name: str = auto_field('org_name', required=True, validate=Length(min=2), allow_none=False)
-    org_description: str = auto_field('org_description', required=True, validate=Length(min=2))
-    is_primary_org = fields.Boolean(required=False)
-
-    class Meta:
-        model = Organisation
-        load_instance = True
-        unknown = EXCLUDE
-
-    @pre_load
-    def verify_unique(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        """Verifies that the organization name is unique.
-
-        This method verifies that the organization name specified in the data is unique.
-        If the name is not unique, it raises a validation error.
-
-        Args:
-            data: The data to load.
-            kwargs: Additional keyword arguments.
-
-        Returns:
-            The loaded data.
-
-        Raises:
-            ValidationError: If the organization name is not unique.
-
-        """
-        assert_type_mml(input_var=data.get('org_name'),
-                        field_name='org_name',
-                        type=str)
-
-        organisations = Organisation.query.filter(
-            func.upper(Organisation.org_name) == data.get('org_name').upper()
-        ).all()
-
-        for organisation in organisations:
-            if data.get('org_id') is None or organisation.org_id != data.get('org_id'):
-                raise ValidationError("Organisation name already exists", field_name="org_name")
-
-        return data
-
-
 class BasicUserSchema(ma.SQLAlchemyAutoSchema):
     """Schema for serializing and deserializing basic User objects.
 
