@@ -232,3 +232,18 @@ class TestsRestUsers(TestCase):
         identifier = response['id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertNotIn('user_password', response)
+
+    def test_get_user_should_not_return_user_active_equal_false(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+            'user_active': False,
+        }
+        response = self._subject.create('api/v2/manage/users', body).json()
+        identifier = response['id']
+        response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
+        self.assertEqual(False, response['user_active'])
