@@ -94,7 +94,6 @@ class Events:
                 return ac_api_return_access_denied(caseid=event.case_id)
 
             result = self._schema.dump(event)
-            result['event_category_id'] = event.category[0].id if event.category else None
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
