@@ -62,26 +62,24 @@ def user_create(user: User, active) -> User:
                        user.password,
                        user.email,
                        active,
-                       None,
-                       user.is_service_account)
+                       user_is_service_account=user.is_service_account)
 
-    track_activity(f"created user {user.user}", ctx_less=True)
+    track_activity(f'created user {user.user}', ctx_less=True)
     return user
 
 
 def user_get(identifier) -> User:
     user = get_user_details_return_user(identifier)
-    if not user :
+    if not user:
         raise ObjectNotFoundError()
     return user
 
 
 def get_primary_organisation(user_id):
     uoe = get_user_primary_org(user_id)
-    if uoe:
-        return uoe.org_id
-    else:
+    if not uoe:
         return 0
+    return uoe.org_id
 
 
 def get_organisations(user_id):
