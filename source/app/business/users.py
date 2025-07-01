@@ -95,6 +95,7 @@ def users_update(user: User, user_password: str = None) -> User:
     user = update_user(password=user_password, user=user)
     track_activity(f"updated user {user.user}", ctx_less=True)
     db.session.commit()
+    return user
 
 
 def get_primary_organisation(user_id):

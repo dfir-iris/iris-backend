@@ -272,7 +272,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         body = {
             'user_name': 'new_user',
             'user_login': 'new_user_login',
@@ -294,7 +294,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         user_name = 'new_user'
         body = {
             'user_name': user_name,
@@ -317,7 +317,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         body = {
             'user_name': 'new_user',
             'user_login': 'user_login',
@@ -340,7 +340,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         body = {
             'user_name': 'new_user',
             'user_login': 'user_login',
@@ -374,6 +374,6 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = self._subject.update(f'/api/v2/manage/users/{identifier}', {})
         self.assertEqual(200, response.status_code)

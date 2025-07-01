@@ -39,8 +39,8 @@ class Users:
     def __init__(self):
         self._schema = UserSchemaForAPIV2()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
     @users_blueprint.post('')
     @ac_api_requires(Permissions.server_administrator)
@@ -72,11 +72,12 @@ class Users:
     def put(self, identifier):
 
         try:
-            data = users_get(identifier)
+            user = users_get(identifier)
             request_data = request.get_json()
             request_data['user_id'] = identifier
-            user_updated = self._load(request_data, instance=data.get_user(), partial=True)
-            result = users_update(user_updated, request_data.get('user_password'))
+            new_user = self._load(request_data, instance=user, partial=True)
+            user_updated = users_update(new_user, request_data.get('user_password'))
+            result = self._schema.dump(user_updated)
             return response_api_success(result)
 
         except ValidationError as e:
