@@ -56,7 +56,7 @@ def retrieve_user_by_username(username: str):
     return user
 
 
-def user_create(user: User, active) -> User:
+def users_create(user: User, active) -> User:
     user = create_user(user.name,
                        user.user,
                        user.password,
@@ -68,7 +68,7 @@ def user_create(user: User, active) -> User:
     return user
 
 
-def user_get(identifier) -> User:
+def users_get(identifier) -> User:
     user = get_user_details_return_user(identifier)
     if not user:
         raise ObjectNotFoundError()
