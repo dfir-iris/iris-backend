@@ -42,8 +42,6 @@ class Users:
     def _load(self, request_data, **kwargs):
         return self._schema.load(request_data, **kwargs)
 
-    @users_blueprint.post('')
-    @ac_api_requires(Permissions.server_administrator)
     def create(self):
         try:
             request_data = request.get_json()
@@ -56,8 +54,6 @@ class Users:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
-    @users_blueprint.get('/<int:identifier>')
-    @ac_api_requires(Permissions.server_administrator)
     def get(self, identifier):
 
         try:
@@ -67,8 +63,6 @@ class Users:
         except ObjectNotFoundError:
             return response_api_not_found()
 
-    @users_blueprint.put('/<int:identifier>')
-    @ac_api_requires(Permissions.server_administrator)
     def put(self, identifier):
 
         try:
