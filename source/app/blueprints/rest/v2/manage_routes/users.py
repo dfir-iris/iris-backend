@@ -66,7 +66,7 @@ class Users:
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
-        
+
     @users_blueprint.put('/<int:identifier>')
     @ac_api_requires(Permissions.server_administrator)
     def put(self, identifier):
