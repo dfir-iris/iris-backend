@@ -260,7 +260,6 @@ class TestsRestUsers(TestCase):
             'user_password': 'User_password_17_@',
             'user_is_service_account': True,
             'user_isadmin': True,
-
         }
         response = self._subject.update(f'/api/v2/manage/users/{identifier}', body).json()
         self.assertEqual(user_name, response['user_name'])
