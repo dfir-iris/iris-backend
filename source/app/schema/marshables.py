@@ -2537,6 +2537,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_login: str = auto_field('user', required=True, validate=Length(min=2))
     user_email: str = auto_field('email', required=True, validate=Length(min=2))
     user_active: bool = auto_field('active', required=True)
+    user_id: bool = auto_field('id', required=True, dump_only=True)
     user_api_key: bool = auto_field('api_key', required=False, dump_only=True)
     user_password: Optional[str] = auto_field('password', required=False, load_only=True)
     user_isadmin: bool = fields.Boolean(required=True)
@@ -2555,7 +2556,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         include_fk = True
         exclude = ['api_key', 'password', 'ctx_case', 'ctx_human_case', 'user', 'name', 'email',
                    'is_service_account', 'has_deletion_confirmation', 'mfa_secrets',
-                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'active']
+                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'active', 'id']
         unknown = EXCLUDE
 
     def get_user_primary_organisation(self, obj):
