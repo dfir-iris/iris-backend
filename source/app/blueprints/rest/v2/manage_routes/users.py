@@ -28,8 +28,8 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
-from app.business.users import user_create
-from app.business.users import user_get
+from app.business.users import users_create
+from app.business.users import users_get
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
@@ -49,9 +49,8 @@ class Users:
             request_data['user_id'] = 0
             request_data['user_active'] = request_data.get('user_active', True)
             user = self._load(request_data)
-            user = user_create(user, request_data['user_active'])
+            user = users_create(user, request_data['user_active'])
             result = self._schema.dump(user)
-            result['user_api_key'] = user.api_key
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
@@ -61,9 +60,8 @@ class Users:
     def get(self, identifier):
 
         try:
-            user = user_get(identifier)
+            user = users_get(identifier)
             result = self._schema.dump(user)
-            result['user_api_key'] = user.api_key
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
@@ -81,5 +79,5 @@ def create_user():
 
 @users_blueprint.get('/<int:identifier>')
 @ac_api_requires()
-def get_event(identifier):
+def get_user(identifier):
     return users.get(identifier)
