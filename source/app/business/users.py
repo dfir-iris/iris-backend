@@ -24,6 +24,8 @@ from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
 from app.datamgmt.manage.manage_users_db import update_user
+from app.datamgmt.manage.manage_users_db import get_user_organisations
+from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.iris_engine.utils.tracker import track_activity
 
 
@@ -70,26 +72,37 @@ def retrieve_user_by_username(username: str):
     return user
 
 
-def user_create(user: User, active) -> User:
+def users_create(user: User, active) -> User:
     user = create_user(user.name,
                        user.user,
                        user.password,
                        user.email,
                        active,
-                       None,
-                       user.is_service_account)
+                       user_is_service_account=user.is_service_account)
 
-    track_activity(f"created user {user.user}", ctx_less=True)
+    track_activity(f'created user {user.user}', ctx_less=True)
     return user
 
 
-def user_get(identifier) -> User:
-    data = UserData(identifier)
-    return data
+def users_get(identifier) -> User:
+    user = get_user_details_return_user(identifier)
+    if not user:
+        raise ObjectNotFoundError()
+    return user
 
 
-def user_update(user: User, user_password: str = None) -> User:
+def users_update(user: User, user_password: str = None) -> User:
     user = update_user(password=user_password, user=user)
     track_activity(f"updated user {user.user}", ctx_less=True)
     db.session.commit()
-    return user
+
+
+def get_primary_organisation(user_id):
+    uoe = get_user_primary_org(user_id)
+    if not uoe:
+        return 0
+    return uoe.org_id
+
+
+def get_organisations(user_id):
+    return get_user_organisations(user_id)

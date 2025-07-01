@@ -136,7 +136,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}')
         self.assertEqual(200, response.status_code)
 
@@ -151,7 +151,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_email, response['user_email'])
 
@@ -166,7 +166,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_name, response['user_name'])
 
@@ -181,7 +181,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_login, response['user_login'])
 
@@ -196,7 +196,7 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_is_service_account, response['user_is_service_account'])
 
@@ -215,9 +215,52 @@ class TestsRestUsers(TestCase):
             'user_isadmin': True,
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
-        identifier = response['id']
+        identifier = response['user_id']
         response = user.get(f'api/v2/manage/users/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_get_user_should_not_return_user_password(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
+        self.assertNotIn('user_password', response)
+
+    def test_get_user_should_return_user_active_equal_false(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+            'user_active': False,
+        }
+        response = self._subject.create('api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
+        self.assertEqual(False, response['user_active'])
+
+    def test_get_user_should_return_user_api_key(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
+        self.assertIn('user_api_key', response)
 
     def test_update_user_should_return_200(self):
         body = {

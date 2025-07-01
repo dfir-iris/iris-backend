@@ -25,94 +25,84 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
-from app.schema.marshables import UserSchema
+from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
-from app.business.users import user_create
-from app.business.users import user_get
-from app.business.users import user_update
-
+from app.business.users import users_create
+from app.business.users import users_get
+from app.business.users import users_update
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
-def _load(request_data, **kwargs):
-    user_schema = UserSchema()
-    return user_schema.load(request_data, **kwargs)
+class Users:
 
+    def __init__(self):
+        self._schema = UserSchemaForAPIV2()
 
-def schema_without_fields(user):
-    user_schema = UserSchema(exclude=('user_password',
-                                    'mfa_secrets',
-                                    'mfa_setup_complete',
-                                    'webauthn_credentials',
-                                    'has_deletion_confirmation',
-                                    'has_mini_sidebar',
-                                    'user_isadmin',
-                                    'in_dark_mode'))
-    data = user_schema.dump(user)
-    return data
+    def _load(self, request_data):
+        return self._schema.load(request_data)
 
-
-def add_infos_to_data(data, user_data):
-    data['user_groups'] = user_data.group
-    data['user_organisations'] = user_data.organisation
-    data['user_permissions'] = user_data.effective_permissions
-    data['user_customers'] = user_data.user_clients
-    data['user_primary_organisation_id'] = user_data.primary_organisation_id
-    data['user_cases_access'] = user_data.cases_access
-    if user_data.user_api_key != '':
-        data['user_api_key'] = user_data.user_api_key
-    return data
-
-
-@users_blueprint.post('')
-@ac_api_requires(Permissions.server_administrator)
-def create_users():
-
+    @users_blueprint.post('')
+    @ac_api_requires(Permissions.server_administrator)
+    def create(self):
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
-            request_data['active'] = request_data.get('active', True)
-            user = _load(request_data)
-            user = user_create(user, request_data['active'])
-            user_schema = UserSchema()
-            result = user_schema.dump(user)
-            result['user_api_key'] = user.api_key
-            del result['user_password']
+            request_data['user_active'] = request_data.get('user_active', True)
+            user = self._load(request_data)
+            user = users_create(user, request_data['user_active'])
+            result = self._schema.dump(user)
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
+    @users_blueprint.get('/<int:identifier>')
+    @ac_api_requires(Permissions.server_administrator)
+    def get(self, identifier):
+
+        try:
+            user = users_get(identifier)
+            result = self._schema.dump(user)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        
+    @users_blueprint.put('/<int:identifier>')
+    @ac_api_requires(Permissions.server_administrator)
+    def put(self, identifier):
+
+        try:
+            data = users_get(identifier)
+            request_data = request.get_json()
+            request_data['user_id'] = identifier
+            user_updated = self._load(request_data, instance=data.get_user(), partial=True)
+            result = users_update(user_updated, request_data.get('user_password'))
+            return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+
+users = Users()
+users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
+
+
+@users_blueprint.post('')
+@ac_api_requires(Permissions.server_administrator)
+def create_user():
+    return users.create()
+
 
 @users_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
-def get_users(identifier):
-
-    try:
-        data = user_get(identifier)
-        data_without_fields = schema_without_fields(data.get_user())
-        new_data = add_infos_to_data(data_without_fields, data)
-        return response_api_success(new_data)
-    except ObjectNotFoundError:
-            return response_api_not_found()
+def get_user(identifier):
+    return users.get(identifier)
 
 
 @users_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
-def put(identifier):
-
-    try:
-        data = user_get(identifier)
-        request_data = request.get_json()
-        request_data['user_id'] = identifier
-        user_updated = _load(request_data, instance=data.get_user(), partial=True)
-        user_update(user_updated, request_data.get('user_password'))
-        data_without_fields = schema_without_fields(user_updated)
-        new_data = add_infos_to_data(data_without_fields, data)
-        return response_api_success(new_data)
-
-    except ValidationError as e:
-        return response_api_error('Data error', data=e.messages)
-
-    except ObjectNotFoundError:
-        return response_api_not_found()
+def put_user(identifier):
+    return users.put(identifier)

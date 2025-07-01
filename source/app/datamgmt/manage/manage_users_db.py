@@ -516,22 +516,9 @@ def get_user_details(user_id, include_api_key=False):
     return row
 
 
-def get_user_details_return_user(user_id, include_api_key=False):
+def get_user_details_return_user(user_id):
 
-    user = User.query.filter(User.id == user_id).first()
-
-    if include_api_key:
-        user_api_key = user.api_key
-    else:
-        user_api_key = ''
-
-    upg = get_user_primary_org(user_id)
-    if upg:
-        primary_organisation_id = upg.org_id
-    else:
-        primary_organisation_id = 0
-
-    return user, get_user_groups(user_id), get_user_organisations(user_id), get_user_effective_permissions(user_id), get_user_cases_access(user_id), get_user_clients(user_id), primary_organisation_id, user_api_key
+    return User.query.filter(User.id == user_id).first()
 
 
 def add_case_access_to_user(user, cases_list, access_level):
