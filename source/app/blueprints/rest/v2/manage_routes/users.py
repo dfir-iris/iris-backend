@@ -31,7 +31,6 @@ from app.business.errors import ObjectNotFoundError
 from app.business.users import users_create
 from app.business.users import users_get
 from app.business.users import users_update
-users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
 class Users:
