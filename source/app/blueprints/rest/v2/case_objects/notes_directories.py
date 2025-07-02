@@ -26,6 +26,7 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
 from app.business.notes_directories import notes_directories_get
@@ -69,10 +70,10 @@ class NotesDirectories:
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
-        directory = notes_directories_get(identifier)
-        request_data = request.get_json()
-
         try:
+            directory = notes_directories_get(identifier)
+            request_data = request.get_json()
+
             if request_data.get('parent_id') is not None:
                 self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier, current_id=identifier)
             new_directory = self._load(request_data, instance=directory, partial=True)
@@ -81,6 +82,8 @@ class NotesDirectories:
             return response_api_success(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 notes_directories = NotesDirectories()

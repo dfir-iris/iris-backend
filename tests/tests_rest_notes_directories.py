@@ -137,3 +137,10 @@ class TestsRestNotesDirectories(TestCase):
 
         response = self._subject.update(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/notes-directories/{identifier}', {})
         self.assertEqual(404, response.status_code)
+
+    def test_update_note_directory_should_return_404_when_identifier_does_not_correspond_to_existing_note_directory(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', {})
+        self.assertEqual(404, response.status_code)
+
