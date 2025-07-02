@@ -118,3 +118,13 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 123}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
         self.assertEqual(400, response.status_code)
+
+    def test_update_note_directory_should_return_400_when_field_parent_id_is_the_current_identifier(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {'parent_id': identifier}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        self.assertEqual(400, response.status_code)

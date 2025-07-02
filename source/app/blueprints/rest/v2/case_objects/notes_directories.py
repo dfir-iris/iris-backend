@@ -70,6 +70,8 @@ class NotesDirectories:
         request_data = request.get_json()
 
         try:
+            if request_data.get('parent_id') is not None:
+                self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier, current_id=identifier)
             new_directory = self._load(request_data, instance=directory, partial=True)
             notes_directories_update(new_directory)
             result = self._schema.dump(new_directory)
