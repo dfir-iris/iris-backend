@@ -39,3 +39,5 @@ def notes_directories_get(identifier) -> NoteDirectory:
 
 def notes_directories_update(directory: NoteDirectory):
     db.session.commit()
+
+    track_activity(f'modified directory "{directory.name}"', caseid=directory.case_id)

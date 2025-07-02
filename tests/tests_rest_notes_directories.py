@@ -84,8 +84,7 @@ class TestsRestNotesDirectories(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
         identifier = response['id']
 
-        body = {}
-        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', {})
         self.assertEqual(200, response.status_code)
 
     def test_update_note_directory_should_modify_name(self):
@@ -97,3 +96,15 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 'new name'}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body).json()
         self.assertEqual('new name', response['name'])
+
+    def test_update_note_directory_should_add_an_activity(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {'name': 'new name'}
+        self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        activities = self._subject.get('/case/activities/list', {'cid': case_identifier}).json()
+        last_activity = activities['data'][0]['activity_desc']
+        self.assertEqual('Modified directory "new name"', last_activity)
