@@ -66,7 +66,7 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.normalized_messages())
 
     def update(self, case_identifier, identifier):
-        directory = notes_directories_get(identifier, case_identifier)
+        directory = notes_directories_get(identifier)
         request_data = request.get_json()
 
         new_directory = self._load(request_data, instance=directory, partial=True)

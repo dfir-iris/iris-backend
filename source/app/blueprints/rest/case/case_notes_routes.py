@@ -253,7 +253,7 @@ def case_directory_add(caseid):
 def case_directory_update(dir_id, caseid):
     try:
 
-        directory = get_directory(dir_id, caseid)
+        directory = get_directory(dir_id)
         if not directory:
             return response_error(msg="Invalid directory ID")
 
@@ -287,7 +287,7 @@ def case_directory_update(dir_id, caseid):
 def case_directory_delete(dir_id, caseid):
     try:
 
-        directory = get_directory(dir_id, caseid)
+        directory = get_directory(dir_id)
         if not directory:
             return response_error(msg="Invalid directory ID")
 

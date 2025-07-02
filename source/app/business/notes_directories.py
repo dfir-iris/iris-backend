@@ -30,8 +30,8 @@ def notes_directories_create(directory: NoteDirectory):
     track_activity(f'added directory "{directory.name}"', caseid=directory.case_id)
 
 
-def notes_directories_get(identifier, case_identifier) -> NoteDirectory:
-    directory = get_directory(identifier, case_identifier)
+def notes_directories_get(identifier) -> NoteDirectory:
+    directory = get_directory(identifier)
     if not directory:
         raise ObjectNotFoundError()
     return directory
