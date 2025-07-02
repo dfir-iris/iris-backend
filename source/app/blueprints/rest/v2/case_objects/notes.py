@@ -106,11 +106,18 @@ class NotesOperations:
                 return ac_api_return_access_denied(caseid=note.note_case_id)
             self._check_note_and_case_identifier_match(note, case_identifier)
 
-            note = notes_update(note, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('note_update', request.get_json(),
+                                                                   note.note_case_id)
+            request_data['note_id'] = note.note_id
+            self._schema.load(request_data, partial=True, instance=note)
+            note = notes_update(note)
 
             schema = CaseNoteSchema()
             result = schema.dump(note)
             return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', e.normalized_messages())
 
         except ObjectNotFoundError:
             return response_api_not_found()

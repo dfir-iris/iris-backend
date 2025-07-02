@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from datetime import datetime
-from marshmallow import ValidationError
 
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -32,7 +31,6 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteRevisions
 from app.models.models import Notes
 from app.models.authorization import User
-from app.schema.marshables import CaseNoteSchema
 from app.util import add_obj_history_entry
 
 
@@ -63,9 +61,6 @@ def notes_create(note: Notes, case_identifier):
 
         return note
 
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
-
     except Exception as e:
         raise BusinessProcessingError('Unexpected error server-side', e)
 
@@ -78,12 +73,8 @@ def notes_get(identifier) -> Notes:
     return note
 
 
-def notes_update(note: Notes, request_json: dict):
+def notes_update(note: Notes):
     try:
-        addnote_schema = CaseNoteSchema()
-
-        request_data = call_modules_hook('on_preload_note_update', data=request_json, caseid=note.note_case_id)
-
         latest_version = db.session.query(
             NoteRevisions
         ).filter_by(
@@ -92,10 +83,10 @@ def notes_update(note: Notes, request_json: dict):
             NoteRevisions.revision_number.desc()
         ).first()
         revision_number = 1 if latest_version is None else latest_version.revision_number + 1
-        no_changes = False
 
+        no_changes = False
         if revision_number > 1:
-            if latest_version.note_title == request_data.get('note_title') and latest_version.note_content == request_data.get('note_content'):
+            if latest_version.note_title == note.note_title and latest_version.note_content == note.note_content:
                 no_changes = True
                 logger.debug(f'Note {note.note_id} has not changed, skipping versioning')
 
@@ -111,8 +102,6 @@ def notes_update(note: Notes, request_json: dict):
             db.session.add(note_version)
             db.session.commit()
 
-        request_data['note_id'] = note.note_id
-        addnote_schema.load(request_data, partial=True, instance=note)
         note.update_date = datetime.utcnow()
         note.user_id = iris_current_user.id
 
@@ -122,9 +111,6 @@ def notes_update(note: Notes, request_json: dict):
         track_activity(f'updated note "{note.note_title}"', caseid=note.note_case_id)
 
         return note
-
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
     except Exception as e:
         raise UnhandledBusinessError('Unexpected error server-side', str(e))
@@ -158,9 +144,6 @@ def notes_list_revisions(identifier: int):
 
         return note_versions
 
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
-
     except Exception as e:
         raise UnhandledBusinessError('Unexpected error server-side', str(e))
 
@@ -177,9 +160,6 @@ def notes_get_revision(identifier: int, revision_number: int):
         ).first()
 
         return note_revision
-
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
     except Exception as e:
         raise UnhandledBusinessError('Unexpected error server-side', str(e))
@@ -203,9 +183,6 @@ def notes_delete_revision(identifier: int, revision_number: int):
         db.session.commit()
 
         track_activity(f'deleted note revision {revision_number} of note "{note.note_title}"', caseid=note.note_case_id)
-
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
     except Exception as e:
         raise UnhandledBusinessError('Unexpected error server-side', str(e))
