@@ -94,6 +94,25 @@ class NotesOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message())
 
+    def update(self, case_identifier, identifier):
+        try:
+            note = notes_get(identifier)
+            if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=note.note_case_id)
+            _check_note_and_case_identifier_match(note, case_identifier)
+
+            note = notes_update(note, request.get_json())
+
+            schema = CaseNoteSchema()
+            result = schema.dump(note)
+            return response_api_success(result)
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
 
 notesOperations = NotesOperations()
 case_notes_blueprint = Blueprint('case_notes',
@@ -116,23 +135,7 @@ def get_note(case_identifier, identifier):
 @case_notes_blueprint.put('<int:identifier>')
 @ac_api_requires()
 def update_note(case_identifier, identifier):
-    try:
-        note = notes_get(identifier)
-        if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=note.note_case_id)
-        _check_note_and_case_identifier_match(note, case_identifier)
-
-        note = notes_update(note, request.get_json())
-
-        schema = CaseNoteSchema()
-        result = schema.dump(note)
-        return response_api_success(result)
-
-    except ObjectNotFoundError:
-        return response_api_not_found()
-
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return notesOperations.update(case_identifier, identifier)
 
 
 @case_notes_blueprint.delete('<int:identifier>')
