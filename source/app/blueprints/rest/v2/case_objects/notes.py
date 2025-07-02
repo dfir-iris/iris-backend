@@ -52,6 +52,11 @@ class NotesOperations:
         except ValidationError as e:
             raise BusinessProcessingError('Data error', e.messages)
 
+    @staticmethod
+    def _check_note_and_case_identifier_match(note: Notes, case_identifier):
+        if note.note_case_id != case_identifier:
+            raise ObjectNotFoundError
+
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
@@ -81,7 +86,7 @@ class NotesOperations:
     def get(self, case_identifier, identifier):
         try:
             note = notes_get(identifier)
-            _check_note_and_case_identifier_match(note, case_identifier)
+            self._check_note_and_case_identifier_match(note, case_identifier)
 
             if not ac_fast_check_current_user_has_case_access(note.note_case_id,
                                                               [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
@@ -99,7 +104,7 @@ class NotesOperations:
             note = notes_get(identifier)
             if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=note.note_case_id)
-            _check_note_and_case_identifier_match(note, case_identifier)
+            self._check_note_and_case_identifier_match(note, case_identifier)
 
             note = notes_update(note, request.get_json())
 
@@ -112,6 +117,19 @@ class NotesOperations:
 
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
+
+    def delete(self, case_identifier, identifier):
+        try:
+            note = notes_get(identifier)
+            if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=note.note_case_id)
+            _check_note_and_case_identifier_match(note, case_identifier)
+
+            notes_delete(note)
+            return response_api_deleted()
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 notesOperations = NotesOperations()
@@ -141,19 +159,4 @@ def update_note(case_identifier, identifier):
 @case_notes_blueprint.delete('<int:identifier>')
 @ac_api_requires()
 def delete_note(case_identifier, identifier):
-    try:
-        note = notes_get(identifier)
-        if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=note.note_case_id)
-        _check_note_and_case_identifier_match(note, case_identifier)
-
-        notes_delete(note)
-        return response_api_deleted()
-
-    except ObjectNotFoundError:
-        return response_api_not_found()
-
-
-def _check_note_and_case_identifier_match(note: Notes, case_identifier):
-    if note.note_case_id != case_identifier:
-        raise ObjectNotFoundError
+    return notesOperations.delete(case_identifier, identifier)
