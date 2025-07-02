@@ -79,6 +79,9 @@ class Users:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def delete(self, identifier):
+        return response_api_success(None)
+
 
 users = Users()
 users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
@@ -100,3 +103,9 @@ def get_user(identifier):
 @ac_api_requires(Permissions.server_administrator)
 def put_user(identifier):
     return users.put(identifier)
+
+
+@users_blueprint.delete('/<int:identifier>')
+@ac_api_requires(Permissions.server_administrator)
+def delete_user(identifier):
+    return users.delete(identifier)

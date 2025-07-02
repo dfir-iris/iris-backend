@@ -377,3 +377,17 @@ class TestsRestUsers(TestCase):
         identifier = response['user_id']
         response = self._subject.update(f'/api/v2/manage/users/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_delete_user_should_return_200(self):
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
+        self.assertEqual(200, response.status_code)
