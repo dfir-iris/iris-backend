@@ -25,12 +25,14 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 from app.business.users import users_create
 from app.business.users import users_get
 from app.business.users import users_update
+from app.business.users import users_delete
 
 
 class Users:
@@ -80,7 +82,12 @@ class Users:
             return response_api_not_found()
 
     def delete(self, identifier):
-        return response_api_success(None)
+        try :
+            user = users_get(identifier)
+            users_delete(user)
+            return response_api_deleted()
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
 
 users = Users()
