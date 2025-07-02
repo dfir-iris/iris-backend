@@ -27,7 +27,9 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.schema.marshables import CaseNoteDirectorySchema
-from app.business.notes_directories import notes_directory_create
+from app.business.notes_directories import notes_directories_create
+from app.business.notes_directories import notes_directories_get
+from app.business.notes_directories import notes_directories_update
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
@@ -38,8 +40,8 @@ class NotesDirectories:
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -56,7 +58,7 @@ class NotesDirectories:
                 self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier)
             directory = self._load(request_data)
 
-            notes_directory_create(directory)
+            notes_directories_create(directory)
             result = self._schema.dump(directory)
 
             return response_api_created(result)
@@ -64,7 +66,13 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.normalized_messages())
 
     def update(self, case_identifier, identifier):
-        return response_api_success(None)
+        directory = notes_directories_get(identifier, case_identifier)
+        request_data = request.get_json()
+
+        new_directory = self._load(request_data, instance=directory, partial=True)
+        notes_directories_update(new_directory)
+        result = self._schema.dump(new_directory)
+        return response_api_success(result)
 
 
 notes_directories = NotesDirectories()
