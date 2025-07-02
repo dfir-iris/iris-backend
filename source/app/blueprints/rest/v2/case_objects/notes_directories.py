@@ -69,10 +69,13 @@ class NotesDirectories:
         directory = notes_directories_get(identifier)
         request_data = request.get_json()
 
-        new_directory = self._load(request_data, instance=directory, partial=True)
-        notes_directories_update(new_directory)
-        result = self._schema.dump(new_directory)
-        return response_api_success(result)
+        try:
+            new_directory = self._load(request_data, instance=directory, partial=True)
+            notes_directories_update(new_directory)
+            result = self._schema.dump(new_directory)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
 
 
 notes_directories = NotesDirectories()
