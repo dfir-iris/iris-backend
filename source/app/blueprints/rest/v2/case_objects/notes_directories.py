@@ -27,6 +27,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.errors import ObjectNotFoundError
+from app.business.errors import BusinessProcessingError
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
 from app.business.notes_directories import notes_directories_get
@@ -34,12 +35,18 @@ from app.business.notes_directories import notes_directories_update
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
+from app.models.models import NoteDirectory
 
 
 class NotesDirectories:
 
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
+
+    @staticmethod
+    def _check_note_directory_and_case_identifier_match(directory: NoteDirectory, case_identifier):
+        if directory.case_id != case_identifier:
+            raise BusinessProcessingError(f'Note directory {directory.id} does not belong to case {case_identifier}')
 
     def _load(self, request_data, **kwargs):
         return self._schema.load(request_data, **kwargs)
@@ -74,6 +81,8 @@ class NotesDirectories:
 
         try:
             directory = notes_directories_get(identifier)
+            self._check_note_directory_and_case_identifier_match(directory, case_identifier)
+
             request_data = request.get_json()
 
             if request_data.get('parent_id') is not None:
@@ -86,6 +95,8 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.normalized_messages())
         except ObjectNotFoundError:
             return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error('Data error', data=e.get_data())
 
 
 notes_directories = NotesDirectories()
