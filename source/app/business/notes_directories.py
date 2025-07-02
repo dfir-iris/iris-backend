@@ -23,7 +23,6 @@ from app.datamgmt.case.case_notes_db import get_directory
 from app.business.errors import ObjectNotFoundError
 
 
-
 def notes_directories_create(directory: NoteDirectory):
     db.session.add(directory)
     db.session.commit()
