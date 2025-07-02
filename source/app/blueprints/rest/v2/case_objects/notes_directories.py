@@ -66,6 +66,9 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.normalized_messages())
 
     def update(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
         directory = notes_directories_get(identifier)
         request_data = request.get_json()
 
