@@ -123,7 +123,7 @@ class NotesOperations:
             note = notes_get(identifier)
             if not ac_fast_check_current_user_has_case_access(note.note_case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=note.note_case_id)
-            _check_note_and_case_identifier_match(note, case_identifier)
+            self._check_note_and_case_identifier_match(note, case_identifier)
 
             notes_delete(note)
             return response_api_deleted()
