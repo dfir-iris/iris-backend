@@ -421,3 +421,7 @@ class TestsRestUsers(TestCase):
         identifier = response['user_id']
         response = user.delete(f'/api/v2/manage/users/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_delete_user_should_return_404_when_user_not_found(self):
+        response = self._subject.delete(f'/api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
