@@ -392,7 +392,7 @@ class TestsRestUsers(TestCase):
         response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
         self.assertEqual(204, response.status_code)
 
-    def test_delete_user_should_return_404_after_delete_user(self):
+    def test_get_user_should_return_404_after_delete_user(self):
         body = {
             'user_name': 'user',
             'user_login': 'user_login',
