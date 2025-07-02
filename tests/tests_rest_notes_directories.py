@@ -77,3 +77,13 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 'directory_name'}
         response = user.create(f'/api/v2/cases/{case_identifier}/notes-directories', body)
         self.assertEqual(403, response.status_code)
+
+    def test_update_note_directory_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        self.assertEqual(200, response.status_code)

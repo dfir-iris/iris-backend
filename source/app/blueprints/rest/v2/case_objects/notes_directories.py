@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -62,6 +63,9 @@ class NotesDirectories:
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
 
+    def update(self, case_identifier, identifier):
+        return response_api_success(None)
+
 
 notes_directories = NotesDirectories()
 case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', __name__, url_prefix='/<int:case_identifier>/notes-directories')
@@ -69,5 +73,11 @@ case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', _
 
 @case_notes_directories_blueprint.post('')
 @ac_api_requires()
-def create_event(case_identifier):
+def create_note_directory(case_identifier):
     return notes_directories.create(case_identifier)
+
+
+@case_notes_directories_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_note_directory(case_identifier, identifier):
+    return notes_directories.update(case_identifier, identifier)
