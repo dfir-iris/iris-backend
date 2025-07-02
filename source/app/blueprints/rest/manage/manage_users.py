@@ -371,6 +371,7 @@ def renew_user_api_key(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/users/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def view_delete_user(cur_id):
 
