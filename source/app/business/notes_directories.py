@@ -21,7 +21,6 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteDirectory
 from app.datamgmt.case.case_notes_db import get_directory
 from app.business.errors import ObjectNotFoundError
-from app.business.errors import BusinessProcessingError
 
 
 def notes_directories_create(directory: NoteDirectory):
