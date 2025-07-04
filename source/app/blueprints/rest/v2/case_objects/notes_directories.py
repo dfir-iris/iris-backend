@@ -73,6 +73,9 @@ class NotesDirectories:
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
 
+    def get(self, case_identifier, identifier):
+        return response_api_success(None)
+
     def update(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
@@ -107,6 +110,12 @@ case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', _
 @ac_api_requires()
 def create_note_directory(case_identifier):
     return notes_directories.create(case_identifier)
+
+
+@case_notes_directories_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_note_directory(case_identifier, identifier):
+    return notes_directories.get(case_identifier, identifier)
 
 
 @case_notes_directories_blueprint.put('/<int:identifier>')
