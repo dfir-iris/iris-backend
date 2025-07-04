@@ -74,7 +74,10 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.normalized_messages())
 
     def get(self, case_identifier, identifier):
-        return response_api_success(None)
+        note_directory = notes_directories_get(identifier)
+
+        result = self._schema.dump(note_directory)
+        return response_api_success(result)
 
     def update(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
