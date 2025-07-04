@@ -30,7 +30,7 @@ from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
-from app.business.notes_directories import notes_directories_get_in_case
+from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
@@ -41,6 +41,13 @@ class NotesDirectories:
 
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
+
+    @staticmethod
+    def _get_note_directory_in_case(identifier, case_identifier):
+        directory = notes_directories_get(identifier)
+        if directory.case_id != case_identifier:
+            raise ObjectNotFoundError()
+        return directory
 
     def _load(self, request_data, **kwargs):
         return self._schema.load(request_data, **kwargs)
@@ -75,7 +82,7 @@ class NotesDirectories:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            note_directory = notes_directories_get_in_case(identifier, case_identifier)
+            note_directory = self._get_note_directory_in_case(identifier, case_identifier)
 
             result = self._schema.dump(note_directory)
             return response_api_success(result)
@@ -91,7 +98,7 @@ class NotesDirectories:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            directory = notes_directories_get_in_case(identifier)
+            directory = self._get_note_directory_in_case(identifier, case_identifier)
 
             request_data = request.get_json()
 

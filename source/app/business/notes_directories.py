@@ -38,13 +38,6 @@ def notes_directories_get(identifier) -> NoteDirectory:
     return directory
 
 
-def notes_directories_get_in_case(identifier, case_identifier) -> NoteDirectory:
-    directory = notes_directories_get(identifier)
-    if directory.case_id != case_identifier:
-        raise BusinessProcessingError(f'Note directory {directory.id} does not belong to case {case_identifier}')
-    return directory
-
-
 def notes_directories_update(directory: NoteDirectory):
     db.session.commit()
 
