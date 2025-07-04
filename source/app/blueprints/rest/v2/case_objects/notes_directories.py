@@ -30,23 +30,17 @@ from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
-from app.business.notes_directories import notes_directories_get
+from app.business.notes_directories import notes_directories_get_in_case
 from app.business.notes_directories import notes_directories_update
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
-from app.models.models import NoteDirectory
 
 
 class NotesDirectories:
 
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
-
-    @staticmethod
-    def _check_note_directory_and_case_identifier_match(directory: NoteDirectory, case_identifier):
-        if directory.case_id != case_identifier:
-            raise BusinessProcessingError(f'Note directory {directory.id} does not belong to case {case_identifier}')
 
     def _load(self, request_data, **kwargs):
         return self._schema.load(request_data, **kwargs)
@@ -81,12 +75,14 @@ class NotesDirectories:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            note_directory = notes_directories_get(identifier)
+            note_directory = notes_directories_get_in_case(identifier, case_identifier)
 
             result = self._schema.dump(note_directory)
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
 
     def update(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
@@ -95,8 +91,7 @@ class NotesDirectories:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            directory = notes_directories_get(identifier)
-            self._check_note_directory_and_case_identifier_match(directory, case_identifier)
+            directory = notes_directories_get_in_case(identifier)
 
             request_data = request.get_json()
 

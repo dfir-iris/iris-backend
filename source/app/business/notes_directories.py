@@ -21,6 +21,7 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteDirectory
 from app.datamgmt.case.case_notes_db import get_directory
 from app.business.errors import ObjectNotFoundError
+from app.business.errors import BusinessProcessingError
 
 
 def notes_directories_create(directory: NoteDirectory):
@@ -34,6 +35,13 @@ def notes_directories_get(identifier) -> NoteDirectory:
     directory = get_directory(identifier)
     if not directory:
         raise ObjectNotFoundError()
+    return directory
+
+
+def notes_directories_get_in_case(identifier, case_identifier) -> NoteDirectory:
+    directory = notes_directories_get(identifier)
+    if directory.case_id != case_identifier:
+        raise BusinessProcessingError(f'Note directory {directory.id} does not belong to case {case_identifier}')
     return directory
 
 
