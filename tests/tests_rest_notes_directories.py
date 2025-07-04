@@ -96,6 +96,15 @@ class TestsRestNotesDirectories(TestCase):
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}').json()
         self.assertEqual('directory_name', response['name'])
 
+    def test_get_note_directory_should_return_404_when_case_does_not_exist(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        response = self._subject.get(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/notes-directories/{identifier}')
+        self.assertEqual(404, response.status_code)
+
     def test_get_note_directory_should_return_404_when_note_directory_does_not_exist(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
