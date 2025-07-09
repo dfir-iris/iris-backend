@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from marshmallow.exceptions import ValidationError
 from flask_sqlalchemy.pagination import Pagination
 
 from app import db
@@ -35,20 +34,10 @@ from app.datamgmt.case.case_assets_db import set_ioc_links
 from app.datamgmt.case.case_assets_db import delete_asset
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.schema.marshables import CaseAssetsSchema
 from app.util import add_obj_history_entry
 
 
-def _load(request_data, **kwargs):
-    try:
-        add_assets_schema = CaseAssetsSchema()
-        return add_assets_schema.load(request_data, **kwargs)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', data=e.messages)
-
-
-def assets_create(case_identifier, request_data, ioc_links):
-    asset = _load(request_data)
+def assets_create(case_identifier, asset: CaseAssets, ioc_links):
     asset.case_id = case_identifier
 
     if case_assets_db_exists(asset):

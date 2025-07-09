@@ -168,8 +168,11 @@ def deprecated_add_asset(caseid):
     try:
         request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
         ioc_links = request_data.get('ioc_links')
-        msg, asset = assets_create(caseid, request_data, ioc_links)
-        return response_success(msg, asset_schema.dump(asset))
+        asset = asset_schema.load(request_data)
+        msg, created_asset = assets_create(caseid, asset, ioc_links)
+        return response_success(msg, asset_schema.dump(created_asset))
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), e.get_data())
 
