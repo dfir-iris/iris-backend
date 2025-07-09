@@ -118,9 +118,12 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.get_data())
 
     def delete(self, case_identifier, identifier):
-        directory = self._get_note_directory_in_case(identifier, case_identifier)
-        notes_directories_delete(directory)
-        return response_api_deleted()
+        try:
+            directory = self._get_note_directory_in_case(identifier, case_identifier)
+            notes_directories_delete(directory)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 notes_directories = NotesDirectories()
