@@ -139,7 +139,7 @@ class NotesOperations:
             return response_api_not_found()
 
 
-notesOperations = NotesOperations()
+notes_operations = NotesOperations()
 case_notes_blueprint = Blueprint('case_notes',
                                  __name__,
                                  url_prefix='/<int:case_identifier>/notes')
@@ -148,22 +148,22 @@ case_notes_blueprint = Blueprint('case_notes',
 @case_notes_blueprint.post('')
 @ac_api_requires()
 def create_note(case_identifier):
-    return notesOperations.create(case_identifier)
+    return notes_operations.create(case_identifier)
 
 
 @case_notes_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_note(case_identifier, identifier):
-    return notesOperations.get(case_identifier, identifier)
+    return notes_operations.get(case_identifier, identifier)
 
 
 @case_notes_blueprint.put('<int:identifier>')
 @ac_api_requires()
 def update_note(case_identifier, identifier):
-    return notesOperations.update(case_identifier, identifier)
+    return notes_operations.update(case_identifier, identifier)
 
 
 @case_notes_blueprint.delete('<int:identifier>')
 @ac_api_requires()
 def delete_note(case_identifier, identifier):
-    return notesOperations.delete(case_identifier, identifier)
+    return notes_operations.delete(case_identifier, identifier)
