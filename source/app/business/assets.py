@@ -47,7 +47,7 @@ def _load(request_data, **kwargs):
         raise BusinessProcessingError('Data error', data=e.messages)
 
 
-def assets_create(case_identifier, request_data):
+def assets_create(case_identifier, request_data, ioc_links):
     asset = _load(request_data)
     asset.case_id = case_identifier
 
@@ -55,8 +55,8 @@ def assets_create(case_identifier, request_data):
         raise BusinessProcessingError('Asset with same value and type already exists')
     asset = create_asset(asset=asset, caseid=case_identifier, user_id=iris_current_user.id)
     # TODO should the custom attributes be set?
-    if request_data.get('ioc_links'):
-        errors, _ = set_ioc_links(request_data.get('ioc_links'), asset.asset_id)
+    if ioc_links:
+        errors, _ = set_ioc_links(ioc_links, asset.asset_id)
         if errors:
             raise BusinessProcessingError('Encountered errors while linking IOC. Asset has still been created.')
     asset = call_modules_hook('on_postload_asset_create', data=asset, caseid=case_identifier)

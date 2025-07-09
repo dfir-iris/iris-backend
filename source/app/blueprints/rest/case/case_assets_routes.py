@@ -167,7 +167,8 @@ def deprecated_add_asset(caseid):
     asset_schema = CaseAssetsSchema()
     try:
         request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
-        msg, asset = assets_create(caseid, request_data)
+        ioc_links = request_data.get('ioc_links')
+        msg, asset = assets_create(caseid, request_data, ioc_links)
         return response_success(msg, asset_schema.dump(asset))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), e.get_data())

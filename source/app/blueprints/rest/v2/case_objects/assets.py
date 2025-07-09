@@ -87,7 +87,8 @@ class AssetsOperations:
 
         try:
             request_data = call_deprecated_on_preload_modules_hook('asset_create', request.get_json(), case_identifier)
-            _, asset = assets_create(case_identifier, request_data)
+            ioc_links = request_data.get('ioc_links')
+            _, asset = assets_create(case_identifier, request_data, ioc_links)
             return response_api_created(self._schema.dump(asset))
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
