@@ -289,6 +289,7 @@ def case_directory_update(dir_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/delete/<dir_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_directory_delete(dir_id, caseid):
