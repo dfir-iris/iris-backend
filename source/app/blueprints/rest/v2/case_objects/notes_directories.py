@@ -33,6 +33,7 @@ from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
 from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
+from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
@@ -117,6 +118,8 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.get_data())
 
     def delete(self, case_identifier, identifier):
+        directory = self._get_note_directory_in_case(identifier, case_identifier)
+        notes_directories_delete(directory)
         return response_api_deleted()
 
 

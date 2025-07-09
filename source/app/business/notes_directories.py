@@ -19,8 +19,9 @@
 from app import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteDirectory
-from app.datamgmt.case.case_notes_db import get_directory
 from app.business.errors import ObjectNotFoundError
+from app.datamgmt.case.case_notes_db import get_directory
+from app.datamgmt.case.case_notes_db import delete_directory
 
 
 def notes_directories_create(directory: NoteDirectory):
@@ -41,3 +42,8 @@ def notes_directories_update(directory: NoteDirectory):
     db.session.commit()
 
     track_activity(f'modified directory "{directory.name}"', caseid=directory.case_id)
+
+
+def notes_directories_delete(directory: NoteDirectory):
+    delete_directory(directory, directory.case_id)
+    track_activity(f'deleted directory "{directory.name}"', caseid=directory.case_id)

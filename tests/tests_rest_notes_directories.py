@@ -224,3 +224,13 @@ class TestsRestNotesDirectories(TestCase):
 
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_get_note_directory_should_return_404_after_note_directory_has_been_deleted(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+        self._subject.delete(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
+        self.assertEqual(404, response.status_code)
