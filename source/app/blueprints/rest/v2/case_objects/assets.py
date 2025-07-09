@@ -103,7 +103,7 @@ class AssetsOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message())
 
-    def update(self,case_identifier, identifier):
+    def update(self, case_identifier, identifier):
         try:
             asset = self._get_asset_in_case(identifier, case_identifier)
 
