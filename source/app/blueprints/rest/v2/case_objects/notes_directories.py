@@ -141,6 +141,7 @@ def get_note_directory(case_identifier, identifier):
 def update_note_directory(case_identifier, identifier):
     return notes_directories.update(case_identifier, identifier)
 
+
 @case_notes_directories_blueprint.delete('<int:identifier>')
 @ac_api_requires()
 def delete_note_directory(case_identifier, identifier):
