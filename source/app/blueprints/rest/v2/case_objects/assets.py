@@ -18,6 +18,7 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
@@ -113,10 +114,16 @@ class AssetsOperations:
                 return ac_api_return_access_denied(caseid=asset.case_id)
 
             request_data = call_deprecated_on_preload_modules_hook('asset_update', request.get_json(), case_identifier)
-            asset = assets_update(asset, request_data)
 
-            result = self._schema.dump(asset)
+            request_data['asset_id'] = asset.asset_id
+            loaded_asset = self._schema.load(request_data, instance=asset, partial=True)
+            updated_asset = assets_update(loaded_asset)
+
+            result = self._schema.dump(updated_asset)
             return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
         except ObjectNotFoundError:
             return response_api_not_found()

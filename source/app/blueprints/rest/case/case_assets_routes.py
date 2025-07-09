@@ -18,9 +18,9 @@
 
 import csv
 from datetime import datetime
-import marshmallow
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app import db
 from app.blueprints.rest.case_comments import case_comment_update
@@ -268,7 +268,7 @@ def case_upload_asset(caseid):
 
         return response_success(msg=msg, data=ret)
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg='Data error', data=e.messages)
 
 
@@ -302,13 +302,17 @@ def asset_update(cur_id, caseid):
             return response_error("Invalid asset ID for this case")
 
         request_data = call_modules_hook('on_preload_asset_update', data=request.get_json(), caseid=caseid)
-        result = assets_update(asset, request_data)
-
+        request_data['asset_id'] = asset.asset_id
         schema = CaseAssetsSchema()
+        updated_asset = schema.load(request_data, instance=asset, partial=True)
+        result = assets_update(updated_asset)
+
         return response_success(f'Updated asset {result.asset_name}', schema.dump(result))
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
 
 
 @case_assets_rest_blueprint.route('/case/assets/delete/<int:cur_id>', methods=['POST'])
@@ -370,7 +374,7 @@ def case_comment_asset_add(cur_id, caseid):
         track_activity(f"asset \"{asset.asset_name}\" commented", caseid=caseid)
         return response_success("Asset commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 

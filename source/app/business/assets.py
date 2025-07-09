@@ -98,9 +98,7 @@ def assets_filter(case_identifier, pagination_parameters: PaginationParameters, 
         raise BusinessProcessingError(str(e))
 
 
-def assets_update(current_asset: CaseAssets, request_data: dict):
-    request_data['asset_id'] = current_asset.asset_id
-    asset = _load(request_data, instance=current_asset, partial=True)
+def assets_update(asset: CaseAssets):
 
     if case_assets_db_exists(asset):
         raise BusinessProcessingError('Data error', data='Asset with same value and type already exists')
