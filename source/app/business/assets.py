@@ -32,7 +32,6 @@ from app.datamgmt.case.case_assets_db import filter_assets
 from app.datamgmt.case.case_assets_db import case_assets_db_exists
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
-from app.datamgmt.case.case_assets_db import get_linked_iocs_finfo_from_asset
 from app.datamgmt.case.case_assets_db import delete_asset
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -86,18 +85,6 @@ def assets_get(identifier) -> CaseAssets:
         raise ObjectNotFoundError()
 
     return asset
-
-
-def assets_get_detailed(identifier):
-    asset = assets_get(identifier)
-
-    # TODO this is a code smell: shouldn't have schemas in the business layer + the CaseAssetsSchema is instantiated twice
-    case_assets_schema = CaseAssetsSchema()
-    data = case_assets_schema.dump(asset)
-
-    asset_iocs = get_linked_iocs_finfo_from_asset(identifier)
-    data['linked_ioc'] = [row._asdict() for row in asset_iocs]
-    return data
 
 
 def assets_filter(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:

@@ -27,12 +27,11 @@ from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.business.assets import assets_delete
 from app.business.assets import assets_create
-from app.business.assets import assets_get_detailed
 from app.business.assets import assets_get
 from app.business.assets import assets_update
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import BusinessProcessingError
-from app.datamgmt.case.case_assets_db import get_raw_assets
+from app.datamgmt.case.case_assets_db import get_raw_assets, get_linked_iocs_finfo_from_asset
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import delete_asset_comment
@@ -279,8 +278,13 @@ def case_upload_asset(caseid):
 def deprecated_asset_view(cur_id, caseid):
     try:
 
-        asset = assets_get_detailed(cur_id)
-        return response_success(msg='Asset added', data=asset)
+        asset = assets_get(cur_id)
+        # TODO this is a code smell: shouldn't have schemas in the business layer + the CaseAssetsSchema is instantiated twice
+        case_assets_schema = CaseAssetsSchema()
+        data = case_assets_schema.dump(asset)
+        asset_iocs = get_linked_iocs_finfo_from_asset(cur_id)
+        data['linked_ioc'] = [row._asdict() for row in asset_iocs]
+        return response_success(msg='Asset added', data=data)
 
     except BusinessProcessingError as e:
         return response_error(e.get_message())
