@@ -45,16 +45,16 @@ def get_directory(directory_id):
     )).first()
 
 
-def delete_directory(directory, caseid):
+def delete_directory(directory: NoteDirectory):
     # Proceed to delete directory, but remove all associated notes and subdirectories recursively
     if directory:
         # Delete all notes in the directory
         for note in directory.notes:
-            delete_note(note.note_id, caseid)
+            delete_note(note.note_id, directory.case_id)
 
         # Delete all subdirectories
         for subdirectory in directory.subdirectories:
-            delete_directory(subdirectory, caseid)
+            delete_directory(subdirectory)
 
         # Delete the directory
         db.session.delete(directory)

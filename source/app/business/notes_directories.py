@@ -45,5 +45,5 @@ def notes_directories_update(directory: NoteDirectory):
 
 
 def notes_directories_delete(directory: NoteDirectory):
-    delete_directory(directory, directory.case_id)
+    delete_directory(directory)
     track_activity(f'deleted directory "{directory.name}"', caseid=directory.case_id)

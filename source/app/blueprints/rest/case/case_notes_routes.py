@@ -300,7 +300,7 @@ def case_directory_delete(dir_id, caseid):
             return response_error(msg="Invalid directory ID")
 
         # Proceed to delete directory, but remove all associated notes and subdirectories recursively
-        has_succeed = delete_directory(directory, caseid)
+        has_succeed = delete_directory(directory)
         if has_succeed:
             track_activity(f"deleted directory \"{directory.name}\"", caseid=caseid)
             return response_success('Directory deleted')
