@@ -118,6 +118,9 @@ class NotesDirectories:
             return response_api_error('Data error', data=e.get_data())
 
     def delete(self, case_identifier, identifier):
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
         try:
             directory = self._get_note_directory_in_case(identifier, case_identifier)
             notes_directories_delete(directory)
