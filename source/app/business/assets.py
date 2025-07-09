@@ -98,29 +98,26 @@ def assets_filter(case_identifier, pagination_parameters: PaginationParameters, 
         raise BusinessProcessingError(str(e))
 
 
-def assets_update(asset: CaseAssets, request_data: dict):
-    caseid = asset.case_id
+def assets_update(current_asset: CaseAssets, request_data: dict):
+    request_data['asset_id'] = current_asset.asset_id
+    asset = _load(request_data, instance=current_asset, partial=True)
 
-    request_data['asset_id'] = asset.asset_id
-
-    asset_schema = _load(request_data, instance=asset, partial=True)
-
-    if case_assets_db_exists(asset_schema):
+    if case_assets_db_exists(asset):
         raise BusinessProcessingError('Data error', data='Asset with same value and type already exists')
 
-    update_assets_state(caseid=caseid)
+    update_assets_state(asset.case_id)
     add_obj_history_entry(asset, 'updated')
     db.session.commit()
 
-    if hasattr(asset_schema, 'ioc_links'):
-        errors, _ = set_ioc_links(asset_schema.ioc_links, asset.asset_id)
+    if hasattr(asset, 'ioc_links'):
+        errors, _ = set_ioc_links(asset.ioc_links, asset.asset_id)
         if errors:
             raise BusinessProcessingError('Encountered errors while linking IOC. Asset has still been updated.')
 
-    asset_schema = call_modules_hook('on_postload_asset_update', data=asset_schema, caseid=caseid)
+    asset = call_modules_hook('on_postload_asset_update', asset, caseid=asset.case_id)
 
-    if asset_schema:
-        track_activity(f'updated asset "{asset_schema.asset_name}"', caseid=caseid)
-        return asset_schema
+    if asset:
+        track_activity(f'updated asset "{asset.asset_name}"', caseid=asset.case_id)
+        return asset
 
     raise BusinessProcessingError('Unable to update asset for internal reasons')
