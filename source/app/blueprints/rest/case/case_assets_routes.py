@@ -166,7 +166,8 @@ def case_assets_state(caseid):
 def deprecated_add_asset(caseid):
     asset_schema = CaseAssetsSchema()
     try:
-        msg, asset = assets_create(caseid, request.get_json())
+        request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
+        msg, asset = assets_create(caseid, request_data)
         return response_success(msg, asset_schema.dump(asset))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), e.get_data())
@@ -300,7 +301,8 @@ def asset_update(cur_id, caseid):
         if not asset:
             return response_error("Invalid asset ID for this case")
 
-        result = assets_update(asset, request.get_json())
+        request_data = call_modules_hook('on_preload_asset_update', data=request.get_json(), caseid=caseid)
+        result = assets_update(asset, request_data)
 
         schema = CaseAssetsSchema()
         return response_success(f'Updated asset {result.asset_name}', schema.dump(result))

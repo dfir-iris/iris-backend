@@ -47,8 +47,7 @@ def _load(request_data, **kwargs):
         raise BusinessProcessingError('Data error', data=e.messages)
 
 
-def assets_create(case_identifier, request_json):
-    request_data = call_modules_hook('on_preload_asset_create', data=request_json, caseid=case_identifier)
+def assets_create(case_identifier, request_data):
     asset = _load(request_data)
     asset.case_id = case_identifier
 
@@ -99,9 +98,8 @@ def assets_filter(case_identifier, pagination_parameters: PaginationParameters, 
         raise BusinessProcessingError(str(e))
 
 
-def assets_update(asset: CaseAssets, request_json: dict):
+def assets_update(asset: CaseAssets, request_data: dict):
     caseid = asset.case_id
-    request_data = call_modules_hook('on_preload_asset_update', data=request_json, caseid=caseid)
 
     request_data['asset_id'] = asset.asset_id
 

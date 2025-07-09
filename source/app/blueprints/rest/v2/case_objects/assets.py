@@ -38,6 +38,7 @@ from app.business.assets import assets_delete
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
 
@@ -84,7 +85,8 @@ class AssetsOperations:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            _, asset = assets_create(case_identifier, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('asset_create', request.get_json(), case_identifier)
+            _, asset = assets_create(case_identifier, request_data)
             return response_api_created(self._schema.dump(asset))
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
@@ -110,7 +112,8 @@ class AssetsOperations:
             if not ac_fast_check_current_user_has_case_access(asset.case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=asset.case_id)
 
-            asset = assets_update(asset, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('asset_update', request.get_json(), case_identifier)
+            asset = assets_update(asset, request_data)
 
             result = self._schema.dump(asset)
             return response_api_success(result)
