@@ -30,7 +30,7 @@ from app.models.authorization import Permissions
 from app.business.errors import ObjectNotFoundError
 from app.business.users import users_create
 from app.business.users import users_get
-users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
+from app.business.users import users_update
 
 
 class Users:
@@ -38,11 +38,9 @@ class Users:
     def __init__(self):
         self._schema = UserSchemaForAPIV2()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
-    @users_blueprint.post('')
-    @ac_api_requires(Permissions.server_administrator)
     def create(self):
         try:
             request_data = request.get_json()
@@ -55,14 +53,29 @@ class Users:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
-    @users_blueprint.get('/<int:identifier>')
-    @ac_api_requires(Permissions.server_administrator)
     def get(self, identifier):
 
         try:
             user = users_get(identifier)
             result = self._schema.dump(user)
             return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+    def put(self, identifier):
+
+        try:
+            user = users_get(identifier)
+            request_data = request.get_json()
+            request_data['user_id'] = identifier
+            new_user = self._load(request_data, instance=user, partial=True)
+            user_updated = users_update(new_user, request_data.get('user_password'))
+            result = self._schema.dump(user_updated)
+            return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
         except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -78,6 +91,12 @@ def create_user():
 
 
 @users_blueprint.get('/<int:identifier>')
-@ac_api_requires()
+@ac_api_requires(Permissions.server_administrator)
 def get_user(identifier):
     return users.get(identifier)
+
+
+@users_blueprint.put('/<int:identifier>')
+@ac_api_requires(Permissions.server_administrator)
+def put_user(identifier):
+    return users.put(identifier)

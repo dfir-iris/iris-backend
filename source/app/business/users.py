@@ -23,6 +23,7 @@ from app.datamgmt.manage.manage_users_db import get_active_user
 from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
+from app.datamgmt.manage.manage_users_db import update_user
 from app.datamgmt.manage.manage_users_db import get_user_organisations
 from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.iris_engine.utils.tracker import track_activity
@@ -72,6 +73,13 @@ def users_get(identifier) -> User:
     user = get_user_details_return_user(identifier)
     if not user:
         raise ObjectNotFoundError()
+    return user
+
+
+def users_update(user: User, user_password: str = None) -> User:
+    user = update_user(password=user_password, user=user)
+    track_activity(f"updated user {user.user}", ctx_less=True)
+    db.session.commit()
     return user
 
 
