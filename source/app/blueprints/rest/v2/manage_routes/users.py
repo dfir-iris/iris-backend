@@ -20,42 +20,64 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
+from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
-from app.blueprints.access_controls import wrap_with_permission_checks
+from app.blueprints.rest.endpoints import response_api_not_found
+from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
-from app.schema.marshables import UserSchema
-from app.business.users import user_create
+from app.business.errors import ObjectNotFoundError
+from app.business.users import users_create
+from app.business.users import users_get
+users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 
 class Users:
 
     def __init__(self):
-        self._schema = UserSchema()
+        self._schema = UserSchemaForAPIV2()
 
     def _load(self, request_data):
         return self._schema.load(request_data)
 
+    @users_blueprint.post('')
+    @ac_api_requires(Permissions.server_administrator)
     def create(self):
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
-            request_data['active'] = request_data.get('active', True)
+            request_data['user_active'] = request_data.get('user_active', True)
             user = self._load(request_data)
-            user = user_create(user, request_data['active'])
+            user = users_create(user, request_data['user_active'])
             result = self._schema.dump(user)
-            result['user_api_key'] = user.api_key
-            del result['user_password']
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
+    @users_blueprint.get('/<int:identifier>')
+    @ac_api_requires(Permissions.server_administrator)
+    def get(self, identifier):
 
-def create_users_blueprint():
-    blueprint = Blueprint('rest_v2_users', __name__, url_prefix='/users')
-    users = Users()
+        try:
+            user = users_get(identifier)
+            result = self._schema.dump(user)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
-    create_user = wrap_with_permission_checks(users.create, Permissions.server_administrator)
-    blueprint.add_url_rule('', view_func=create_user, methods=['POST'])
 
-    return blueprint
+users = Users()
+users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
+
+
+@users_blueprint.post('')
+@ac_api_requires(Permissions.server_administrator)
+def create_user():
+    return users.create()
+
+
+@users_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_user(identifier):
+    return users.get(identifier)

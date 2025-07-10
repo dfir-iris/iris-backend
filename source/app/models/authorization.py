@@ -219,6 +219,10 @@ class User(UserMixin, db.Model):
     webauthn_credentials = Column(JSON, nullable=True)
     mfa_setup_complete = Column(Boolean(), default=False)
 
+    groups = relationship('Group', secondary='user_group', viewonly=True)
+    permissions = relationship('Group', secondary='user_group', viewonly=True)
+    customers = relationship('Client', secondary='user_client', viewonly=True)
+
     def __init__(self, user: str, name: str, email: str, password: str, active: bool,
                  external_id: str = None, is_service_account: bool = False, mfa_secret: str = None,
                  webauthn_credentials: list = None):

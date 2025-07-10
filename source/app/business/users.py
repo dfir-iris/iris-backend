@@ -18,9 +18,13 @@
 from app import db
 from app.models.authorization import User
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_users_db import get_active_user
+from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
+from app.datamgmt.manage.manage_users_db import get_user_organisations
+from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.iris_engine.utils.tracker import track_activity
 
 
@@ -52,13 +56,31 @@ def retrieve_user_by_username(username: str):
     return user
 
 
-def user_create(user: User, active) -> User:
+def users_create(user: User, active) -> User:
     user = create_user(user.name,
                        user.user,
-                       user.email,
                        user.password,
+                       user.email,
                        active,
-                       user.is_service_account)
+                       user_is_service_account=user.is_service_account)
 
-    track_activity(f"created user {user.user}", ctx_less=True)
+    track_activity(f'created user {user.user}', ctx_less=True)
     return user
+
+
+def users_get(identifier) -> User:
+    user = get_user_details_return_user(identifier)
+    if not user:
+        raise ObjectNotFoundError()
+    return user
+
+
+def get_primary_organisation(user_id):
+    uoe = get_user_primary_org(user_id)
+    if not uoe:
+        return 0
+    return uoe.org_id
+
+
+def get_organisations(user_id):
+    return get_user_organisations(user_id)

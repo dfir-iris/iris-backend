@@ -516,6 +516,11 @@ def get_user_details(user_id, include_api_key=False):
     return row
 
 
+def get_user_details_return_user(user_id):
+
+    return User.query.filter(User.id == user_id).first()
+
+
 def add_case_access_to_user(user, cases_list, access_level):
     if not user:
         return None, "Invalid user"

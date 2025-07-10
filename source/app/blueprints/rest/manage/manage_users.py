@@ -141,6 +141,7 @@ def add_user():
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/users/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def view_user(cur_id):
 
