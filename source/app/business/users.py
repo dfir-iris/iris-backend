@@ -24,6 +24,7 @@ from app.datamgmt.manage.manage_users_db import get_user_details_return_user
 from app.datamgmt.manage.manage_users_db import get_active_user_by_login
 from app.datamgmt.manage.manage_users_db import create_user
 from app.datamgmt.manage.manage_users_db import update_user
+from app.datamgmt.manage.manage_users_db import delete_user
 from app.datamgmt.manage.manage_users_db import get_user_organisations
 from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.iris_engine.utils.tracker import track_activity
@@ -81,6 +82,11 @@ def users_update(user: User, user_password: str = None) -> User:
     track_activity(f"updated user {user.user}", ctx_less=True)
     db.session.commit()
     return user
+
+
+def users_delete(user: User):
+    delete_user(user.id)
+    track_activity(message=f"deleted user ID {user.id}", ctx_less=True)
 
 
 def get_primary_organisation(user_id):

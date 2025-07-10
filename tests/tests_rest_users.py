@@ -377,3 +377,51 @@ class TestsRestUsers(TestCase):
         identifier = response['user_id']
         response = self._subject.update(f'/api/v2/manage/users/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_delete_user_should_return_204(self):
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_get_user_should_return_404_after_delete_user(self):
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        self._subject.delete(f'/api/v2/manage/users/{identifier}')
+        response = self._subject.get(f'api/v2/manage/users/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_user_should_return_403_when_user_is_denied_permission_to_access_user(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'user_name': 'user',
+            'user_login': 'user_login',
+            'user_email': 'user_email',
+            'user_password': 'User_password_17_@',
+            'user_is_service_account': True,
+            'user_isadmin': True,
+        }
+        response = self._subject.create('/api/v2/manage/users', body).json()
+        identifier = response['user_id']
+        response = user.delete(f'/api/v2/manage/users/{identifier}')
+        self.assertEqual(403, response.status_code)
+
+    def test_delete_user_should_return_404_when_user_not_found(self):
+        response = self._subject.delete(f'/api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
