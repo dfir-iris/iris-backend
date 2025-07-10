@@ -22,14 +22,20 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.business.errors import ObjectNotFoundError
+from app.business.errors import BusinessProcessingError
 from app.schema.marshables import CaseNoteDirectorySchema
-from app.business.notes_directories import notes_directory_create
+from app.business.notes_directories import notes_directories_create
+from app.business.notes_directories import notes_directories_get
+from app.business.notes_directories import notes_directories_update
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
+from app.models.models import NoteDirectory
 
 
 class NotesDirectories:
@@ -37,8 +43,13 @@ class NotesDirectories:
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    @staticmethod
+    def _check_note_directory_and_case_identifier_match(directory: NoteDirectory, case_identifier):
+        if directory.case_id != case_identifier:
+            raise BusinessProcessingError(f'Note directory {directory.id} does not belong to case {case_identifier}')
+
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -55,12 +66,37 @@ class NotesDirectories:
                 self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier)
             directory = self._load(request_data)
 
-            notes_directory_create(directory)
+            notes_directories_create(directory)
             result = self._schema.dump(directory)
 
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
+
+    def update(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            directory = notes_directories_get(identifier)
+            self._check_note_directory_and_case_identifier_match(directory, case_identifier)
+
+            request_data = request.get_json()
+
+            if request_data.get('parent_id') is not None:
+                self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier, current_id=identifier)
+            new_directory = self._load(request_data, instance=directory, partial=True)
+            notes_directories_update(new_directory)
+            result = self._schema.dump(new_directory)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error('Data error', data=e.get_data())
 
 
 notes_directories = NotesDirectories()
@@ -69,5 +105,11 @@ case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', _
 
 @case_notes_directories_blueprint.post('')
 @ac_api_requires()
-def create_event(case_identifier):
+def create_note_directory(case_identifier):
     return notes_directories.create(case_identifier)
+
+
+@case_notes_directories_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_note_directory(case_identifier, identifier):
+    return notes_directories.update(case_identifier, identifier)

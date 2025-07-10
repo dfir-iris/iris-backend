@@ -39,13 +39,10 @@ def get_note(note_id):
     return note
 
 
-def get_directory(directory_id, caseid):
-    directory = NoteDirectory.query.filter(and_(
-        NoteDirectory.id == directory_id,
-        NoteDirectory.case_id == caseid
+def get_directory(directory_id):
+    return NoteDirectory.query.filter(and_(
+        NoteDirectory.id == directory_id
     )).first()
-
-    return directory
 
 
 def delete_directory(directory, caseid):

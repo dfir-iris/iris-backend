@@ -77,3 +77,89 @@ class TestsRestNotesDirectories(TestCase):
         body = {'name': 'directory_name'}
         response = user.create(f'/api/v2/cases/{case_identifier}/notes-directories', body)
         self.assertEqual(403, response.status_code)
+
+    def test_update_note_directory_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', {})
+        self.assertEqual(200, response.status_code)
+
+    def test_update_note_directory_should_modify_name(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {'name': 'new name'}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body).json()
+        self.assertEqual('new name', response['name'])
+
+    def test_update_note_directory_should_add_an_activity(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {'name': 'new name'}
+        self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        activities = self._subject.get('/case/activities/list', {'cid': case_identifier}).json()
+        last_activity = activities['data'][0]['activity_desc']
+        self.assertEqual('Modified directory "new name"', last_activity)
+
+    def test_update_note_directory_should_return_400_when_field_name_is_not_a_string(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {'name': 123}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_update_note_directory_should_return_400_when_field_parent_id_is_the_current_identifier(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        body = {'parent_id': identifier}
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_update_note_directory_should_return_404_when_case_identifier_does_not_correspond_to_existing_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        response = self._subject.update(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/notes-directories/{identifier}', {})
+        self.assertEqual(404, response.status_code)
+
+    def test_update_note_directory_should_return_404_when_identifier_does_not_correspond_to_existing_note_directory(self):
+        case_identifier = self._subject.create_dummy_case()
+
+        response = self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', {})
+        self.assertEqual(404, response.status_code)
+
+    def test_update_note_directory_should_return_403_when_user_has_no_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        response = user.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', {})
+        self.assertEqual(403, response.status_code)
+
+    def test_update_note_directory_should_return_400_when_case_identifier_does_not_match_note_directory_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        identifier = response['id']
+
+        case_identifier2 = self._subject.create_dummy_case()
+        response = self._subject.update(f'/api/v2/cases/{case_identifier2}/notes-directories/{identifier}', {})
+        self.assertEqual(400, response.status_code)

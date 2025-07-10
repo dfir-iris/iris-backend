@@ -140,10 +140,16 @@ def case_note_save(cur_id, caseid):
 
     try:
         note = notes_get(cur_id)
-        note = notes_update(note, request.get_json())
+        request_data = call_modules_hook('on_preload_note_update', data=request.get_json(), caseid=note.note_case_id)
+
+        request_data['note_id'] = note.note_id
+        addnote_schema.load(request_data, partial=True, instance=note)
+        note = notes_update(note)
 
         return response_success(f"Note ID {cur_id} saved", data=addnote_schema.dump(note))
 
+    except ValidationError as e:
+        return response_error('Data error', e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -248,12 +254,13 @@ def case_directory_add(caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/update/<dir_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_directory_update(dir_id, caseid):
     try:
 
-        directory = get_directory(dir_id, caseid)
+        directory = get_directory(dir_id)
         if not directory:
             return response_error(msg="Invalid directory ID")
 
@@ -287,7 +294,7 @@ def case_directory_update(dir_id, caseid):
 def case_directory_delete(dir_id, caseid):
     try:
 
-        directory = get_directory(dir_id, caseid)
+        directory = get_directory(dir_id)
         if not directory:
             return response_error(msg="Invalid directory ID")
 

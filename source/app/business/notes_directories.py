@@ -19,10 +19,25 @@
 from app import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteDirectory
+from app.datamgmt.case.case_notes_db import get_directory
+from app.business.errors import ObjectNotFoundError
 
 
-def notes_directory_create(directory: NoteDirectory):
+def notes_directories_create(directory: NoteDirectory):
     db.session.add(directory)
     db.session.commit()
 
     track_activity(f'added directory "{directory.name}"', caseid=directory.case_id)
+
+
+def notes_directories_get(identifier) -> NoteDirectory:
+    directory = get_directory(identifier)
+    if not directory:
+        raise ObjectNotFoundError()
+    return directory
+
+
+def notes_directories_update(directory: NoteDirectory):
+    db.session.commit()
+
+    track_activity(f'modified directory "{directory.name}"', caseid=directory.case_id)
