@@ -872,6 +872,7 @@ class IocTypeSchema(ma.SQLAlchemyAutoSchema):
     type_taxonomy: Optional[str] = auto_field('type_taxonomy')
     type_validation_regex: Optional[str] = auto_field('type_validation_regex')
     type_validation_expect: Optional[str] = auto_field('type_validation_expect')
+
     class Meta:
         model = IocType
         load_instance = True
@@ -1136,7 +1137,7 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
     event_iocs: List[int] = fields.List(fields.Integer, required=True, allow_none=False)
     event_date: datetime = fields.DateTime("%Y-%m-%dT%H:%M:%S.%f", required=True, allow_none=False)
     event_tz: str = fields.String(required=True, allow_none=False)
-    event_category_id: int = fields.Integer(required=True, allow_none=False)
+    event_category_id: int = ma.Method('get_event_category_id')
     event_date_wtz: datetime = fields.DateTime("%Y-%m-%dT%H:%M:%S.%f", required=False, allow_none=False)
     modification_history: str = auto_field('modification_history', required=False, readonly=True)
     event_comments_map: List[int] = fields.List(fields.Integer, required=False, allow_none=True)
@@ -1200,9 +1201,9 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
 
         for field in ['event_title', 'event_date', 'event_tz', 'event_category_id', 'event_assets', 'event_iocs']:
             if field not in data:
-                raise ValidationError(f"Missing field {field}", field_name=field)
+                raise ValidationError(f'Missing field {field}', field_name=field)
 
-        assert_type_mml(input_var=int(data.get('event_category_id')),
+        assert_type_mml(input_var=data.get('event_category_id'),
                         field_name='event_category_id',
                         type=int)
 
@@ -1275,6 +1276,11 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
             data['custom_attributes'] = merge_custom_attributes(new_attr, data.get('event_id'), 'event')
 
         return data
+
+    def get_event_category_id(self, event):
+        if not event.category:
+            return None
+        return event.category[0].id
 
 
 class DSPathSchema(ma.SQLAlchemyAutoSchema):
