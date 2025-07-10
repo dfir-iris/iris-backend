@@ -224,11 +224,13 @@ ingress:
   enabled: true
   name: iris-ingress
   className: nginx
-  annotations:
+  enableTls: false
+  sslRedirect: false
+  customAnnotations:
     # Add any annotations specific to your Ingress controller
-    kubernetes.io/ingress.class: nginx
+    # kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: /$1
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
   hosts:
     - host: <host_name>
       paths:
@@ -237,6 +239,6 @@ ingress:
           serviceName: iriswebapp-app
           servicePort: 8000
   tls:
-    - secretName: iris-ingress-tls-secret
+    - secretName: <secret_name>
       hosts:
-        - <host_name>        
+        - <host_name>
