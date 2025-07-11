@@ -27,6 +27,7 @@ class ProfileOperations:
     def update(self):
         return response_api_success(None)
 
+
 profile_operations = ProfileOperations()
 profile_blueprint = Blueprint('profile_rest_v2', __name__, url_prefix='/me')
 
