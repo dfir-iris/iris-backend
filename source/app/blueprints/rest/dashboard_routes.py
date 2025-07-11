@@ -162,6 +162,7 @@ def view_gtask(cur_id):
 
 
 @dashboard_rest_blueprint.route('/user/tasks/status/update', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/cases/{case_identifier}/tasks/{identifier}')
 @ac_api_requires()
 @ac_requires_case_identifier()
 def utask_statusupdate(caseid):
