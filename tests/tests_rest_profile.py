@@ -29,5 +29,5 @@ class TestsRestProfile(TestCase):
         self._subject.clear_database()
 
     def test_update_me_should_return_200(self):
-        response = self._subject.update(f'/api/v2/me', {})
+        response = self._subject.update('/api/v2/me', {})
         self.assertEqual(200, response.status_code)
