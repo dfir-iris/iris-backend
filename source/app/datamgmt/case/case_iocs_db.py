@@ -44,7 +44,8 @@ relationship_model_map = {
     'assets': CaseAssets,
     'tlp': Tlp,
     'events': CasesEvent,
-    'alerts': Alert
+    'alerts': Alert,
+    'ioc_type': IocType
 }
 
 
