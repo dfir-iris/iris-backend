@@ -74,6 +74,13 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'has_mini_sidebar': True}).json()
         self.assertTrue(response['has_mini_sidebar'])
 
+    def test_update_me_should_not_modify_user_id(self):
+        user = self._subject.create_dummy_user()
+        identifier = user.get_identifier()
+
+        response = user.update('/api/v2/me', {'user_id': 0}).json()
+        self.assertEqual(identifier, response['user_id'])
+
     def test_update_me_should_return_400_when_field_user_name_is_not_a_string(self):
         user = self._subject.create_dummy_user()
 

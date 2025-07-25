@@ -38,6 +38,7 @@ class ProfileOperations:
         try:
             user = users_get(iris_current_user.id)
             request_data = request.get_json()
+            request_data['user_id'] = iris_current_user.id
             user = self._schema.load(request_data, instance=user, partial=True)
             user = users_update(user, request_data.get('user_password'))
             result = self._schema.dump(user)
