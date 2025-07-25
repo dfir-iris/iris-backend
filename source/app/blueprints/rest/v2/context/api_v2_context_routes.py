@@ -53,7 +53,6 @@ def set_ctx_v2():
     ctx_h = request.form.get('ctx_h')
 
     iris_current_user.ctx_case = ctx
-    iris_current_user.ctx_human_case = ctx_h
 
     db.session.commit()
     _update_user_case_ctx()
@@ -80,7 +79,6 @@ def _update_user_case_ctx():
         if not is_found:
             # Remove invalid case from the user context
             iris_current_user.ctx_case = None
-            iris_current_user.ctx_human_case = 'Not set'
             db.session.commit()
 
     app.jinja_env.globals.update({'cases_context_selector': data})

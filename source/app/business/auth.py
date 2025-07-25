@@ -166,17 +166,17 @@ def wrap_login_user(user, is_oidc=False):
 
 
 def update_session_current_case(user: User):
-    caseid = user.ctx_case
     session['permissions'] = ac_get_effective_permissions_of_user(user)
 
-    if caseid is None:
+    if user.ctx_case is None:
         case = cases_get_first()
         user.ctx_case = case.case_id
-        user.ctx_human_case = case.name
         db.session.commit()
 
+    case = cases_get_by_identifier(user.ctx_case)
+
     session['current_case'] = {
-        'case_name': user.ctx_human_case,
+        'case_name': case.name,
         'case_info': '',
         'case_id': user.ctx_case
     }

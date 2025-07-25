@@ -207,6 +207,9 @@ class User(UserMixin, db.Model):
                   server_default=text('gen_random_uuid()'), unique=True)
     password = Column(String(500))
     ctx_case = Column(Integer)
+
+    # TODO this colum could be removed: the case name is now retrieved from the ctx_case (case identifier)
+    # DO NOT ACCESS this column anymore
     ctx_human_case = Column(String(256))
     active = Column(Boolean())
     api_key = Column(Text(), unique=True)

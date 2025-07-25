@@ -56,10 +56,8 @@ def set_ctx():
         return redirect(not_authenticated_redirection_url(request.full_path))
 
     ctx = request.form.get('ctx')
-    ctx_h = request.form.get('ctx_h')
 
     iris_current_user.ctx_case = ctx
-    iris_current_user.ctx_human_case = ctx_h
 
     db.session.commit()
 
@@ -116,7 +114,6 @@ def _update_user_case_ctx():
             # The case does not exist,
             # Removes it from the context
             iris_current_user.ctx_case = None
-            iris_current_user.ctx_human_case = 'Not set'
             db.session.commit()
 
     app.jinja_env.globals.update({

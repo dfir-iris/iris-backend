@@ -83,7 +83,6 @@ def logout():
 
     if session['current_case']:
         iris_current_user.ctx_case = session['current_case']['case_id']
-        iris_current_user.ctx_human_case = session['current_case']['case_name']
         db.session.commit()
 
     if is_authentication_oidc():
