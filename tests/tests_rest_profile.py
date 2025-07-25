@@ -61,3 +61,9 @@ class TestsRestProfile(TestCase):
 
         response = user.update('/api/v2/me', {'in_dark_mode': True}).json()
         self.assertTrue(response['in_dark_mode'])
+
+    def test_update_me_should_modify_has_deletion_confirmation(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me', {'has_deletion_confirmation': True}).json()
+        self.assertTrue(response['has_deletion_confirmation'])
