@@ -448,7 +448,7 @@ def ac_api_requires_client_access():
 
 
 def _authenticate_with_email(user_email):
-    user = get_user(user_email, id_key="email")
+    user = get_user(user_email, id_key='email')
     if not user:
         log.error(f'User with email {user_email} is not registered in the IRIS')
         return False
@@ -467,7 +467,7 @@ def _authenticate_with_email(user_email):
 
     session['current_case'] = {
         'case_name': user.ctx_human_case,
-        'case_info': "",
+        'case_info': '',
         'case_id': user.ctx_case
     }
 

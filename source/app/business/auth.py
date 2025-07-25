@@ -165,7 +165,7 @@ def wrap_login_user(user, is_oidc=False):
 
     session['current_case'] = {
         'case_name': user.ctx_human_case,
-        'case_info': "",
+        'case_info': '',
         'case_id': user.ctx_case
     }
 
