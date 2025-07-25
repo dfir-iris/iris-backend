@@ -45,6 +45,7 @@ from app.datamgmt.manage.manage_cases_db import reopen_case
 from app.datamgmt.manage.manage_cases_db import map_alert_resolution_to_case_status
 from app.datamgmt.manage.manage_cases_db import close_case
 from app.datamgmt.case.case_db import get_case
+from app.datamgmt.case.case_db import get_first_case
 from app.datamgmt.reporter.report_db import export_caseinfo_json
 from app.datamgmt.reporter.report_db import process_md_images_links_for_report
 from app.datamgmt.reporter.report_db import export_case_evidences_json
@@ -66,6 +67,10 @@ def _load(request_data, **kwargs) -> Cases:
 
 def cases_get_by_identifier(case_identifier):
     return get_case(case_identifier)
+
+
+def cases_get_first() -> Cases:
+    return get_first_case()
 
 
 def cases_exists(identifier):

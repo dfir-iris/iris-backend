@@ -33,6 +33,10 @@ from app.models.models import Languages
 from app.models.models import ReportType
 
 
+def get_first_case() -> Cases:
+    return Cases.query.order_by(Cases.case_id).first()
+
+
 def get_case_summary(caseid):
     case_summary = Cases.query.filter(
         Cases.case_id == caseid

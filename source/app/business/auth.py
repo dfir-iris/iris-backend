@@ -16,7 +16,8 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
+from urllib.parse import urljoin
 
 from flask import session
 from flask import redirect
@@ -27,6 +28,8 @@ from flask_login import login_user
 from app import bc
 from app import app
 from app import db
+from app.business.cases import cases_get_by_identifier
+from app.business.cases import cases_get_first
 from app.logger import logger
 from app.business.users import retrieve_user_by_username
 from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
@@ -34,7 +37,6 @@ from app.datamgmt.manage.manage_users_db import get_active_user
 from app.iris_engine.access_control.ldap_handler import ldap_authenticate
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
-from app.models.cases import Cases
 from app.schema.marshables import UserSchema
 from app.models.authorization import User
 
@@ -168,7 +170,7 @@ def update_session_current_case(user: User):
     session['permissions'] = ac_get_effective_permissions_of_user(user)
 
     if caseid is None:
-        case = Cases.query.order_by(Cases.case_id).first()
+        case = cases_get_first()
         user.ctx_case = case.case_id
         user.ctx_human_case = case.name
         db.session.commit()
