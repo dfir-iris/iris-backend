@@ -44,3 +44,9 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'user_email': 'new@aa.eu'}).json()
         self.assertEqual('new@aa.eu', response['user_email'])
 
+    def test_update_me_should_modify_password(self):
+        user = self._subject.create_user('name', 'aA.1234567890')
+        user.update('/api/v2/me', {'user_password': 'bB.1234567890'}).json()
+        response = user.login('bB.1234567890')
+        self.assertEqual(200, response.status_code)
+

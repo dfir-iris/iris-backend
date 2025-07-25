@@ -17,14 +17,18 @@
 
 from graphql_api import GraphQLApi
 from rest_api import RestApi
+import requests
+from urllib import parse
 
 
 class User:
 
-    def __init__(self, iris_url, api_key, identifier):
+    def __init__(self, iris_url, login, api_key, identifier):
+        self._iris_url = iris_url
         self._graphql_api = GraphQLApi(iris_url + '/graphql', api_key)
         self._api = RestApi(iris_url, api_key)
         self._identifier = identifier
+        self._login = login
 
     def get_identifier(self):
         return self._identifier
@@ -46,3 +50,7 @@ class User:
 
     def delete(self, path):
         return self._api.delete(path)
+
+    def login(self, password):
+        url = parse.urljoin(self._iris_url, '/api/v2/auth/login')
+        return requests.post(url, json={'username': self._login, 'password': password})

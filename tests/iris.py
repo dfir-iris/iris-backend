@@ -27,6 +27,7 @@ API_URL = 'http://127.0.0.1:8000'
 # TODO SSOT: this should be directly read from the .env file
 _API_KEY = 'B8BA5D730210B50F41C06941582D7965D57319D5685440587F98DFDC45A01594'
 _IRIS_PATH = Path('..')
+_ADMINISTRATOR_USER_LOGIN = 'administrator'
 _ADMINISTRATOR_USER_IDENTIFIER = 1
 _INITIAL_DEMO_CASE_IDENTIFIER = 1
 
@@ -37,7 +38,7 @@ class Iris:
         self._docker_compose = DockerCompose(_IRIS_PATH, 'docker-compose.dev.yml')
         # TODO remove this field and use _administrator instead
         self._api = RestApi(API_URL, _API_KEY)
-        self._administrator = User(API_URL, _API_KEY, _ADMINISTRATOR_USER_IDENTIFIER)
+        self._administrator = User(API_URL, _ADMINISTRATOR_USER_LOGIN, _API_KEY, _ADMINISTRATOR_USER_IDENTIFIER)
         self._socket_io_client = SocketIOContextManager(API_URL, _API_KEY)
 
     def get_socket_io_client(self) -> SocketIOContextManager:
@@ -66,7 +67,7 @@ class Iris:
             'user_password': user_password
         }
         user = self._api.post('/manage/users/add', body).json()
-        return User(API_URL, user['data']['user_api_key'], user['data']['id'])
+        return User(API_URL, user_name, user['data']['user_api_key'], user['data']['id'])
 
     def create_dummy_user(self):
         return self.create_user(f'user{uuid4()}', 'aA.1234567890')
