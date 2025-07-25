@@ -31,3 +31,10 @@ class TestsRestProfile(TestCase):
     def test_update_me_should_return_200(self):
         response = self._subject.update('/api/v2/me', {})
         self.assertEqual(200, response.status_code)
+
+    def test_update_me_should_modify_name(self):
+        user = self._subject.create_user('name', 'aA.1234567890')
+
+        response = user.update('/api/v2/me', {'user_name': 'new name'}).json()
+        self.assertEqual('new name', response['user_name'])
+

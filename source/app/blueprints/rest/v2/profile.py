@@ -17,15 +17,28 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import request
 
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.access_controls import ac_api_requires
+from app.business.users import users_get
+from app.business.users import users_update
+from app.schema.marshables import UserSchemaForAPIV2
 
 
 class ProfileOperations:
 
+    def __init__(self):
+        self._schema = UserSchemaForAPIV2()
+
     def update(self):
-        return response_api_success(None)
+        user = users_get(iris_current_user.id)
+        request_data = request.get_json()
+        user = self._schema.load(request_data, instance=user, partial=True)
+        user = users_update(user, request_data.get('user_password'))
+        result = self._schema.dump(user)
+        return response_api_success(result)
 
 
 profile_operations = ProfileOperations()
