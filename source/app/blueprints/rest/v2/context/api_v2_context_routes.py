@@ -16,15 +16,13 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint, request
+from flask import Blueprint
+from flask import request
 
-from app import db, app
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.context.context_db import ctx_search_user_cases
-from app.models.cases import Cases
-from app.models.models import Client
 
 api_v2_context_blueprint = Blueprint('context_api_v2', __name__, url_prefix='/api/v2')
 
@@ -39,47 +37,3 @@ def cases_context_search_v2():
     search = request.args.get('q')
     data = ctx_search_user_cases(search, iris_current_user.id, max_results=100)
     return response_api_success(data=data)
-
-
-# TODO put this endpoint back once it adheres to the conventions (verb in URL)
-#@api_v2_context_blueprint.route('/context/set', methods=['POST'])
-@ac_api_requires()
-def set_ctx_v2():
-    """
-    V2: Set the context elements of a user, such as the current case and its display name.
-    """
-
-    ctx = request.form.get('ctx')
-    ctx_h = request.form.get('ctx_h')
-
-    iris_current_user.ctx_case = ctx
-
-    db.session.commit()
-    _update_user_case_ctx()
-
-    return response_api_success(data={})
-
-
-def _update_user_case_ctx():
-    """
-    Retrieve a list of cases for the case selector.
-    """
-    res = Cases.query.with_entities(
-        Cases.name,
-        Client.name,
-        Cases.case_id,
-        Cases.close_date
-    ).join(Cases.client).order_by(Cases.open_date).all()
-
-    data = [row for row in res]
-
-    if iris_current_user and iris_current_user.ctx_case:
-        is_found = any(row[2] == iris_current_user.ctx_case for row in data)
-
-        if not is_found:
-            # Remove invalid case from the user context
-            iris_current_user.ctx_case = None
-            db.session.commit()
-
-    app.jinja_env.globals.update({'cases_context_selector': data})
-    return data
