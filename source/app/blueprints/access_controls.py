@@ -41,9 +41,9 @@ from werkzeug.utils import redirect
 from app import TEMPLATE_PATH
 
 from app import app
-from app import db
 from app.blueprints.responses import response_error
 from app.business.auth import validate_auth_token
+from app.business.auth import update_session_current_case
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.datamgmt.manage.manage_users_db import get_user
@@ -51,7 +51,6 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.access_control.utils import ac_fast_check_user_has_case_access
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
-from app.models.cases import Cases
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 
@@ -454,22 +453,9 @@ def _authenticate_with_email(user_email):
         return False
 
     login_user(user)
-    track_activity(f"User '{user.id}' successfully logged-in", ctx_less=True)
+    track_activity(f'User "{user.id}" successfully logged-in', ctx_less=True)
 
-    caseid = user.ctx_case
-    session['permissions'] = ac_get_effective_permissions_of_user(user)
-
-    if caseid is None:
-        case = Cases.query.order_by(Cases.case_id).first()
-        user.ctx_case = case.case_id
-        user.ctx_human_case = case.name
-        db.session.commit()
-
-    session['current_case'] = {
-        'case_name': user.ctx_human_case,
-        'case_info': '',
-        'case_id': user.ctx_case
-    }
+    update_session_current_case(user)
 
     return True
 

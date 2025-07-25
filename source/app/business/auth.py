@@ -36,6 +36,7 @@ from app.iris_engine.access_control.utils import ac_get_effective_permissions_of
 from app.iris_engine.utils.tracker import track_activity
 from app.models.cases import Cases
 from app.schema.marshables import UserSchema
+from app.models.authorization import User
 
 import datetime
 import jwt
@@ -154,6 +155,15 @@ def wrap_login_user(user, is_oidc=False):
 
     login_user(user)
 
+    update_session_current_case(user)
+
+    track_activity(f'user \'{user.user}\' successfully logged-in', ctx_less=True, display_in_ui=False)
+
+    next_url = _filter_next_url(request.args.get('next'), user.ctx_case)
+    return redirect(next_url)
+
+
+def update_session_current_case(user: User):
     caseid = user.ctx_case
     session['permissions'] = ac_get_effective_permissions_of_user(user)
 
@@ -168,11 +178,6 @@ def wrap_login_user(user, is_oidc=False):
         'case_info': '',
         'case_id': user.ctx_case
     }
-
-    track_activity(f'user \'{user.user}\' successfully logged-in', ctx_less=True, display_in_ui=False)
-
-    next_url = _filter_next_url(request.args.get('next'), user.ctx_case)
-    return redirect(next_url)
 
 
 def generate_auth_tokens(user):
