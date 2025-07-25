@@ -702,9 +702,11 @@ def update_user(user: User, name: str = None, email: str = None, password: str =
         pw_hash = bc.generate_password_hash(password.encode('utf8')).decode('utf8')
         user.password = pw_hash
 
-    for key, value in [('name', name,), ('email', email,)]:
-        if value is not None:
-            setattr(user, key, value)
+    if name is not None:
+        user.name = name
+
+    if email is not None:
+        user.email = email
 
     db.session.commit()
 
