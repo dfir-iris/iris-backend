@@ -64,7 +64,7 @@ class Users:
         except ObjectNotFoundError:
             return response_api_not_found()
 
-    def put(self, identifier):
+    def update(self, identifier):
 
         try:
             user = users_get(identifier)
@@ -110,7 +110,7 @@ def get_user(identifier):
 @users_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
 def put_user(identifier):
-    return users.put(identifier)
+    return users.update(identifier)
 
 
 @users_blueprint.delete('/<int:identifier>')
