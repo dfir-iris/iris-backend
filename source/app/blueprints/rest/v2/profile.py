@@ -18,9 +18,11 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.access_controls import ac_api_requires
 from app.business.users import users_get
 from app.business.users import users_update
@@ -33,12 +35,15 @@ class ProfileOperations:
         self._schema = UserSchemaForAPIV2()
 
     def update(self):
-        user = users_get(iris_current_user.id)
-        request_data = request.get_json()
-        user = self._schema.load(request_data, instance=user, partial=True)
-        user = users_update(user, request_data.get('user_password'))
-        result = self._schema.dump(user)
-        return response_api_success(result)
+        try:
+            user = users_get(iris_current_user.id)
+            request_data = request.get_json()
+            user = self._schema.load(request_data, instance=user, partial=True)
+            user = users_update(user, request_data.get('user_password'))
+            result = self._schema.dump(user)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
 
 
 profile_operations = ProfileOperations()

@@ -32,19 +32,19 @@ class TestsRestProfile(TestCase):
         response = self._subject.update('/api/v2/me', {})
         self.assertEqual(200, response.status_code)
 
-    def test_update_me_should_modify_name(self):
+    def test_update_me_should_modify_user_name(self):
         user = self._subject.create_user('name', 'aA.1234567890')
 
         response = user.update('/api/v2/me', {'user_name': 'new name'}).json()
         self.assertEqual('new name', response['user_name'])
 
-    def test_update_me_should_modify_email(self):
+    def test_update_me_should_modify_user_email(self):
         user = self._subject.create_dummy_user()
 
         response = user.update('/api/v2/me', {'user_email': 'new@aa.eu'}).json()
         self.assertEqual('new@aa.eu', response['user_email'])
 
-    def test_update_me_should_modify_password(self):
+    def test_update_me_should_modify_user_password(self):
         user = self._subject.create_user('name', 'aA.1234567890')
         user.update('/api/v2/me', {'user_password': 'bB.1234567890'})
         response = user.login('bB.1234567890')
@@ -73,3 +73,9 @@ class TestsRestProfile(TestCase):
 
         response = user.update('/api/v2/me', {'has_mini_sidebar': True}).json()
         self.assertTrue(response['has_mini_sidebar'])
+
+    def test_update_me_should_return_400_when_field_user_name_is_not_a_string(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me', {'user_name': 123})
+        self.assertEqual(400, response.status_code)
