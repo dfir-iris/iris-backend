@@ -39,7 +39,7 @@ class TestsRestProfile(TestCase):
         self.assertEqual('new name', response['user_name'])
 
     def test_update_me_should_modify_email(self):
-        user = self._subject.create_user('name', 'aA.1234567890')
+        user = self._subject.create_dummy_user()
 
         response = user.update('/api/v2/me', {'user_email': 'new@aa.eu'}).json()
         self.assertEqual('new@aa.eu', response['user_email'])
@@ -51,7 +51,13 @@ class TestsRestProfile(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_update_me_should_modify_ctx_case(self):
-        user = self._subject.create_user('name', 'aA.1234567890')
+        user = self._subject.create_dummy_user()
         case_identifier = self._subject.create_dummy_case()
         response = user.update('/api/v2/me', {'ctx_case': case_identifier}).json()
         self.assertEqual(case_identifier, response['ctx_case'])
+
+    def test_update_me_should_modify_in_dark_mode(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me', {'in_dark_mode': True}).json()
+        self.assertTrue(response['in_dark_mode'])
