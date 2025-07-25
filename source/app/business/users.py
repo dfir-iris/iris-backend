@@ -81,7 +81,6 @@ def users_get(identifier) -> User:
 def users_update(user: User, user_password: str) -> User:
     user = update_user(user, password=user_password)
     track_activity(f'updated user {user.user}', ctx_less=True)
-    db.session.commit()
     return user
 
 
