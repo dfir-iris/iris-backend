@@ -81,6 +81,15 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'user_id': 0}).json()
         self.assertEqual(identifier, response['user_id'])
 
+    def test_update_me_should_not_modify_user_primary_organisation_id(self):
+        user = self._subject.create_dummy_user()
+        identifier = user.get_identifier()
+
+        response = self._subject.get(f'/api/v2/manage/users/{identifier}').json()
+        primary_organisation_identifier = response['user_primary_organisation_id']
+        response = user.update('/api/v2/me', {'user_primary_organisation_id': 0}).json()
+        self.assertEqual(primary_organisation_identifier, response['user_primary_organisation_id'])
+
     def test_update_me_should_return_400_when_field_user_name_is_not_a_string(self):
         user = self._subject.create_dummy_user()
 
