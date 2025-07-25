@@ -30,6 +30,7 @@ from app.models.cases import Cases
 from app.models.models import Client
 from app.blueprints.access_controls import ac_api_requires, not_authenticated_redirection_url
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 context_rest_blueprint = Blueprint('context_rest', __name__)
 
@@ -47,6 +48,7 @@ def cases_context_search():
 
 # TODO why is this route not prefixed with annotation @ac_api_requires?
 @context_rest_blueprint.route('/context/set', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/me')
 def set_ctx():
     """
     Set the context elements of a user i.e the current case
