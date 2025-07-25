@@ -2560,9 +2560,8 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         model = User
         load_instance = True
         include_fk = True
-        exclude = ['api_key', 'password', 'ctx_human_case', 'user', 'name', 'email',
-                   'is_service_account', 'mfa_secrets',
-                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'external_id', 'active', 'id']
+        exclude = ['api_key', 'password', 'ctx_human_case', 'user', 'name', 'email','is_service_account', 'mfa_secrets',
+                   'webauthn_credentials', 'mfa_setup_complete', 'external_id', 'active', 'id']
         unknown = EXCLUDE
 
     def get_user_primary_organisation(self, obj):

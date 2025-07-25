@@ -67,3 +67,9 @@ class TestsRestProfile(TestCase):
 
         response = user.update('/api/v2/me', {'has_deletion_confirmation': True}).json()
         self.assertTrue(response['has_deletion_confirmation'])
+
+    def test_update_me_should_modify_has_mini_sidebar(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me', {'has_mini_sidebar': True}).json()
+        self.assertTrue(response['has_mini_sidebar'])
