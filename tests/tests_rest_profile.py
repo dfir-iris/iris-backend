@@ -38,3 +38,9 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'user_name': 'new name'}).json()
         self.assertEqual('new name', response['user_name'])
 
+    def test_update_me_should_modify_email(self):
+        user = self._subject.create_user('name', 'aA.1234567890')
+
+        response = user.update('/api/v2/me', {'user_email': 'new@aa.eu'}).json()
+        self.assertEqual('new@aa.eu', response['user_email'])
+
