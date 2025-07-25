@@ -96,8 +96,7 @@ def update_user_view():
         jsdata['user_primary_organisation_id'] = puo.org_id
 
         cuser = user_schema.load(jsdata, instance=user, partial=True)
-        update_user(password=jsdata.get('user_password'),
-                    user=user)
+        update_user(user, password=jsdata.get('user_password'))
         db.session.commit()
 
         if cuser:

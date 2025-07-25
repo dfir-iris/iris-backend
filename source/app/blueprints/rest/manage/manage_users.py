@@ -295,8 +295,7 @@ def update_user_api(cur_id):
         jsdata = request.get_json()
         jsdata['user_id'] = cur_id
         cuser = user_schema.load(jsdata, instance=user, partial=True)
-        update_user(password=jsdata.get('user_password'),
-                    user=user)
+        update_user(user, password=jsdata.get('user_password'))
         db.session.commit()
 
         if cuser:
