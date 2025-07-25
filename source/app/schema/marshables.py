@@ -2560,7 +2560,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         model = User
         load_instance = True
         include_fk = True
-        exclude = ['api_key', 'password', 'ctx_human_case', 'user', 'name', 'email','is_service_account', 'mfa_secrets',
+        exclude = ['api_key', 'password', 'ctx_human_case', 'user', 'name', 'email', 'is_service_account', 'mfa_secrets',
                    'webauthn_credentials', 'mfa_setup_complete', 'external_id', 'active', 'id']
         unknown = EXCLUDE
 
