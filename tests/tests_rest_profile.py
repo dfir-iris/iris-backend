@@ -46,7 +46,12 @@ class TestsRestProfile(TestCase):
 
     def test_update_me_should_modify_password(self):
         user = self._subject.create_user('name', 'aA.1234567890')
-        user.update('/api/v2/me', {'user_password': 'bB.1234567890'}).json()
+        user.update('/api/v2/me', {'user_password': 'bB.1234567890'})
         response = user.login('bB.1234567890')
         self.assertEqual(200, response.status_code)
 
+    def test_update_me_should_modify_ctx_case(self):
+        user = self._subject.create_user('name', 'aA.1234567890')
+        case_identifier = self._subject.create_dummy_case()
+        response = user.update('/api/v2/me', {'ctx_case': case_identifier}).json()
+        self.assertEqual(case_identifier, response['ctx_case'])
