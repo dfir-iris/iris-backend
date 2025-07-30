@@ -33,7 +33,7 @@ class ProfileOperations:
 
     def __init__(self):
         self._schema = UserSchemaForAPIV2()
-        self._update_request_schema = UserSchemaForAPIV2(exclude=['user_is_service_account', 'uuid'])
+        self._update_request_schema = UserSchemaForAPIV2(exclude=['user_is_service_account', 'user_active', 'uuid'])
 
     def update(self):
         try:
