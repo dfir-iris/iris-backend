@@ -687,7 +687,7 @@ def create_user(user_name: str, user_login: str, user_password: str, user_email:
         pw_hash = bc.generate_password_hash(user_password.encode('utf8')).decode('utf8')
 
     user = User(user=user_login, name=user_name, email=user_email, password=pw_hash, active=user_active,
-                external_id=None, is_service_account=user_is_service_account)
+                is_service_account=user_is_service_account)
     user.save()
 
     add_user_to_organisation(user.id, org_id=1)
