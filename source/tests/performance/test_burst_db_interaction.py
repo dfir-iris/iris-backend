@@ -56,10 +56,10 @@ class TestBurstDBInteraction(TestCase):
         user_email = "user_"
         for i in range(0, random_nb):
             create_user(
-                user_name=f"{user_name}{str(i)}",
-                user_login=f"{user_login}{str(i)}",
-                user_password=f"{user_password}{str(i)}",
-                user_email=f"{user_email}{str(i)}",
+                f"{user_name}{str(i)}",
+                f"{user_login}{str(i)}",
+                f"{user_password}{str(i)}",
+                f"{user_email}{str(i)}",
                 user_isadmin=(i % 2 == 0)
             )
 

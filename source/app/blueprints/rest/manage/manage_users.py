@@ -119,11 +119,11 @@ def add_user():
         jsdata['user_id'] = 0
         jsdata['active'] = jsdata.get('active', True)
         cuser = user_schema.load(jsdata, partial=True)
-        user = create_user(user_name=cuser.name,
-                           user_login=cuser.user,
-                           user_email=cuser.email,
-                           user_password=cuser.password,
-                           user_active=jsdata.get('active'),
+        user = create_user(cuser.name,
+                           cuser.user,
+                           cuser.password,
+                           cuser.email,
+                           jsdata.get('active'),
                            user_is_service_account=cuser.is_service_account)
 
         udata = user_schema.dump(user)

@@ -240,11 +240,11 @@ if is_authentication_oidc():
             password = ''.join(random.choices(string.printable[:-6], k=16))
 
             user = create_user(
-                        user_name=user_name,
-                        user_login=user_login,
-                        user_email=user_login,
-                        user_password=bc.generate_password_hash(password.encode('utf8')).decode('utf8'),
-                        user_active=True,
+                        user_name,
+                        user_login,
+                        bc.generate_password_hash(password.encode('utf8')).decode('utf8'),
+                        user_login,
+                        True,
                         user_is_service_account=False
                 )
 
