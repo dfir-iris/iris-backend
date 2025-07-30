@@ -246,7 +246,7 @@ class TestsRestUsers(TestCase):
         response = self._subject.create('api/v2/manage/users', body).json()
         identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
-        self.assertEqual(False, response['user_active'])
+        self.assertFalse(response['user_active'])
 
     def test_get_user_should_return_user_api_key(self):
         body = {
