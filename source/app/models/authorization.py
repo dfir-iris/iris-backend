@@ -228,7 +228,7 @@ class User(UserMixin, db.Model):
 
     def __init__(self, user: str, name: str, email: str, password: str, active: bool,
                  external_id: str = None, is_service_account: bool = False, mfa_secret: str = None,
-                 webauthn_credentials: list = None):
+                 webauthn_credentials: list = None, in_dark_mode: bool = False):
         self.user = user
         self.name = name
         self.password = password
@@ -239,6 +239,7 @@ class User(UserMixin, db.Model):
         self.mfa_secrets = mfa_secret
         self.mfa_setup_complete = False
         self.webauthn_credentials = webauthn_credentials or []
+        self.in_dark_mode = in_dark_mode
 
     def __repr__(self):
         return str(self.id) + ' - ' + str(self.user)
