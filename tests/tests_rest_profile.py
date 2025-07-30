@@ -86,7 +86,7 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'user_is_service_account': True}).json()
         self.assertFalse(response['user_is_service_account'])
 
-    def test_update_me_should_not_modify_user_id(self):
+    def test_update_me_should_not_be_able_to_modify_user_id(self):
         user = self._subject.create_dummy_user()
         identifier = user.get_identifier()
 
