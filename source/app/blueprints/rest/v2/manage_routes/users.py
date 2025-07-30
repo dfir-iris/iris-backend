@@ -40,15 +40,12 @@ class Users:
     def __init__(self):
         self._schema = UserSchemaForAPIV2()
 
-    def _load(self, request_data, **kwargs):
-        return self._schema.load(request_data, **kwargs)
-
     def create(self):
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
             request_data['user_active'] = request_data.get('user_active', True)
-            user = self._load(request_data)
+            user = self._schema.load(request_data)
             user = users_create(user, request_data['user_active'])
             result = self._schema.dump(user)
             return response_api_created(result)
@@ -70,7 +67,7 @@ class Users:
             user = users_get(identifier)
             request_data = request.get_json()
             request_data['user_id'] = identifier
-            new_user = self._load(request_data, instance=user, partial=True)
+            new_user = self._schema.load(request_data, instance=user, partial=True)
             user_updated = users_update(new_user, request_data.get('user_password'))
             result = self._schema.dump(user_updated)
             return response_api_success(result)

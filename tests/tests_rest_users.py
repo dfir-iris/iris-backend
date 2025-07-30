@@ -90,6 +90,18 @@ class TestsRestUsers(TestCase):
         response = self._subject.create('/api/v2/manage/users', body).json()
         self.assertEqual(user_is_service_account, response['user_is_service_account'])
 
+    def test_create_user_should_set_in_dark_mode(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_isadmin': True,
+            'in_dark_mode': True
+        }
+        response = self._subject.create('/api/v2/manage/users', body)
+        self.assertEqual(201, response.status_code)
+
     def test_create_user_should_return_400_when_user_name_field_is_missing(self):
         body = {
             'user_login': 'new_user_login',
