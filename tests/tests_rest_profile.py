@@ -74,6 +74,12 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'has_mini_sidebar': True}).json()
         self.assertTrue(response['has_mini_sidebar'])
 
+    def test_update_me_should_modify_user_active(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me', {'user_active': False}).json()
+        self.assertFalse(response['user_active'])
+
     def test_update_me_should_not_modify_user_id(self):
         user = self._subject.create_dummy_user()
         identifier = user.get_identifier()
