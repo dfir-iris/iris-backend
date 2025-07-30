@@ -32,14 +32,15 @@ from app.schema.marshables import UserSchemaForAPIV2
 class ProfileOperations:
 
     def __init__(self):
-        self._update_schema = UserSchemaForAPIV2(exclude=['user_is_service_account'])
+        self._schema = UserSchemaForAPIV2()
+        self._update_request_schema = UserSchemaForAPIV2(exclude=['user_is_service_account'])
 
     def update(self):
         try:
             user = users_get(iris_current_user.id)
             request_data = request.get_json()
             request_data['user_id'] = iris_current_user.id
-            user = self._update_schema.load(request_data, instance=user, partial=True)
+            user = self._update_request_schema.load(request_data, instance=user, partial=True)
             user = users_update(user, request_data.get('user_password'))
             result = self._schema.dump(user)
             return response_api_success(result)
