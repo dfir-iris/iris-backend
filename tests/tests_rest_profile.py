@@ -93,6 +93,17 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'user_id': 0}).json()
         self.assertEqual(identifier, response['user_id'])
 
+    def test_update_me_should_not_be_able_to_modify_uuid(self):
+        user = self._subject.create_dummy_user()
+        identifier = user.get_identifier()
+
+        response = self._subject.get(f'/api/v2/manage/users/{identifier}').json()
+        print(response['uuid'])
+
+        uuid = response['uuid']
+        response = user.update('/api/v2/me', {'uuid': '21f1afb7-0c56-4e5a-8359-71f73d481a8e'}).json()
+        self.assertEqual(uuid, response['uuid'])
+
     def test_update_me_should_not_modify_user_primary_organisation_id(self):
         user = self._subject.create_dummy_user()
         identifier = user.get_identifier()
