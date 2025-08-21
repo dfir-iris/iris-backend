@@ -40,15 +40,12 @@ class Users:
     def __init__(self):
         self._schema = UserSchemaForAPIV2()
 
-    def _load(self, request_data, **kwargs):
-        return self._schema.load(request_data, **kwargs)
-
     def create(self):
         try:
             request_data = request.get_json()
             request_data['user_id'] = 0
             request_data['user_active'] = request_data.get('user_active', True)
-            user = self._load(request_data)
+            user = self._schema.load(request_data)
             user = users_create(user, request_data['user_active'])
             result = self._schema.dump(user)
             return response_api_created(result)
@@ -64,13 +61,13 @@ class Users:
         except ObjectNotFoundError:
             return response_api_not_found()
 
-    def put(self, identifier):
+    def update(self, identifier):
 
         try:
             user = users_get(identifier)
             request_data = request.get_json()
             request_data['user_id'] = identifier
-            new_user = self._load(request_data, instance=user, partial=True)
+            new_user = self._schema.load(request_data, instance=user, partial=True)
             user_updated = users_update(new_user, request_data.get('user_password'))
             result = self._schema.dump(user_updated)
             return response_api_success(result)
@@ -110,7 +107,7 @@ def get_user(identifier):
 @users_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
 def put_user(identifier):
-    return users.put(identifier)
+    return users.update(identifier)
 
 
 @users_blueprint.delete('/<int:identifier>')

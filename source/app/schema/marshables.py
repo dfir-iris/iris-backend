@@ -2560,9 +2560,8 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         model = User
         load_instance = True
         include_fk = True
-        exclude = ['api_key', 'password', 'ctx_case', 'ctx_human_case', 'user', 'name', 'email',
-                   'is_service_account', 'has_deletion_confirmation', 'mfa_secrets',
-                   'webauthn_credentials', 'mfa_setup_complete', 'has_mini_sidebar', 'in_dark_mode', 'external_id', 'active', 'id']
+        exclude = ['api_key', 'password', 'ctx_human_case', 'user', 'name', 'email', 'is_service_account', 'mfa_secrets',
+                   'webauthn_credentials', 'mfa_setup_complete', 'external_id', 'active', 'id']
         unknown = EXCLUDE
 
     def get_user_primary_organisation(self, obj):
@@ -2593,12 +2592,12 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         user_id = data.get('user_id')
 
         assert_type_mml(input_var=user_id,
-                        field_name="user_id",
+                        field_name='user_id',
                         type=int,
                         allow_none=True)
 
         assert_type_mml(input_var=user,
-                        field_name="user_login",
+                        field_name='user_login',
                         type=str,
                         allow_none=True)
 
@@ -2607,7 +2606,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         ).all()
         for usr in luser:
             if usr.id != user_id:
-                raise ValidationError('User name already taken', field_name="user_login")
+                raise ValidationError('User name already taken', field_name='user_login')
 
         return data
 
@@ -2633,12 +2632,12 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         user_id = data.get('user_id')
 
         assert_type_mml(input_var=user_id,
-                        field_name="user_id",
+                        field_name='user_id',
                         type=int,
                         allow_none=True)
 
         assert_type_mml(input_var=email,
-                        field_name="user_email",
+                        field_name='user_email',
                         type=str,
                         allow_none=True)
 
@@ -2647,7 +2646,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         ).all()
         for usr in luser:
             if usr.id != user_id:
-                raise ValidationError('User email already taken', field_name="user_email")
+                raise ValidationError('User email already taken', field_name='user_email')
 
         return data
 
@@ -2698,9 +2697,9 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
 
             if len(server_settings.password_policy_special_chars) > 0:
                 if not any(char in server_settings.password_policy_special_chars for char in password):
-                    password_error += f"Password must contain a special char [{server_settings.password_policy_special_chars}]. "
+                    password_error += f'Password must contain a special char [{server_settings.password_policy_special_chars}].'
 
             if len(password_error) > 0:
-                raise ValidationError(password_error, field_name="user_password")
+                raise ValidationError(password_error, field_name='user_password')
 
         return data

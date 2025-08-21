@@ -48,7 +48,7 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': True,
             'user_isadmin': True,
         }
-        response = self._subject.create('api/v2/manage/users', body)
+        response = self._subject.create('/api/v2/manage/users', body)
         self.assertEqual(201, response.status_code)
 
     def test_create_user_should_return_user_name(self):
@@ -61,7 +61,7 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': True,
             'user_isadmin': True,
         }
-        response = self._subject.create('api/v2/manage/users', body).json()
+        response = self._subject.create('/api/v2/manage/users', body).json()
         self.assertEqual(user_name, response['user_name'])
 
     def test_create_user_should_return_user_email(self):
@@ -74,7 +74,7 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': True,
             'user_isadmin': True,
         }
-        response = self._subject.create('api/v2/manage/users', body).json()
+        response = self._subject.create('/api/v2/manage/users', body).json()
         self.assertEqual(user_email, response['user_email'])
 
     def test_create_user_should_return_user_is_service_account(self):
@@ -87,8 +87,20 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': user_is_service_account,
             'user_isadmin': True,
         }
-        response = self._subject.create('api/v2/manage/users', body).json()
+        response = self._subject.create('/api/v2/manage/users', body).json()
         self.assertEqual(user_is_service_account, response['user_is_service_account'])
+
+    def test_create_user_should_set_in_dark_mode(self):
+        body = {
+            'user_name': 'new_user',
+            'user_login': 'new_user_login',
+            'user_email': 'new_user_email',
+            'user_password': 'NEW_user_password_17_@',
+            'user_isadmin': True,
+            'in_dark_mode': True
+        }
+        response = self._subject.create('/api/v2/manage/users', body)
+        self.assertEqual(201, response.status_code)
 
     def test_create_user_should_return_400_when_user_name_field_is_missing(self):
         body = {
@@ -98,7 +110,7 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': True,
             'user_isadmin': True,
         }
-        response = self._subject.create('api/v2/manage/users', body)
+        response = self._subject.create('/api/v2/manage/users', body)
         self.assertEqual(400, response.status_code)
 
     def test_create_user_should_return_400_when_user_name_is_not_a_string(self):
@@ -110,7 +122,7 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': True,
             'user_isadmin': True,
         }
-        response = self._subject.create('api/v2/manage/users', body)
+        response = self._subject.create('/api/v2/manage/users', body)
         self.assertEqual(400, response.status_code)
 
     def test_create_user_should_return_403_when_user_has_no_permission_to_create_user(self):
@@ -123,7 +135,7 @@ class TestsRestUsers(TestCase):
             'user_is_service_account': True,
             'user_isadmin': True,
         }
-        response = user.create('api/v2/manage/users', body)
+        response = user.create('/api/v2/manage/users', body)
         self.assertEqual(403, response.status_code)
 
     def test_get_user_should_return_200(self):
@@ -137,7 +149,7 @@ class TestsRestUsers(TestCase):
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
         identifier = response['user_id']
-        response = self._subject.get(f'api/v2/manage/users/{identifier}')
+        response = self._subject.get(f'/api/v2/manage/users/{identifier}')
         self.assertEqual(200, response.status_code)
 
     def test_get_user_should_return_user_email(self):
@@ -152,7 +164,7 @@ class TestsRestUsers(TestCase):
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
         identifier = response['user_id']
-        response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
+        response = self._subject.get(f'/api/v2/manage/users/{identifier}').json()
         self.assertEqual(user_email, response['user_email'])
 
     def test_get_user_should_return_user_name(self):
@@ -246,7 +258,7 @@ class TestsRestUsers(TestCase):
         response = self._subject.create('api/v2/manage/users', body).json()
         identifier = response['user_id']
         response = self._subject.get(f'api/v2/manage/users/{identifier}').json()
-        self.assertEqual(False, response['user_active'])
+        self.assertFalse(response['user_active'])
 
     def test_get_user_should_return_user_api_key(self):
         body = {

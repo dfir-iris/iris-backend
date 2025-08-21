@@ -678,7 +678,7 @@ def get_users_list_restricted_from_case(case_id):
 
 
 def create_user(user_name: str, user_login: str, user_password: str, user_email: str, user_active: bool,
-                user_external_id: str = None, user_is_service_account: bool = False):
+                user_is_service_account: bool = False):
 
     if user_is_service_account is True and (user_password is None or user_password == ''):
         pw_hash = None
@@ -687,7 +687,7 @@ def create_user(user_name: str, user_login: str, user_password: str, user_email:
         pw_hash = bc.generate_password_hash(user_password.encode('utf8')).decode('utf8')
 
     user = User(user=user_login, name=user_name, email=user_email, password=pw_hash, active=user_active,
-                external_id=user_external_id, is_service_account=user_is_service_account)
+                is_service_account=user_is_service_account)
     user.save()
 
     add_user_to_organisation(user.id, org_id=1)
@@ -702,9 +702,11 @@ def update_user(user: User, name: str = None, email: str = None, password: str =
         pw_hash = bc.generate_password_hash(password.encode('utf8')).decode('utf8')
         user.password = pw_hash
 
-    for key, value in [('name', name,), ('email', email,)]:
-        if value is not None:
-            setattr(user, key, value)
+    if name is not None:
+        user.name = name
+
+    if email is not None:
+        user.email = email
 
     db.session.commit()
 

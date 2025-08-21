@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 
 from flask import session
 from flask import redirect
@@ -27,6 +27,8 @@ from flask_login import login_user
 from app import bc
 from app import app
 from app import db
+from app.business.cases import cases_get_by_identifier
+from app.business.cases import cases_get_first
 from app.logger import logger
 from app.business.users import retrieve_user_by_username
 from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
@@ -34,8 +36,8 @@ from app.datamgmt.manage.manage_users_db import get_active_user
 from app.iris_engine.access_control.ldap_handler import ldap_authenticate
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
-from app.models.cases import Cases
 from app.schema.marshables import UserSchema
+from app.models.authorization import User
 
 import datetime
 import jwt
@@ -119,12 +121,13 @@ def validate_local_login(username: str, password: str):
 
 def _is_safe_url(target):
     """
-    Check whether the target URL is safe for redirection by ensuring that it is either a relative URL or
-    has the same host as the current request.
+    Check whether the target URL is safe for redirection by ensuring that it is a relative URL
+    (i.e., does not specify a scheme or netloc).
     """
-    ref_url = urlparse(request.host_url)
-    test_url = urlparse(urljoin(request.host_url, target))
-    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+    # Remove backslashes to mitigate obfuscation
+    target = target.replace('\\', '')
+    parsed = urlparse(target)
+    return not parsed.scheme and not parsed.netloc
 
 
 def _filter_next_url(next_url, context_case):
@@ -154,25 +157,29 @@ def wrap_login_user(user, is_oidc=False):
 
     login_user(user)
 
-    caseid = user.ctx_case
-    session['permissions'] = ac_get_effective_permissions_of_user(user)
-
-    if caseid is None:
-        case = Cases.query.order_by(Cases.case_id).first()
-        user.ctx_case = case.case_id
-        user.ctx_human_case = case.name
-        db.session.commit()
-
-    session['current_case'] = {
-        'case_name': user.ctx_human_case,
-        'case_info': "",
-        'case_id': user.ctx_case
-    }
+    update_session_current_case(user)
 
     track_activity(f'user \'{user.user}\' successfully logged-in', ctx_less=True, display_in_ui=False)
 
     next_url = _filter_next_url(request.args.get('next'), user.ctx_case)
     return redirect(next_url)
+
+
+def update_session_current_case(user: User):
+    session['permissions'] = ac_get_effective_permissions_of_user(user)
+
+    if user.ctx_case is None:
+        case = cases_get_first()
+        user.ctx_case = case.case_id
+        db.session.commit()
+
+    case = cases_get_by_identifier(user.ctx_case)
+
+    session['current_case'] = {
+        'case_name': case.name,
+        'case_info': '',
+        'case_id': user.ctx_case
+    }
 
 
 def generate_auth_tokens(user):

@@ -39,6 +39,8 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.blueprints.rest.endpoints import endpoint_removed
+from app.blueprints.rest.endpoints import endpoint_deprecated
+
 
 profile_rest_blueprint = Blueprint('profile_rest', __name__)
 
@@ -79,6 +81,7 @@ def user_has_permission():
 
 
 @profile_rest_blueprint.route('/user/update', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/me')
 @ac_api_requires()
 def update_user_view():
 
@@ -96,8 +99,7 @@ def update_user_view():
         jsdata['user_primary_organisation_id'] = puo.org_id
 
         cuser = user_schema.load(jsdata, instance=user, partial=True)
-        update_user(password=jsdata.get('user_password'),
-                    user=user)
+        update_user(user, password=jsdata.get('user_password'))
         db.session.commit()
 
         if cuser:
@@ -111,6 +113,7 @@ def update_user_view():
 
 
 @profile_rest_blueprint.route('/user/theme/set/<string:theme>', methods=['GET'])
+@endpoint_deprecated('PUT', '/api/v2/me')
 @ac_api_requires()
 def profile_set_theme(theme):
 
@@ -128,6 +131,7 @@ def profile_set_theme(theme):
 
 
 @profile_rest_blueprint.route('/user/deletion-prompt/set/<string:val>', methods=['GET'])
+@endpoint_deprecated('PUT', '/api/v2/me')
 @ac_api_requires()
 def profile_set_deletion_prompt(val):
 
@@ -145,6 +149,7 @@ def profile_set_deletion_prompt(val):
 
 
 @profile_rest_blueprint.route('/user/mini-sidebar/set/<string:val>', methods=['GET'])
+@endpoint_deprecated('PUT', '/api/v2/me')
 @ac_api_requires()
 def profile_set_minisidebar(val):
 
