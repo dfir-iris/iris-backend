@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from urllib.parse import urlparse
-from urllib.parse import urljoin
 
 from flask import session
 from flask import redirect
