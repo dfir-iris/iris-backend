@@ -47,27 +47,31 @@ class FileRemover(object):
 
 
 def add_obj_history_entry(obj, action, commit=False):
+    date_update = datetime.datetime.now()
+    timestamp = date_update.timestamp()
+    utc = date_update.astimezone(datetime.timezone.utc)
+
     if hasattr(obj, 'modification_history'):
-
         if isinstance(obj.modification_history, dict):
-
             obj.modification_history.update({
-                datetime.datetime.now().timestamp(): {
+                timestamp: {
                     'user': iris_current_user.user,
                     'user_id': iris_current_user.id,
                     'action': action
                 }
             })
-
         else:
-
             obj.modification_history = {
-                datetime.datetime.now().timestamp(): {
+                timestamp: {
                     'user': iris_current_user.user,
                     'user_id': iris_current_user.id,
                     'action': action
                 }
             }
+
+    if hasattr(obj, 'date_update'):
+        obj.date_update = utc
+
     flag_modified(obj, "modification_history")
     if commit:
         db.session.commit()
