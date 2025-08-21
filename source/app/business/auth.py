@@ -122,12 +122,13 @@ def validate_local_login(username: str, password: str):
 
 def _is_safe_url(target):
     """
-    Check whether the target URL is safe for redirection by ensuring that it is either a relative URL or
-    has the same host as the current request.
+    Check whether the target URL is safe for redirection by ensuring that it is a relative URL
+    (i.e., does not specify a scheme or netloc).
     """
-    ref_url = urlparse(request.host_url)
-    test_url = urlparse(urljoin(request.host_url, target))
-    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+    # Remove backslashes to mitigate obfuscation
+    target = target.replace('\\', '')
+    parsed = urlparse(target)
+    return not parsed.scheme and not parsed.netloc
 
 
 def _filter_next_url(next_url, context_case):
