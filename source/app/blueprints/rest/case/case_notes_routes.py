@@ -289,6 +289,7 @@ def case_directory_update(dir_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/delete/<dir_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_directory_delete(dir_id, caseid):
@@ -299,7 +300,7 @@ def case_directory_delete(dir_id, caseid):
             return response_error(msg="Invalid directory ID")
 
         # Proceed to delete directory, but remove all associated notes and subdirectories recursively
-        has_succeed = delete_directory(directory, caseid)
+        has_succeed = delete_directory(directory)
         if has_succeed:
             track_activity(f"deleted directory \"{directory.name}\"", caseid=caseid)
             return response_success('Directory deleted')

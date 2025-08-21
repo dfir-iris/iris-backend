@@ -18,21 +18,21 @@
 
 import csv
 from datetime import datetime
-import marshmallow
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app import db
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.business.assets import assets_delete
 from app.business.assets import assets_create
-from app.business.assets import assets_get_detailed
 from app.business.assets import assets_get
 from app.business.assets import assets_update
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.case.case_assets_db import get_raw_assets
+from app.datamgmt.case.case_assets_db import get_linked_iocs_finfo_from_asset
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import delete_asset_comment
@@ -167,8 +167,13 @@ def case_assets_state(caseid):
 def deprecated_add_asset(caseid):
     asset_schema = CaseAssetsSchema()
     try:
-        msg, asset = assets_create(caseid, request.get_json())
-        return response_success(msg, asset_schema.dump(asset))
+        request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
+        ioc_links = request_data.get('ioc_links')
+        asset = asset_schema.load(request_data)
+        msg, created_asset = assets_create(caseid, asset, ioc_links)
+        return response_success(msg, asset_schema.dump(created_asset))
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), e.get_data())
 
@@ -268,7 +273,7 @@ def case_upload_asset(caseid):
 
         return response_success(msg=msg, data=ret)
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg='Data error', data=e.messages)
 
 
@@ -279,8 +284,13 @@ def case_upload_asset(caseid):
 def deprecated_asset_view(cur_id, caseid):
     try:
 
-        asset = assets_get_detailed(cur_id)
-        return response_success(msg='Asset added', data=asset)
+        asset = assets_get(cur_id)
+        # TODO this is a code smell: shouldn't have schemas in the business layer + the CaseAssetsSchema is instantiated twice
+        case_assets_schema = CaseAssetsSchema()
+        data = case_assets_schema.dump(asset)
+        asset_iocs = get_linked_iocs_finfo_from_asset(cur_id)
+        data['linked_ioc'] = [row._asdict() for row in asset_iocs]
+        return response_success(msg='Asset added', data=data)
 
     except BusinessProcessingError as e:
         return response_error(e.get_message())
@@ -296,13 +306,18 @@ def asset_update(cur_id, caseid):
         if not asset:
             return response_error("Invalid asset ID for this case")
 
-        result = assets_update(asset, request.get_json())
-
+        request_data = call_modules_hook('on_preload_asset_update', data=request.get_json(), caseid=caseid)
+        request_data['asset_id'] = asset.asset_id
         schema = CaseAssetsSchema()
+        updated_asset = schema.load(request_data, instance=asset, partial=True)
+        result = assets_update(updated_asset)
+
         return response_success(f'Updated asset {result.asset_name}', schema.dump(result))
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
 
 
 @case_assets_rest_blueprint.route('/case/assets/delete/<int:cur_id>', methods=['POST'])
@@ -364,7 +379,7 @@ def case_comment_asset_add(cur_id, caseid):
         track_activity(f"asset \"{asset.asset_name}\" commented", caseid=caseid)
         return response_success("Asset commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 

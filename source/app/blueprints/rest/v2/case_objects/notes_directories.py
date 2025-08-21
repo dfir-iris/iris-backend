@@ -23,6 +23,7 @@ from marshmallow import ValidationError
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -32,6 +33,7 @@ from app.schema.marshables import CaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
 from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
+from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
@@ -115,6 +117,17 @@ class NotesDirectories:
         except BusinessProcessingError as e:
             return response_api_error('Data error', data=e.get_data())
 
+    def delete(self, case_identifier, identifier):
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            directory = self._get_note_directory_in_case(identifier, case_identifier)
+            notes_directories_delete(directory)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 notes_directories = NotesDirectories()
 case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', __name__, url_prefix='/<int:case_identifier>/notes-directories')
@@ -136,3 +149,9 @@ def get_note_directory(case_identifier, identifier):
 @ac_api_requires()
 def update_note_directory(case_identifier, identifier):
     return notes_directories.update(case_identifier, identifier)
+
+
+@case_notes_directories_blueprint.delete('<int:identifier>')
+@ac_api_requires()
+def delete_note_directory(case_identifier, identifier):
+    return notes_directories.delete(case_identifier, identifier)
