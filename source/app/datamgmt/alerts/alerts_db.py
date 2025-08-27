@@ -15,13 +15,17 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from copy import deepcopy
 
+from copy import deepcopy
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
+from typing import List
+from typing import Tuple
+
 from sqlalchemy import desc, asc, func, tuple_, or_, not_, and_
 from sqlalchemy.orm import aliased, make_transient, selectinload
-from typing import List, Tuple
+from flask_sqlalchemy.pagination import Pagination
 
 import app
 from app import db
@@ -108,7 +112,7 @@ def get_filtered_alerts(
         sort: str = 'desc',
         current_user_id: int = None,
         source_reference=None,
-        custom_conditions: List[dict] = None):
+        custom_conditions: List[dict] = None) -> Pagination:
     """
     Get a list of alerts that match the given filter conditions
 

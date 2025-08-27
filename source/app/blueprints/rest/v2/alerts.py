@@ -28,6 +28,7 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
+from app.blueprints.rest.v2.alerts_routes.comments import alerts_comments_blueprint
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.models.authorization import Permissions
@@ -44,7 +45,7 @@ from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
 alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
-
+alerts_blueprint.register_blueprint(alerts_comments_blueprint)
 
 def _load(request_data, **kwargs):
     alert_schema = AlertSchema()

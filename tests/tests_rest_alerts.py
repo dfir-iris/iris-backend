@@ -32,10 +32,6 @@ class TestsRestAlerts(TestCase):
 
     def tearDown(self):
         self._subject.clear_database()
-        response = self._subject.get('api/v2/alerts').json()
-        for alert in response['data']:
-            identifier = alert['alert_id']
-            self._subject.create(f'/alerts/delete/{identifier}', {})
 
     def test_create_alert_should_return_201(self):
         body = {
