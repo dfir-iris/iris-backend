@@ -47,6 +47,7 @@ from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
 alerts_blueprint.register_blueprint(alerts_comments_blueprint)
 
+
 def _load(request_data, **kwargs):
     alert_schema = AlertSchema()
     return alert_schema.load(request_data, **kwargs)

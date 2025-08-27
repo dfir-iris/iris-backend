@@ -20,5 +20,6 @@ from flask_sqlalchemy.pagination import Pagination
 
 from app.datamgmt.comments import get_filtered_alert_comments
 
+
 def comments_get_filtered_by_alert(alert_identifier: int) -> Pagination:
     return get_filtered_alert_comments(alert_identifier)
