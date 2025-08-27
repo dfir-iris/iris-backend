@@ -35,7 +35,6 @@ from app.blueprints.rest.endpoints import response_api_error, response_api_not_f
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens
 from app.iris_engine.utils.tracker import track_activity
-from app.schema.marshables import UserSchema
 
 
 auth_blueprint = Blueprint('auth', __name__, url_prefix='/auth')
