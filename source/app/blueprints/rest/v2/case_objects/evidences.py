@@ -39,7 +39,6 @@ from app.business.evidences import evidences_get
 from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
 from app.business.evidences import evidences_delete
-from app.models.models import CaseReceivedFile
 
 
 class EvidencesOperations:
@@ -141,6 +140,7 @@ class EvidencesOperations:
 evidences_operations = EvidencesOperations()
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
 
+
 @case_evidences_blueprint.get('')
 @ac_api_requires()
 def get_evidences(case_identifier):
@@ -152,6 +152,7 @@ def get_evidences(case_identifier):
 def create_evidence(case_identifier):
     return evidences_operations.create(case_identifier)
 
+
 @case_evidences_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_evidence(case_identifier, identifier):
@@ -162,6 +163,7 @@ def get_evidence(case_identifier, identifier):
 @ac_api_requires()
 def update_evidence(case_identifier, identifier):
     return evidences_operations.update(case_identifier, identifier)
+
 
 @case_evidences_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
