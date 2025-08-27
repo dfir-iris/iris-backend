@@ -181,6 +181,7 @@ def profile_refresh_permissions_and_ac():
 
 
 @profile_rest_blueprint.route('/user/whoami', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/me')
 @ac_api_requires()
 def profile_whoami():
     """Returns the current user's profile"""
