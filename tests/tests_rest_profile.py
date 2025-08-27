@@ -28,6 +28,10 @@ class TestsRestProfile(TestCase):
     def tearDown(self):
         self._subject.clear_database()
 
+    def test_get_me_should_return_200(self):
+        response = self._subject.get('/api/v2/me')
+        self.assertEqual(200, response.status_code)
+
     def test_update_me_should_return_200(self):
         response = self._subject.update('/api/v2/me', {})
         self.assertEqual(200, response.status_code)
