@@ -48,9 +48,11 @@ class EvidencesOperations:
         self._schema = CaseEvidenceSchema()
 
     @staticmethod
-    def _check_evidence_and_case_identifier_match(evidence: CaseReceivedFile, case_identifier):
+    def _get_evidence_in_case(identifier, case_identifier):
+        evidence = evidences_get(identifier)
         if evidence.case_id != case_identifier:
             raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')
+        return evidence
 
     def list(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -88,8 +90,7 @@ class EvidencesOperations:
             return response_api_not_found()
 
         try:
-            evidence = evidences_get(identifier)
-            self._check_evidence_and_case_identifier_match(evidence, case_identifier)
+            evidence = self._get_evidence_in_case(identifier, case_identifier)
 
             if not ac_fast_check_current_user_has_case_access(evidence.case_id,
                                                               [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
@@ -106,8 +107,7 @@ class EvidencesOperations:
             return response_api_not_found()
 
         try:
-            evidence = evidences_get(identifier)
-            self._check_evidence_and_case_identifier_match(evidence, case_identifier)
+            evidence = self._get_evidence_in_case(identifier, case_identifier)
             if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=evidence.case_id)
 
@@ -125,8 +125,7 @@ class EvidencesOperations:
             return response_api_not_found()
 
         try:
-            evidence = evidences_get(identifier)
-            self._check_evidence_and_case_identifier_match(evidence, case_identifier)
+            evidence = self._get_evidence_in_case(identifier, case_identifier)
             if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=evidence.case_id)
 
