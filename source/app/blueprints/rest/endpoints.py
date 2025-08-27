@@ -31,11 +31,10 @@ def response_api_success(data):
 
 
 def _get_next_page(paginated_elements: Pagination):
-    if paginated_elements.has_next:
-        next_page = paginated_elements.has_next
-    else:
-        next_page = None
-    return next_page
+    if not paginated_elements.has_next:
+        return None
+
+    return paginated_elements.has_next
 
 
 def response_api_paginated(schema, paginated_elements: Pagination):

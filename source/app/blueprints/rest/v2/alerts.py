@@ -23,6 +23,7 @@ from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -129,14 +130,7 @@ class AlertsOperations:
         else:
             alert_schema = self._schema
 
-        filtered_data = {
-            'total': filtered_alerts.total,
-            'data': alert_schema.dump(filtered_alerts, many=True),
-            'last_page': filtered_alerts.pages,
-            'current_page': filtered_alerts.page,
-            'next_page': filtered_alerts.next_num if filtered_alerts.has_next else None,
-        }
-        return response_api_success(data=filtered_data)
+        return response_api_paginated(alert_schema, filtered_alerts)
 
     def create(self):
         request_data = request.get_json()
