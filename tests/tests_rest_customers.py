@@ -18,8 +18,8 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
 
-_PERMISSION_CUSTOMERS_WRITE = 0x80
 _IRIS_INITIAL_CLIENT_IDENTIFIER = 1
 
 
@@ -41,7 +41,7 @@ class TestsRestCustomers(TestCase):
             self._subject.create(f'/manage/customers/delete/{identifier}', {})
 
     def test_create_customer_should_return_200_when_user_has_customer_write_right(self):
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_CUSTOMERS_WRITE])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_CUSTOMERS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)

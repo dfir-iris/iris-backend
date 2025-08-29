@@ -19,9 +19,9 @@
 from unittest import TestCase
 
 from iris import Iris
+from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
-_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 
 
 class TestsRestGroups(TestCase):
@@ -144,7 +144,7 @@ class TestsRestGroups(TestCase):
         self.assertEqual(404, response.status_code)
 
     def test_update_group_should_return_400_when_new_user_in_group_with_permissions_admin(self):
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_SERVER_ADMINISTRATOR])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_SERVER_ADMINISTRATOR])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)

@@ -18,9 +18,9 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import IRIS_PERMISSION_ALERTS_READ
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
-_PERMISSION_ALERTS_READ = 0x4
 
 
 class TestsRestComments(TestCase):
@@ -71,7 +71,7 @@ class TestsRestComments(TestCase):
         response = self._subject.create('/api/v2/alerts', body).json()
         object_identifier = response['alert_id']
 
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_READ])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_READ])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)

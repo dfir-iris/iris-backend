@@ -18,10 +18,10 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_PERMISSION_ALERTS_WRITE
+from iris import IRIS_PERMISSION_ALERTS_DELETE
 
-_PERMISSION_ALERTS_DELETE = 0x10
-_PERMISSION_ALERTS_WRITE = 0x8
-_PERMISSION_ALERTS_READ = 0x4
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
 
@@ -157,7 +157,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_create_customer_should_return_400_when_user_has_customer_alert_right(self):
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_WRITE])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -227,7 +227,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_get_alert_should_return_404_when_user_has_no_customer_access(self):
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_READ])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_READ])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -300,7 +300,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_update_alert_should_return_404_when_user_has_no_customer_access(self):
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_WRITE])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -413,7 +413,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_delete_alert_should_return_404_when_user_has_no_customer_access(self):
-        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_DELETE])
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_DELETE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
