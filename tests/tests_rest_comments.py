@@ -19,8 +19,9 @@
 from unittest import TestCase
 from iris import Iris
 
-
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 _PERMISSION_ALERTS_READ = 0x4
+
 
 class TestsRestComments(TestCase):
 
@@ -41,6 +42,10 @@ class TestsRestComments(TestCase):
         object_identifier = response['alert_id']
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
+
+    def test_get_comments_should_return_404_when_alert_is_not_found(self):
+        response = self._subject.get(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments')
+        self.assertEqual(404, response.status_code)
 
     def get_comments_should_return_403_when_user_has_no_permission_to_read_alerts(self):
         body = {
