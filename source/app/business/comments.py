@@ -31,5 +31,6 @@ def comments_get_filtered_by_alert(current_user, alert_identifier: int, paginati
 
     return get_filtered_alert_comments(alert_identifier, pagination_parameters)
 
+
 def comments_get_filtered_by_asset(asset_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     return get_filtered_asset_comments(asset_identifier, pagination_parameters)
