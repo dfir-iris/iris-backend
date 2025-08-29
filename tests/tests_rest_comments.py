@@ -77,3 +77,15 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
         response = user.get(f'/api/v2/alerts/{object_identifier}/comments')
         self.assertEqual(404, response.status_code)
+
+    def test_get_comments_should_return_field_data(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments').json()
+        self.assertEqual([], response['data'])
