@@ -185,6 +185,7 @@ def ac_ldp_group_removal(user_id, group_id):
 
     return True
 
+
 def _get_user_groups_with_server_administrator_permission(user_id):
     groups_perms = UserGroup.query.with_entities(
         Group.group_permissions,
