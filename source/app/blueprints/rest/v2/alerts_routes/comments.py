@@ -21,8 +21,11 @@ from flask import Blueprint
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.blueprints.rest.endpoints import response_api_paginated
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.schema.marshables import CommentSchema
 from app.business.comments import comments_get_filtered_by_alert
+from app.iris_engine.access_control.iris_user import iris_current_user
+from app.business.errors import ObjectNotFoundError
 
 
 class CommentsOperations:
@@ -31,8 +34,11 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     def get(self, alert_identifier):
-        comments = comments_get_filtered_by_alert(alert_identifier)
-        return response_api_paginated(self._schema, comments)
+        try:
+            comments = comments_get_filtered_by_alert(iris_current_user, alert_identifier)
+            return response_api_paginated(self._schema, comments)
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 alerts_comments_blueprint = Blueprint('alerts_comments', __name__, url_prefix='/<int:alert_identifier>/comments')
