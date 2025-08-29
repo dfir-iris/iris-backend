@@ -38,13 +38,14 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     def get(self, asset_identifier):
-        asset = assets_get(asset_identifier)
-        if not ac_fast_check_current_user_has_case_access(asset.case_id,
-                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=asset.case_id)
-
-        pagination_parameters = parse_pagination_parameters(request)
         try:
+            asset = assets_get(asset_identifier)
+            if not ac_fast_check_current_user_has_case_access(asset.case_id,
+                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=asset.case_id)
+
+            pagination_parameters = parse_pagination_parameters(request)
+
             comments = comments_get_filtered_by_asset(asset_identifier, pagination_parameters)
             return response_api_paginated(self._schema, comments)
         except ObjectNotFoundError:
