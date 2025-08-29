@@ -112,3 +112,12 @@ class TestsRestComments(TestCase):
         response = self._subject.get(f'/api/v2/assets/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
 
+    def test_get_assets_comments_should_return_403_when_user_has_no_permission_to_access_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/assets/{object_identifier}/comments')
+        self.assertEqual(403, response.status_code)

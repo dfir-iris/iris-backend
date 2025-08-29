@@ -23,9 +23,13 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.schema.marshables import CommentSchema
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.comments import comments_get_filtered_by_asset
+from app.business.assets import assets_get
 from app.business.errors import ObjectNotFoundError
+from app.schema.marshables import CommentSchema
+from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.models.authorization import CaseAccessLevel
 
 
 class CommentsOperations:
@@ -34,6 +38,11 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     def get(self, asset_identifier):
+        asset = assets_get(asset_identifier)
+        if not ac_fast_check_current_user_has_case_access(asset.case_id,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=asset.case_id)
+
         pagination_parameters = parse_pagination_parameters(request)
         try:
             comments = comments_get_filtered_by_asset(asset_identifier, pagination_parameters)
