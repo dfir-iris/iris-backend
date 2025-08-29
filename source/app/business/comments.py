@@ -21,6 +21,7 @@ from flask_sqlalchemy.pagination import Pagination
 from app.business.alerts import alerts_exists
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.comments import get_filtered_alert_comments
+from app.datamgmt.comments import get_filtered_asset_comments
 from app.models.pagination_parameters import PaginationParameters
 
 
@@ -29,3 +30,6 @@ def comments_get_filtered_by_alert(current_user, alert_identifier: int, paginati
         raise ObjectNotFoundError()
 
     return get_filtered_alert_comments(alert_identifier, pagination_parameters)
+
+def comments_get_filtered_by_asset(asset_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_asset_comments(asset_identifier, pagination_parameters)

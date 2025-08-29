@@ -103,3 +103,12 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/alerts/{object_identifier}/comments/add', {'comment_text': 'comment2'})
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments', {'per_page': 1}).json()
         self.assertEqual(1, len(response['data']))
+
+    def test_get_assets_comments_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+        response = self._subject.get(f'/api/v2/assets/{object_identifier}/comments')
+        self.assertEqual(200, response.status_code)
+
