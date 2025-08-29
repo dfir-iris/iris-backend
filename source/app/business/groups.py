@@ -22,7 +22,9 @@ from app.datamgmt.manage.manage_groups_db import create_group
 from app.datamgmt.manage.manage_groups_db import get_group_details
 from app.datamgmt.manage.manage_groups_db import update_group
 from app.datamgmt.manage.manage_groups_db import delete_group
+from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
+from app.iris_engine.access_control.utils import ac_ldp_group_removal
 
 
 def groups_create(group: Group) -> Group:
@@ -43,5 +45,7 @@ def groups_update():
     update_group()
 
 
-def groups_delete(group: Group):
+def groups_delete(current_user, group: Group):
+    if ac_ldp_group_removal(current_user.id, group_id=group.group_id):
+        raise BusinessProcessingError('I can\'t let you do that Dave', data='Removing this group will lock you out')
     delete_group(group)

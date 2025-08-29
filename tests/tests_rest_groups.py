@@ -20,6 +20,7 @@ from unittest import TestCase
 
 from iris import Iris
 from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -178,3 +179,10 @@ class TestsRestGroups(TestCase):
         identifier = response['group_id']
         response = user.delete(f'/api/v2/manage/groups/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_delete_group_should_return_400_when_user_would_lose_server_administrator_permission(self):
+        response = self._subject.get(f'/api/v2/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}').json()
+        user_groups = response['user_groups']
+        administrator_group_identifier = user_groups[0]['group_id']
+        response = self._subject.delete(f'/api/v2/manage/groups/{administrator_group_identifier}')
+        self.assertEqual(400, response.status_code)
