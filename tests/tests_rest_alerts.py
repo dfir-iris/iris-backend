@@ -157,13 +157,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_create_customer_should_return_400_when_user_has_customer_alert_right(self):
-        body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_WRITE]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -233,13 +227,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_get_alert_should_return_404_when_user_has_no_customer_access(self):
-        body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_READ]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_READ])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -312,13 +300,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_update_alert_should_return_404_when_user_has_no_customer_access(self):
-        body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_WRITE]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -431,13 +413,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_delete_alert_should_return_404_when_user_has_no_customer_access(self):
-        body = {
-            'group_name': 'Customer delete',
-            'group_description': 'Group with customers can delete alert',
-            'group_permissions': [_PERMISSION_ALERTS_DELETE]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([_PERMISSION_ALERTS_DELETE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)

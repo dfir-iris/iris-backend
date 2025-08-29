@@ -72,6 +72,16 @@ class Iris:
     def create_dummy_user(self):
         return self.create_user(f'user{uuid4()}', 'aA.1234567890')
 
+    def create_dummy_group(self, permissions):
+        group_name = f'group{uuid4()}'
+        body = {
+            'group_name': group_name,
+            'group_description': f'Group description for {group_name}',
+            'group_permissions': permissions
+        }
+        response = self.create('/manage/groups/add', body).json()
+        return response['data']['group_id']
+
     def create_dummy_case(self):
         body = {
             'case_name': 'case name',
