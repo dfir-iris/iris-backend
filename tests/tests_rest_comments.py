@@ -39,3 +39,16 @@ class TestsRestComments(TestCase):
         object_identifier = response['alert_id']
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
+
+    def get_comments_should_return_403_when_user_has_no_permission_to_read_alerts(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/alerts/{object_identifier}/comments')
+        self.assertEqual(403, response.status_code)
