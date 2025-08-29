@@ -89,3 +89,17 @@ class TestsRestComments(TestCase):
         object_identifier = response['alert_id']
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments').json()
         self.assertEqual([], response['data'])
+
+    def test_get_comments_should_accept_parameter_per_page(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        self._subject.create(f'/alerts/{object_identifier}/comments/add', {'comment_text': 'comment1'})
+        self._subject.create(f'/alerts/{object_identifier}/comments/add', {'comment_text': 'comment2'})
+        response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments', {'per_page': 1}).json()
+        self.assertEqual(1, len(response['data']))

@@ -17,11 +17,13 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.schema.marshables import CommentSchema
 from app.business.comments import comments_get_filtered_by_alert
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -34,8 +36,9 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     def get(self, alert_identifier):
+        pagination_parameters = parse_pagination_parameters(request)
         try:
-            comments = comments_get_filtered_by_alert(iris_current_user, alert_identifier)
+            comments = comments_get_filtered_by_alert(iris_current_user, alert_identifier, pagination_parameters)
             return response_api_paginated(self._schema, comments)
         except ObjectNotFoundError:
             return response_api_not_found()

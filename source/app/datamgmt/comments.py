@@ -19,9 +19,10 @@
 from flask_sqlalchemy.pagination import Pagination
 
 from app.models.models import Comments
+from app.models.pagination_parameters import PaginationParameters
 
 
-def get_filtered_alert_comments(alert_identifier: int) -> Pagination:
+def get_filtered_alert_comments(alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(Comments.comment_alert_id == alert_identifier)
-    return query.paginate()
+    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
 
