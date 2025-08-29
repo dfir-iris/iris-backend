@@ -82,6 +82,10 @@ class Iris:
         response = self.create('/manage/groups/add', body).json()
         return response['data']['group_id']
 
+    def create_dummy_customer(self):
+        response = self.create('/manage/customers/add', {'customer_name': f'customer{uuid4()}'}).json()
+        return response['data']['customer_id']
+
     def create_dummy_case(self):
         body = {
             'case_name': 'case name',
