@@ -35,7 +35,6 @@ from app.blueprints.rest.endpoints import response_api_error, response_api_not_f
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens
 from app.iris_engine.utils.tracker import track_activity
-from app.schema.marshables import UserSchema
 
 
 auth_blueprint = Blueprint('auth', __name__, url_prefix='/auth')
@@ -110,23 +109,6 @@ def logout():
     session.clear()
 
     return redirect(not_authenticated_redirection_url('/'))
-
-
-# TODO - We should have /api/v2/users/{identifier}. For now keeping it since the route doesn't exist elsewhere
-@auth_blueprint.route('/whoami', methods=['GET'])
-def whoami():
-    """
-    Returns information about the currently authenticated user.
-    """
-
-    # Ensure we are authenticated
-    if not iris_current_user.is_authenticated:
-        return response_api_error("Unauthenticated")
-
-    # Return the current_user dict
-    return response_api_success(data=UserSchema(only=[
-        'id', 'user_name', 'user_login', 'user_email'
-    ]).dump(iris_current_user))
 
 
 @auth_blueprint.post('/refresh-token')

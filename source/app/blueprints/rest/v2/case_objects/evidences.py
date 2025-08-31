@@ -39,114 +39,133 @@ from app.business.evidences import evidences_get
 from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
 from app.business.evidences import evidences_delete
-from app.models.models import CaseReceivedFile
 
 
+class EvidencesOperations:
+
+    def __init__(self):
+        self._schema = CaseEvidenceSchema()
+
+    @staticmethod
+    def _get_evidence_in_case(identifier, case_identifier):
+        evidence = evidences_get(identifier)
+        if evidence.case_id != case_identifier:
+            raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')
+        return evidence
+
+    def list(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
+        if not ac_fast_check_current_user_has_case_access(case_identifier,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        pagination_parameters = parse_pagination_parameters(request, default_order_by='date_added',
+                                                            default_direction='desc')
+        try:
+            evidences = evidences_filter(case_identifier, pagination_parameters)
+
+            return response_api_paginated(self._schema, evidences)
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+    def create(self, case_identifier):
+
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            evidence = evidences_create(case_identifier, request.get_json())
+
+            return response_api_created(self._schema.dump(evidence))
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+    def get(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
+        try:
+            evidence = self._get_evidence_in_case(identifier, case_identifier)
+
+            if not ac_fast_check_current_user_has_case_access(evidence.case_id,
+                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=evidence.case_id)
+
+            return response_api_success(self._schema.dump(evidence))
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+    def update(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
+        try:
+            evidence = self._get_evidence_in_case(identifier, case_identifier)
+            if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=evidence.case_id)
+
+            evidence = evidences_update(evidence, request.get_json())
+
+            result = self._schema.dump(evidence)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+    def delete(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+
+        try:
+            evidence = self._get_evidence_in_case(identifier, case_identifier)
+            if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=evidence.case_id)
+
+            evidences_delete(evidence)
+
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+
+evidences_operations = EvidencesOperations()
 case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_prefix='/<int:case_identifier>/evidences')
 
 
 @case_evidences_blueprint.get('')
 @ac_api_requires()
 def get_evidences(case_identifier):
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
-
-    pagination_parameters = parse_pagination_parameters(request, default_order_by='date_added', default_direction='desc')
-    try:
-        evidences = evidences_filter(case_identifier, pagination_parameters)
-
-        evidence_schema = CaseEvidenceSchema()
-        return response_api_paginated(evidence_schema, evidences)
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return evidences_operations.list(case_identifier)
 
 
 @case_evidences_blueprint.post('')
 @ac_api_requires()
 def create_evidence(case_identifier):
-
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
-
-    try:
-        evidence = evidences_create(case_identifier, request.get_json())
-
-        evidence_schema = CaseEvidenceSchema()
-        return response_api_created(evidence_schema.dump(evidence))
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return evidences_operations.create(case_identifier)
 
 
 @case_evidences_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_evidence(case_identifier, identifier):
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-
-    try:
-        evidence = evidences_get(identifier)
-        _check_evidence_and_case_identifier_match(evidence, case_identifier)
-
-        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=evidence.case_id)
-
-        evidence_schema = CaseEvidenceSchema()
-        return response_api_success(evidence_schema.dump(evidence))
-    except ObjectNotFoundError:
-        return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return evidences_operations.get(case_identifier, identifier)
 
 
 @case_evidences_blueprint.put('/<int:identifier>')
 @ac_api_requires()
 def update_evidence(case_identifier, identifier):
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-
-    try:
-        evidence = evidences_get(identifier)
-        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=evidence.case_id)
-        _check_evidence_and_case_identifier_match(evidence, case_identifier)
-
-        evidence = evidences_update(evidence, request.get_json())
-
-        schema = CaseEvidenceSchema()
-        result = schema.dump(evidence)
-        return response_api_success(result)
-    except ObjectNotFoundError:
-        return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
+    return evidences_operations.update(case_identifier, identifier)
 
 
 @case_evidences_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_evidence(case_identifier, identifier):
-    if not cases_exists(case_identifier):
-        return response_api_not_found()
-
-    try:
-        evidence = evidences_get(identifier)
-        _check_evidence_and_case_identifier_match(evidence, case_identifier)
-        if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=evidence.case_id)
-
-        evidences_delete(evidence)
-
-        return response_api_deleted()
-    except ObjectNotFoundError:
-        return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message(), data=e.get_data())
-
-
-def _check_evidence_and_case_identifier_match(evidence: CaseReceivedFile, case_identifier):
-    if evidence.case_id != case_identifier:
-        raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')
+    return evidences_operations.delete(case_identifier, identifier)

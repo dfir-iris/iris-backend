@@ -35,6 +35,11 @@ class ProfileOperations:
         self._schema = UserSchemaForAPIV2()
         self._update_request_schema = UserSchemaForAPIV2(exclude=['user_is_service_account', 'user_active', 'uuid'])
 
+    def get(self):
+        user = users_get(iris_current_user.id)
+        result = self._schema.dump(user)
+        return response_api_success(result)
+
     def update(self):
         try:
             user = users_get(iris_current_user.id)
@@ -50,6 +55,12 @@ class ProfileOperations:
 
 profile_operations = ProfileOperations()
 profile_blueprint = Blueprint('profile_rest_v2', __name__, url_prefix='/me')
+
+
+@profile_blueprint.get('')
+@ac_api_requires()
+def get_profile():
+    return profile_operations.get()
 
 
 @profile_blueprint.put('')
