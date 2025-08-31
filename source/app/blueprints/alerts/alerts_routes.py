@@ -28,7 +28,7 @@ import app
 from app import db
 from app.blueprints.case.case_comments import case_comment_update
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts, get_alert_by_id, create_case_from_alert, \
-    register_related_alerts, delete_related_alerts_cache
+    delete_related_alerts_cache
 from app.datamgmt.alerts.alerts_db import merge_alert_in_case, unmerge_alert_from_case, cache_similar_alert
 from app.datamgmt.alerts.alerts_db import get_related_alerts, get_related_alerts_details
 from app.datamgmt.alerts.alerts_db import get_alert_comments, delete_alert_comment, get_alert_comment
@@ -39,7 +39,7 @@ from app.datamgmt.manage.manage_access_control_db import check_ua_case_client, u
 from app.iris_engine.access_control.utils import ac_set_new_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.models.alerts import AlertStatus, AlertSimilarity, Alert
+from app.models.alerts import AlertStatus
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema, CaseSchema, CommentSchema, CaseAssetsSchema, IocSchema
 from app.util import ac_api_requires
@@ -387,7 +387,7 @@ def alerts_update_route(alert_id) -> Response:
             add_obj_history_entry(updated_alert, f"updated alert: {','.join(activity_data)}")
         else:
             track_activity(f"updated alert #{alert_id}", ctx_less=True)
-            add_obj_history_entry(updated_alert, f"updated alert")
+            add_obj_history_entry(updated_alert, "updated alert")
 
         db.session.commit()
 
@@ -1075,7 +1075,7 @@ def alert_comment_edit(alert_id, com_id):
     if not user_has_client_access(current_user.id, alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
-    return case_comment_update(com_id, 'events', None)
+    return case_comment_update(com_id, 'alerts', None)
 
 
 @alerts_blueprint.route('/alerts/<int:alert_id>/comments/add', methods=['POST'])
