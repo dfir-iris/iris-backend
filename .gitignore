@@ -31,3 +31,4 @@ run_nv_test.py
 !certificates/web_certificates/iris_dev_*
 certificates/web_certificates/*.pem
 certificates/web_certificates/*.key
+!certificates/web_certificates/iris_dev_*
