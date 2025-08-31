@@ -47,9 +47,9 @@ class FileRemover(object):
 
 
 def add_obj_history_entry(obj, action, commit=False):
-    date_update = datetime.datetime.now()
+    date_update = datetime.datetime.now(datetime.timezone.utc)
     timestamp = date_update.timestamp()
-    utc = date_update.astimezone(datetime.timezone.utc)
+    utc = date_update
 
     if hasattr(obj, 'modification_history'):
         if isinstance(obj.modification_history, dict):
