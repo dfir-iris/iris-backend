@@ -96,7 +96,7 @@ def build_condition(column, operator, value):
                 "Non-in operators on relationships require specifying a related model column, e.g., owner.id or assets.asset_name.")
 
     # If we get here, 'column' should be an actual column, not a relationship.
-    if operator == 'not':
+    if operator == 'not' or operator == 'neq':
         return column != value
     elif operator == 'in':
         return column.in_(value)
@@ -106,6 +106,8 @@ def build_condition(column, operator, value):
         return column == value
     elif operator == 'like':
         return column.ilike(f"%{value}%")
+    elif operator == 'not_like':
+        return ~column.ilike(f"%{value}%")
     else:
         raise ValueError(f"Unsupported operator: {operator}")
 
