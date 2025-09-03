@@ -24,6 +24,7 @@ from app.models.models import EvidencesComments
 from app.models.models import IocComments
 from app.models.models import NotesComments
 from app.models.models import TaskComments
+from app.models.models import EventComments
 from app.models.pagination_parameters import PaginationParameters
 
 
@@ -85,5 +86,15 @@ def get_filtered_task_comments(task_identifier, pagination_parameters: Paginatio
     ).join(
         TaskComments,
         Comments.comment_id == TaskComments.comment_id
+    )
+    return _get_filtered_comments(query, pagination_parameters)
+
+
+def get_filtered_event_comments(event_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    query = Comments.query.filter(
+        EventComments.comment_event_id == event_identifier
+    ).join(
+        EventComments,
+        Comments.comment_id == EventComments.comment_id
     )
     return _get_filtered_comments(query, pagination_parameters)
