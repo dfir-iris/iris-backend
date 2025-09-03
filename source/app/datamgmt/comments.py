@@ -78,6 +78,7 @@ def get_filtered_note_comments(note_identifier, pagination_parameters: Paginatio
     )
     return _get_filtered_comments(query, pagination_parameters)
 
+
 def get_filtered_task_comments(task_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
         TaskComments.comment_task_id == task_identifier
