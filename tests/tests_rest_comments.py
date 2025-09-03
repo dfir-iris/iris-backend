@@ -141,3 +141,14 @@ class TestsRestComments(TestCase):
         object_identifier = test['ioc_id']
         response = self._subject.get(f'/api/v2/iocs/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
+
+    def test_get_notes_comments_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create('/case/notes/directories/add',
+                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
+        directory_identifier = response['data']['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+        response = self._subject.get(f'/api/v2/notes/{object_identifier}/comments')
+        self.assertEqual(200, response.status_code)

@@ -22,6 +22,7 @@ from app.models.models import Comments
 from app.models.models import AssetComments
 from app.models.models import EvidencesComments
 from app.models.models import IocComments
+from app.models.models import NotesComments
 from app.models.pagination_parameters import PaginationParameters
 
 
@@ -63,5 +64,15 @@ def get_filtered_ioc_comments(ioc_identifier, pagination_parameters: PaginationP
     ).join(
         IocComments,
         Comments.comment_id == IocComments.comment_id
+    )
+    return _get_filtered_comments(query, pagination_parameters)
+
+
+def get_filtered_note_comments(note_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    query = Comments.query.filter(
+        NotesComments.comment == note_identifier
+    ).join(
+        NotesComments,
+        Comments.comment_id == NotesComments.comment_id
     )
     return _get_filtered_comments(query, pagination_parameters)
