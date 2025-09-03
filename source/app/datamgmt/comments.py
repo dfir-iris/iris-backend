@@ -21,6 +21,7 @@ from flask_sqlalchemy.pagination import Pagination
 from app.models.models import Comments
 from app.models.models import AssetComments
 from app.models.models import EvidencesComments
+from app.models.models import IocComments
 from app.models.pagination_parameters import PaginationParameters
 
 
@@ -52,4 +53,17 @@ def get_filtered_evidence_comments(evidence_identifier, pagination_parameters: P
     ).order_by(
         Comments.comment_date.asc()
     )
+    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
+
+def get_filtered_ioc_comments(ioc_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    query = Comments.query.filter(
+        IocComments.comment_ioc_id == ioc_identifier
+    ).with_entities(
+        Comments
+    ).join(
+        IocComments,
+        Comments.comment_id == IocComments.comment_id
+    ).order_by(
+        Comments.comment_date.asc()
+    ).all()
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())

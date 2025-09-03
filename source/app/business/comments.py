@@ -27,6 +27,7 @@ from app.datamgmt.case.case_comments import get_case_comment
 from app.datamgmt.comments import get_filtered_alert_comments
 from app.datamgmt.comments import get_filtered_asset_comments
 from app.datamgmt.comments import get_filtered_evidence_comments
+from app.datamgmt.comments import get_filtered_ioc_comments
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -47,6 +48,10 @@ def comments_get_filtered_by_asset(asset_identifier: int, pagination_parameters:
 
 def comments_get_filtered_by_evidence(evidence_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     return get_filtered_evidence_comments(evidence_identifier, pagination_parameters)
+
+
+def comments_get_filtered_by_ioc(ioc_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_ioc_comments(ioc_identifier, pagination_parameters)
 
 
 def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> Comments:

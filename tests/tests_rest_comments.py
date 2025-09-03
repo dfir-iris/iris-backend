@@ -133,3 +133,11 @@ class TestsRestComments(TestCase):
         object_identifier = response['id']
         response = self._subject.get(f'/api/v2/evidences/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
+
+    def test_get_iocs_comments_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        test = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = test['ioc_id']
+        response = self._subject.get(f'/api/v2/iocs/{object_identifier}/comments')
+        self.assertEqual(200, response.status_code)

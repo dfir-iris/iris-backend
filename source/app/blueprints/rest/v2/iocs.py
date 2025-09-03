@@ -33,10 +33,12 @@ from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import IocSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.v2.iocs_routes.comments import iocs_comments_blueprint
 
 iocs_blueprint = Blueprint('iocs_rest_v2',
                            __name__,
                            url_prefix='/iocs')
+iocs_blueprint.register_blueprint(iocs_comments_blueprint)
 
 
 @iocs_blueprint.delete('/<int:identifier>')
