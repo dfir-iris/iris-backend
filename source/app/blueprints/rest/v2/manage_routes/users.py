@@ -81,6 +81,10 @@ class Users:
     def delete(self, identifier):
         try :
             user = users_get(identifier)
+
+            if user.active:
+                return response_api_error('Cannot delete active user')
+
             users_delete(user)
             return response_api_deleted()
 

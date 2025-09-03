@@ -18,6 +18,7 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -398,6 +399,7 @@ class TestsRestUsers(TestCase):
             'user_password': 'User_password_17_@',
             'user_is_service_account': True,
             'user_isadmin': True,
+            'user_active': False
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
         identifier = response['user_id']
@@ -412,6 +414,7 @@ class TestsRestUsers(TestCase):
             'user_password': 'User_password_17_@',
             'user_is_service_account': True,
             'user_isadmin': True,
+            'user_active': False
         }
         response = self._subject.create('/api/v2/manage/users', body).json()
         identifier = response['user_id']
@@ -437,3 +440,7 @@ class TestsRestUsers(TestCase):
     def test_delete_user_should_return_404_when_user_not_found(self):
         response = self._subject.delete(f'/api/v2/manage/users/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
+
+    def test_delete_user_should_return_400_when_user_is_active(self):
+        response = self._subject.delete(f'/api/v2/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}')
+        self.assertEqual(400, response.status_code)
