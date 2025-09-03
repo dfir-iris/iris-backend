@@ -15,14 +15,22 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+from datetime import datetime
 
 from flask_sqlalchemy.pagination import Pagination
 
+from app import db
 from app.business.alerts import alerts_exists
 from app.business.errors import ObjectNotFoundError
+from app.business.errors import BusinessProcessingError
+from app.datamgmt.case.case_comments import get_case_comment
 from app.datamgmt.comments import get_filtered_alert_comments
 from app.datamgmt.comments import get_filtered_asset_comments
 from app.datamgmt.comments import get_filtered_evidence_comments
+from app.iris_engine.access_control.iris_user import iris_current_user
+from app.iris_engine.module_handler.module_handler import call_modules_hook
+from app.iris_engine.utils.tracker import track_activity
+from app.models.models import Comments
 from app.models.pagination_parameters import PaginationParameters
 
 
@@ -39,3 +47,27 @@ def comments_get_filtered_by_asset(asset_identifier: int, pagination_parameters:
 
 def comments_get_filtered_by_evidence(evidence_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     return get_filtered_evidence_comments(evidence_identifier, pagination_parameters)
+
+
+def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> Comments:
+    comment = get_case_comment(comment_id, caseid)
+    if not comment:
+        raise BusinessProcessingError('Invalid comment ID')
+
+    if hasattr(iris_current_user, 'id') and iris_current_user.id is not None:
+        if comment.comment_user_id != iris_current_user.id:
+            raise BusinessProcessingError('Permission denied')
+
+    comment.comment_text = comment_text
+    comment.comment_update_date = datetime.utcnow()
+
+    db.session.commit()
+
+    hook = object_type
+    if hook.endswith('s'):
+        hook = hook[:-1]
+
+    call_modules_hook(f'on_postload_{hook}_comment_update', data=comment, caseid=caseid)
+
+    track_activity(f"comment {comment.comment_id} on {object_type} edited", caseid=caseid)
+    return comment
