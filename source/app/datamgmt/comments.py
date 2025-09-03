@@ -25,6 +25,13 @@ from app.models.models import IocComments
 from app.models.pagination_parameters import PaginationParameters
 
 
+def _get_filtered_comments(query, pagination_parameters: PaginationParameters) -> Pagination:
+    query = query.order_by(
+        Comments.comment_date.asc()
+    )
+    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
+
+
 def get_filtered_alert_comments(alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(Comments.comment_alert_id == alert_identifier)
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
@@ -33,15 +40,11 @@ def get_filtered_alert_comments(alert_identifier: int, pagination_parameters: Pa
 def get_filtered_asset_comments(asset_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
         AssetComments.comment_asset_id == asset_identifier
-    ).with_entities(
-        Comments
     ).join(
         AssetComments,
         Comments.comment_id == AssetComments.comment_id
-    ).order_by(
-        Comments.comment_date.asc()
     )
-    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
+    return _get_filtered_comments(query, pagination_parameters)
 
 
 def get_filtered_evidence_comments(evidence_identifier, pagination_parameters: PaginationParameters) -> Pagination:
@@ -50,20 +53,14 @@ def get_filtered_evidence_comments(evidence_identifier, pagination_parameters: P
     ).join(
         EvidencesComments,
         Comments.comment_id == EvidencesComments.comment_id
-    ).order_by(
-        Comments.comment_date.asc()
     )
-    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
+    return _get_filtered_comments(query, pagination_parameters)
 
 def get_filtered_ioc_comments(ioc_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
         IocComments.comment_ioc_id == ioc_identifier
-    ).with_entities(
-        Comments
     ).join(
         IocComments,
         Comments.comment_id == IocComments.comment_id
-    ).order_by(
-        Comments.comment_date.asc()
-    ).all()
-    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
+    )
+    return _get_filtered_comments(query, pagination_parameters)
