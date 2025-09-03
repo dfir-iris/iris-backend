@@ -71,13 +71,12 @@ def get_filtered_ioc_comments(ioc_identifier, pagination_parameters: PaginationP
 
 def get_filtered_note_comments(note_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
-        NotesComments.comment == note_identifier
+        NotesComments.comment_note_id == note_identifier
     ).join(
         NotesComments,
         Comments.comment_id == NotesComments.comment_id
     )
     return _get_filtered_comments(query, pagination_parameters)
-
 
 def get_filtered_task_comments(task_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
