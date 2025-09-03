@@ -56,6 +56,7 @@ def get_filtered_evidence_comments(evidence_identifier, pagination_parameters: P
     )
     return _get_filtered_comments(query, pagination_parameters)
 
+
 def get_filtered_ioc_comments(ioc_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
         IocComments.comment_ioc_id == ioc_identifier
