@@ -31,7 +31,7 @@ class TestsRestComments(TestCase):
     def tearDown(self):
         self._subject.clear_database()
 
-    def test_get_comments_should_return_200(self):
+    def test_get_alerts_comments_should_return_200(self):
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
@@ -43,11 +43,11 @@ class TestsRestComments(TestCase):
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
 
-    def test_get_comments_should_return_404_when_alert_is_not_found(self):
+    def test_get_alerts_comments_should_return_404_when_alert_is_not_found(self):
         response = self._subject.get(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments')
         self.assertEqual(404, response.status_code)
 
-    def get_comments_should_return_403_when_user_has_no_permission_to_read_alerts(self):
+    def test_get_alerts_comments_should_return_403_when_user_has_no_permission_to_read_alerts(self):
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
@@ -60,7 +60,7 @@ class TestsRestComments(TestCase):
         response = user.get(f'/api/v2/alerts/{object_identifier}/comments')
         self.assertEqual(403, response.status_code)
 
-    def get_comments_should_return_404_when_user_has_no_access_to_alerts_customer(self):
+    def test_get_alerts_comments_should_return_404_when_user_has_no_access_to_alerts_customer(self):
         customer_identifier = self._subject.create_dummy_customer()
         body = {
             'alert_title': 'title',
@@ -78,7 +78,7 @@ class TestsRestComments(TestCase):
         response = user.get(f'/api/v2/alerts/{object_identifier}/comments')
         self.assertEqual(404, response.status_code)
 
-    def test_get_comments_should_return_field_data(self):
+    def test_get_alerts_comments_should_return_field_data(self):
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
@@ -90,7 +90,7 @@ class TestsRestComments(TestCase):
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments').json()
         self.assertEqual([], response['data'])
 
-    def test_get_comments_should_accept_parameter_per_page(self):
+    def test_get_alerts_comments_should_accept_parameter_per_page(self):
         body = {
             'alert_title': 'title',
             'alert_severity_id': 4,
@@ -125,3 +125,11 @@ class TestsRestComments(TestCase):
     def test_get_assets_comments_should_return_404_when_asset_is_not_found(self):
         response = self._subject.get(f'/api/v2/assets/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments')
         self.assertEqual(404, response.status_code)
+
+    def test_get_evidences_comments_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+        response = self._subject.get(f'/api/v2/evidences/{object_identifier}/comments')
+        self.assertEqual(200, response.status_code)

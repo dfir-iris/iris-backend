@@ -20,6 +20,7 @@ from flask_sqlalchemy.pagination import Pagination
 
 from app.models.models import Comments
 from app.models.models import AssetComments
+from app.models.models import EvidencesComments
 from app.models.pagination_parameters import PaginationParameters
 
 
@@ -28,13 +29,26 @@ def get_filtered_alert_comments(alert_identifier: int, pagination_parameters: Pa
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
 
 
-def get_filtered_asset_comments(asset_id, pagination_parameters: PaginationParameters) -> Pagination:
+def get_filtered_asset_comments(asset_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
-        AssetComments.comment_asset_id == asset_id
+        AssetComments.comment_asset_id == asset_identifier
     ).with_entities(
         Comments
-    ).join(AssetComments,
+    ).join(
+        AssetComments,
         Comments.comment_id == AssetComments.comment_id
+    ).order_by(
+        Comments.comment_date.asc()
+    )
+    return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
+
+
+def get_filtered_evidence_comments(evidence_identifier, pagination_parameters: PaginationParameters) -> Pagination:
+    query = Comments.query.filter(
+        EvidencesComments.comment_evidence_id == evidence_identifier
+    ).join(
+        EvidencesComments,
+        Comments.comment_id == EvidencesComments.comment_id
     ).order_by(
         Comments.comment_date.asc()
     )
