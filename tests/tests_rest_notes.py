@@ -32,49 +32,48 @@ class TestsRestNotes(TestCase):
 
     def test_create_note_should_return_201(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body)
         self.assertEqual(201, response.status_code)
 
     def test_create_note_should_accept_field_note_title_with_empty_value(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier, 'note_title': ''}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         self.assertEqual('', response['note_title'])
 
     def test_create_note_should_accept_field_note_content_with_empty_value(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier, 'note_content': ''}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         self.assertEqual('', response['note_content'])
 
     def test_create_note_in_sub_directory_should_return_directory_parent_id(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'parent_directory_name'}, query_parameters={'cid': case_identifier}).json()
-        parent_directory_identifier = response['data']['id']
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name', 'parent_id': parent_directory_identifier},
-                                        query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'parent_directory_name'}).json()
+        parent_directory_identifier = response['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name', 'parent_id': parent_directory_identifier}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier, 'note_content': ''}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         self.assertEqual(parent_directory_identifier, response['directory']['parent_id'])
 
     def test_create_note_with_missing_case_identifier_should_return_404(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/notes', body)
         self.assertEqual(404, response.status_code)
@@ -88,18 +87,18 @@ class TestsRestNotes(TestCase):
     def test_create_note_with_directory_from_another_case_should_return_400(self):
         case_identifier = self._subject.create_dummy_case()
         case_identifier2 = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier2}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier2}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body)
         self.assertEqual(400, response.status_code)
 
     def test_create_note_should_return_object_with_field_modification_history(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         first_modification_history = next(iter(response['modification_history'].values()))
@@ -107,9 +106,9 @@ class TestsRestNotes(TestCase):
 
     def test_get_note_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -123,9 +122,9 @@ class TestsRestNotes(TestCase):
 
     def test_get_note_should_return_404_when_case_does_not_exist(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -134,9 +133,9 @@ class TestsRestNotes(TestCase):
 
     def test_update_note_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -145,9 +144,9 @@ class TestsRestNotes(TestCase):
 
     def test_update_note_should_modify_note_title(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -156,9 +155,9 @@ class TestsRestNotes(TestCase):
 
     def test_update_note_should_return_400_when_requested_with_integer_note_title(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -167,9 +166,9 @@ class TestsRestNotes(TestCase):
 
     def test_update_note_should_return_400_when_requested_with_nonexistent_directory_id(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -178,9 +177,9 @@ class TestsRestNotes(TestCase):
 
     def test_update_note_should_return_404_when_case_identifier_does_not_correspond_to_existing_case(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -194,9 +193,9 @@ class TestsRestNotes(TestCase):
 
     def test_update_note_should_return_403_when_user_has_no_access_to_case(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -207,9 +206,9 @@ class TestsRestNotes(TestCase):
 
     def test_delete_note_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -218,9 +217,9 @@ class TestsRestNotes(TestCase):
 
     def test_delete_note_should_return_403_when_user_has_no_access_to_case(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -236,9 +235,9 @@ class TestsRestNotes(TestCase):
 
     def test_delete_note_should_return_404_when_case_identifier_does_not_correspond_to_existing_note(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
@@ -247,9 +246,9 @@ class TestsRestNotes(TestCase):
 
     def test_get_note_should_return_404_when_note_is_deleted(self):
         case_identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/case/notes/directories/add',
-                                        {'name': 'directory_name'}, query_parameters={'cid': case_identifier}).json()
-        directory_identifier = response['data']['id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
         body = {'directory_id': directory_identifier}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
         identifier = response['note_id']
