@@ -29,6 +29,7 @@ from app.datamgmt.comments import get_filtered_asset_comments
 from app.datamgmt.comments import get_filtered_evidence_comments
 from app.datamgmt.comments import get_filtered_ioc_comments
 from app.datamgmt.comments import get_filtered_note_comments
+from app.datamgmt.comments import get_filtered_task_comments
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -57,6 +58,10 @@ def comments_get_filtered_by_ioc(ioc_identifier: int, pagination_parameters: Pag
 
 def comments_get_filtered_by_note(note_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     return get_filtered_note_comments(note_identifier, pagination_parameters)
+
+
+def comments_get_filtered_by_task(taks_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_task_comments(taks_identifier, pagination_parameters)
 
 
 def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> Comments:
