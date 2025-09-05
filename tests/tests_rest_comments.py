@@ -172,3 +172,15 @@ class TestsRestComments(TestCase):
 
         response = self._subject.get(f'/api/v2/events/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
+
+    def test_create_alerts_comment_should_return_201(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)

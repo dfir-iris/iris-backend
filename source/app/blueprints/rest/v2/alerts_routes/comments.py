@@ -23,11 +23,13 @@ from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.schema.marshables import CommentSchema
 from app.business.comments import comments_get_filtered_by_alert
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import ObjectNotFoundError
+from app.business.alerts import alerts_exists
 
 
 class CommentsOperations:
@@ -35,13 +37,16 @@ class CommentsOperations:
     def __init__(self):
         self._schema = CommentSchema()
 
-    def get(self, alert_identifier):
+    def search(self, alert_identifier):
         pagination_parameters = parse_pagination_parameters(request)
         try:
             comments = comments_get_filtered_by_alert(iris_current_user, alert_identifier, pagination_parameters)
             return response_api_paginated(self._schema, comments)
         except ObjectNotFoundError:
             return response_api_not_found()
+
+    def create(self, alert_identifier):
+        return response_api_created(None)
 
 
 alerts_comments_blueprint = Blueprint('alerts_comments', __name__, url_prefix='/<int:alert_identifier>/comments')
@@ -51,4 +56,10 @@ comments_operations = CommentsOperations()
 @alerts_comments_blueprint.get('')
 @ac_api_requires(Permissions.alerts_read)
 def get_alerts_comments(alert_identifier):
-    return comments_operations.get(alert_identifier)
+    return comments_operations.search(alert_identifier)
+
+
+@alerts_comments_blueprint.post('')
+@ac_api_requires(Permissions.alerts_write)
+def create_alerts_comment(alert_identifier):
+    return comments_operations.create(alert_identifier)
