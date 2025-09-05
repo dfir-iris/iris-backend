@@ -47,7 +47,7 @@ class CommentsOperations:
 
     def create(self, alert_identifier):
         comment = self._schema.load(request.get_json())
-        comments_create_for_alert(comment, alert_identifier)
+        comments_create_for_alert(iris_current_user, comment, alert_identifier)
         result = self._schema.dump(comment)
         return response_api_created(result)
 

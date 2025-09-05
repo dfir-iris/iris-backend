@@ -129,3 +129,16 @@ class Iris:
 
     def extract_logs(self, service):
         return self._docker_compose.extract_logs(service)
+
+
+def get_most_recent_object_history_entry(response):
+    modification_history = response['modification_history']
+    current_timestamp = 0
+    result = None
+    for timestamp_as_string, modification in modification_history.items():
+        timestamp = float(timestamp_as_string)
+        if timestamp < current_timestamp:
+            continue
+        result = modification
+        current_timestamp = timestamp
+    return result

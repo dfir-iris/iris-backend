@@ -18,6 +18,7 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import get_most_recent_object_history_entry
 from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_PERMISSION_ALERTS_READ
 
@@ -224,3 +225,17 @@ class TestsRestComments(TestCase):
         object_identifier = response['alert_id']
         response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
         self.assertEqual(ADMINISTRATOR_USER_IDENTIFIER, response['comment_user_id'])
+
+    def test_create_alerts_comment_should_add_history_entry_on_alert(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        response = self._subject.get(f'/api/v2/alerts/{object_identifier}', body).json()
+        history_entry = get_most_recent_object_history_entry(response)
+        self.assertEqual('commented', history_entry['action'])

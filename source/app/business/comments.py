@@ -22,6 +22,7 @@ from flask_sqlalchemy.pagination import Pagination
 
 from app import db
 from app.business.alerts import alerts_exists
+from app.business.alerts import alerts_get
 from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.case.case_comments import get_case_comment
@@ -37,6 +38,7 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
 from app.models.pagination_parameters import PaginationParameters
+from app.util import add_obj_history_entry
 
 
 def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -94,11 +96,14 @@ def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> C
     return comment
 
 
-def comments_create_for_alert(comment: Comments, alert_identifier: int):
+def comments_create_for_alert(current_user, comment: Comments, alert_identifier: int):
+    alert = alerts_get(current_user, alert_identifier)
     comment.comment_alert_id = alert_identifier
     comment.comment_user_id = iris_current_user.id
     comment.comment_date = datetime.now()
     comment.comment_update_date = datetime.now()
 
     db.session.add(comment)
+
+    add_obj_history_entry(alert, 'commented')
     db.session.commit()
