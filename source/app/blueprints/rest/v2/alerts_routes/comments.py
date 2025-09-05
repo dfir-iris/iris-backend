@@ -47,9 +47,12 @@ class CommentsOperations:
 
     def create(self, alert_identifier):
         comment = self._schema.load(request.get_json())
-        comments_create_for_alert(iris_current_user, comment, alert_identifier)
-        result = self._schema.dump(comment)
-        return response_api_created(result)
+        try:
+            comments_create_for_alert(iris_current_user, comment, alert_identifier)
+            result = self._schema.dump(comment)
+            return response_api_created(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 alerts_comments_blueprint = Blueprint('alerts_comments', __name__, url_prefix='/<int:alert_identifier>/comments')

@@ -269,3 +269,7 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
         activity = self._subject.get_latest_activity()
         self.assertEqual(f'Alert "{object_identifier}" commented', activity['activity_desc'])
+
+    def test_create_alerts_comment_should_return_404_when_alert_is_not_found(self):
+        response = self._subject.create(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments', {})
+        self.assertEqual(404, response.status_code)
