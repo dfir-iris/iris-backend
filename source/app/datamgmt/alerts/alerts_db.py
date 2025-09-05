@@ -23,13 +23,22 @@ from datetime import timedelta
 from typing import List
 from typing import Tuple
 
-from sqlalchemy import desc, asc, func, tuple_, or_, not_, and_
-from sqlalchemy.orm import aliased, make_transient, selectinload
+from sqlalchemy import desc
+from sqlalchemy import asc
+from sqlalchemy import func
+from sqlalchemy import tuple_
+from sqlalchemy import or_
+from sqlalchemy import not_
+from sqlalchemy import and_
+from sqlalchemy.orm import aliased
+from sqlalchemy.orm import make_transient
+from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.pagination import Pagination
 
 import app
 from app import db
-from app.datamgmt.filtering import combine_conditions, apply_custom_conditions
+from app.datamgmt.filtering import combine_conditions
+from app.datamgmt.filtering import apply_custom_conditions
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
 from app.datamgmt.case.case_assets_db import get_unspecified_analysis_status_id
