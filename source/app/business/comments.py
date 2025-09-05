@@ -113,3 +113,4 @@ def comments_create_for_alert(current_user, comment: Comments, alert_identifier:
         'alert': alert
     }
     call_modules_hook('on_postload_alert_commented', hook_data)
+    track_activity(f'alert "{alert.alert_id}" commented', ctx_less=True)

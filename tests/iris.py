@@ -163,3 +163,7 @@ class Iris:
                 logs = self.extract_logs('worker')
                 raise TimeoutError(f'Timed out with logs: {logs}')
         return response['data'][0]
+
+    def get_latest_activity(self):
+        activities = self.get('/activities/list-all').json()
+        return activities['data'][0]

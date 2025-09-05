@@ -255,3 +255,17 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
         task = self._subject.wait_for_module_task()
         self.assertEqual('iris_check_module::on_postload_alert_commented', task['module'])
+
+    def test_create_alerts_comment_should_be_tracked(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+
+        self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        activity = self._subject.get_latest_activity()
+        self.assertEqual(f'Alert "{object_identifier}" commented', activity['activity_desc'])

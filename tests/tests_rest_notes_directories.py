@@ -157,9 +157,8 @@ class TestsRestNotesDirectories(TestCase):
 
         body = {'name': 'new name'}
         self._subject.update(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}', body)
-        activities = self._subject.get('/case/activities/list', {'cid': case_identifier}).json()
-        last_activity = activities['data'][0]['activity_desc']
-        self.assertEqual('Modified directory "new name"', last_activity)
+        last_activity = self._subject.get_latest_activity()
+        self.assertEqual('Modified directory "new name"', last_activity['activity_desc'])
 
     def test_update_note_directory_should_return_400_when_field_name_is_not_a_string(self):
         case_identifier = self._subject.create_dummy_case()
