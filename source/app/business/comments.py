@@ -91,3 +91,8 @@ def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> C
 
     track_activity(f"comment {comment.comment_id} on {object_type} edited", caseid=caseid)
     return comment
+
+
+def comments_create(comment: Comments):
+    db.session.add(comment)
+    db.session.commit()
