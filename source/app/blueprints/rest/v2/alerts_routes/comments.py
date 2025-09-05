@@ -27,7 +27,7 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.schema.marshables import CommentSchema
 from app.business.comments import comments_get_filtered_by_alert
-from app.business.comments import comments_create
+from app.business.comments import comments_create_for_alert
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import ObjectNotFoundError
 
@@ -47,7 +47,7 @@ class CommentsOperations:
 
     def create(self, alert_identifier):
         comment = self._schema.load(request.get_json())
-        comments_create(comment)
+        comments_create_for_alert(comment, alert_identifier)
         result = self._schema.dump(comment)
         return response_api_created(result)
 

@@ -93,6 +93,7 @@ def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> C
     return comment
 
 
-def comments_create(comment: Comments):
+def comments_create_for_alert(comment: Comments, alert_identifier: int):
+    comment.comment_alert_id = alert_identifier
     db.session.add(comment)
     db.session.commit()
