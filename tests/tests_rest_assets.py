@@ -18,7 +18,6 @@
 
 from unittest import TestCase
 from iris import Iris
-from iris import get_most_recent_object_history_entry
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 _CASE_ACCESS_LEVEL_READ_ONLY = 2
@@ -78,7 +77,7 @@ class TestsRestAssets(TestCase):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
-        modification = get_most_recent_object_history_entry(response)
+        modification = self._subject.get_most_recent_object_history_entry(response)
         self.assertEqual('created', modification['action'])
 
     def test_get_asset_should_return_200(self):
@@ -148,7 +147,7 @@ class TestsRestAssets(TestCase):
         identifier = response['asset_id']
         body = {'asset_type_id': 1, 'asset_name': 'new_asset_name'}
         response = self._subject.update(f'/api/v2/cases/{case_identifier}/assets/{identifier}', body).json()
-        modification = get_most_recent_object_history_entry(response)
+        modification = self._subject.get_most_recent_object_history_entry(response)
         self.assertEqual('updated', modification['action'])
 
     def test_delete_asset_should_return_204(self):

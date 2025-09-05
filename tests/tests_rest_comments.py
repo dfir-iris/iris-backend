@@ -18,7 +18,6 @@
 
 from unittest import TestCase
 from iris import Iris
-from iris import get_most_recent_object_history_entry
 from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_PERMISSION_ALERTS_READ
 
@@ -237,5 +236,5 @@ class TestsRestComments(TestCase):
         object_identifier = response['alert_id']
         self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}', body).json()
-        history_entry = get_most_recent_object_history_entry(response)
+        history_entry = self._subject.get_most_recent_object_history_entry(response)
         self.assertEqual('commented', history_entry['action'])

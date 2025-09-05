@@ -130,15 +130,23 @@ class Iris:
     def extract_logs(self, service):
         return self._docker_compose.extract_logs(service)
 
+    def get_module_identifier_by_name(self, module_name):
+        response = self.get('/manage/modules/list').json()
+        module_identifier = None
+        for module in response['data']:
+            if module['module_human_name'] == module_name:
+                module_identifier = module['id']
+        return module_identifier
 
-def get_most_recent_object_history_entry(response):
-    modification_history = response['modification_history']
-    current_timestamp = 0
-    result = None
-    for timestamp_as_string, modification in modification_history.items():
-        timestamp = float(timestamp_as_string)
-        if timestamp < current_timestamp:
-            continue
-        result = modification
-        current_timestamp = timestamp
-    return result
+    @staticmethod
+    def get_most_recent_object_history_entry(response):
+        modification_history = response['modification_history']
+        current_timestamp = 0
+        result = None
+        for timestamp_as_string, modification in modification_history.items():
+            timestamp = float(timestamp_as_string)
+            if timestamp < current_timestamp:
+                continue
+            result = modification
+            current_timestamp = timestamp
+        return result
