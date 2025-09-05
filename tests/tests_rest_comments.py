@@ -18,6 +18,7 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_PERMISSION_ALERTS_READ
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
@@ -211,3 +212,15 @@ class TestsRestComments(TestCase):
         object_identifier = response['alert_id']
         response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
         self.assertEqual(object_identifier, response['comment_alert_id'])
+
+    def test_create_alerts_comment_should_set_comment_user_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        self.assertEqual(ADMINISTRATOR_USER_IDENTIFIER, response['comment_user_id'])

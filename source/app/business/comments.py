@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from datetime import datetime
 
 from flask_sqlalchemy.pagination import Pagination
@@ -95,5 +96,9 @@ def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> C
 
 def comments_create_for_alert(comment: Comments, alert_identifier: int):
     comment.comment_alert_id = alert_identifier
+    comment.comment_user_id = iris_current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+
     db.session.add(comment)
     db.session.commit()
