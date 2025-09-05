@@ -273,3 +273,18 @@ class TestsRestComments(TestCase):
     def test_create_alerts_comment_should_return_404_when_alert_is_not_found(self):
         response = self._subject.create(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments', {})
         self.assertEqual(404, response.status_code)
+
+    def test_create_alerts_comment_should_return_400_when_comment_text_is_not_a_string(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        body = {
+            'comment_text': 1
+        }
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', body)
+        self.assertEqual(400, response.status_code)
