@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from time import sleep
 from uuid import uuid4
 from pathlib import Path
 from docker_compose import DockerCompose
@@ -150,3 +151,15 @@ class Iris:
             result = modification
             current_timestamp = timestamp
         return result
+
+    def wait_for_module_task(self):
+        response = self.get('/dim/tasks/list/1').json()
+        attempts = 0
+        while len(response['data']) == 0:
+            sleep(1)
+            response = self.get('/dim/tasks/list/1').json()
+            attempts += 1
+            if attempts > 20:
+                logs = self.extract_logs('worker')
+                raise TimeoutError(f'Timed out with logs: {logs}')
+        return response['data'][0]

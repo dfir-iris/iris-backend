@@ -238,3 +238,20 @@ class TestsRestComments(TestCase):
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}', body).json()
         history_entry = self._subject.get_most_recent_object_history_entry(response)
         self.assertEqual('commented', history_entry['action'])
+
+    def test_create_alerts_comment_should_call_module_hook(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+
+        module_identifier = self._subject.get_module_identifier_by_name('IrisCheck')
+        self._subject.create(f'/manage/modules/enable/{module_identifier}', {})
+        self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
+        task = self._subject.wait_for_module_task()
+        self.assertEqual('iris_check_module::on_postload_alert_commented', task['module'])

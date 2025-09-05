@@ -19,8 +19,6 @@
 from unittest import TestCase
 from iris import Iris
 
-from time import sleep
-
 
 class TestsRestMiscellaneous(TestCase):
 
@@ -78,15 +76,5 @@ class TestsRestMiscellaneous(TestCase):
         self._subject.delete(f'/api/v2/cases/{case_identifier}')
         self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
 
-        response = self._subject.get('/dim/tasks/list/1').json()
-        attempts = 0
-        while len(response['data']) == 0:
-            sleep(1)
-            response = self._subject.get('/dim/tasks/list/1').json()
-            attempts += 1
-            if attempts > 20:
-                logs = self._subject.extract_logs('worker')
-                self.fail(f'Timed out with logs: {logs}')
-        module = response['data'][0]
-
-        self.assertEqual('success', module['state'])
+        task = self._subject.wait_for_module_task()
+        self.assertEqual('success', task['state'])

@@ -107,3 +107,9 @@ def comments_create_for_alert(current_user, comment: Comments, alert_identifier:
 
     add_obj_history_entry(alert, 'commented')
     db.session.commit()
+
+    hook_data = {
+        'comment': comment,
+        'alert': alert
+    }
+    call_modules_hook('on_postload_alert_commented', hook_data)
