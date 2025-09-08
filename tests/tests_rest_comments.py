@@ -309,3 +309,19 @@ class TestsRestComments(TestCase):
         }
         response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', body).json()
         self.assertEqual('comment text', response['comment_text'])
+
+    def test_create_assets_comment_should_return_404_when_asset_is_not_found(self):
+        response = self._subject.create(f'/api/v2/assets/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments', {})
+        self.assertEqual(404, response.status_code)
+
+    def test_create_assets_comment_should_return_400_when_comment_text_is_not_a_string(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+        body = {
+            'comment_text': 1
+        }
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', body)
+        self.assertEqual(400, response.status_code)
+

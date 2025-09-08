@@ -18,13 +18,14 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.comments import comments_get_filtered_by_asset
 from app.business.comments import comments_create_for_asset
 from app.business.assets import assets_get
@@ -60,12 +61,17 @@ class CommentsOperations:
             return response_api_not_found()
 
     def create(self, asset_identifier):
-        asset = self._get_asset(asset_identifier)
-        comment = self._schema.load(request.get_json())
-        comments_create_for_asset(iris_current_user, asset, comment)
+        try:
+            asset = self._get_asset(asset_identifier)
+            comment = self._schema.load(request.get_json())
+            comments_create_for_asset(iris_current_user, asset, comment)
 
-        result = self._schema.dump(comment)
-        return response_api_created(result)
+            result = self._schema.dump(comment)
+            return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 assets_comments_blueprint = Blueprint('assets_comments', __name__, url_prefix='/<int:asset_identifier>/comments')
