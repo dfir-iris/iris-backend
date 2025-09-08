@@ -26,10 +26,12 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.comments import comments_get_filtered_by_asset
+from app.business.comments import comments_create_for_asset
 from app.business.assets import assets_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
 from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.models.authorization import CaseAccessLevel
 
 
@@ -38,22 +40,32 @@ class CommentsOperations:
     def __init__(self):
         self._schema = CommentSchema()
 
+    @staticmethod
+    def _get_asset(asset_identifier):
+        asset = assets_get(asset_identifier)
+        if not ac_fast_check_current_user_has_case_access(asset.case_id,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            raise ObjectNotFoundError()
+        return asset
+
     def get(self, asset_identifier):
         try:
-            asset = assets_get(asset_identifier)
-            if not ac_fast_check_current_user_has_case_access(asset.case_id,
-                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-                return ac_api_return_access_denied(caseid=asset.case_id)
+            asset = self._get_asset(asset_identifier)
 
             pagination_parameters = parse_pagination_parameters(request)
 
-            comments = comments_get_filtered_by_asset(asset_identifier, pagination_parameters)
+            comments = comments_get_filtered_by_asset(asset, pagination_parameters)
             return response_api_paginated(self._schema, comments)
         except ObjectNotFoundError:
             return response_api_not_found()
 
     def create(self, asset_identifier):
-        return response_api_created(None)
+        asset = self._get_asset(asset_identifier)
+        comment = self._schema.load(request.get_json())
+        comments_create_for_asset(iris_current_user, asset, comment)
+
+        result = self._schema.dump(comment)
+        return response_api_created(result)
 
 
 assets_comments_blueprint = Blueprint('assets_comments', __name__, url_prefix='/<int:asset_identifier>/comments')

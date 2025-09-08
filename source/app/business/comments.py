@@ -37,8 +37,10 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
+from app.models.models import CaseAssets
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
+from app.datamgmt.case.case_assets_db import add_comment_to_asset
 
 
 def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -48,8 +50,8 @@ def comments_get_filtered_by_alert(current_user, alert_identifier: int, paginati
     return get_filtered_alert_comments(alert_identifier, pagination_parameters)
 
 
-def comments_get_filtered_by_asset(asset_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    return get_filtered_asset_comments(asset_identifier, pagination_parameters)
+def comments_get_filtered_by_asset(asset: CaseAssets, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_asset_comments(asset.asset_id, pagination_parameters)
 
 
 def comments_get_filtered_by_evidence(evidence_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -114,3 +116,25 @@ def comments_create_for_alert(current_user, comment: Comments, alert_identifier:
     }
     call_modules_hook('on_postload_alert_commented', hook_data)
     track_activity(f'alert "{alert.alert_id}" commented', ctx_less=True)
+
+
+def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments):
+    comment.comment_case_id = asset.case_id
+    comment.comment_user_id = current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+
+    db.session.add(comment)
+    db.session.commit()
+
+    add_comment_to_asset(asset.asset_id, comment.comment_id)
+
+    db.session.commit()
+
+    hook_data = {
+        'comment': comment,
+        'asset': asset
+    }
+    call_modules_hook('on_postload_asset_commented', data=hook_data, caseid=asset.case_id)
+
+    track_activity(f'asset "{asset.asset_name}" commented', caseid=asset.case_id)
