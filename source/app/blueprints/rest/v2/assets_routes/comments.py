@@ -22,6 +22,7 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.comments import comments_get_filtered_by_asset
@@ -51,6 +52,9 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def create(self, asset_identifier):
+        return response_api_created(None)
+
 
 assets_comments_blueprint = Blueprint('assets_comments', __name__, url_prefix='/<int:asset_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -60,3 +64,9 @@ comments_operations = CommentsOperations()
 @ac_api_requires()
 def get_assets_comments(asset_identifier):
     return comments_operations.get(asset_identifier)
+
+
+@assets_comments_blueprint.post('')
+@ac_api_requires(CaseAccessLevel.full_access)
+def create_alerts_comment(asset_identifier):
+    return comments_operations.create(asset_identifier)
