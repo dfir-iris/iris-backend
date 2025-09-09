@@ -446,17 +446,6 @@ def remove_case_access_from_user(user_id, case_id):
 
 
 def set_user_case_access(user_id, case_id, access_level):
-    if user_id is None or type(user_id) is not int:
-        return False, 'Invalid user id'
-
-    if case_id is None or type(case_id) is not int:
-        return False, "Invalid case id"
-
-    if access_level is None or type(access_level) is not int:
-        return False, "Invalid access level"
-
-    if CaseAccessLevel.has_value(access_level) is False:
-        return False, "Invalid access level"
 
     uca = UserCaseAccess.query.filter(
         UserCaseAccess.user_id == user_id,
@@ -481,8 +470,6 @@ def set_user_case_access(user_id, case_id, access_level):
     db.session.commit()
 
     ac_set_case_access_for_user(user_id, case_id, access_level)
-
-    return True, f'Case access set to {access_level} for user {user_id}'
 
 
 def get_user_details(user_id, include_api_key=False):

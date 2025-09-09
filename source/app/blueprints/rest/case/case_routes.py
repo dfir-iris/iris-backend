@@ -243,21 +243,29 @@ def user_cac_set_case(caseid):
 
     try:
 
-        success, logs = set_user_case_access(user.id, data.get('case_id'), data.get('access_level'))
+        case_identifier = data.get('case_id')
+        access_level = data.get('access_level')
+
+        if user.id is None or type(user.id) is not int:
+            return response_error('Invalid user id')
+        if case_identifier is None or type(case_identifier) is not int:
+            return response_error('Invalid case id')
+        if access_level is None or type(access_level) is not int:
+            return response_error('Invalid access level')
+        if CaseAccessLevel.has_value(access_level) is False:
+            return response_error('Invalid access level')
+
+        set_user_case_access(user.id, case_identifier, access_level)
         track_activity('case access set to {} for user {}'.format(data.get('access_level'), user.name), caseid)
         add_obj_history_entry(case, 'access changed to {} for user {}'.format(data.get('access_level'), user.name))
 
         db.session.commit()
+        return response_success(msg=f'Case access set to {access_level} for user {user.id}')
 
     except Exception as e:
         log.error(f'Error while setting case access for user: {e}')
         log.error(traceback.format_exc())
-        return response_error(msg=str(e))
-
-    if success:
-        return response_success(msg=logs)
-
-    return response_error(msg=logs)
+        return response_error(str(e))
 
 
 @case_rest_blueprint.route('/case/update-status', methods=['POST'])
