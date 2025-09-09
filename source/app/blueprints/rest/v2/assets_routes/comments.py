@@ -86,5 +86,5 @@ def get_assets_comments(asset_identifier):
 
 @assets_comments_blueprint.post('')
 @ac_api_requires(CaseAccessLevel.full_access)
-def create_alerts_comment(asset_identifier):
+def create_assets_comment(asset_identifier):
     return comments_operations.create(asset_identifier)

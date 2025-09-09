@@ -33,14 +33,16 @@ from app.datamgmt.comments import get_filtered_ioc_comments
 from app.datamgmt.comments import get_filtered_note_comments
 from app.datamgmt.comments import get_filtered_task_comments
 from app.datamgmt.comments import get_filtered_event_comments
+from app.datamgmt.case.case_assets_db import add_comment_to_asset
+from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
 from app.models.models import CaseAssets
+from app.models.models import CaseReceivedFile
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
-from app.datamgmt.case.case_assets_db import add_comment_to_asset
 
 
 def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -54,8 +56,8 @@ def comments_get_filtered_by_asset(asset: CaseAssets, pagination_parameters: Pag
     return get_filtered_asset_comments(asset.asset_id, pagination_parameters)
 
 
-def comments_get_filtered_by_evidence(evidence_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    return get_filtered_evidence_comments(evidence_identifier, pagination_parameters)
+def comments_get_filtered_by_evidence(evidence: CaseReceivedFile, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_evidence_comments(evidence.id, pagination_parameters)
 
 
 def comments_get_filtered_by_ioc(ioc_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -138,3 +140,23 @@ def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments
     call_modules_hook('on_postload_asset_commented', data=hook_data, caseid=asset.case_id)
 
     track_activity(f'asset "{asset.asset_name}" commented', caseid=asset.case_id)
+
+
+def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comment: Comments):
+    comment.comment_case_id = evidence.case_id
+    comment.comment_user_id = iris_current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+    db.session.add(comment)
+    db.session.commit()
+
+    add_comment_to_evidence(evidence.id, comment.comment_id)
+
+    db.session.commit()
+
+    hook_data = {
+        'comment': comment,
+        'evidence': evidence
+    }
+    call_modules_hook('on_postload_evidence_commented', data=hook_data, caseid=evidence.case_id)
+    track_activity(f'evidence "{evidence.filename}" commented', caseid=evidence.case_id)

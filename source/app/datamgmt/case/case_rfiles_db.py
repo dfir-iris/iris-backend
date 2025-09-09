@@ -60,7 +60,7 @@ def get_paginated_evidences(case_identifier, pagination_parameters: PaginationPa
     )
 
 
-def add_rfile(evidence, caseid, user_id):
+def add_rfile(evidence: CaseReceivedFile, caseid, user_id):
 
     evidence.date_added = datetime.datetime.now()
     evidence.case_id = caseid

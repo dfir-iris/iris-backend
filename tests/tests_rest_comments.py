@@ -325,3 +325,11 @@ class TestsRestComments(TestCase):
         response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', body)
         self.assertEqual(400, response.status_code)
 
+    def test_create_evidences_comments_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        response = self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
