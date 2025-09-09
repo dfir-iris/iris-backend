@@ -304,12 +304,12 @@ def ac_fast_check_user_has_case_access(user_id, cid, access_level: list[CaseAcce
 
     if not ucea:
         # The user has no direct access, check if he is part of the client
-        cuacu = check_ua_case_client(user_id, cid)
-        if cuacu is None:
+        access_level = check_ua_case_client(user_id, cid)
+        if not access_level:
             return None
-        ac_set_case_access_for_user(user_id, cid, cuacu.access_level)
+        ac_set_case_access_for_user(user_id, cid, access_level)
 
-        return cuacu.access_level
+        return access_level
 
     if ac_flag_match_mask(ucea[0], CaseAccessLevel.deny_all.value):
         return None

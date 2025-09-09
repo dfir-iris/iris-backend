@@ -76,7 +76,7 @@ def manage_ac_audit_users_db():
     return ret
 
 
-def check_ua_case_client(user_id: int, case_id: int) -> Optional[UserClient]:
+def check_ua_case_client(user_id: int, case_id: int) -> Optional[CaseAccessLevel]:
     """Check if the user has access to the case, through the customer of the case
        (in other words, check that the customer of the case is assigned to the user)
 
@@ -92,16 +92,20 @@ def check_ua_case_client(user_id: int, case_id: int) -> Optional[UserClient]:
         # Return a dummy object
         uc = UserClient()
         uc.access_level = CaseAccessLevel.full_access.value
-        return uc
+        return CaseAccessLevel.full_access
 
     result = UserClient.query.filter(
         UserClient.user_id == user_id,
         Cases.case_id == case_id
-    ).join(Cases,
-           UserClient.client_id == Cases.client_id
+    ).join(
+        Cases,
+        UserClient.client_id == Cases.client_id
     ).first()
 
-    return result
+    if not result:
+        return None
+
+    return CaseAccessLevel(result.access_level)
 
 
 def get_client_users(client_id: int) -> list:
