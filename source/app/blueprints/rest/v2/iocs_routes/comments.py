@@ -46,7 +46,7 @@ class CommentsOperations:
 
             pagination_parameters = parse_pagination_parameters(request)
 
-            comments = comments_get_filtered_by_ioc(ioc_identifier, pagination_parameters)
+            comments = comments_get_filtered_by_ioc(ioc, pagination_parameters)
             return response_api_paginated(self._schema, comments)
         except ObjectNotFoundError:
             return response_api_not_found()

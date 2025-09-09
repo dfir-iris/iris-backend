@@ -40,6 +40,10 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
 from app.models.models import CaseAssets
 from app.models.models import CaseReceivedFile
+from app.models.iocs import Ioc
+from app.models.models import Notes
+from app.models.models import CaseTasks
+from app.models.cases import CasesEvent
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
 
@@ -59,20 +63,20 @@ def comments_get_filtered_by_evidence(evidence: CaseReceivedFile, pagination_par
     return get_filtered_evidence_comments(evidence.id, pagination_parameters)
 
 
-def comments_get_filtered_by_ioc(ioc_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    return get_filtered_ioc_comments(ioc_identifier, pagination_parameters)
+def comments_get_filtered_by_ioc(ioc: Ioc, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_ioc_comments(ioc.ioc_id, pagination_parameters)
 
 
-def comments_get_filtered_by_note(note_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    return get_filtered_note_comments(note_identifier, pagination_parameters)
+def comments_get_filtered_by_note(note: Notes, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_note_comments(note.note_id, pagination_parameters)
 
 
-def comments_get_filtered_by_task(taks_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    return get_filtered_task_comments(taks_identifier, pagination_parameters)
+def comments_get_filtered_by_task(task: CaseTasks, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_task_comments(task.id, pagination_parameters)
 
 
-def comments_get_filtered_by_event(event_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    return get_filtered_event_comments(event_identifier, pagination_parameters)
+def comments_get_filtered_by_event(event: CasesEvent, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_event_comments(event.event_id, pagination_parameters)
 
 
 def comments_update_for_case(current_user, comment_text, comment_id, object_type, caseid) -> Comments:
