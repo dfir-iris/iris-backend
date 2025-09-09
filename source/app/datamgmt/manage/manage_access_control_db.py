@@ -19,6 +19,7 @@ from app import ac_current_user_has_permission
 from app.models.cases import Cases
 from app.models.authorization import Group
 from app.models.authorization import UserClient
+from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
@@ -106,6 +107,20 @@ def check_ua_case_client(user_id: int, case_id: int) -> Optional[CaseAccessLevel
         return None
 
     return CaseAccessLevel(result.access_level)
+
+
+def get_case_effective_access(user_identifier, case_identifier) -> Optional[CaseAccessLevel]:
+    row = UserCaseEffectiveAccess.query.with_entities(
+        UserCaseEffectiveAccess.access_level
+    ).filter(
+        UserCaseEffectiveAccess.user_id == user_identifier,
+        UserCaseEffectiveAccess.case_id == case_identifier
+    ).first()
+
+    if not row:
+        return None
+
+    return row[0]
 
 
 def get_client_users(client_id: int) -> list:

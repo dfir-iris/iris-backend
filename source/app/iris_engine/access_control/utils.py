@@ -5,6 +5,7 @@ import app
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
+from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.authorization import CaseAccessLevel
@@ -295,14 +296,9 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
     if the user has access, returns the access level of the user to the case
     Returns None otherwise
     """
-    ucea = UserCaseEffectiveAccess.query.with_entities(
-        UserCaseEffectiveAccess.access_level
-    ).filter(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.case_id == cid
-    ).first()
+    access_level = get_case_effective_access(user_id, cid)
 
-    if not ucea:
+    if not access_level:
         # The user has no direct access, check if he is part of the client
         access_level = check_ua_case_client(user_id, cid)
         if not access_level:
@@ -310,8 +306,6 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
         ac_set_case_access_for_user(user_id, cid, access_level)
 
         return access_level
-
-    access_level = ucea[0]
 
     if ac_flag_match_mask(access_level, CaseAccessLevel.deny_all.value):
         return None
