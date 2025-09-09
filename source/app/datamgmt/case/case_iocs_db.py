@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from sqlalchemy import and_
 
 from app import db
@@ -24,16 +25,16 @@ from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_ioc_state
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 from app.models.alerts import Alert
-from app.models.cases import Cases, CasesEvent
-from app.models.models import Client, CaseAssets
+from app.models.cases import Cases
+from app.models.cases import CasesEvent
+from app.models.models import Client
+from app.models.models import CaseAssets
 from app.models.models import Comments
 from app.models.iocs import Ioc
 from app.models.models import IocComments
 from app.models.models import IocType
 from app.models.iocs import Tlp
 from app.models.authorization import User
-from app.models.authorization import UserCaseEffectiveAccess
-from app.models.authorization import CaseAccessLevel
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
 
