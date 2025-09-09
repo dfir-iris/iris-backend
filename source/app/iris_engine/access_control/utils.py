@@ -567,7 +567,7 @@ def ac_set_case_access_for_users(users, case_id, access_level):
         user_id = user.get('id')
         if user_id == iris_current_user.id:
             logs = "It's done, but I excluded you from the list of users to update, Dave"
-            ac_set_case_access_for_user(user.get('id'), case_id, access_level=CaseAccessLevel.full_access.value)
+            ac_set_case_access_for_user(user.get('id'), case_id, CaseAccessLevel.full_access.value)
             continue
 
         ac_set_case_access_for_user(user.get('id'), case_id, access_level)
@@ -576,7 +576,7 @@ def ac_set_case_access_for_users(users, case_id, access_level):
     return True, logs
 
 
-def ac_set_case_access_for_user(user_id, case_id, access_level: int, commit=True):
+def ac_set_case_access_for_user(user_id, case_id, access_level: int):
     """
     Set a case access from a user
     """
@@ -602,10 +602,7 @@ def ac_set_case_access_for_user(user_id, case_id, access_level: int, commit=True
         uac = uac[0]
         uac.access_level = access_level
 
-    if commit:
-        db.session.commit()
-
-    return
+    db.session.commit()
 
 
 def ac_get_fast_user_cases_access(user_id):
