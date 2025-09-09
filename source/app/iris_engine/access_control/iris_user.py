@@ -33,7 +33,7 @@ class TokenUser:
         self.is_anonymous = False
 
 
-def get_current_user():
+def _get_current_user():
     """
     Returns a compatible user object for both session and token auth
     For token auth, uses data from g.auth_user
@@ -47,4 +47,4 @@ def get_current_user():
     return None
 
 
-iris_current_user = LocalProxy(lambda: get_current_user())
+iris_current_user = LocalProxy(lambda: _get_current_user())

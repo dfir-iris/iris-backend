@@ -35,7 +35,6 @@ from app.datamgmt.comments import get_filtered_task_comments
 from app.datamgmt.comments import get_filtered_event_comments
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
-from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
@@ -76,14 +75,13 @@ def comments_get_filtered_by_event(event_identifier: int, pagination_parameters:
     return get_filtered_event_comments(event_identifier, pagination_parameters)
 
 
-def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> Comments:
+def comments_update_for_case(current_user, comment_text, comment_id, object_type, caseid) -> Comments:
     comment = get_case_comment(comment_id, caseid)
     if not comment:
         raise BusinessProcessingError('Invalid comment ID')
 
-    if hasattr(iris_current_user, 'id') and iris_current_user.id is not None:
-        if comment.comment_user_id != iris_current_user.id:
-            raise BusinessProcessingError('Permission denied')
+    if comment.comment_user_id != current_user.id:
+        raise BusinessProcessingError('Permission denied')
 
     comment.comment_text = comment_text
     comment.comment_update_date = datetime.utcnow()
@@ -103,7 +101,7 @@ def comments_update_for_case(comment_text, comment_id, object_type, caseid) -> C
 def comments_create_for_alert(current_user, comment: Comments, alert_identifier: int):
     alert = alerts_get(current_user, alert_identifier)
     comment.comment_alert_id = alert_identifier
-    comment.comment_user_id = iris_current_user.id
+    comment.comment_user_id = current_user.id
     comment.comment_date = datetime.now()
     comment.comment_update_date = datetime.now()
 
@@ -144,7 +142,7 @@ def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments
 
 def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comment: Comments):
     comment.comment_case_id = evidence.case_id
-    comment.comment_user_id = iris_current_user.id
+    comment.comment_user_id = current_user.id
     comment.comment_date = datetime.now()
     comment.comment_update_date = datetime.now()
     db.session.add(comment)

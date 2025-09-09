@@ -25,6 +25,7 @@ from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.business.comments import comments_update_for_case
 from app.business.errors import BusinessProcessingError
+from app.iris_engine.access_control.iris_user import iris_current_user
 
 
 def case_comment_update(comment_id, object_type, caseid):
@@ -32,7 +33,7 @@ def case_comment_update(comment_id, object_type, caseid):
         comment_schema = CommentSchema()
         rq_t = request.get_json()
         comment_text = rq_t.get('comment_text')
-        comment = comments_update_for_case(comment_text, comment_id, object_type, caseid)
+        comment = comments_update_for_case(iris_current_user, comment_text, comment_id, object_type, caseid)
         return response_success("Comment edited", data=comment_schema.dump(comment))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
