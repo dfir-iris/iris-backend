@@ -289,7 +289,7 @@ def ac_trace_effective_user_permissions(user_id):
     return perms
 
 
-def ac_fast_check_user_has_case_access(user_id, cid, access_level: list[CaseAccessLevel]):
+def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: list[CaseAccessLevel]):
     """
     Checks the user has access to the case with at least one of the access_level
     if the user has access, returns the access level of the user to the case
@@ -311,12 +311,14 @@ def ac_fast_check_user_has_case_access(user_id, cid, access_level: list[CaseAcce
 
         return access_level
 
-    if ac_flag_match_mask(ucea[0], CaseAccessLevel.deny_all.value):
+    access_level = ucea[0]
+
+    if ac_flag_match_mask(access_level, CaseAccessLevel.deny_all.value):
         return None
 
-    for acl in access_level:
-        if ac_flag_match_mask(ucea[0], acl.value):
-            return ucea[0]
+    for acl in expected_access_levels:
+        if ac_flag_match_mask(access_level, acl.value):
+            return access_level
 
     return None
 
