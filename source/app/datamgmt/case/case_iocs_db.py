@@ -293,17 +293,6 @@ def get_ioc_by_value(ioc_value, caseid=None):
     return Ioc.query.filter(Ioc.ioc_value == ioc_value).first()
 
 
-def user_list_cases_view(user_id):
-    res = UserCaseEffectiveAccess.query.with_entities(
-        UserCaseEffectiveAccess.case_id
-    ).filter(and_(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.access_level != CaseAccessLevel.deny_all.value
-    )).all()
-
-    return [r.case_id for r in res]
-
-
 def get_filtered_iocs(
         caseid: int = None,
         pagination_parameters: PaginationParameters = None,
