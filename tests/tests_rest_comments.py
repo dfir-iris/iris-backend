@@ -298,7 +298,7 @@ class TestsRestComments(TestCase):
         response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {})
         self.assertEqual(201, response.status_code)
 
-    def test_create_asset_comment_should_set_comment_text(self):
+    def test_create_assets_comment_should_set_comment_text(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
