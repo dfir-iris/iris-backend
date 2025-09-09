@@ -1,8 +1,8 @@
 from flask import session
 from sqlalchemy import and_
 
-import app
 from app import db
+from app.logger import logger
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
 from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
@@ -17,8 +17,6 @@ from app.models.authorization import User
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import UserGroup
-
-log = app.app.logger
 
 
 def ac_flag_match_mask(flag, mask):
@@ -537,7 +535,7 @@ def ac_remove_case_access_from_user(user_id, case_id):
     )).all()
 
     if len(uac) > 1:
-        log.error(f'Multiple access found for user {user_id} and case {case_id}')
+        logger.error(f'Multiple access found for user {user_id} and case {case_id}')
         for u in uac:
             db.session.delete(u)
         db.session.commit()
@@ -587,7 +585,7 @@ def ac_set_case_access_for_user(user_id, case_id, access_level: int):
     )).all()
 
     if len(uac) > 1:
-        log.error(f'Multiple access found for user {user_id} and case {case_id}')
+        logger.error(f'Multiple access found for user {user_id} and case {case_id}')
         for u in uac:
             db.session.delete(u)
         db.session.commit()
