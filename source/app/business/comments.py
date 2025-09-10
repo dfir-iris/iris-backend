@@ -107,12 +107,6 @@ def comments_update_for_case(current_user, comment_text, comment_id, object_type
 
 def comments_create_for_alert(current_user, comment: Comments, alert_identifier: int):
     alert = alerts_get(current_user, alert_identifier)
-    comment.comment_alert_id = alert_identifier
-    comment.comment_user_id = current_user.id
-    comment.comment_date = datetime.now()
-    comment.comment_update_date = datetime.now()
-
-    db.session.add(comment)
 
     add_obj_history_entry(alert, 'commented')
     db.session.commit()
@@ -126,6 +120,7 @@ def comments_create_for_alert(current_user, comment: Comments, alert_identifier:
 
 
 def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments):
+    _create_comment(current_user, comment, asset.case_id)
     comment.comment_case_id = asset.case_id
     comment.comment_user_id = current_user.id
     comment.comment_date = datetime.now()
@@ -148,12 +143,7 @@ def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments
 
 
 def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comment: Comments):
-    comment.comment_case_id = evidence.case_id
-    comment.comment_user_id = current_user.id
-    comment.comment_date = datetime.now()
-    comment.comment_update_date = datetime.now()
-    db.session.add(comment)
-    db.session.commit()
+    _create_comment(current_user, comment, evidence.case_id)
 
     add_comment_to_evidence(evidence.id, comment.comment_id)
 
@@ -168,12 +158,7 @@ def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comme
 
 
 def comments_create_for_ioc(current_user, ioc: Ioc, comment: Comments):
-    comment.comment_case_id = ioc.case_id
-    comment.comment_user_id = current_user.id
-    comment.comment_date = datetime.now()
-    comment.comment_update_date = datetime.now()
-    db.session.add(comment)
-    db.session.commit()
+    _create_comment(current_user, comment, ioc.case_id)
 
     add_comment_to_ioc(ioc.ioc_id, comment.comment_id)
 
@@ -188,12 +173,7 @@ def comments_create_for_ioc(current_user, ioc: Ioc, comment: Comments):
 
 
 def comments_create_for_note(current_user, note: Notes, comment: Comments):
-    comment.comment_case_id = note.note_case_id
-    comment.comment_user_id = current_user.id
-    comment.comment_date = datetime.now()
-    comment.comment_update_date = datetime.now()
-    db.session.add(comment)
-    db.session.commit()
+    _create_comment(current_user, comment, note.note_case_id)
 
     add_comment_to_note(note.note_id, comment.comment_id)
 
@@ -207,13 +187,9 @@ def comments_create_for_note(current_user, note: Notes, comment: Comments):
 
     track_activity(f'note "{note.note_title}" commented', caseid=note.note_case_id)
 
+
 def comments_create_for_task(current_user, task: CaseTasks, comment: Comments):
-    comment.comment_case_id = task.task_case_id
-    comment.comment_user_id = current_user.id
-    comment.comment_date = datetime.now()
-    comment.comment_update_date = datetime.now()
-    db.session.add(comment)
-    db.session.commit()
+    _create_comment(current_user, comment, task.task_case_id)
 
     add_comment_to_task(task.id, comment.comment_id)
 
@@ -226,3 +202,11 @@ def comments_create_for_task(current_user, task: CaseTasks, comment: Comments):
     call_modules_hook('on_postload_task_commented', data=hook_data, caseid=task.task_case_id)
 
     track_activity(f'task "{task.task_title}" commented', caseid=task.task_case_id)
+
+
+def _create_comment(current_user, comment, case_identifier):
+    comment.comment_case_id = case_identifier
+    comment.comment_user_id = current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+    db.session.add(comment)
