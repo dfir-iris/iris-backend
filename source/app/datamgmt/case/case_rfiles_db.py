@@ -110,6 +110,19 @@ def delete_rfile(evidence: CaseReceivedFile):
         db.session.commit()
 
 
+def delete_evidence_comments_in_case(case_identifier):
+    com_ids = EvidencesComments.query.with_entities(
+        EvidencesComments.comment_id
+    ).join(CaseReceivedFile).filter(
+        EvidencesComments.comment_evidence_id == CaseReceivedFile.id,
+        CaseReceivedFile.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    EvidencesComments.query.filter(EvidencesComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
+
+
 def get_case_evidence_comments(evidence_id):
     return Comments.query.filter(
         EvidencesComments.comment_evidence_id == evidence_id

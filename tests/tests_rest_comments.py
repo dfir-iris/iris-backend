@@ -424,3 +424,13 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {})
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_delete_case_with_evidences_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
