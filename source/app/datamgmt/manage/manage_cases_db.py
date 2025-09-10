@@ -59,6 +59,7 @@ from app.models.models import UserActivity
 from app.models.alerts import AlertCaseAssociation
 from app.models.models import Comments
 from app.models.models import IocComments
+from app.models.models import AssetComments
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
 from app.models.authorization import OrganisationCaseAccess
@@ -337,6 +338,33 @@ def _delete_iocs(case_identifier):
     Ioc.query.filter(Ioc.case_id == case_identifier).delete()
 
 
+def _delete_assets(case_identifier):
+    com_ids = AssetComments.query.with_entities(
+        AssetComments.comment_id
+    ).join(CaseAssets).filter(
+        AssetComments.comment_asset_id == CaseAssets.asset_id,
+        CaseAssets.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    AssetComments.query.filter(AssetComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
+
+    CaseAssetsAlias = aliased(CaseAssets)
+
+    # Query for CaseAssets that are not referenced in alerts and match the case_id
+    assets_to_delete = db.session.query(CaseAssets).filter(
+        and_(
+            CaseAssets.case_id == case_identifier,
+            ~db.session.query(alert_assets_association).filter(
+                alert_assets_association.c.asset_id == CaseAssetsAlias.asset_id
+            ).exists()
+        )
+    )
+    # Delete the assets
+    assets_to_delete.delete(synchronize_session='fetch')
+
+
 def delete_case(case_id):
     if not Cases.query.filter(Cases.case_id == case_id).first():
         return False
@@ -370,20 +398,7 @@ def delete_case(case_id):
     CaseEventsAssets.query.filter(CaseEventsAssets.case_id == case_id).delete()
     CaseEventsIoc.query.filter(CaseEventsIoc.case_id == case_id).delete()
 
-    CaseAssetsAlias = aliased(CaseAssets)
-
-    # Query for CaseAssets that are not referenced in alerts and match the case_id
-    assets_to_delete = db.session.query(CaseAssets).filter(
-        and_(
-            CaseAssets.case_id == case_id,
-            ~db.session.query(alert_assets_association).filter(
-                alert_assets_association.c.asset_id == CaseAssetsAlias.asset_id
-            ).exists()
-        )
-    )
-
-    # Delete the assets
-    assets_to_delete.delete(synchronize_session='fetch')
+    _delete_assets(case_id)
 
     # Get all alerts associated with assets in the case
     alerts_to_update = db.session.query(CaseAssets).filter(CaseAssets.case_id == case_id)
