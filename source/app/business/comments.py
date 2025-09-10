@@ -37,6 +37,7 @@ from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
 from app.datamgmt.case.case_notes_db import add_comment_to_note
+from app.datamgmt.case.case_tasks_db import add_comment_to_task
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
@@ -205,3 +206,23 @@ def comments_create_for_note(current_user, note: Notes, comment: Comments):
     call_modules_hook('on_postload_note_commented', data=hook_data, caseid=note.note_case_id)
 
     track_activity(f'note "{note.note_title}" commented', caseid=note.note_case_id)
+
+def comments_create_for_task(current_user, task: CaseTasks, comment: Comments):
+    comment.comment_case_id = task.task_case_id
+    comment.comment_user_id = current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+    db.session.add(comment)
+    db.session.commit()
+
+    add_comment_to_task(task.id, comment.comment_id)
+
+    db.session.commit()
+
+    hook_data = {
+        'comment': comment,
+        'task': task
+    }
+    call_modules_hook('on_postload_task_commented', data=hook_data, caseid=task.task_case_id)
+
+    track_activity(f'task "{task.task_title}" commented', caseid=task.task_case_id)
