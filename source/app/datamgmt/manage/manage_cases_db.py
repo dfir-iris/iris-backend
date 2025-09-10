@@ -317,7 +317,7 @@ def get_case_details_rt(case_id):
 
     return res
 
-
+from app.logger import logger
 def _delete_iocs(case_identifier):
     # TODO should do this with the 2.0 SQLAlchemy API
     # TODO maybe this can be performed automatically with cascades
@@ -327,6 +327,7 @@ def _delete_iocs(case_identifier):
         Ioc
     ).filter(
         IocComments.comment_ioc_id == Ioc.ioc_id,
+        Ioc.case_id == case_identifier
     ).all()
 
     com_ids = [c.comment_id for c in com_ids]

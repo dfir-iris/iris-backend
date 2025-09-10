@@ -91,10 +91,7 @@ def delete_ioc(ioc: Ioc):
 
     com_ids = [c.comment_id for c in com_ids]
     IocComments.query.filter(IocComments.comment_id.in_(com_ids)).delete()
-
-    Comments.query.filter(
-        Comments.comment_id.in_(com_ids)
-    ).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
     db.session.delete(ioc)
 

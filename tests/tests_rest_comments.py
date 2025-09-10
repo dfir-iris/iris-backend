@@ -398,6 +398,23 @@ class TestsRestComments(TestCase):
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
         self.assertEqual(204, response.status_code)
 
+    def test_delete_case_with_ioc_comment_should_not_delete_comments_in_another_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
+        self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {})
+
+        case_identifier2 = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier2}/iocs', body).json()
+        object_identifier2 = response['ioc_id']
+        self._subject.create(f'/api/v2/iocs/{object_identifier2}/comments', {})
+        self._subject.delete(f'/api/v2/cases/{case_identifier2}')
+
+        response = self._subject.get(f'/api/v2/iocs/{object_identifier}/comments').json()
+        self.assertEqual(1, response['total'])
+
     def test_delete_case_with_asset_comment_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
