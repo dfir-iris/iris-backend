@@ -76,6 +76,7 @@ from app.datamgmt.case.case_notes_db import delete_notes_comments_in_case
 from app.datamgmt.case.case_tasks_db import delete_tasks_comments_in_case
 from app.datamgmt.case.case_events_db import delete_events_comments_in_case
 
+
 def list_cases_id():
     res = Cases.query.with_entities(
         Cases.case_id
