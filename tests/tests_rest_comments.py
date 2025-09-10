@@ -466,3 +466,14 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/api/v2/tasks/{object_identifier}/comments', {})
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_create_events_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        object_identifier = response['event_id']
+
+        response = self._subject.create(f'/api/v2/events/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)

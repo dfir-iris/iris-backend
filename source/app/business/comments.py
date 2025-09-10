@@ -38,6 +38,7 @@ from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
 from app.datamgmt.case.case_notes_db import add_comment_to_note
 from app.datamgmt.case.case_tasks_db import add_comment_to_task
+from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
@@ -201,6 +202,24 @@ def comments_create_for_task(current_user, task: CaseTasks, comment: Comments):
     call_modules_hook('on_postload_task_commented', data=hook_data, caseid=task.task_case_id)
 
     track_activity(f'task "{task.task_title}" commented', caseid=task.task_case_id)
+
+
+def comments_create_for_event(current_user, event: CasesEvent, comment: Comments):
+    _create_comment(current_user, comment, event.case_id)
+
+    add_comment_to_event(event.event_id, comment.comment_id)
+
+    add_obj_history_entry(event, 'commented')
+
+    db.session.commit()
+
+    hook_data = {
+        'comment': comment,
+        'event': event
+    }
+    call_modules_hook('on_postload_event_commented', data=hook_data, caseid=event.case_id)
+
+    track_activity(f'event "{event.event_title}" commented', caseid=event.case_id)
 
 
 def _create_comment(current_user, comment, case_identifier):
