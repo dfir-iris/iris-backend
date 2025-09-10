@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import datetime
+from typing import Optional
 
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -129,7 +130,7 @@ def get_assets_name(caseid):
     return assets_names
 
 
-def get_asset(asset_id) -> CaseAssets:
+def get_asset(asset_id) -> Optional[CaseAssets]:
     asset = CaseAssets.query.filter(
         CaseAssets.asset_id == asset_id,
     ).first()
