@@ -43,16 +43,16 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     @staticmethod
-    def _get_evidence(evidence_identifier) -> CaseReceivedFile:
+    def _get_evidence(evidence_identifier, expected_case_access_levels) -> CaseReceivedFile:
         evidence = evidences_get(evidence_identifier)
-        if not ac_fast_check_current_user_has_case_access(evidence.case_id,
-                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+        if not ac_fast_check_current_user_has_case_access(evidence.case_id, expected_case_access_levels):
             raise ObjectNotFoundError()
         return evidence
 
     def get(self, evidence_identifier):
         try:
-            evidence = self._get_evidence(evidence_identifier)
+            evidence = self._get_evidence(evidence_identifier,
+                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
             pagination_parameters = parse_pagination_parameters(request)
 
@@ -63,7 +63,7 @@ class CommentsOperations:
 
     def create(self, evidence_identifier):
         try:
-            evidence = self._get_evidence(evidence_identifier)
+            evidence = self._get_evidence(evidence_identifier, [CaseAccessLevel.full_access])
             comment = self._schema.load(request.get_json())
             comments_create_for_evidence(iris_current_user, evidence, comment)
 
@@ -86,6 +86,6 @@ def get_evidences_comments(evidence_identifier):
 
 
 @evidences_comments_blueprint.post('')
-@ac_api_requires(CaseAccessLevel.full_access)
+@ac_api_requires()
 def create_assets_comment(evidence_identifier):
     return comments_operations.create(evidence_identifier)

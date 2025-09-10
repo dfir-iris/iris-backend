@@ -342,7 +342,7 @@ class TestsRestComments(TestCase):
         response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', body)
         self.assertEqual(400, response.status_code)
 
-    def test_create_evidences_comments_should_return_201(self):
+    def test_create_evidences_comment_should_return_201(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'filename': 'filename'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
@@ -350,3 +350,19 @@ class TestsRestComments(TestCase):
 
         response = self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {})
         self.assertEqual(201, response.status_code)
+
+    def test_create_evidences_comment_should_return_404_when_user_has_only_read_only_case_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        user_identifier = user.get_identifier()
+        body = {
+	        'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY,
+	        'cases_list': [case_identifier]
+        }
+        self._subject.create(f'/manage/users/{user_identifier}/cases-access/update', body)
+        response = user.create(f'/api/v2/evidences/{object_identifier}/comments', body)
+        self.assertEqual(404, response.status_code)
