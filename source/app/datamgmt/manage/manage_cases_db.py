@@ -74,7 +74,7 @@ from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import delete_evidences_comments_in_case
 from app.datamgmt.case.case_notes_db import delete_notes_comments_in_case
 from app.datamgmt.case.case_tasks_db import delete_tasks_comments_in_case
-
+from app.datamgmt.case.case_events_db import delete_events_comments_in_case
 
 def list_cases_id():
     res = Cases.query.with_entities(
@@ -397,6 +397,14 @@ def _delete_tasks(case_identifier):
         CaseTasks.query.filter(CaseTasks.id == task.id).delete()
 
 
+def _delete_events(case_identifier):
+    delete_events_comments_in_case(case_identifier)
+    da = CasesEvent.query.with_entities(CasesEvent.event_id).filter(CasesEvent.case_id == case_identifier).all()
+    for event in da:
+        CaseEventCategory.query.filter(CaseEventCategory.event_id == event.event_id).delete()
+    CasesEvent.query.filter(CasesEvent.case_id == case_identifier).delete()
+
+
 def delete_case(case_id):
     if not Cases.query.filter(Cases.case_id == case_id).first():
         return False
@@ -442,11 +450,7 @@ def delete_case(case_id):
     _delete_notes(case_id)
     _delete_tasks(case_id)
 
-    da = CasesEvent.query.with_entities(CasesEvent.event_id).filter(CasesEvent.case_id == case_id).all()
-    for event in da:
-        CaseEventCategory.query.filter(CaseEventCategory.event_id == event.event_id).delete()
-
-    CasesEvent.query.filter(CasesEvent.case_id == case_id).delete()
+    _delete_events(case_id)
 
     UserCaseAccess.query.filter(UserCaseAccess.case_id == case_id).delete()
     UserCaseEffectiveAccess.query.filter(UserCaseEffectiveAccess.case_id == case_id).delete()

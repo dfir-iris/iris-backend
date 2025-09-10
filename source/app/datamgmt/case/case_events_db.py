@@ -174,6 +174,19 @@ def delete_event_comment(event_id, comment_id):
     return True, "Comment deleted"
 
 
+def delete_events_comments_in_case(case_identifier):
+    com_ids = EventComments.query.with_entities(
+        EventComments.comment_id
+    ).join(CasesEvent).filter(
+        EventComments.comment_event_id == CasesEvent.event_id,
+        CasesEvent.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    EventComments.query.filter(EventComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
+
+
 def add_comment_to_event(event_id, comment_id):
     ec = EventComments()
     ec.comment_event_id = event_id
