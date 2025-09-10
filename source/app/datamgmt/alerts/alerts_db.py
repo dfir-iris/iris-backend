@@ -57,7 +57,7 @@ from app.models.cases import Cases
 from app.models.models import EventCategory
 from app.models.models import Tags
 from app.models.models import AssetsType
-from app.models.models import Comments
+from app.models.comments import Comments
 from app.models.models import CaseAssets
 from app.models.models import alert_assets_association
 from app.models.iocs import alert_iocs_association

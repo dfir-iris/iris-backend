@@ -18,13 +18,8 @@
 
 from flask_sqlalchemy.pagination import Pagination
 
-from app.models.models import Comments
-from app.models.models import AssetComments
-from app.models.models import EvidencesComments
-from app.models.models import IocComments
-from app.models.models import NotesComments
-from app.models.models import TaskComments
-from app.models.models import EventComments
+from app.models.comments import Comments, EventComments, TaskComments, IocComments, AssetComments, EvidencesComments, \
+    NotesComments
 from app.models.pagination_parameters import PaginationParameters
 
 

@@ -17,7 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from typing import Optional
 
-from app.models.models import Comments
+from app.models.comments import Comments
 
 
 def get_case_comment(comment_id, caseid) -> Optional[Comments]:

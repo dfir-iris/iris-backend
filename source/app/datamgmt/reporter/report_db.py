@@ -33,7 +33,7 @@ from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
-from app.models.models import Comments
+from app.models.comments import Comments
 from app.models.models import EventCategory
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink

@@ -25,8 +25,7 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_evidences_state
 from app.models.models import CaseReceivedFile
-from app.models.models import Comments
-from app.models.models import EvidencesComments
+from app.models.comments import Comments, EvidencesComments
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.conversions import convert_sort_direction

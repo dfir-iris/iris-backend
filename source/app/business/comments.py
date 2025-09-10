@@ -41,7 +41,7 @@ from app.datamgmt.case.case_tasks_db import add_comment_to_task
 from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.models.models import Comments
+from app.models.comments import Comments
 from app.models.models import CaseAssets
 from app.models.models import CaseReceivedFile
 from app.models.iocs import Ioc

@@ -26,9 +26,8 @@ from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.cases import CasesEvent
-from app.models.models import Comments
+from app.models.comments import Comments, EventComments
 from app.models.models import EventCategory
-from app.models.models import EventComments
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType

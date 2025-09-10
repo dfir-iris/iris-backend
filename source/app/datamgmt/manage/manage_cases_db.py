@@ -57,9 +57,7 @@ from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.models import UserActivity
 from app.models.alerts import AlertCaseAssociation
-from app.models.models import Comments
-from app.models.models import IocComments
-from app.models.models import AssetComments
+from app.models.comments import Comments, IocComments, AssetComments
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
 from app.models.authorization import OrganisationCaseAccess
