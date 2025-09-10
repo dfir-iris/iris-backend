@@ -73,6 +73,7 @@ from app.models.cases import CaseState
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import delete_evidences_comments_in_case
 from app.datamgmt.case.case_notes_db import delete_notes_comments_in_case
+from app.datamgmt.case.case_tasks_db import delete_tasks_comments_in_case
 
 
 def list_cases_id():
@@ -388,6 +389,14 @@ def _delete_notes(case_identifier):
     NoteDirectory.query.filter(NoteDirectory.case_id == case_identifier).delete()
 
 
+def _delete_tasks(case_identifier):
+    delete_tasks_comments_in_case(case_identifier)
+    tasks = CaseTasks.query.filter(CaseTasks.task_case_id == case_identifier).all()
+    for task in tasks:
+        TaskAssignee.query.filter(TaskAssignee.task_id == task.id).delete()
+        CaseTasks.query.filter(CaseTasks.id == task.id).delete()
+
+
 def delete_case(case_id):
     if not Cases.query.filter(Cases.case_id == case_id).first():
         return False
@@ -431,11 +440,7 @@ def delete_case(case_id):
     db.session.commit()
 
     _delete_notes(case_id)
-
-    tasks = CaseTasks.query.filter(CaseTasks.task_case_id == case_id).all()
-    for task in tasks:
-        TaskAssignee.query.filter(TaskAssignee.task_id == task.id).delete()
-        CaseTasks.query.filter(CaseTasks.id == task.id).delete()
+    _delete_tasks(case_id)
 
     da = CasesEvent.query.with_entities(CasesEvent.event_id).filter(CasesEvent.case_id == case_id).all()
     for event in da:
