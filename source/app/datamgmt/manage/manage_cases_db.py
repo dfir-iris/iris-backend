@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
@@ -56,6 +57,8 @@ from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.models import UserActivity
 from app.models.alerts import AlertCaseAssociation
+from app.models.models import Comments
+from app.models.models import IocComments
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
 from app.models.authorization import OrganisationCaseAccess
@@ -314,6 +317,26 @@ def get_case_details_rt(case_id):
     return res
 
 
+def _delete_iocs(case_identifier):
+    # TODO should do this with the 2.0 SQLAlchemy API
+    # TODO maybe this can be performed automatically with cascades
+    com_ids = IocComments.query.with_entities(
+        IocComments.comment_id
+    ).join(
+        Ioc
+    ).filter(
+        IocComments.comment_ioc_id == Ioc.ioc_id,
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    IocComments.query.filter(IocComments.comment_id.in_(com_ids)).delete()
+
+    Comments.query.filter(
+        Comments.comment_id.in_(com_ids)
+    ).delete()
+    Ioc.query.filter(Ioc.case_id == case_identifier).delete()
+
+
 def delete_case(case_id):
     if not Cases.query.filter(Cases.case_id == case_id).first():
         return False
@@ -321,7 +344,7 @@ def delete_case(case_id):
     delete_case_states(caseid=case_id)
     UserActivity.query.filter(UserActivity.case_id == case_id).delete()
     CaseReceivedFile.query.filter(CaseReceivedFile.case_id == case_id).delete()
-    Ioc.query.filter(Ioc.case_id == case_id).delete()
+    _delete_iocs(case_id)
 
     CaseTags.query.filter(CaseTags.case_id == case_id).delete()
     CaseProtagonist.query.filter(CaseProtagonist.case_id == case_id).delete()
