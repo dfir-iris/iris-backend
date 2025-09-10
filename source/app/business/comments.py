@@ -107,6 +107,12 @@ def comments_update_for_case(current_user, comment_text, comment_id, object_type
 
 def comments_create_for_alert(current_user, comment: Comments, alert_identifier: int):
     alert = alerts_get(current_user, alert_identifier)
+    comment.comment_alert_id = alert_identifier
+    comment.comment_user_id = current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+
+    db.session.add(comment)
 
     add_obj_history_entry(alert, 'commented')
     db.session.commit()
@@ -121,13 +127,6 @@ def comments_create_for_alert(current_user, comment: Comments, alert_identifier:
 
 def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments):
     _create_comment(current_user, comment, asset.case_id)
-    comment.comment_case_id = asset.case_id
-    comment.comment_user_id = current_user.id
-    comment.comment_date = datetime.now()
-    comment.comment_update_date = datetime.now()
-
-    db.session.add(comment)
-    db.session.commit()
 
     add_comment_to_asset(asset.asset_id, comment.comment_id)
 
@@ -210,3 +209,4 @@ def _create_comment(current_user, comment, case_identifier):
     comment.comment_date = datetime.now()
     comment.comment_update_date = datetime.now()
     db.session.add(comment)
+    db.session.commit()

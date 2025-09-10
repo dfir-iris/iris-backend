@@ -457,7 +457,7 @@ class TestsRestComments(TestCase):
         response = self._subject.create(f'/api/v2/tasks/{object_identifier}/comments', {})
         self.assertEqual(201, response.status_code)
 
-    def test_delete_case_with_taskss_comment_should_return_204(self):
+    def test_delete_case_with_tasks_comment_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'task_assignees_id': [], 'task_status_id': 1, 'task_title': 'dummy title'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/tasks', body).json()
