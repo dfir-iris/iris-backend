@@ -48,10 +48,9 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return note
 
-
     def get(self, note_identifier):
         try:
-            note = self._get_note([CaseAccessLevel.read_only, CaseAccessLevel.full_access])
+            note = self._get_note(note_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
             pagination_parameters = parse_pagination_parameters(request)
 
@@ -83,6 +82,7 @@ comments_operations = CommentsOperations()
 @ac_api_requires()
 def get_notes_comments(note_identifier):
     return comments_operations.get(note_identifier)
+
 
 @notes_comments_blueprint.post('')
 @ac_api_requires()
