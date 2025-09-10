@@ -20,6 +20,7 @@ from unittest import TestCase
 from iris import Iris
 from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_CASE_ACCESS_LEVEL_READ_ONLY
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -312,6 +313,22 @@ class TestsRestComments(TestCase):
 
     def test_create_assets_comment_should_return_404_when_asset_is_not_found(self):
         response = self._subject.create(f'/api/v2/assets/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments', {})
+        self.assertEqual(404, response.status_code)
+
+    def test_create_assets_comment_should_return_404_when_user_has_only_read_only_case_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        user = self._subject.create_dummy_user()
+        user_identifier = user.get_identifier()
+        body = {
+	        'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY,
+	        'cases_list': [case_identifier]
+        }
+        self._subject.create(f'/manage/users/{user_identifier}/cases-access/update', body)
+        response = user.create(f'/api/v2/assets/{object_identifier}/comments', body)
         self.assertEqual(404, response.status_code)
 
     def test_create_assets_comment_should_return_400_when_comment_text_is_not_a_string(self):

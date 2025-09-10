@@ -42,16 +42,15 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     @staticmethod
-    def _get_asset(asset_identifier):
+    def _get_asset(asset_identifier, expected_case_access_levels):
         asset = assets_get(asset_identifier)
-        if not ac_fast_check_current_user_has_case_access(asset.case_id,
-                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+        if not ac_fast_check_current_user_has_case_access(asset.case_id, expected_case_access_levels):
             raise ObjectNotFoundError()
         return asset
 
     def get(self, asset_identifier):
         try:
-            asset = self._get_asset(asset_identifier)
+            asset = self._get_asset(asset_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
             pagination_parameters = parse_pagination_parameters(request)
 
@@ -62,7 +61,7 @@ class CommentsOperations:
 
     def create(self, asset_identifier):
         try:
-            asset = self._get_asset(asset_identifier)
+            asset = self._get_asset(asset_identifier, [CaseAccessLevel.full_access])
             comment = self._schema.load(request.get_json())
             comments_create_for_asset(iris_current_user, asset, comment)
 
@@ -85,6 +84,6 @@ def get_assets_comments(asset_identifier):
 
 
 @assets_comments_blueprint.post('')
-@ac_api_requires(CaseAccessLevel.full_access)
+@ac_api_requires()
 def create_assets_comment(asset_identifier):
     return comments_operations.create(asset_identifier)
