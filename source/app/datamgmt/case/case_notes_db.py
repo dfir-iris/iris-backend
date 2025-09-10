@@ -98,6 +98,19 @@ def delete_note(note_identifier, case_identifier):
         update_notes_state(caseid=case_identifier)
 
 
+def delete_notes_comments_in_case(case_identifier):
+    com_ids = NotesComments.query.with_entities(
+        NotesComments.comment_id
+    ).join(Notes).filter(
+        NotesComments.comment_note_id == Notes.note_id,
+        Notes.note_case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    NotesComments.query.filter(NotesComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
+
+
 def update_note(note_content, note_title, update_date, user_id, note_id, caseid):
     note = get_note_raw(note_id, caseid=caseid)
 

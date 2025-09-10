@@ -71,7 +71,8 @@ from app.models.cases import CaseProtagonist
 from app.models.cases import CaseTags
 from app.models.cases import CaseState
 from app.models.pagination_parameters import PaginationParameters
-from app.datamgmt.case.case_rfiles_db import delete_evidence_comments_in_case
+from app.datamgmt.case.case_rfiles_db import delete_evidences_comments_in_case
+from app.datamgmt.case.case_notes_db import delete_notes_comments_in_case
 
 
 def list_cases_id():
@@ -318,7 +319,7 @@ def get_case_details_rt(case_id):
 
     return res
 
-from app.logger import logger
+
 def _delete_iocs(case_identifier):
     # TODO should do this with the 2.0 SQLAlchemy API
     # TODO maybe this can be performed automatically with cascades
@@ -368,8 +369,23 @@ def _delete_assets(case_identifier):
 
 
 def _delete_evidences(case_identifier):
-    delete_evidence_comments_in_case(case_identifier)
+    delete_evidences_comments_in_case(case_identifier)
     CaseReceivedFile.query.filter(CaseReceivedFile.case_id == case_identifier).delete()
+
+
+def _delete_notes(case_identifier):
+    delete_notes_comments_in_case(case_identifier)
+    # Legacy code
+    NotesGroupLink.query.filter(NotesGroupLink.case_id == case_identifier).delete()
+    NotesGroup.query.filter(NotesGroup.group_case_id == case_identifier).delete()
+    NoteRevisions.query.filter(
+        and_(
+            Notes.note_case_id == case_identifier,
+            NoteRevisions.note_id == Notes.note_id
+        )
+    ).delete()
+    Notes.query.filter(Notes.note_case_id == case_identifier).delete()
+    NoteDirectory.query.filter(NoteDirectory.case_id == case_identifier).delete()
 
 
 def delete_case(case_id):
@@ -414,19 +430,7 @@ def delete_case(case_id):
     alerts_to_update.update({CaseAssets.case_id: None}, synchronize_session='fetch')
     db.session.commit()
 
-    # Legacy code
-    NotesGroupLink.query.filter(NotesGroupLink.case_id == case_id).delete()
-    NotesGroup.query.filter(NotesGroup.group_case_id == case_id).delete()
-
-    NoteRevisions.query.filter(
-        and_(
-            Notes.note_case_id == case_id,
-            NoteRevisions.note_id == Notes.note_id
-        )
-    ).delete()
-
-    Notes.query.filter(Notes.note_case_id == case_id).delete()
-    NoteDirectory.query.filter(NoteDirectory.case_id == case_id).delete()
+    _delete_notes(case_id)
 
     tasks = CaseTasks.query.filter(CaseTasks.task_case_id == case_id).all()
     for task in tasks:

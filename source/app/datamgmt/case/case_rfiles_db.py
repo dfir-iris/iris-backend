@@ -110,7 +110,7 @@ def delete_rfile(evidence: CaseReceivedFile):
         db.session.commit()
 
 
-def delete_evidence_comments_in_case(case_identifier):
+def delete_evidences_comments_in_case(case_identifier):
     com_ids = EvidencesComments.query.with_entities(
         EvidencesComments.comment_id
     ).join(CaseReceivedFile).filter(

@@ -434,3 +434,16 @@ class TestsRestComments(TestCase):
         self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {})
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_delete_case_with_notes_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+
+        self._subject.create(f'/api/v2/notes/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
