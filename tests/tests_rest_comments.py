@@ -367,11 +367,23 @@ class TestsRestComments(TestCase):
         response = user.create(f'/api/v2/evidences/{object_identifier}/comments', body)
         self.assertEqual(404, response.status_code)
 
-    def test_create_ioc_comment_should_return_201(self):
+    def test_create_iocs_comment_should_return_201(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
         object_identifier = response['ioc_id']
 
         response = self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_create_notes_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+
+        response = self._subject.create(f'/api/v2/notes/{object_identifier}/comments', {})
         self.assertEqual(201, response.status_code)
