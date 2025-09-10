@@ -42,9 +42,9 @@ class CommentsOperations:
         self._schema = CommentSchema()
 
     @staticmethod
-    def _get_asset(asset_identifier, expected_case_access_levels):
+    def _get_asset(asset_identifier, possible_case_access_levels):
         asset = assets_get(asset_identifier)
-        if not ac_fast_check_current_user_has_case_access(asset.case_id, expected_case_access_levels):
+        if not ac_fast_check_current_user_has_case_access(asset.case_id, possible_case_access_levels):
             raise ObjectNotFoundError()
         return asset
 

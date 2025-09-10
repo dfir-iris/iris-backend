@@ -35,6 +35,7 @@ from app.datamgmt.comments import get_filtered_task_comments
 from app.datamgmt.comments import get_filtered_event_comments
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
+from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import Comments
@@ -162,3 +163,23 @@ def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comme
     }
     call_modules_hook('on_postload_evidence_commented', data=hook_data, caseid=evidence.case_id)
     track_activity(f'evidence "{evidence.filename}" commented', caseid=evidence.case_id)
+
+
+def comments_create_for_ioc(current_user, ioc: Ioc, comment: Comments):
+    comment.comment_case_id = ioc.case_id
+    comment.comment_user_id = current_user.id
+    comment.comment_date = datetime.now()
+    comment.comment_update_date = datetime.now()
+    db.session.add(comment)
+    db.session.commit()
+
+    add_comment_to_ioc(ioc.ioc_id, comment.comment_id)
+
+    db.session.commit()
+
+    hook_data = {
+        'comment': comment,
+        'ioc': ioc
+    }
+    call_modules_hook('on_postload_ioc_commented', data=hook_data, caseid=ioc.case_id)
+    track_activity(f'ioc "{ioc.ioc_value}" commented', caseid=ioc.case_id)
