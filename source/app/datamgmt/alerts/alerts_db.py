@@ -20,7 +20,7 @@ from copy import deepcopy
 import json
 from datetime import datetime
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 from typing import Tuple
 
 from sqlalchemy import desc
@@ -314,7 +314,7 @@ def add_alert(
     return alert
 
 
-def get_alert_by_id(alert_id: int) -> Alert:
+def get_alert_by_id(alert_id: int) -> Optional[Alert]:
     """
     Get an alert from the database
 
