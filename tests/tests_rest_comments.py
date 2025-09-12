@@ -503,3 +503,14 @@ class TestsRestComments(TestCase):
         identifier = response['comment_id']
         response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_get_assets_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        response = self._subject.get(f'/api/v2/assets/{object_identifier}/comments/{identifier}', {})
+        self.assertEqual(200, response.status_code)

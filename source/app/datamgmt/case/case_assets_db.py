@@ -344,7 +344,7 @@ def get_case_assets_comments_count(asset_id):
     ).all()
 
 
-def get_case_asset_comment(asset_id, comment_id):
+def get_case_asset_comment(asset_id, comment_id) -> Optional[Comments]:
     return AssetComments.query.filter(
         AssetComments.comment_asset_id == asset_id,
         AssetComments.comment_id == comment_id
