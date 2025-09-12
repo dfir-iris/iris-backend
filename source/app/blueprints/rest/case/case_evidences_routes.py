@@ -152,6 +152,7 @@ def case_comment_evidence_list(cur_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/evidences/{evidence_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_add(cur_id, caseid):

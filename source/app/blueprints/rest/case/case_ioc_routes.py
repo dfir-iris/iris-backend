@@ -259,6 +259,7 @@ def case_comment_ioc_list(cur_id, caseid):
 
 
 @case_ioc_rest_blueprint.route('/case/ioc/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/iocs/{ioc_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_add(cur_id, caseid):

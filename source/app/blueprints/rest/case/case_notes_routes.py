@@ -404,6 +404,7 @@ def case_comment_note_list(cur_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/notes/{note_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_add(cur_id, caseid):

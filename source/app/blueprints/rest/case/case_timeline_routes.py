@@ -125,6 +125,7 @@ def case_comment_edit(cur_id, com_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/events/{event_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_add(cur_id, caseid):

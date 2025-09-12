@@ -349,6 +349,7 @@ def case_comment_asset_list(cur_id, caseid):
 
 
 @case_assets_rest_blueprint.route('/case/assets/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/assets/{asset_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_add(cur_id, caseid):
