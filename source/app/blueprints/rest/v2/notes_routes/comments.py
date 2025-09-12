@@ -32,7 +32,7 @@ from app.business.comments import comments_create_for_note
 from app.business.notes import notes_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 
 

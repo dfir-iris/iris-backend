@@ -15,4 +15,9 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+from app.iris_engine.access_control.iris_user import iris_current_user
+from app.iris_engine.access_control.utils import ac_fast_check_user_has_case_access
 
+
+def ac_fast_check_current_user_has_case_access(cid, access_level):
+    return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)

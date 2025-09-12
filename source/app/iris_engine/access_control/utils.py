@@ -315,10 +315,6 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
     return None
 
 
-def ac_fast_check_current_user_has_case_access(cid, access_level):
-    return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
-
-
 def ac_recompute_effective_ac_from_users_list(users_list):
     """
     Recompute all users effective access of users

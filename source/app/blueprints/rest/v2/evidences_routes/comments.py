@@ -33,7 +33,7 @@ from app.models.models import CaseReceivedFile
 from app.business.evidences import evidences_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 
 
