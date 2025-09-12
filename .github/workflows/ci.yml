@@ -185,7 +185,13 @@ jobs:
           PYTHONUNBUFFERED=true python -m unittest --verbose
       - name: Stop development server
         run: |
+          docker compose logs app ${{ runner.temp }}/iriswebapp_app.log
           docker compose down
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iriswebapp_db
+          path: ${{ runner.temp }}/iriswebapp_app.log
 
   test-database-migration:
     name: Database migration tests
