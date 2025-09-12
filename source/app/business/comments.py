@@ -45,7 +45,6 @@ from app.datamgmt.case.case_iocs_db import get_case_ioc_comment
 from app.datamgmt.case.case_notes_db import get_case_note_comment
 from app.datamgmt.case.case_tasks_db import get_case_task_comment
 from app.datamgmt.case.case_events_db import get_case_event_comment
-from app.datamgmt.case.case_events_db import get_case_event_comment
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
