@@ -34,7 +34,6 @@ from app.iris_engine.access_control.utils import ac_access_level_to_list
 from app.iris_engine.access_control.utils import ac_auto_update_user_effective_access
 from app.iris_engine.access_control.utils import ac_get_detailed_effective_permissions_from_groups
 from app.iris_engine.access_control.utils import ac_remove_case_access_from_user
-from app.iris_engine.access_control.utils import ac_set_case_access_for_user
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import UserActivity
@@ -443,33 +442,6 @@ def remove_case_access_from_user(user_id, case_id):
 
     ac_remove_case_access_from_user(user_id, case_id)
     return True, 'Case access removed'
-
-
-def set_user_case_access(user_id, case_id, access_level):
-
-    uca = UserCaseAccess.query.filter(
-        UserCaseAccess.user_id == user_id,
-        UserCaseAccess.case_id == case_id
-    ).all()
-
-    if len(uca) > 1:
-        for u in uca:
-            db.session.delete(u)
-        db.session.commit()
-        uca = None
-
-    if not uca:
-        uca = UserCaseAccess()
-        uca.user_id = user_id
-        uca.case_id = case_id
-        uca.access_level = access_level
-        db.session.add(uca)
-    else:
-        uca[0].access_level = access_level
-
-    db.session.commit()
-
-    ac_set_case_access_for_user(user_id, case_id, access_level)
 
 
 def get_user_details(user_id, include_api_key=False):

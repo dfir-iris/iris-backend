@@ -2,10 +2,9 @@ from flask import session
 from sqlalchemy import and_
 
 from app import db
+from app.business.access_controls import set_case_effective_access_for_user
 from app.logger import logger
 from app.iris_engine.access_control.iris_user import iris_current_user
-from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
-from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.authorization import CaseAccessLevel
@@ -285,33 +284,6 @@ def ac_trace_effective_user_permissions(user_id):
     return perms
 
 
-def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: list[CaseAccessLevel]):
-    """
-    Checks the user has access to the case with at least one of the access_level
-    if the user has access, returns the access level of the user to the case
-    Returns None otherwise
-    """
-    access_level = get_case_effective_access(user_id, cid)
-
-    if not access_level:
-        # The user has no direct access, check if he is part of the client
-        access_level = check_ua_case_client(user_id, cid)
-        if not access_level:
-            return None
-        ac_set_case_access_for_user(user_id, cid, access_level)
-
-        return access_level
-
-    if ac_flag_match_mask(access_level, CaseAccessLevel.deny_all.value):
-        return None
-
-    for acl in expected_access_levels:
-        if ac_flag_match_mask(access_level, acl.value):
-            return access_level
-
-    return None
-
-
 def ac_recompute_effective_ac_from_users_list(users_list):
     """
     Recompute all users effective access of users
@@ -558,42 +530,13 @@ def ac_set_case_access_for_users(users, case_id, access_level):
         user_id = user.get('id')
         if user_id == iris_current_user.id:
             logs = "It's done, but I excluded you from the list of users to update, Dave"
-            ac_set_case_access_for_user(user.get('id'), case_id, CaseAccessLevel.full_access.value)
+            set_case_effective_access_for_user(user.get('id'), case_id, CaseAccessLevel.full_access.value)
             continue
 
-        ac_set_case_access_for_user(user.get('id'), case_id, access_level)
+        set_case_effective_access_for_user(user.get('id'), case_id, access_level)
 
     db.session.commit()
     return True, logs
-
-
-def ac_set_case_access_for_user(user_id, case_id, access_level: int):
-    """
-    Set a case access from a user
-    """
-
-    uac = UserCaseEffectiveAccess.query.where(and_(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.case_id == case_id
-    )).all()
-
-    if len(uac) > 1:
-        logger.error(f'Multiple access found for user {user_id} and case {case_id}')
-        for u in uac:
-            db.session.delete(u)
-        db.session.commit()
-
-        uac = UserCaseEffectiveAccess()
-        uac.user_id = user_id
-        uac.case_id = case_id
-        uac.access_level = access_level
-        db.session.add(uac)
-
-    elif len(uac) == 1:
-        uac = uac[0]
-        uac.access_level = access_level
-
-    db.session.commit()
 
 
 def ac_get_fast_user_cases_access(user_id):

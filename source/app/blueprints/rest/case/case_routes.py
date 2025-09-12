@@ -38,9 +38,8 @@ from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_groups_db import get_group_with_members
 from app.datamgmt.manage.manage_users_db import get_user
 from app.datamgmt.manage.manage_users_db import get_users_list_restricted_from_case
-from app.datamgmt.manage.manage_users_db import set_user_case_access
+from app.business.access_controls import set_user_case_access, ac_fast_check_user_has_case_access
 from app.business.cases import cases_export_to_json
-from app.iris_engine.access_control.utils import ac_fast_check_user_has_case_access
 from app.iris_engine.access_control.utils import ac_set_case_access_for_users
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import CaseStatus
