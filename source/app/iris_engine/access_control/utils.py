@@ -725,7 +725,6 @@ def ac_trace_user_effective_cases_access_2(user_id):
         UserCaseAccess.user
     ).all()
 
-    effective_cases_access = {}
     cases = Cases.query.with_entities(
         Cases.case_id,
         Cases.name
@@ -746,6 +745,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         UserClient.user_id == user_id
     ).all()
 
+    effective_cases_access = {}
     # Organisation case access. Default access level
     for oca in cases:
         access = {
@@ -766,7 +766,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
                 'case_id': oca.case_id
             },
             'user_access': [],
-            'user_effective_access': CaseAccessLevel.deny_all.value
+            'user_effective_access': ac_access_level_to_list(CaseAccessLevel.deny_all.value)
         }
 
         effective_cases_access[oca.case_id]['user_access'].append(access)
@@ -786,7 +786,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         }
 
         if gca.case_id in effective_cases_access:
-            effective_cases_access[gca.case_id]['user_effective_access'] = gca.access_level
+            effective_cases_access[gca.case_id]['user_effective_access'] = ac_access_level_to_list(gca.access_level)
             for kec in effective_cases_access[gca.case_id]['user_access']:
                 kec['state'] = f'Overwritten by group {gca.group_name}'
 
@@ -797,7 +797,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
                     'case_id': gca.case_id
                 },
                 'user_access': [],
-                'user_effective_access': gca.access_level
+                'user_effective_access': ac_access_level_to_list(gca.access_level)
             }
 
         effective_cases_access[gca.case_id]['user_access'].append(access)
@@ -817,7 +817,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         }
 
         if cca.case_id in effective_cases_access:
-            effective_cases_access[cca.case_id]['user_effective_access'] = cca.access_level
+            effective_cases_access[cca.case_id]['user_effective_access'] = ac_access_level_to_list(cca.access_level)
             for kec in effective_cases_access[cca.case_id]['user_access']:
                 kec['state'] = f'Overwritten by customer {cca.client_name}'
 
@@ -828,7 +828,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
                     'case_id': cca.case_id
                 },
                 'user_access': [],
-                'user_effective_access': cca.access_level
+                'user_effective_access': ac_access_level_to_list(cca.access_level)
             }
 
         effective_cases_access[cca.case_id]['user_access'].append(access)
@@ -848,7 +848,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         }
 
         if uca.case_id in effective_cases_access:
-            effective_cases_access[uca.case_id]['user_effective_access'] = uca.access_level
+            effective_cases_access[uca.case_id]['user_effective_access'] = ac_access_level_to_list(uca.access_level)
 
             for kec in effective_cases_access[uca.case_id]['user_access']:
                 kec['state'] = 'Overwritten by self user access'
@@ -860,14 +860,10 @@ def ac_trace_user_effective_cases_access_2(user_id):
                     'case_id': uca.case_id
                 },
                 'user_access': [],
-                'user_effective_access': uca.access_level
+                'user_effective_access': ac_access_level_to_list(uca.access_level)
             }
 
         effective_cases_access[uca.case_id]['user_access'].append(access)
-
-    for case_id in effective_cases_access:
-        effective_cases_access[case_id]['user_effective_access'] = ac_access_level_to_list(
-            effective_cases_access[case_id]['user_effective_access'])
 
     return effective_cases_access
 
