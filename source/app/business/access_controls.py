@@ -15,15 +15,14 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from sqlalchemy import and_
 
 from app import db
-from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
+from app.datamgmt.manage.manage_access_control_db import get_case_effective_access, \
+    remove_duplicate_user_case_effective_accesses, set_user_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.logger import logger
 from app.models.authorization import UserCaseAccess
-from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import ac_flag_match_mask
 
@@ -64,28 +63,10 @@ def set_case_effective_access_for_user(user_id, case_id, access_level: int):
     Set a case access from a user
     """
 
-    uac = UserCaseEffectiveAccess.query.where(and_(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.case_id == case_id
-    )).all()
-
-    if len(uac) > 1:
+    if remove_duplicate_user_case_effective_accesses(user_id, case_id):
         logger.error(f'Multiple access found for user {user_id} and case {case_id}')
-        for u in uac:
-            db.session.delete(u)
-        db.session.commit()
 
-        uac = UserCaseEffectiveAccess()
-        uac.user_id = user_id
-        uac.case_id = case_id
-        uac.access_level = access_level
-        db.session.add(uac)
-
-    elif len(uac) == 1:
-        uac = uac[0]
-        uac.access_level = access_level
-
-    db.session.commit()
+    set_user_case_effective_access(access_level, case_id, user_id)
 
 
 def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: list[CaseAccessLevel]):

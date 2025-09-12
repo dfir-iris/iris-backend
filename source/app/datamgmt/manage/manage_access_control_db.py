@@ -14,8 +14,10 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+from sqlalchemy import and_
 
 from app import ac_current_user_has_permission
+from app import db
 from app.models.cases import Cases
 from app.models.authorization import Group
 from app.models.authorization import UserClient
@@ -174,3 +176,29 @@ def user_has_client_access(user_id: int, client_id: int) -> bool:
     ).first()
 
     return result is not None
+
+
+def remove_duplicate_user_case_effective_accesses(user_id, case_id):
+    uac = UserCaseEffectiveAccess.query.where(and_(
+        UserCaseEffectiveAccess.user_id == user_id,
+        UserCaseEffectiveAccess.case_id == case_id
+    )).all()
+
+    if len(uac) <= 1:
+        return False
+
+    for u in uac[1:]:
+        db.session.delete(u)
+    db.session.commit()
+    return True
+
+
+def set_user_case_effective_access(access_level, case_id, user_id):
+    uac = UserCaseEffectiveAccess.query.where(and_(
+        UserCaseEffectiveAccess.user_id == user_id,
+        UserCaseEffectiveAccess.case_id == case_id
+    )).first()
+    if uac:
+        uac = uac[0]
+        uac.access_level = access_level
+    db.session.commit()
