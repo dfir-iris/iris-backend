@@ -58,7 +58,7 @@ def get_case_templates_list() -> List[dict]:
     return c_cl
 
 
-def get_case_template_by_id(cur_id: int) -> CaseTemplate:
+def get_case_template_by_id(cur_id: int) -> Optional[CaseTemplate]:
     """Get a case template
 
     Args:
@@ -67,8 +67,7 @@ def get_case_template_by_id(cur_id: int) -> CaseTemplate:
     Returns:
         CaseTemplate: Case template
     """
-    case_template = CaseTemplate.query.filter_by(id=cur_id).first()
-    return case_template
+    return CaseTemplate.query.filter_by(id=cur_id).first()
 
 
 def delete_case_template_by_id(case_template_id: int):
