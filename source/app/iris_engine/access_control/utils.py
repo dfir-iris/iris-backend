@@ -9,6 +9,7 @@ from app.datamgmt.manage.manage_access_control_db import get_case_effective_acce
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.authorization import CaseAccessLevel
+from app.models.authorization import ac_flag_match_mask
 from app.models.authorization import UserClient
 from app.models.authorization import Group
 from app.models.authorization import GroupCaseAccess
@@ -17,10 +18,6 @@ from app.models.authorization import User
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import UserGroup
-
-
-def ac_flag_match_mask(flag, mask):
-    return (flag & mask) == mask
 
 
 def ac_get_mask_full_permissions():
