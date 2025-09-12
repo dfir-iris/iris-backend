@@ -50,6 +50,8 @@ from app.models.models import CaseTasks
 from app.models.cases import CasesEvent
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
+from app.datamgmt.alerts.alerts_db import get_alert_comment
+from app.models.alerts import Alert
 
 
 def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -229,3 +231,10 @@ def _create_comment(current_user, comment, case_identifier):
     comment.comment_update_date = datetime.now()
     db.session.add(comment)
     db.session.commit()
+
+
+def comments_get_for_alert(alert: Alert, identifier) -> Comments:
+    comment = get_alert_comment(alert.alert_id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment

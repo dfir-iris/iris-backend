@@ -1290,7 +1290,7 @@ def get_alert_comments(alert_id: int) -> List[Comments]:
     return Comments.query.filter(Comments.comment_alert_id == alert_id).all()
 
 
-def get_alert_comment(alert_id: int, comment_id: int) -> Comments:
+def get_alert_comment(alert_id: int, comment_id: int) -> Optional[Comments]:
     """
     Get a comment of an alert
 
