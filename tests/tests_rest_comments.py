@@ -514,3 +514,58 @@ class TestsRestComments(TestCase):
 
         response = self._subject.get(f'/api/v2/assets/{object_identifier}/comments/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_get_evidences_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+        response = self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.get(f'/api/v2/evidences/{object_identifier}/comments/{identifier}', {})
+        self.assertEqual(200, response.status_code)
+
+    def test_get_iocs_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
+        response = self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.get(f'/api/v2/iocs/{object_identifier}/comments/{identifier}', {})
+        self.assertEqual(200, response.status_code)
+
+    def test_get_notes_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+        response = self._subject.create(f'/api/v2/notes/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.get(f'/api/v2/notes/{object_identifier}/comments/{identifier}', {})
+        self.assertEqual(200, response.status_code)
+
+    def test_get_tasks_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'task_assignees_id': [], 'task_status_id': 1, 'task_title': 'dummy title'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/tasks', body).json()
+        object_identifier = response['id']
+        response = self._subject.create(f'/api/v2/tasks/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.get(f'/api/v2/tasks/{object_identifier}/comments/{identifier}', {})
+        self.assertEqual(200, response.status_code)
+
+    def test_get_events_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        object_identifier = response['event_id']
+        response = self._subject.create(f'/api/v2/events/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.get(f'/api/v2/events/{object_identifier}/comments/{identifier}', {})
+        self.assertEqual(200, response.status_code)

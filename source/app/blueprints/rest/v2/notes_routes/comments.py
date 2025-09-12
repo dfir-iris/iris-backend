@@ -26,9 +26,11 @@ from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.comments import comments_get_filtered_by_note
 from app.business.comments import comments_create_for_note
+from app.business.comments import comments_get_for_note
 from app.business.notes import notes_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
@@ -73,6 +75,17 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def read(self, note_identifier, identifier):
+        try:
+            note = self._get_note(note_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
+            comment = comments_get_for_note(note, identifier)
+            result = self._schema.dump(comment)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 notes_comments_blueprint = Blueprint('notes_comments', __name__, url_prefix='/<int:note_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -88,3 +101,9 @@ def get_notes_comments(note_identifier):
 @ac_api_requires()
 def create_notes_comment(note_identifier):
     return comments_operations.create(note_identifier)
+
+
+@notes_comments_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_note_comment(note_identifier, identifier):
+    return comments_operations.read(note_identifier, identifier)

@@ -25,10 +25,12 @@ from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_success
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.comments import comments_get_filtered_by_evidence
 from app.business.comments import comments_create_for_evidence
+from app.business.comments import comments_get_for_evidence
 from app.models.models import CaseReceivedFile
 from app.business.evidences import evidences_get
 from app.business.errors import ObjectNotFoundError
@@ -74,6 +76,17 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def read(self, event_identifier, identifier):
+        try:
+            evidence = self._get_evidence(event_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
+            comment = comments_get_for_evidence(evidence, identifier)
+            result = self._schema.dump(comment)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 evidences_comments_blueprint = Blueprint('evidences_comments', __name__, url_prefix='/<int:evidence_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -81,11 +94,17 @@ comments_operations = CommentsOperations()
 
 @evidences_comments_blueprint.get('')
 @ac_api_requires()
-def get_evidences_comments(evidence_identifier):
+def get_evidence_comments(evidence_identifier):
     return comments_operations.get(evidence_identifier)
 
 
 @evidences_comments_blueprint.post('')
 @ac_api_requires()
-def create_evidences_comment(evidence_identifier):
+def create_evidence_comment(evidence_identifier):
     return comments_operations.create(evidence_identifier)
+
+
+@evidences_comments_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_evidence_comment(evidence_identifier, identifier):
+    return comments_operations.read(evidence_identifier, identifier)
