@@ -39,110 +39,119 @@ from app.business.tasks import tasks_filter
 from app.models.authorization import CaseAccessLevel
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
 
+
+class TasksOperations:
+
+    def __init__(self):
+        self._schema = CaseTaskSchema()
+
+    def search(self, case_identifier):
+        if not ac_fast_check_current_user_has_case_access(case_identifier,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        pagination_parameters = parse_pagination_parameters(request)
+
+        tasks = tasks_filter(case_identifier, pagination_parameters)
+
+        return response_api_paginated(self._schema, tasks)
+
+    def create(self, case_identifier):
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            _, case = tasks_create(case_identifier, request.get_json())
+            result = self._schema.dump(case)
+            return response_api_created(result)
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
+
+    def read(self, case_identifier, identifier):
+        try:
+            task = tasks_get(identifier)
+
+            if task.task_case_id != case_identifier:
+                raise ObjectNotFoundError()
+
+            if not ac_fast_check_current_user_has_case_access(task.task_case_id,
+                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=task.task_case_id)
+
+            result = self._schema.dump(task)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+    def update(self, case_identifier, identifier):
+        try:
+            task = tasks_get(identifier)
+
+            if task.task_case_id != case_identifier:
+                raise ObjectNotFoundError()
+
+            if not ac_fast_check_current_user_has_case_access(task.task_case_id,
+                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=task.task_case_id)
+
+            task = tasks_update(task, request.get_json())
+
+            result = self._schema.dump(task)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
+
+    def delete(self, case_identifier, identifier):
+        try:
+            task = tasks_get(identifier)
+
+            if task.task_case_id != case_identifier:
+                raise ObjectNotFoundError()
+
+            if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=identifier)
+
+            tasks_delete(task)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
+
+
 case_tasks_blueprint = Blueprint('case_tasks',
                                  __name__,
                                  url_prefix='/<int:case_identifier>/tasks')
-
-
-@case_tasks_blueprint.post('')
-@ac_api_requires()
-def add_case_task(case_identifier):
-    """
-    Add a task to a case.
-
-    Args:
-        case_identifier (int): The Case ID for this task
-    """
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
-
-    task_schema = CaseTaskSchema()
-    try:
-        _, case = tasks_create(case_identifier, request.get_json())
-        return response_api_created(task_schema.dump(case))
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message())
+tasks_operations = TasksOperations()
 
 
 @case_tasks_blueprint.get('')
 @ac_api_requires()
 def case_get_tasks(case_identifier):
+    return tasks_operations.search(case_identifier)
 
-    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-        return ac_api_return_access_denied(caseid=case_identifier)
 
-    pagination_parameters = parse_pagination_parameters(request)
-
-    tasks = tasks_filter(case_identifier, pagination_parameters)
-
-    task_schema = CaseTaskSchema()
-    return response_api_paginated(task_schema, tasks)
+@case_tasks_blueprint.post('')
+@ac_api_requires()
+def add_case_task(case_identifier):
+    return tasks_operations.create(case_identifier)
 
 
 @case_tasks_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_case_task(case_identifier, identifier):
-    """
-    Handles getting a task from a case.
-
-    Args:
-        case_identifier (int): The case ID
-        identifier (int): The task ID
-    """
-
-    try:
-        task = tasks_get(identifier)
-
-        if task.task_case_id != case_identifier:
-            raise ObjectNotFoundError()
-
-        if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=task.task_case_id)
-
-        task_schema = CaseTaskSchema()
-        return response_api_success(task_schema.dump(task))
-    except ObjectNotFoundError:
-        return response_api_not_found()
+    return tasks_operations.read(case_identifier, identifier)
 
 
 @case_tasks_blueprint.put('/<int:identifier>')
 @ac_api_requires()
 def update_case_task(case_identifier, identifier):
-    try:
-        task = tasks_get(identifier)
-
-        if task.task_case_id != case_identifier:
-            raise ObjectNotFoundError()
-
-        if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=task.task_case_id)
-
-        task = tasks_update(task, request.get_json())
-
-        task_schema = CaseTaskSchema()
-        return response_api_success(task_schema.dump(task))
-    except ObjectNotFoundError:
-        return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message())
+    return tasks_operations.update(case_identifier, identifier)
 
 
 @case_tasks_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_case_task(case_identifier, identifier):
-    try:
-        task = tasks_get(identifier)
-
-        if task.task_case_id != case_identifier:
-            raise ObjectNotFoundError()
-
-        if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=identifier)
-
-        tasks_delete(task)
-        return response_api_deleted()
-    except ObjectNotFoundError:
-        return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message())
-
+    return tasks_operations.delete(case_identifier, identifier)
