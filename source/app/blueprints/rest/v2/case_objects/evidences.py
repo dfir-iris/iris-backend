@@ -53,7 +53,7 @@ class EvidencesOperations:
             raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')
         return evidence
 
-    def list(self, case_identifier):
+    def search(self, case_identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
@@ -84,7 +84,7 @@ class EvidencesOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 
-    def get(self, case_identifier, identifier):
+    def read(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
@@ -144,7 +144,7 @@ case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_pre
 @case_evidences_blueprint.get('')
 @ac_api_requires()
 def get_evidences(case_identifier):
-    return evidences_operations.list(case_identifier)
+    return evidences_operations.search(case_identifier)
 
 
 @case_evidences_blueprint.post('')
@@ -156,7 +156,7 @@ def create_evidence(case_identifier):
 @case_evidences_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_evidence(case_identifier, identifier):
-    return evidences_operations.get(case_identifier, identifier)
+    return evidences_operations.read(case_identifier, identifier)
 
 
 @case_evidences_blueprint.put('/<int:identifier>')
