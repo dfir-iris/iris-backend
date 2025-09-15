@@ -50,7 +50,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return note
 
-    def get(self, note_identifier):
+    def search(self, note_identifier):
         try:
             note = self._get_note(note_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -94,7 +94,7 @@ comments_operations = CommentsOperations()
 @notes_comments_blueprint.get('')
 @ac_api_requires()
 def get_notes_comments(note_identifier):
-    return comments_operations.get(note_identifier)
+    return comments_operations.search(note_identifier)
 
 
 @notes_comments_blueprint.post('')

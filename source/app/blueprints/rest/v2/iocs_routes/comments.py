@@ -50,7 +50,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return ioc
 
-    def get(self, ioc_identifier):
+    def search(self, ioc_identifier):
         try:
             ioc = self._get_ioc(ioc_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -93,7 +93,7 @@ comments_operations = CommentsOperations()
 @iocs_comments_blueprint.get('')
 @ac_api_requires()
 def get_iocs_comments(ioc_identifier):
-    return comments_operations.get(ioc_identifier)
+    return comments_operations.search(ioc_identifier)
 
 
 @iocs_comments_blueprint.post('')

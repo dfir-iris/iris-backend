@@ -215,6 +215,7 @@ def case_comment_task_add(cur_id: int, caseid: int):
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/<int:cur_id>/comments/<int:com_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/tasks/{task_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_task_get(cur_id: int, com_id: int, caseid: int):

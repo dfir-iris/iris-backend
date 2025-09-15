@@ -50,7 +50,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return task
 
-    def get(self, task_identifier):
+    def search(self, task_identifier):
         try:
             task = self._get_task(task_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -94,7 +94,7 @@ comments_operations = CommentsOperations()
 @tasks_comments_blueprint.get('')
 @ac_api_requires()
 def get_tasks_comments(task_identifier):
-    return comments_operations.get(task_identifier)
+    return comments_operations.search(task_identifier)
 
 
 @tasks_comments_blueprint.post('')

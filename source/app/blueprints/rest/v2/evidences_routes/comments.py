@@ -51,7 +51,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return evidence
 
-    def get(self, evidence_identifier):
+    def search(self, evidence_identifier):
         try:
             evidence = self._get_evidence(evidence_identifier,
                                           [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
@@ -95,7 +95,7 @@ comments_operations = CommentsOperations()
 @evidences_comments_blueprint.get('')
 @ac_api_requires()
 def get_evidence_comments(evidence_identifier):
-    return comments_operations.get(evidence_identifier)
+    return comments_operations.search(evidence_identifier)
 
 
 @evidences_comments_blueprint.post('')

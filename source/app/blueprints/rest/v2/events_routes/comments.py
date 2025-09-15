@@ -51,7 +51,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return event
 
-    def get(self, event_identifier):
+    def search(self, event_identifier):
         try:
             event = self._get_event(event_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -94,7 +94,7 @@ comments_operations = CommentsOperations()
 @events_comments_blueprint.get('')
 @ac_api_requires()
 def get_event_comments(event_identifier):
-    return comments_operations.get(event_identifier)
+    return comments_operations.search(event_identifier)
 
 
 @events_comments_blueprint.post('')
