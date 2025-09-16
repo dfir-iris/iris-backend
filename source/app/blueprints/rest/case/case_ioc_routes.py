@@ -23,6 +23,7 @@ import logging as log
 import marshmallow
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app import db
 from app.blueprints.rest.case_comments import case_comment_update
@@ -56,6 +57,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 case_ioc_rest_blueprint = Blueprint('case_ioc_rest', __name__)
 
@@ -104,8 +106,13 @@ def deprecated_case_add_ioc(caseid):
     ioc_schema = IocSchema()
 
     try:
-        ioc = iocs_create(request.get_json(), caseid)
+        request_data = call_deprecated_on_preload_modules_hook('ioc_create', request.get_json(), caseid)
+        request_data['case_id'] = caseid
+        ioc = ioc_schema.load(request_data)
+        ioc = iocs_create(ioc)
         return response_success('IOC added', data=ioc_schema.dump(ioc))
+    except ValidationError as e:
+        return response_error('Data error', e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 

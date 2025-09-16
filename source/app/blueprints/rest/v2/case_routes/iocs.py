@@ -18,6 +18,7 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.logger import logger
 from app.blueprints.access_controls import ac_api_requires
@@ -27,7 +28,8 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
-from app.blueprints.rest.parsing import parse_pagination_parameters, parse_fields_parameters
+from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.blueprints.rest.parsing import parse_fields_parameters
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.iocs import iocs_create
@@ -40,6 +42,8 @@ from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import IocSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.iocs import Ioc
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.schema.marshables import IocSchema
 
 
 class IocsOperations:
@@ -86,9 +90,17 @@ class IocsOperations:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            ioc = iocs_create(request.get_json(), case_identifier)
+            request_data = call_deprecated_on_preload_modules_hook('ioc_create', request.get_json(), case_identifier)
+            request_data['case_id'] = case_identifier
+
+            # TODO should use the same schema as the one to dump
+            add_ioc_schema = IocSchema()
+            ioc = add_ioc_schema.load(request_data)
+            ioc = iocs_create(ioc)
             result = self._schema.dump(ioc)
             return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
         except BusinessProcessingError as e:
             logger.error(e)
             return response_api_error(e.get_message())

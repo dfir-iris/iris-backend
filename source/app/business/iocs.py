@@ -52,12 +52,7 @@ def iocs_get(ioc_identifier) -> Ioc:
     return ioc
 
 
-def iocs_create(request_json, case_identifier):
-
-    # TODO ideally schema validation should be done before, outside the business logic in the REST API
-    #      for that the hook should be called after schema validation
-    request_data = call_deprecated_on_preload_modules_hook('ioc_create', request_json, case_identifier)
-    ioc = _load({**request_data, 'case_id': case_identifier})
+def iocs_create(ioc: Ioc):
 
     if not ioc:
         raise BusinessProcessingError('Unable to create IOC for internal reasons')
@@ -68,14 +63,14 @@ def iocs_create(request_json, case_identifier):
     if case_iocs_db_exists(ioc):
         raise BusinessProcessingError('IOC with same value and type already exists')
 
-    add_ioc(ioc, iris_current_user.id, case_identifier)
+    add_ioc(ioc, iris_current_user.id, ioc.case_id)
 
-    ioc = call_modules_hook('on_postload_ioc_create', data=ioc, caseid=case_identifier)
+    ioc = call_modules_hook('on_postload_ioc_create', data=ioc, caseid=ioc.case_id)
 
     if ioc:
-        track_activity(f'added ioc "{ioc.ioc_value}"', caseid=case_identifier)
+        track_activity(f'added ioc "{ioc.ioc_value}"', caseid=ioc.case_id)
 
-        return ioc, 'IOC added'
+        return ioc
 
     raise BusinessProcessingError('Unable to create IOC for internal reasons')
 
