@@ -36,6 +36,7 @@ from app.schema.marshables import CaseTaskSchema
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from marshmallow.exceptions import ValidationError
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 def _load(request_data, **kwargs):
@@ -57,7 +58,7 @@ def tasks_delete(task: CaseTasks):
 
 def tasks_create(case_identifier: int, request_json: dict) -> (str, CaseTasks):
 
-    request_data = call_modules_hook('on_preload_task_create', data=request_json, caseid=case_identifier)
+    request_data = call_deprecated_on_preload_modules_hook('task_create', request_json, case_identifier)
 
     if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
         raise BusinessProcessingError('task_assignee_id is not valid anymore since v1.5.0')
@@ -93,7 +94,7 @@ def tasks_filter(case_identifier, pagination_parameters: PaginationParameters) -
 
 def tasks_update(task: CaseTasks, request_json):
     case_identifier = task.task_case_id
-    request_data = call_modules_hook('on_preload_task_update', data=request_json, caseid=case_identifier)
+    request_data = call_deprecated_on_preload_modules_hook('task_update', request_json, case_identifier)
 
     if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
         raise BusinessProcessingError('task_assignee_id is not valid anymore since v1.5.0')

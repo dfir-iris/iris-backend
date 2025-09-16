@@ -34,6 +34,7 @@ from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.case.case_iocs_db import get_ioc
 from app.util import add_obj_history_entry
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 def _load(request_data):
@@ -55,7 +56,7 @@ def iocs_create(request_json, case_identifier):
 
     # TODO ideally schema validation should be done before, outside the business logic in the REST API
     #      for that the hook should be called after schema validation
-    request_data = call_modules_hook('on_preload_ioc_create', data=request_json, caseid=case_identifier)
+    request_data = call_deprecated_on_preload_modules_hook('ioc_create', request_json, case_identifier)
     ioc = _load({**request_data, 'case_id': case_identifier})
 
     if not ioc:
@@ -88,7 +89,7 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
     try:
         # TODO ideally schema validation should be done before, outside the business logic in the REST API
         #      for that the hook should be called after schema validation
-        request_data = call_modules_hook('on_preload_ioc_update', data=request_json, caseid=ioc.case_id)
+        request_data = call_deprecated_on_preload_modules_hook('ioc_update', data=request_json, caseid=ioc.case_id)
 
         # validate before saving
         ioc_schema = IocSchema()
