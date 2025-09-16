@@ -136,9 +136,7 @@ def cases_delete(case_identifier):
 
 
 def cases_update(case_identifier, request_data):
-    case_i = get_case(case_identifier)
-    if not case_i:
-        raise BusinessProcessingError('Case not found')
+    case_i = cases_get_by_identifier(case_identifier)
 
     try:
 
