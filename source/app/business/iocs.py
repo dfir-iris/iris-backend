@@ -37,14 +37,6 @@ from app.util import add_obj_history_entry
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
-def _load(request_data):
-    try:
-        add_ioc_schema = IocSchema()
-        return add_ioc_schema.load(request_data)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
-
-
 def iocs_get(ioc_identifier) -> Ioc:
     ioc = get_ioc(ioc_identifier)
     if not ioc:
