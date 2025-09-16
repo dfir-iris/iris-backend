@@ -159,6 +159,8 @@ class CasesOperations:
             case = cases_update(case, updated_case, request_data)
             result = self._schema.dump(case)
             return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), e.get_data())
 
