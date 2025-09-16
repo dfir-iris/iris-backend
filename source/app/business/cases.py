@@ -77,13 +77,10 @@ def cases_exists(identifier):
     return case_db_exists(identifier)
 
 
-def cases_create(request_data):
-    case = _load(request_data)
-
+def cases_create(case: Cases, case_template_id) -> Cases:
     case.owner_id = iris_current_user.id
     case.severity_id = 4
 
-    case_template_id = request_data.pop('case_template_id', None)
     if case_template_id and len(case_template_id) > 0:
         case = case_template_pre_modifier(case, case_template_id)
         if case is None:

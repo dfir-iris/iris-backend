@@ -18,6 +18,7 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 from werkzeug import Response
 
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
@@ -103,9 +104,13 @@ class CasesOperations:
     def create(self):
         try:
             request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
-            case = cases_create(request_data)
+            case = self._schema.load(request_data)
+            case_template_id = request_data.pop('case_template_id', None)
+            case = cases_create(case, case_template_id)
             result = self._schema.dump(case)
             return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), e.get_data())
 

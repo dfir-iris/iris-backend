@@ -24,6 +24,7 @@ from flask import Blueprint
 from flask import request
 from werkzeug import Response
 from werkzeug.utils import secure_filename
+from marshmallow import ValidationError
 
 from app import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
@@ -247,8 +248,12 @@ def api_add_case():
 
     try:
         request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
-        case = cases_create(request_data)
-        return response_success('Case created', data=case_schema.dump(case))
+        case = case_schema.load(request_data)
+        case_template_id = request_data.pop('case_template_id', None)
+        result = cases_create(case, case_template_id)
+        return response_success('Case created', data=case_schema.dump(result))
+    except ValidationError as e:
+        raise response_error('Data error', e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
