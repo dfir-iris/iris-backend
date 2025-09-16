@@ -18,6 +18,7 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
@@ -39,6 +40,7 @@ from app.business.evidences import evidences_get
 from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
 from app.business.evidences import evidences_delete
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 class EvidencesOperations:
@@ -78,9 +80,16 @@ class EvidencesOperations:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            evidence = evidences_create(case_identifier, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('evidence_create', request.get_json(),
+                                                                   case_identifier)
+            evidence = self._schema.load(request_data)
 
+            evidence = evidences_create(case_identifier, evidence)
             return response_api_created(self._schema.dump(evidence))
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 

@@ -43,11 +43,7 @@ def _load(request_data, **kwargs):
         raise BusinessProcessingError('Data error', data=e.messages)
 
 
-def evidences_create(case_identifier, request_json) -> CaseReceivedFile:
-    request_data = call_deprecated_on_preload_modules_hook('evidence_create', request_json, case_identifier)
-
-    evidence = _load(request_data)
-
+def evidences_create(case_identifier, evidence: CaseReceivedFile) -> CaseReceivedFile:
     crf = add_rfile(evidence, case_identifier, iris_current_user.id)
 
     crf = call_modules_hook('on_postload_evidence_create', data=crf, caseid=case_identifier)

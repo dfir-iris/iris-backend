@@ -18,7 +18,7 @@
 
 from datetime import datetime
 
-import marshmallow
+from marshmallow import ValidationError
 from flask import Blueprint
 from flask import request
 
@@ -46,6 +46,7 @@ from app.business.evidences import evidences_create
 from app.business.evidences import evidences_delete
 from app.business.evidences import evidences_update
 from app.business.errors import BusinessProcessingError
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 case_evidences_rest_blueprint = Blueprint('case_evidences_rest', __name__)
@@ -81,11 +82,16 @@ def case_rfiles_state(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_add_rfile(caseid):
+    evidence_schema = CaseEvidenceSchema()
     try:
-        evidence = evidences_create(caseid, request.get_json())
-        evidence_schema = CaseEvidenceSchema()
+        request_data = call_deprecated_on_preload_modules_hook('evidence_create', request.get_json(), caseid)
+        evidence = evidence_schema.load(request_data)
+
+        evidence = evidences_create(caseid, evidence)
         return response_success('Evidence added', data=evidence_schema.dump(evidence))
 
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -118,7 +124,7 @@ def case_edit_rfile(cur_id, caseid):
         evidence_schema = CaseEvidenceSchema()
         return response_success(f'Evidence {evd.filename} updated', data=evidence_schema.dump(evd))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
 
     except BusinessProcessingError as e:
@@ -184,7 +190,7 @@ def case_comment_evidence_add(cur_id, caseid):
         track_activity(f"evidence \"{evidence.filename}\" commented", caseid=caseid)
         return response_success("Evidence commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
