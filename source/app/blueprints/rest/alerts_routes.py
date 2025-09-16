@@ -904,6 +904,7 @@ def alerts_batch_escalate_route() -> Response:
 
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>/comments/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/alerts/{alert_identifier}/comments')
 @ac_api_requires(Permissions.alerts_read)
 def alert_comments_get(alert_id):
     """

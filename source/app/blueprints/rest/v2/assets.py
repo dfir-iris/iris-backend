@@ -23,6 +23,7 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.v2.assets_routes.comments import assets_comments_blueprint
 from app.business.assets import assets_delete
 from app.business.assets import assets_get
 from app.business.errors import BusinessProcessingError
@@ -32,9 +33,8 @@ from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
 from app.blueprints.access_controls import ac_api_return_access_denied
 
-assets_blueprint = Blueprint('assets_api_v2',
-                             __name__,
-                             url_prefix='/assets')
+assets_blueprint = Blueprint('assets_api_v2', __name__, url_prefix='/assets')
+assets_blueprint.register_blueprint(assets_comments_blueprint)
 
 
 @assets_blueprint.get('/<int:identifier>')

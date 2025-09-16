@@ -57,11 +57,11 @@ class AssetsOperations:
         return asset
 
     def list(self, case_identifier):
-        try:
-            if not ac_fast_check_current_user_has_case_access(case_identifier,
-                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-                return ac_api_return_access_denied(caseid=case_identifier)
+        if not ac_fast_check_current_user_has_case_access(case_identifier,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
 
+        try:
             pagination_parameters = parse_pagination_parameters(request)
             fields = parse_fields_parameters(request)
 

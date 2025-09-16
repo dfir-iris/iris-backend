@@ -18,10 +18,10 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_PERMISSION_ALERTS_WRITE
+from iris import IRIS_PERMISSION_ALERTS_DELETE
 
-_PERMISSION_ALERTS_DELETE = 0x10
-_PERMISSION_ALERTS_WRITE = 0x8
-_PERMISSION_ALERTS_READ = 0x4
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
 
@@ -32,10 +32,6 @@ class TestsRestAlerts(TestCase):
 
     def tearDown(self):
         self._subject.clear_database()
-        response = self._subject.get('api/v2/alerts').json()
-        for alert in response['data']:
-            identifier = alert['alert_id']
-            self._subject.create(f'/alerts/delete/{identifier}', {})
 
     def test_create_alert_should_return_201(self):
         body = {
@@ -161,13 +157,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_create_customer_should_return_400_when_user_has_customer_alert_right(self):
-        body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_WRITE]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -237,13 +227,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_get_alert_should_return_404_when_user_has_no_customer_access(self):
-        body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_READ]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_READ])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -316,13 +300,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_update_alert_should_return_404_when_user_has_no_customer_access(self):
-        body = {
-            'group_name': 'Customer create',
-            'group_description': 'Group with customers can create alert',
-            'group_permissions': [_PERMISSION_ALERTS_WRITE]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -435,13 +413,7 @@ class TestsRestAlerts(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_delete_alert_should_return_404_when_user_has_no_customer_access(self):
-        body = {
-            'group_name': 'Customer delete',
-            'group_description': 'Group with customers can delete alert',
-            'group_permissions': [_PERMISSION_ALERTS_DELETE]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_DELETE])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)

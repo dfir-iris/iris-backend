@@ -23,7 +23,7 @@ from flask import request
 from app.schema.marshables import CommentSchema
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
-from app.business.case_comments import case_comments_update
+from app.business.comments import comments_update_for_case
 from app.business.errors import BusinessProcessingError
 
 
@@ -32,7 +32,7 @@ def case_comment_update(comment_id, object_type, caseid):
         comment_schema = CommentSchema()
         rq_t = request.get_json()
         comment_text = rq_t.get('comment_text')
-        comment = case_comments_update(comment_text, comment_id, object_type, caseid)
+        comment = comments_update_for_case(comment_text, comment_id, object_type, caseid)
         return response_success("Comment edited", data=comment_schema.dump(comment))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())

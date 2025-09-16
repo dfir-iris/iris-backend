@@ -143,7 +143,7 @@ def manage_groups_delete(cur_id):
         return ac_api_return_access_denied()
 
     if ac_ldp_group_removal(iris_current_user.id, group_id=group.group_id):
-        return response_error("I can't let you do that Dave", data="Removing this group will lock you out")
+        return response_error('I can\'t let you do that Dave', data='Removing this group will lock you out')
 
     delete_group(group)
 

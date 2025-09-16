@@ -28,8 +28,14 @@ API_URL = 'http://127.0.0.1:8000'
 _API_KEY = 'B8BA5D730210B50F41C06941582D7965D57319D5685440587F98DFDC45A01594'
 _IRIS_PATH = Path('..')
 _ADMINISTRATOR_USER_LOGIN = 'administrator'
-_ADMINISTRATOR_USER_IDENTIFIER = 1
+ADMINISTRATOR_USER_IDENTIFIER = 1
 _INITIAL_DEMO_CASE_IDENTIFIER = 1
+
+IRIS_PERMISSION_SERVER_ADMINISTRATOR = 0x2
+IRIS_PERMISSION_ALERTS_READ = 0x4
+IRIS_PERMISSION_ALERTS_WRITE = 0x8
+IRIS_PERMISSION_ALERTS_DELETE = 0x10
+IRIS_PERMISSION_CUSTOMERS_WRITE = 0x80
 
 
 class Iris:
@@ -38,7 +44,7 @@ class Iris:
         self._docker_compose = DockerCompose(_IRIS_PATH, 'docker-compose.dev.yml')
         # TODO remove this field and use _administrator instead
         self._api = RestApi(API_URL, _API_KEY)
-        self._administrator = User(API_URL, _ADMINISTRATOR_USER_LOGIN, _API_KEY, _ADMINISTRATOR_USER_IDENTIFIER)
+        self._administrator = User(API_URL, _ADMINISTRATOR_USER_LOGIN, _API_KEY, ADMINISTRATOR_USER_IDENTIFIER)
         self._socket_io_client = SocketIOContextManager(API_URL, _API_KEY)
 
     def get_socket_io_client(self) -> SocketIOContextManager:
@@ -72,6 +78,20 @@ class Iris:
     def create_dummy_user(self):
         return self.create_user(f'user{uuid4()}', 'aA.1234567890')
 
+    def create_dummy_group(self, permissions):
+        group_name = f'group{uuid4()}'
+        body = {
+            'group_name': group_name,
+            'group_description': f'Group description for {group_name}',
+            'group_permissions': permissions
+        }
+        response = self.create('/manage/groups/add', body).json()
+        return response['data']['group_id']
+
+    def create_dummy_customer(self):
+        response = self.create('/manage/customers/add', {'customer_name': f'customer{uuid4()}'}).json()
+        return response['data']['customer_id']
+
     def create_dummy_case(self):
         body = {
             'case_name': 'case name',
@@ -95,12 +115,17 @@ class Iris:
         groups = self.get('/manage/groups/list').json()
         for group in groups['data']:
             identifier = group['group_id']
-            self.create(f'/manage/groups/delete/{identifier}', {})
+            self.delete(f'/api/v2/manage/groups/{identifier}')
         users = self.get('/manage/users/list').json()
         for user in users['data']:
             identifier = user['user_id']
             self.get(f'/manage/users/deactivate/{identifier}')
             self.create(f'/manage/users/delete/{identifier}', {})
+            self.delete(f'/api/v2/manage/users/{identifier}')
+        response = self.get('api/v2/alerts').json()
+        for alert in response['data']:
+            identifier = alert['alert_id']
+            self.delete(f'/api/v2/alerts/{identifier}')
 
     def extract_logs(self, service):
         return self._docker_compose.extract_logs(service)

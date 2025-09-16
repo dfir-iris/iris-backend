@@ -247,6 +247,7 @@ def case_update_ioc(cur_id, caseid):
 
 
 @case_ioc_rest_blueprint.route('/case/ioc/<int:cur_id>/comments/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/iocs/{ioc_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_list(cur_id, caseid):

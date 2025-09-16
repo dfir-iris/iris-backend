@@ -62,7 +62,6 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
 
 
 def alerts_get(current_user, identifier) -> Alert:
-
     alert = get_alert_by_id(identifier)
 
     if not alert:
@@ -71,6 +70,17 @@ def alerts_get(current_user, identifier) -> Alert:
         raise ObjectNotFoundError()
 
     return alert
+
+
+def alerts_exists(current_user, identifier) -> bool:
+    alert = get_alert_by_id(identifier)
+
+    if not alert:
+        return False
+    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+        return False
+
+    return True
 
 
 def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:

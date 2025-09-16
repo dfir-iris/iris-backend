@@ -32,6 +32,7 @@ from app.business.groups import groups_get
 from app.business.groups import groups_update
 from app.business.groups import groups_delete
 from app.models.authorization import Permissions
+from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.access_control.utils import ac_flag_match_mask
@@ -85,11 +86,13 @@ class Groups:
     def delete(self, identifier):
         try :
             group = groups_get(identifier)
-            groups_delete(group)
+            groups_delete(iris_current_user, group)
             return response_api_deleted()
 
         except ObjectNotFoundError:
             return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
 
 
 def create_groups_blueprint():

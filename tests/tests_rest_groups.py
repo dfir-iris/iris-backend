@@ -19,9 +19,10 @@
 from unittest import TestCase
 
 from iris import Iris
+from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
-_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 
 
 class TestsRestGroups(TestCase):
@@ -144,13 +145,7 @@ class TestsRestGroups(TestCase):
         self.assertEqual(404, response.status_code)
 
     def test_update_group_should_return_400_when_new_user_in_group_with_permissions_admin(self):
-        body = {
-            'group_name': 'Customer server administrator',
-            'group_description': 'Group with permission server administrator',
-            'group_permissions': [_PERMISSION_SERVER_ADMINISTRATOR]
-        }
-        response = self._subject.create('/manage/groups/add', body).json()
-        group_identifier = response['data']['group_id']
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_SERVER_ADMINISTRATOR])
         user = self._subject.create_dummy_user()
         body = {'groups_membership': [group_identifier]}
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
@@ -184,3 +179,10 @@ class TestsRestGroups(TestCase):
         identifier = response['group_id']
         response = user.delete(f'/api/v2/manage/groups/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_delete_group_should_return_400_when_user_would_lose_server_administrator_permission(self):
+        response = self._subject.get(f'/api/v2/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}').json()
+        user_groups = response['user_groups']
+        administrator_group_identifier = user_groups[0]['group_id']
+        response = self._subject.delete(f'/api/v2/manage/groups/{administrator_group_identifier}')
+        self.assertEqual(400, response.status_code)

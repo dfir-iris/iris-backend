@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
-from uuid import uuid4
 from iris import Iris
 
 
@@ -228,8 +227,7 @@ class TestsRestCases(TestCase):
 
     def test_update_case_should_allow_to_update_customer(self):
         identifier = self._subject.create_dummy_case()
-        response = self._subject.create('/manage/customers/add', { 'customer_name': f'customer{uuid4()}'}).json()
-        customer_identifier = response['data']['customer_id']
+        customer_identifier = self._subject.create_dummy_customer()
         response = self._subject.update(f'/api/v2/cases/{identifier}', {'case_customer': customer_identifier}).json()
         self.assertEqual(customer_identifier, response['case_customer_id'])
 

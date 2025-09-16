@@ -177,6 +177,16 @@ def ac_ldp_group_removal(user_id, group_id):
     if iris_current_user.id != user_id:
         return False
 
+    groups_with_server_administrator_permission = _get_user_groups_with_server_administrator_permission(user_id)
+    if len(groups_with_server_administrator_permission) > 1:
+        return False
+    if group_id not in groups_with_server_administrator_permission:
+        return False
+
+    return True
+
+
+def _get_user_groups_with_server_administrator_permission(user_id):
     groups_perms = UserGroup.query.with_entities(
         Group.group_permissions,
         Group.group_name,
@@ -187,19 +197,13 @@ def ac_ldp_group_removal(user_id, group_id):
     ).join(
         UserGroup.group
     ).all()
-
     adm_access_count = []
-
     for group in groups_perms:
         perm = group.group_permissions
         if ac_flag_match_mask(perm,
                               Permissions.server_administrator.value):
             adm_access_count.append(group.group_id)
-
-    if len(adm_access_count) == 1 and adm_access_count[0] == group_id:
-        return True
-
-    return False
+    return adm_access_count
 
 
 def ac_ldp_group_update(user_id):

@@ -81,6 +81,7 @@ case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/<int:cur_id>/comments/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/events/{event_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comments_get(cur_id, caseid):

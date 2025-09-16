@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2023 - DFIR-IRIS
+#  Copyright (C) 2024 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,16 +16,9 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.models.models import Comments
+from flask import Blueprint
 
+from app.blueprints.rest.v2.evidences_routes.comments import evidences_comments_blueprint
 
-def get_case_comment(comment_id, caseid) -> Comments:
-    if caseid is None:
-        return Comments.query.filter(
-            Comments.comment_id == comment_id
-        ).first()
-    else:
-        return Comments.query.filter(
-            Comments.comment_id == comment_id,
-            Comments.comment_case_id == caseid
-        ).first()
+evidences_blueprint = Blueprint('evidences_api_v2', __name__, url_prefix='/evidences')
+evidences_blueprint.register_blueprint(evidences_comments_blueprint)
