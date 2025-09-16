@@ -38,12 +38,13 @@ from app.iris_engine.access_control.utils import ac_get_effective_permissions_of
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
 from app.models.authorization import User
+from app.business.errors import ObjectNotFoundError
 
 import datetime
 import jwt
 
 
-def return_authed_user_info(user_id):
+def return_authed_user_info(user_id) -> User:
     """
     Return the user object by user id.
 
@@ -52,9 +53,8 @@ def return_authed_user_info(user_id):
     """
     user = get_active_user(user_id=user_id)
     if not user:
-        return None
-
-    return UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+        raise ObjectNotFoundError
+    return user
 
 
 def validate_ldap_login(username: str, password: str, local_fallback: bool = True):
