@@ -104,8 +104,8 @@ def deprecated_case_add_ioc(caseid):
     ioc_schema = IocSchema()
 
     try:
-        ioc, msg = iocs_create(request.get_json(), caseid)
-        return response_success(msg, data=ioc_schema.dump(ioc))
+        ioc = iocs_create(request.get_json(), caseid)
+        return response_success('IOC added', data=ioc_schema.dump(ioc))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 

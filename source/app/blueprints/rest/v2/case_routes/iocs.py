@@ -86,7 +86,7 @@ class IocsOperations:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            ioc, _ = iocs_create(request.get_json(), case_identifier)
+            ioc = iocs_create(request.get_json(), case_identifier)
             result = self._schema.dump(ioc)
             return response_api_created(result)
         except BusinessProcessingError as e:

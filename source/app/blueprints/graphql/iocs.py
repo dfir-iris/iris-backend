@@ -78,7 +78,7 @@ class IOCCreate(Mutation):
         }
         permissions_check_current_user_has_some_case_access(case_id, [CaseAccessLevel.full_access])
 
-        ioc, _ = iocs_create(request, case_id)
+        ioc = iocs_create(request, case_id)
         return IOCCreate(ioc=ioc)
 
 
