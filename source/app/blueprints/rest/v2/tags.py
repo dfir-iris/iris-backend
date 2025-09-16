@@ -25,43 +25,47 @@ from app.datamgmt.manage.manage_tags_db import get_filtered_tags
 from app.schema.marshables import TagsSchema
 from app.blueprints.access_controls import ac_api_requires
 
+
+class TagsOperations:
+
+    def __init__(self):
+        self._schema = TagsSchema()
+
+    def search(self):
+        try:
+
+            tag_title = request.args.get('tag_title', None, type=str)
+            if tag_title is None:
+                tag_title = request.args.get('term', None, type=str)
+            tag_namespace = request.args.get('tag_namespace', None, type=str)
+
+            fields = parse_fields_parameters(request)
+            pagination_parameters = parse_pagination_parameters(request)
+
+            filtered_tags = get_filtered_tags(tag_title=tag_title,
+                                              tag_namespace=tag_namespace,
+                                              page=pagination_parameters.get_page(),
+                                              per_page=pagination_parameters.get_per_page(),
+                                              sort_by=pagination_parameters.get_order_by(),
+                                              sort_dir=pagination_parameters.get_direction())
+
+            if fields:
+                tags_schema = TagsSchema(only=fields)
+            else:
+                tags_schema = self._schema
+
+            return response_api_paginated(tags_schema, filtered_tags)
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
+
+
 tags_blueprint = Blueprint('tags_rest',
                            __name__,
                            url_prefix='/tags')
+tags_operations = TagsOperations()
 
 
 @tags_blueprint.get('')
 @ac_api_requires()
 def manage_list_tags() -> Response:
-    """Returns a list of tags, filtered by the given parameters.
-
-    :return: Response
-
-    """
-
-    try:
-
-        tag_title = request.args.get('tag_title', None, type=str)
-        if tag_title is None:
-            tag_title = request.args.get('term', None, type=str)
-        tag_namespace = request.args.get('tag_namespace', None, type=str)
-
-        fields = parse_fields_parameters(request)
-        pagination_parameters = parse_pagination_parameters(request)
-
-        filtered_tags = get_filtered_tags(tag_title=tag_title,
-                                          tag_namespace=tag_namespace,
-                                          page=pagination_parameters.get_page(),
-                                          per_page=pagination_parameters.get_per_page(),
-                                          sort_by=pagination_parameters.get_order_by(),
-                                          sort_dir=pagination_parameters.get_direction())
-
-        if fields:
-            tags_schema = TagsSchema(only=fields)
-        else:
-            tags_schema = TagsSchema(many=True)
-
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message())
-
-    return response_api_paginated(tags_schema, filtered_tags)
+    return tags_operations.search()
