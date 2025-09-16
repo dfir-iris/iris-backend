@@ -53,6 +53,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
 class CasesOperations:
@@ -134,7 +135,28 @@ class CasesOperations:
 
         try:
             case = cases_get_by_identifier(identifier)
-            case = cases_update(case, request.get_json())
+
+            request_data = request.get_json()
+
+            # If user tries to update the customer, check if the user has access to the new customer
+            if request_data.get('case_customer') and request_data.get('case_customer') != case.client_id:
+                if not user_has_client_access(iris_current_user.id, request_data.get('case_customer')):
+                    raise BusinessProcessingError('Invalid customer ID. Permission denied.')
+
+            if 'case_name' in request_data:
+                short_case_name = request_data.get('case_name').replace(f'#{case.case_id} - ', '')
+                request_data['case_name'] = f'#{case.case_id} - {short_case_name}'
+            request_data['case_customer'] = case.client_id if not request_data.get(
+                'case_customer') else request_data.get(
+                'case_customer')
+            request_data['reviewer_id'] = None if request_data.get('reviewer_id') == '' else request_data.get(
+                'reviewer_id')
+
+            # TODO should use self._schema!
+            add_case_schema = CaseSchema()
+            updated_case = add_case_schema.load(request_data, instance=case, partial=True)
+
+            case = cases_update(case, updated_case, request_data)
             result = self._schema.dump(case)
             return response_api_success(result)
         except BusinessProcessingError as e:

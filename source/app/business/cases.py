@@ -18,13 +18,11 @@
 
 import datetime
 import traceback
-from marshmallow.exceptions import ValidationError
 
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.logger import logger
 from app.util import add_obj_history_entry
-from app.schema.marshables import CaseSchema
 from app.models.models import ReviewStatusList
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
@@ -39,7 +37,6 @@ from app.datamgmt.case.case_db import get_review_id_from_name
 from app.datamgmt.alerts.alerts_db import get_alert_status_by_name
 from app.datamgmt.manage.manage_case_templates_db import case_template_pre_modifier
 from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name
 from app.datamgmt.manage.manage_cases_db import delete_case
 from app.datamgmt.manage.manage_cases_db import reopen_case
@@ -56,14 +53,6 @@ from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
 from app.models.cases import Cases
-
-
-def _load(request_data, **kwargs) -> Cases:
-    try:
-        add_case_schema = CaseSchema()
-        return add_case_schema.load(request_data, **kwargs)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:
@@ -135,23 +124,8 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete the case. Please check server logs for additional informations')
 
 
-def cases_update(case: Cases, request_data) -> Cases:
+def cases_update(case: Cases, updated_case, request_data) -> Cases:
     try:
-
-        # If user tries to update the customer, check if the user has access to the new customer
-        if request_data.get('case_customer') and request_data.get('case_customer') != case.client_id:
-            if not user_has_client_access(iris_current_user.id, request_data.get('case_customer')):
-                raise BusinessProcessingError('Invalid customer ID. Permission denied.')
-
-        if 'case_name' in request_data:
-            short_case_name = request_data.get('case_name').replace(f'#{case.case_id} - ', '')
-            request_data['case_name'] = f'#{case.case_id} - {short_case_name}'
-        request_data['case_customer'] = case.client_id if not request_data.get('case_customer') else request_data.get(
-            'case_customer')
-        request_data['reviewer_id'] = None if request_data.get('reviewer_id') == '' else request_data.get('reviewer_id')
-
-        updated_case = _load(request_data, instance=case, partial=True)
-
         closed_state_id = get_case_state_by_name('Closed').state_id
         previous_case_state = case.state_id
         case_previous_reviewer_id = case.reviewer_id
@@ -207,9 +181,6 @@ def cases_update(case: Cases, request_data) -> Cases:
         track_activity(f'case updated "{updated_case.name}"', caseid=case.case_id)
 
         return updated_case
-
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
     except BusinessProcessingError as e:
         raise e

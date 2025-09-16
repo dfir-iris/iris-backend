@@ -36,10 +36,13 @@ from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.business.cases import cases_update
 from app.business.cases import cases_get_by_identifier
+from app.business.errors import BusinessProcessingError
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_permission
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import CaseSchema
+from app.iris_engine.access_control.iris_user import iris_current_user
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 from app.blueprints.graphql.iocs import IOCConnection
 
@@ -179,5 +182,19 @@ class CaseUpdate(Mutation):
         permissions_check_current_user_has_some_case_access(case_id, [CaseAccessLevel.full_access])
 
         case = cases_get_by_identifier(case_id)
-        case = cases_update(case, request)
+
+        # If user tries to update the customer, check if the user has access to the new customer
+        if request.get('case_customer') and request.get('case_customer') != case.client_id:
+            if not user_has_client_access(iris_current_user.id, request.get('case_customer')):
+                raise BusinessProcessingError('Invalid customer ID. Permission denied.')
+
+        if 'case_name' in request:
+            short_case_name = request.get('case_name').replace(f'#{case.case_id} - ', '')
+            request['case_name'] = f'#{case.case_id} - {short_case_name}'
+        request['case_customer'] = case.client_id if not request.get('case_customer') else request.get('case_customer')
+        request['reviewer_id'] = None if request.get('reviewer_id') == '' else request.get('reviewer_id')
+
+        add_case_schema = CaseSchema()
+        updated_case = add_case_schema.load(request, instance=case, partial=True)
+        case = cases_update(case, updated_case, request)
         return CaseUpdate(case=case)
