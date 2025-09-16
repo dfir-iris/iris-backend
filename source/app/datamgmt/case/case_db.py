@@ -16,6 +16,8 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from typing import Optional
+
 import binascii
 from sqlalchemy import and_
 
@@ -54,7 +56,7 @@ def get_case_summary(caseid):
     return case_summary
 
 
-def get_case(caseid) -> Cases:
+def get_case(caseid) -> Optional[Cases]:
     return Cases.query.filter(Cases.case_id == caseid).first()
 
 

@@ -27,6 +27,7 @@ from app.util import add_obj_history_entry
 from app.schema.marshables import CaseSchema
 from app.models.models import ReviewStatusList
 from app.business.errors import BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 from app.business.iocs import iocs_exports_to_json
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -66,7 +67,10 @@ def _load(request_data, **kwargs) -> Cases:
 
 
 def cases_get_by_identifier(case_identifier):
-    return get_case(case_identifier)
+    case = get_case(case_identifier)
+    if case is None:
+        raise ObjectNotFoundError()
+    return case
 
 
 def cases_get_first() -> Cases:
