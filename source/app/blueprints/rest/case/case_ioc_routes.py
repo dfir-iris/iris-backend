@@ -247,8 +247,8 @@ def case_update_ioc(cur_id, caseid):
 
     try:
         ioc = iocs_get(cur_id)
-        ioc, msg = iocs_update(ioc, request.get_json())
-        return response_success(msg, data=ioc_schema.dump(ioc))
+        ioc = iocs_update(ioc, request.get_json())
+        return response_success(f'Updated ioc "{ioc.ioc_value}"', data=ioc_schema.dump(ioc))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 

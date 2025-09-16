@@ -130,7 +130,7 @@ class IOCUpdate(Mutation):
         if modification_history:
             request['modification_history'] = modification_history
         ioc = iocs_get(ioc_id)
-        ioc, _ = iocs_update(ioc, request)
+        ioc = iocs_update(ioc, request)
         return IOCCreate(ioc=ioc)
 
 

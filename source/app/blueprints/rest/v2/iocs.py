@@ -60,7 +60,7 @@ class IocsOperations:
                                                               [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=ioc.case_id)
 
-            ioc, _ = iocs_update(ioc, request.get_json())
+            ioc = iocs_update(ioc, request.get_json())
 
             result = self._schema.dump(ioc)
             return response_api_success(result)

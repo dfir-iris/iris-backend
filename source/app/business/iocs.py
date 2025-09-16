@@ -82,6 +82,7 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
         request_data['ioc_id'] = ioc.ioc_id
         request_data['case_id'] = ioc.case_id
         ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
+
         ioc_sc.user_id = iris_current_user.id
 
         if not check_ioc_type_id(type_id=ioc_sc.ioc_type_id):
@@ -95,7 +96,7 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
 
         if ioc_sc:
             track_activity(f'updated ioc "{ioc_sc.ioc_value}"', caseid=ioc.case_id)
-            return ioc, f'Updated ioc "{ioc_sc.ioc_value}"'
+            return ioc_sc
 
         raise BusinessProcessingError('Unable to update ioc for internal reasons')
 

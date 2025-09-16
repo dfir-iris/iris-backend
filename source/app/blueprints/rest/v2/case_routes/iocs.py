@@ -125,7 +125,7 @@ class IocsOperations:
         try:
             ioc = self._get_ioc_in_case(identifier, case_identifier)
 
-            ioc, _ = iocs_update(ioc, request.get_json())
+            ioc = iocs_update(ioc, request.get_json())
 
             result = self._schema.dump(ioc)
             return response_api_success(result)
