@@ -45,6 +45,7 @@ from app.business.cases import cases_update
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
 from app.schema.marshables import CaseSchemaForAPIV2
+from app.schema.marshables import CaseSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -104,7 +105,9 @@ class CasesOperations:
     def create(self):
         try:
             request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
-            case = self._schema.load(request_data)
+            add_case_schema = CaseSchema()
+            # TODO should use self._schema!
+            case = add_case_schema.load(request_data)
             case_template_id = request_data.pop('case_template_id', None)
             case = cases_create(case, case_template_id)
             result = self._schema.dump(case)
