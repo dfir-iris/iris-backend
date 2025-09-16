@@ -119,10 +119,17 @@ class EvidencesOperations:
             if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=evidence.case_id)
 
-            evidence = evidences_update(evidence, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('evidence_update', request.get_json(), evidence.case_id)
+            request_data['id'] = evidence.id
+            evidence = self._schema.load(request_data, instance=evidence, partial=True)
+
+            evidence = evidences_update(evidence)
 
             result = self._schema.dump(evidence)
             return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
         except ObjectNotFoundError:
             return response_api_not_found()
         except BusinessProcessingError as e:

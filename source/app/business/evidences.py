@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from marshmallow.exceptions import ValidationError
 from flask_sqlalchemy.pagination import Pagination
 
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -24,7 +23,6 @@ from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.schema.marshables import CaseEvidenceSchema
 from app.models.models import CaseReceivedFile
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import add_rfile
@@ -32,15 +30,6 @@ from app.datamgmt.case.case_rfiles_db import delete_rfile
 from app.datamgmt.case.case_rfiles_db import get_rfile
 from app.datamgmt.case.case_rfiles_db import get_paginated_evidences
 from app.datamgmt.case.case_rfiles_db import update_rfile
-from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
-
-
-def _load(request_data, **kwargs):
-    try:
-        evidence_schema = CaseEvidenceSchema()
-        return evidence_schema.load(request_data, **kwargs)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', data=e.messages)
 
 
 def evidences_create(case_identifier, evidence: CaseReceivedFile) -> CaseReceivedFile:
@@ -61,10 +50,7 @@ def evidences_get(identifier) -> CaseReceivedFile:
     return evidence
 
 
-def evidences_update(evidence: CaseReceivedFile, request_json: dict) -> CaseReceivedFile:
-    request_data = call_deprecated_on_preload_modules_hook('evidence_update', request_json, evidence.case_id)
-    request_data['id'] = evidence.id
-    evidence = _load(request_data, instance=evidence, partial=True)
+def evidences_update(evidence: CaseReceivedFile) -> CaseReceivedFile:
     evidence = update_rfile(evidence=evidence, user_id=iris_current_user.id, caseid=evidence.case_id)
     evidence = call_modules_hook('on_postload_evidence_update', data=evidence, caseid=evidence.case_id)
     if not evidence:

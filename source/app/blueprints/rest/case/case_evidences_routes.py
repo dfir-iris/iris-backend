@@ -114,18 +114,22 @@ def case_get_evidence(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_edit_rfile(cur_id, caseid):
+    evidence_schema = CaseEvidenceSchema()
     try:
         crf = get_rfile(cur_id)
         if not crf:
             return response_error('Invalid evidence ID for this case')
 
-        evd = evidences_update(crf, request.get_json())
+        request_data = call_deprecated_on_preload_modules_hook('evidence_update', request.get_json(), crf.case_id)
+        request_data['id'] = crf.id
+        evidence = evidence_schema.load(request_data, instance=crf, partial=True)
 
-        evidence_schema = CaseEvidenceSchema()
+        evd = evidences_update(evidence)
+
         return response_success(f'Evidence {evd.filename} updated', data=evidence_schema.dump(evd))
 
     except ValidationError as e:
-        return response_error(msg="Data error", data=e.messages)
+        return response_error(msg='Data error', data=e.messages)
 
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
