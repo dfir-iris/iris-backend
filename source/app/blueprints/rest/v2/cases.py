@@ -156,7 +156,9 @@ class CasesOperations:
             add_case_schema = CaseSchema()
             updated_case = add_case_schema.load(request_data, instance=case, partial=True)
 
-            case = cases_update(case, updated_case, request_data)
+            protagonists = request_data.get('protagonists')
+            tags = request_data.get('case_tags')
+            case = cases_update(case, updated_case, protagonists, tags)
             result = self._schema.dump(case)
             return response_api_success(result)
         except ValidationError as e:

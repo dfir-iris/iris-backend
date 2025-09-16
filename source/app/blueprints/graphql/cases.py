@@ -196,5 +196,7 @@ class CaseUpdate(Mutation):
 
         add_case_schema = CaseSchema()
         updated_case = add_case_schema.load(request, instance=case, partial=True)
-        case = cases_update(case, updated_case, request)
+        protagonists = request.get('protagonists')
+        tags = request.get('case_tags')
+        case = cases_update(case, updated_case, protagonists, tags)
         return CaseUpdate(case=case)

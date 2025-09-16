@@ -124,7 +124,7 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete the case. Please check server logs for additional informations')
 
 
-def cases_update(case: Cases, updated_case, request_data) -> Cases:
+def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
     try:
         closed_state_id = get_case_state_by_name('Closed').state_id
         previous_case_state = case.state_id
@@ -172,8 +172,8 @@ def cases_update(case: Cases, updated_case, request_data) -> Cases:
             else:
                 track_activity('case reviewer changed', caseid=case.case_id)
 
-        register_case_protagonists(updated_case.case_id, request_data.get('protagonists'))
-        save_case_tags(request_data.get('case_tags'), case)
+        register_case_protagonists(updated_case.case_id, protagonists)
+        save_case_tags(tags, case)
 
         updated_case = call_modules_hook('on_postload_case_update', data=updated_case, caseid=case.case_id)
 

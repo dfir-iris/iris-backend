@@ -294,7 +294,9 @@ def update_case_info(identifier):
 
         updated_case = case_schema.load(request_data, instance=case, partial=True)
 
-        case = cases_update(case, updated_case, request_data)
+        protagonists = request_data.get('protagonists')
+        tags = request_data.get('case_tags')
+        case = cases_update(case, updated_case, protagonists, tags)
         return response_success('Updated', data=case_schema.dump(case))
     except ValidationError as e:
         return response_error('Data error', e.messages)
