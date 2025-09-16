@@ -89,7 +89,7 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
     try:
         # TODO ideally schema validation should be done before, outside the business logic in the REST API
         #      for that the hook should be called after schema validation
-        request_data = call_deprecated_on_preload_modules_hook('ioc_update', data=request_json, caseid=ioc.case_id)
+        request_data = call_deprecated_on_preload_modules_hook('ioc_update', request_json, ioc.case_id)
 
         # validate before saving
         ioc_schema = IocSchema()
