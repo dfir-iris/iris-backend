@@ -49,6 +49,7 @@ from app.business.access_controls import ac_fast_check_current_user_has_case_acc
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 class CasesOperations:
@@ -101,7 +102,8 @@ class CasesOperations:
 
     def create(self):
         try:
-            case = cases_create(request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
+            case = cases_create(request_data)
             result = self._schema.dump(case)
             return response_api_created(result)
         except BusinessProcessingError as e:

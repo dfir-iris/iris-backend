@@ -78,9 +78,6 @@ def cases_exists(identifier):
 
 
 def cases_create(request_data):
-    # TODO remove caseid doesn't seems to be useful for call_modules_hook => remove argument
-    request_data = call_modules_hook('on_preload_case_create', request_data, None)
-
     case = _load(request_data)
 
     case.owner_id = iris_current_user.id

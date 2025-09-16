@@ -37,6 +37,7 @@ from app.business.cases import cases_delete
 from app.business.cases import cases_update
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_permission
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 from app.blueprints.graphql.iocs import IOCConnection
 
@@ -104,6 +105,8 @@ class CaseCreate(Mutation):
             request['case_soc_id'] = soc_id
         if classification_id:
             request['classification_id'] = classification_id
+
+        request = call_deprecated_on_preload_modules_hook('case_create', request, None)
         case = cases_create(request)
         return CaseCreate(case=case)
 

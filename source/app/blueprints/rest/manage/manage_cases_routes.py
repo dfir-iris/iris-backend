@@ -60,6 +60,7 @@ from app.business.cases import cases_delete
 from app.business.cases import cases_update
 from app.business.cases import cases_create
 from app.business.errors import BusinessProcessingError
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 manage_cases_rest_blueprint = Blueprint('manage_case_rest', __name__)
 
@@ -245,7 +246,8 @@ def api_add_case():
     case_schema = CaseSchema()
 
     try:
-        case = cases_create(request.get_json())
+        request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
+        case = cases_create(request_data)
         return response_success('Case created', data=case_schema.dump(case))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
