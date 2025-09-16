@@ -132,7 +132,7 @@ class CasesOperations:
             return ac_api_return_access_denied(caseid=identifier)
 
         try:
-            case, _ = cases_update(identifier, request.get_json())
+            case = cases_update(identifier, request.get_json())
             result = self._schema.dump(case)
             return response_api_success(result)
         except BusinessProcessingError as e:

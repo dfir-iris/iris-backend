@@ -177,5 +177,5 @@ class CaseUpdate(Mutation):
         permissions_check_current_user_has_some_permission([Permissions.standard_user])
         permissions_check_current_user_has_some_case_access(case_id, [CaseAccessLevel.full_access])
 
-        case, _ = cases_update(case_id, request)
+        case = cases_update(case_id, request)
         return CaseUpdate(case=case)

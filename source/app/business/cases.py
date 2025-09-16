@@ -66,7 +66,7 @@ def _load(request_data, **kwargs) -> Cases:
         raise BusinessProcessingError('Data error', e.messages)
 
 
-def cases_get_by_identifier(case_identifier):
+def cases_get_by_identifier(case_identifier) -> Cases:
     case = get_case(case_identifier)
     if case is None:
         raise ObjectNotFoundError()
@@ -135,7 +135,7 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete the case. Please check server logs for additional informations')
 
 
-def cases_update(case_identifier, request_data):
+def cases_update(case_identifier, request_data) -> Cases:
     case_i = cases_get_by_identifier(case_identifier)
 
     try:
@@ -209,7 +209,7 @@ def cases_update(case_identifier, request_data):
         add_obj_history_entry(case_i, 'case info updated')
         track_activity(f'case updated "{case.name}"', caseid=case_identifier)
 
-        return case, 'Updated'
+        return case
 
     except ValidationError as e:
         raise BusinessProcessingError('Data error', e.messages)

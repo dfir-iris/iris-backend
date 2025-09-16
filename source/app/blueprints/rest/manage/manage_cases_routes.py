@@ -275,8 +275,8 @@ def update_case_info(identifier):
 
     case_schema = CaseSchema()
     try:
-        case, msg = cases_update(identifier, request.get_json())
-        return response_success(msg, data=case_schema.dump(case))
+        case = cases_update(identifier, request.get_json())
+        return response_success('Updated', data=case_schema.dump(case))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
