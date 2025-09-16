@@ -48,6 +48,8 @@ from app.forms import LoginForm, MFASetupForm
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_groups_db import get_groups_list
+from app.business.auth import generate_auth_tokens
+from app.schema.marshables import UserSchema
 
 login_blueprint = Blueprint(
     'login',
@@ -89,7 +91,13 @@ def _authenticate_ldap(form, username, password, local_fallback=True):
         if user is None:
             return _render_template_login(form, 'Wrong credentials. Please try again.')
 
-        return wrap_login_user(user)
+        user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+
+        # Generate auth tokens for API access
+        tokens = generate_auth_tokens(user)
+        user_data.update({'tokens': tokens})
+
+        return wrap_login_user(user_data)
 
     except Exception as e:
         log.error(e.__str__())

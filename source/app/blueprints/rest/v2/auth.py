@@ -63,8 +63,7 @@ def login():
     password = request.json.get('password')
 
     if is_authentication_ldap() is True:
-        authed_user = validate_ldap_login(
-            username, password, app.config.get('AUTHENTICATION_LOCAL_FALLBACK'))
+        authed_user = validate_ldap_login(username, password, app.config.get('AUTHENTICATION_LOCAL_FALLBACK'))
 
     else:
         authed_user = validate_local_login(username, password)
@@ -74,8 +73,14 @@ def login():
         track_activity(f'User {username} tried to login. Invalid credentials', ctx_less=True, display_in_ui=False)
         return response_api_error('Invalid credentials')
 
+    user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(authed_user)
+
+    # Generate auth tokens for API access
+    tokens = generate_auth_tokens(authed_user)
+    user_data.update({'tokens': tokens})
+
     track_activity(f'User {username} logged in', ctx_less=True, display_in_ui=False)
-    return response_api_success(data=authed_user)
+    return response_api_success(data=user_data)
 
 
 @auth_blueprint.post('/logout')
