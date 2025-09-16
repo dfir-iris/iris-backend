@@ -130,7 +130,15 @@ class IOCUpdate(Mutation):
         if modification_history:
             request['modification_history'] = modification_history
         ioc = iocs_get(ioc_id)
-        ioc = iocs_update(ioc, request)
+
+        request_data = call_deprecated_on_preload_modules_hook('ioc_update', request, ioc.case_id)
+
+        # validate before saving
+        ioc_schema = IocSchema()
+        request_data['ioc_id'] = ioc.ioc_id
+        request_data['case_id'] = ioc.case_id
+        ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
+        ioc = iocs_update(ioc, ioc_sc)
         return IOCCreate(ioc=ioc)
 
 

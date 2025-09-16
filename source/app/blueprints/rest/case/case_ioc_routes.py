@@ -247,8 +247,19 @@ def case_update_ioc(cur_id, caseid):
 
     try:
         ioc = iocs_get(cur_id)
-        ioc = iocs_update(ioc, request.get_json())
+
+        request_data = call_deprecated_on_preload_modules_hook('ioc_update', request.get_json(), ioc.case_id)
+
+        # validate before saving
+        request_data['ioc_id'] = ioc.ioc_id
+        request_data['case_id'] = ioc.case_id
+        ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
+        ioc = iocs_update(ioc, ioc_sc)
         return response_success(f'Updated ioc "{ioc.ioc_value}"', data=ioc_schema.dump(ioc))
+
+    except ValidationError as e:
+        return response_error('Data error', e.messages)
+
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 

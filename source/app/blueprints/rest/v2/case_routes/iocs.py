@@ -125,10 +125,21 @@ class IocsOperations:
         try:
             ioc = self._get_ioc_in_case(identifier, case_identifier)
 
-            ioc = iocs_update(ioc, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('ioc_update', request.get_json(), ioc.case_id)
+
+            # validate before saving
+            ioc_schema = IocSchema()
+            request_data['ioc_id'] = ioc.ioc_id
+            request_data['case_id'] = ioc.case_id
+            ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
+
+            ioc = iocs_update(ioc, ioc_sc)
 
             result = self._schema.dump(ioc)
             return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
 
         except ObjectNotFoundError:
             return response_api_not_found()

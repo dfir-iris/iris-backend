@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from marshmallow.exceptions import ValidationError
 
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -34,7 +33,6 @@ from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.case.case_iocs_db import get_ioc
 from app.util import add_obj_history_entry
-from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 def iocs_get(ioc_identifier) -> Ioc:
@@ -67,22 +65,12 @@ def iocs_create(ioc: Ioc):
     raise BusinessProcessingError('Unable to create IOC for internal reasons')
 
 
-def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
+def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
     """
     Identifier: the IOC identifier
     Request JSON: the Request
     """
     try:
-        # TODO ideally schema validation should be done before, outside the business logic in the REST API
-        #      for that the hook should be called after schema validation
-        request_data = call_deprecated_on_preload_modules_hook('ioc_update', request_json, ioc.case_id)
-
-        # validate before saving
-        ioc_schema = IocSchema()
-        request_data['ioc_id'] = ioc.ioc_id
-        request_data['case_id'] = ioc.case_id
-        ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
-
         ioc_sc.user_id = iris_current_user.id
 
         if not check_ioc_type_id(type_id=ioc_sc.ioc_type_id):
@@ -99,10 +87,6 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
             return ioc_sc
 
         raise BusinessProcessingError('Unable to update ioc for internal reasons')
-
-    # TODO most probably the scope of this try catch could be reduced, this exception is probably raised only on load
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
     except Exception as e:
         raise BusinessProcessingError('Unexpected error server-side', e)
