@@ -135,81 +135,78 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete the case. Please check server logs for additional informations')
 
 
-def cases_update(case_identifier, request_data) -> Cases:
-    case_i = cases_get_by_identifier(case_identifier)
-
+def cases_update(case: Cases, request_data) -> Cases:
     try:
 
-        previous_case_state = case_i.state_id
-        case_previous_reviewer_id = case_i.reviewer_id
-        closed_state_id = get_case_state_by_name('Closed').state_id
-
         # If user tries to update the customer, check if the user has access to the new customer
-        if request_data.get('case_customer') and request_data.get('case_customer') != case_i.client_id:
+        if request_data.get('case_customer') and request_data.get('case_customer') != case.client_id:
             if not user_has_client_access(iris_current_user.id, request_data.get('case_customer')):
                 raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
         if 'case_name' in request_data:
-            short_case_name = request_data.get('case_name').replace(f'#{case_i.case_id} - ', '')
-            request_data['case_name'] = f'#{case_i.case_id} - {short_case_name}'
-        request_data['case_customer'] = case_i.client_id if not request_data.get('case_customer') else request_data.get(
+            short_case_name = request_data.get('case_name').replace(f'#{case.case_id} - ', '')
+            request_data['case_name'] = f'#{case.case_id} - {short_case_name}'
+        request_data['case_customer'] = case.client_id if not request_data.get('case_customer') else request_data.get(
             'case_customer')
         request_data['reviewer_id'] = None if request_data.get('reviewer_id') == '' else request_data.get('reviewer_id')
 
-        case = _load(request_data, instance=case_i, partial=True)
+        updated_case = _load(request_data, instance=case, partial=True)
 
+        closed_state_id = get_case_state_by_name('Closed').state_id
+        previous_case_state = case.state_id
+        case_previous_reviewer_id = case.reviewer_id
         db.session.commit()
 
-        if previous_case_state != case.state_id:
-            if case.state_id == closed_state_id:
-                track_activity('case closed', caseid=case_identifier)
-                res = close_case(case_identifier)
+        if previous_case_state != updated_case.state_id:
+            if updated_case.state_id == closed_state_id:
+                track_activity('case closed', caseid=case.case_id)
+                res = close_case(case.case_id)
                 if not res:
                     raise BusinessProcessingError('Tried to close an non-existing case')
 
                 # Close the related alerts
-                if case.alerts:
+                if updated_case.alerts:
                     close_status = get_alert_status_by_name('Closed')
-                    case_status_id_mapped = map_alert_resolution_to_case_status(case.status_id)
+                    case_status_id_mapped = map_alert_resolution_to_case_status(updated_case.status_id)
 
-                    for alert in case.alerts:
+                    for alert in updated_case.alerts:
                         if alert.alert_status_id != close_status.status_id:
                             alert.alert_status_id = close_status.status_id
-                            alert = call_modules_hook('on_postload_alert_update', data=alert, caseid=case_identifier)
+                            alert = call_modules_hook('on_postload_alert_update', data=alert, caseid=case.case_id)
 
                         if alert.alert_resolution_status_id != case_status_id_mapped:
                             alert.alert_resolution_status_id = case_status_id_mapped
                             alert = call_modules_hook('on_postload_alert_resolution_update', data=alert,
-                                                      caseid=case_identifier)
+                                                      caseid=case.case_id)
 
                             track_activity(
-                                f'closing alert ID {alert.alert_id} due to case #{case_identifier} being closed',
-                                caseid=case_identifier, ctx_less=False)
+                                f'closing alert ID {alert.alert_id} due to case #{case.case_id} being closed',
+                                caseid=case.case_id, ctx_less=False)
 
                             db.session.add(alert)
 
-            elif previous_case_state == closed_state_id and case.state_id != closed_state_id:
-                track_activity('case re-opened', caseid=case_identifier)
-                res = reopen_case(case_identifier)
+            elif previous_case_state == closed_state_id and updated_case.state_id != closed_state_id:
+                track_activity('case re-opened', caseid=case.case_id)
+                res = reopen_case(case.case_id)
                 if not res:
                     raise BusinessProcessingError('Tried to re-open an non-existing case')
 
-        if case_previous_reviewer_id != case.reviewer_id:
-            if case.reviewer_id is None:
-                track_activity('case reviewer removed', caseid=case_identifier)
-                case.review_status_id = get_review_id_from_name(ReviewStatusList.not_reviewed)
+        if case_previous_reviewer_id != updated_case.reviewer_id:
+            if updated_case.reviewer_id is None:
+                track_activity('case reviewer removed', caseid=case.case_id)
+                updated_case.review_status_id = get_review_id_from_name(ReviewStatusList.not_reviewed)
             else:
-                track_activity('case reviewer changed', caseid=case_identifier)
+                track_activity('case reviewer changed', caseid=case.case_id)
 
-        register_case_protagonists(case.case_id, request_data.get('protagonists'))
-        save_case_tags(request_data.get('case_tags'), case_i)
+        register_case_protagonists(updated_case.case_id, request_data.get('protagonists'))
+        save_case_tags(request_data.get('case_tags'), case)
 
-        case = call_modules_hook('on_postload_case_update', data=case, caseid=case_identifier)
+        updated_case = call_modules_hook('on_postload_case_update', data=updated_case, caseid=case.case_id)
 
-        add_obj_history_entry(case_i, 'case info updated')
-        track_activity(f'case updated "{case.name}"', caseid=case_identifier)
+        add_obj_history_entry(case, 'case info updated')
+        track_activity(f'case updated "{updated_case.name}"', caseid=case.case_id)
 
-        return case
+        return updated_case
 
     except ValidationError as e:
         raise BusinessProcessingError('Data error', e.messages)

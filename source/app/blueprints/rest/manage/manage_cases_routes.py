@@ -60,6 +60,7 @@ from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.cases import cases_delete
 from app.business.cases import cases_update
 from app.business.cases import cases_create
+from app.business.cases import cases_get_by_identifier
 from app.business.errors import BusinessProcessingError
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
@@ -275,7 +276,8 @@ def update_case_info(identifier):
 
     case_schema = CaseSchema()
     try:
-        case = cases_update(identifier, request.get_json())
+        case = cases_get_by_identifier(identifier)
+        case = cases_update(case, request.get_json())
         return response_success('Updated', data=case_schema.dump(case))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())

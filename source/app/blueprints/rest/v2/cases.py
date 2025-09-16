@@ -40,6 +40,7 @@ from app.blueprints.rest.v2.case_routes.events import case_events_blueprint
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.cases import cases_create
 from app.business.cases import cases_delete
+from app.business.cases import cases_get_by_identifier
 from app.datamgmt.case.case_db import get_case
 from app.business.cases import cases_update
 from app.business.errors import BusinessProcessingError
@@ -132,7 +133,8 @@ class CasesOperations:
             return ac_api_return_access_denied(caseid=identifier)
 
         try:
-            case = cases_update(identifier, request.get_json())
+            case = cases_get_by_identifier(identifier)
+            case = cases_update(case, request.get_json())
             result = self._schema.dump(case)
             return response_api_success(result)
         except BusinessProcessingError as e:

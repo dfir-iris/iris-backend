@@ -35,6 +35,7 @@ from app.business.iocs import iocs_build_filter_query
 from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.business.cases import cases_update
+from app.business.cases import cases_get_by_identifier
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_permission
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
@@ -177,5 +178,6 @@ class CaseUpdate(Mutation):
         permissions_check_current_user_has_some_permission([Permissions.standard_user])
         permissions_check_current_user_has_some_case_access(case_id, [CaseAccessLevel.full_access])
 
-        case = cases_update(case_id, request)
+        case = cases_get_by_identifier(case_id)
+        case = cases_update(case, request)
         return CaseUpdate(case=case)
