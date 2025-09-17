@@ -65,11 +65,11 @@ def tasks_create(task: CaseTasks, task_assignee_list) -> CaseTasks:
                      )
 
     ctask = call_modules_hook('on_postload_task_create', data=ctask, caseid=task.task_case_id)
+    if not ctask:
+        raise BusinessProcessingError('Unable to create task for internal reasons')
 
-    if ctask:
-        track_activity(f'added task "{ctask.task_title}"', caseid=task.task_case_id)
-        return ctask
-    raise BusinessProcessingError('Unable to create task for internal reasons')
+    track_activity(f'added task "{ctask.task_title}"', caseid=task.task_case_id)
+    return ctask
 
 
 def tasks_get(identifier) -> CaseTasks:
