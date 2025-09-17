@@ -150,18 +150,29 @@ def deprecated_case_task_view(cur_id: int, caseid: int):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def deprecated_case_edit_task(cur_id: int, caseid: int):
+    task_schema = CaseTaskSchema()
     try:
         task = get_task(task_id=cur_id)
         if not task:
             return response_error(msg='Invalid task ID for this case')
 
-        task = tasks_update(task, request.get_json())
-        task_schema = CaseTaskSchema()
+        case_identifier = task.task_case_id
+        request_data = call_deprecated_on_preload_modules_hook('task_update', request.get_json(), case_identifier)
+
+        if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
+            return response_error('task_assignee_id is not valid anymore since v1.5.0')
+
+        task_assignee_list = request_data['task_assignees_id']
+        del request_data['task_assignees_id']
+
+        request_data['id'] = task.id
+        task = task_schema.load(request_data, instance=task)
+
+        task = tasks_update(task, task_assignee_list)
 
         return response_success(msg='Task updated', data=task_schema.dump(task))
-
     except ValidationError as e:
-        return response_error(msg='Data error', data=e.messages)
+        return response_error('Data error', data=e.messages)
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/delete/<int:cur_id>', methods=['POST'])
@@ -174,7 +185,7 @@ def deprecated_case_delete_task(cur_id: int, caseid: int):
         tasks_delete(task)
         return response_success('Task deleted')
     except BusinessProcessingError as e:
-        return response_error(msg=e.get_message(), data=e.get_data())
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/<int:cur_id>/comments/list', methods=['GET'])

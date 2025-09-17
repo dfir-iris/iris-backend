@@ -108,10 +108,25 @@ class TasksOperations:
                                                               [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=task.task_case_id)
 
-            task = tasks_update(task, request.get_json())
+            case_identifier = task.task_case_id
+            request_data = call_deprecated_on_preload_modules_hook('task_update', request.get_json(), case_identifier)
+
+            if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
+                return response_api_error('task_assignee_id is not valid anymore since v1.5.0')
+
+            task_assignee_list = request_data['task_assignees_id']
+            del request_data['task_assignees_id']
+
+            request_data['id'] = task.id
+            task = self._schema.load(request_data, instance=task)
+
+            task = tasks_update(task, task_assignee_list)
 
             result = self._schema.dump(task)
             return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
         except ObjectNotFoundError:
             return response_api_not_found()
         except BusinessProcessingError as e:
