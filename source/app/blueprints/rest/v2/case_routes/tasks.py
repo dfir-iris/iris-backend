@@ -70,6 +70,7 @@ class TasksOperations:
 
         try:
             task = self._schema.load(request_data)
+            task.task_case_id = case_identifier
             case = tasks_create(task, task_assignee_list)
             result = self._schema.dump(case)
             return response_api_created(result)

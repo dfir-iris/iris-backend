@@ -120,6 +120,7 @@ def deprecated_case_add_task(caseid: int):
         del request_data['task_assignees_id']
 
         task = task_schema.load(request_data)
+        task.task_case_id = caseid
         task = tasks_create(task, task_assignee_list)
         return response_success(f'Task "{task.task_title}" added', data=task_schema.dump(task))
 
