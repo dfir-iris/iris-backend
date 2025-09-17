@@ -17,6 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from datetime import datetime
+from typing import Optional
+
 from sqlalchemy import desc
 from sqlalchemy import and_
 
@@ -117,7 +119,7 @@ def get_tasks_with_assignees(caseid):
     return task_with_assignees
 
 
-def get_task(task_id: int) -> CaseTasks:
+def get_task(task_id: int) -> Optional[CaseTasks]:
     return CaseTasks.query.filter(CaseTasks.id == task_id).first()
 
 

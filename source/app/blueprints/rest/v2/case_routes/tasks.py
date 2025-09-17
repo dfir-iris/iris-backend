@@ -18,6 +18,7 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -38,6 +39,7 @@ from app.business.tasks import tasks_delete
 from app.business.tasks import tasks_filter
 from app.models.authorization import CaseAccessLevel
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 class TasksOperations:
@@ -60,10 +62,21 @@ class TasksOperations:
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
 
+        request_data = call_deprecated_on_preload_modules_hook('task_create', request.get_json(), case_identifier)
+        if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
+            return response_api_error('task_assignee_id is not valid anymore since v1.5.0')
+        task_assignee_list = request_data['task_assignees_id']
+        del request_data['task_assignees_id']
+
         try:
-            _, case = tasks_create(case_identifier, request.get_json())
+            task = self._schema.load(request_data)
+            _, case = tasks_create(task, task_assignee_list)
             result = self._schema.dump(case)
             return response_api_created(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', e.messages)
+
         except BusinessProcessingError as e:
             return response_api_error(e.get_message())
 

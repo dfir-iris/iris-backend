@@ -18,7 +18,7 @@
 
 from datetime import datetime
 
-import marshmallow
+from marshmallow import ValidationError
 from flask import Blueprint
 from flask import request
 
@@ -49,6 +49,7 @@ from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 case_tasks_rest_blueprint = Blueprint('case_tasks_rest', __name__)
 
@@ -110,9 +111,21 @@ def case_task_status_update(cur_id: int, caseid: int):
 def deprecated_case_add_task(caseid: int):
     task_schema = CaseTaskSchema()
     try:
-        msg, task = tasks_create(case_identifier=caseid,
-                                 request_json=request.get_json())
+        request_data = call_deprecated_on_preload_modules_hook('task_create', request.get_json(), caseid)
+
+        if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
+            raise BusinessProcessingError('task_assignee_id is not valid anymore since v1.5.0')
+
+        task_assignee_list = request_data['task_assignees_id']
+        del request_data['task_assignees_id']
+
+        task = task_schema.load(request_data)
+        msg, task = tasks_create(task, task_assignee_list)
         return response_success(msg, data=task_schema.dump(task))
+
+    except ValidationError as e:
+        return response_error('Data error', e.messages)
+
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -146,7 +159,7 @@ def deprecated_case_edit_task(cur_id: int, caseid: int):
 
         return response_success(msg='Task updated', data=task_schema.dump(task))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg='Data error', data=e.messages)
 
 
@@ -210,7 +223,7 @@ def case_comment_task_add(cur_id: int, caseid: int):
         track_activity(f"task \"{task.task_title}\" commented", caseid=caseid)
         return response_success("Task commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 

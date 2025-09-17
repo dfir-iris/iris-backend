@@ -56,29 +56,20 @@ def tasks_delete(task: CaseTasks):
     track_activity(f'deleted task "{task.task_title}"')
 
 
-def tasks_create(case_identifier: int, request_json: dict) -> (str, CaseTasks):
-
-    request_data = call_deprecated_on_preload_modules_hook('task_create', request_json, case_identifier)
-
-    if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
-        raise BusinessProcessingError('task_assignee_id is not valid anymore since v1.5.0')
-
-    task_assignee_list = request_data['task_assignees_id']
-    del request_data['task_assignees_id']
-    task = _load(request_data)
+def tasks_create(task: CaseTasks, task_assignee_list) -> (str, CaseTasks):
 
     ctask = add_task(task=task,
                      assignee_id_list=task_assignee_list,
                      user_id=iris_current_user.id,
-                     caseid=case_identifier
+                     caseid=task.task_case_id
                      )
 
-    ctask = call_modules_hook('on_postload_task_create', data=ctask, caseid=case_identifier)
+    ctask = call_modules_hook('on_postload_task_create', data=ctask, caseid=task.task_case_id)
 
     if ctask:
-        track_activity(f'added task "{ctask.task_title}"', caseid=case_identifier)
+        track_activity(f'added task "{ctask.task_title}"', caseid=task.task_case_id)
         return f'Task "{ctask.task_title}" added', ctask
-    raise BusinessProcessingError("Unable to create task for internal reasons")
+    raise BusinessProcessingError('Unable to create task for internal reasons')
 
 
 def tasks_get(identifier) -> CaseTasks:
