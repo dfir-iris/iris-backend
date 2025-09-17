@@ -120,8 +120,8 @@ def deprecated_case_add_task(caseid: int):
         del request_data['task_assignees_id']
 
         task = task_schema.load(request_data)
-        msg, task = tasks_create(task, task_assignee_list)
-        return response_success(msg, data=task_schema.dump(task))
+        task = tasks_create(task, task_assignee_list)
+        return response_success(f'Task "{task.task_title}" added', data=task_schema.dump(task))
 
     except ValidationError as e:
         return response_error('Data error', e.messages)

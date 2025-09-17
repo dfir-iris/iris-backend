@@ -56,7 +56,7 @@ def tasks_delete(task: CaseTasks):
     track_activity(f'deleted task "{task.task_title}"')
 
 
-def tasks_create(task: CaseTasks, task_assignee_list) -> (str, CaseTasks):
+def tasks_create(task: CaseTasks, task_assignee_list) -> CaseTasks:
 
     ctask = add_task(task=task,
                      assignee_id_list=task_assignee_list,
@@ -68,7 +68,7 @@ def tasks_create(task: CaseTasks, task_assignee_list) -> (str, CaseTasks):
 
     if ctask:
         track_activity(f'added task "{ctask.task_title}"', caseid=task.task_case_id)
-        return f'Task "{ctask.task_title}" added', ctask
+        return ctask
     raise BusinessProcessingError('Unable to create task for internal reasons')
 
 
