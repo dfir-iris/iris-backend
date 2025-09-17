@@ -93,9 +93,7 @@ class IocsOperations:
             request_data = call_deprecated_on_preload_modules_hook('ioc_create', request.get_json(), case_identifier)
             request_data['case_id'] = case_identifier
 
-            # TODO should use the same schema as the one to dump
-            add_ioc_schema = IocSchema()
-            ioc = add_ioc_schema.load(request_data)
+            ioc = self._schema.load(request_data)
             ioc = iocs_create(ioc)
             result = self._schema.dump(ioc)
             return response_api_created(result)
