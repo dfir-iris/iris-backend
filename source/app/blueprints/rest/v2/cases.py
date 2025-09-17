@@ -46,7 +46,6 @@ from app.business.cases import cases_update
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
 from app.schema.marshables import CaseSchemaForAPIV2
-from app.schema.marshables import CaseSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -136,23 +135,22 @@ class CasesOperations:
 
             request_data = request.get_json()
 
+            customer_identifier = request_data.get('case_customer_id')
             # If user tries to update the customer, check if the user has access to the new customer
-            if request_data.get('case_customer') and request_data.get('case_customer') != case.client_id:
-                if not user_has_client_access(iris_current_user.id, request_data.get('case_customer')):
+            if customer_identifier and customer_identifier != case.client_id:
+                if not user_has_client_access(iris_current_user.id, customer_identifier):
                     raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
             if 'case_name' in request_data:
                 short_case_name = request_data.get('case_name').replace(f'#{case.case_id} - ', '')
                 request_data['case_name'] = f'#{case.case_id} - {short_case_name}'
-            request_data['case_customer'] = case.client_id if not request_data.get(
-                'case_customer') else request_data.get(
-                'case_customer')
-            request_data['reviewer_id'] = None if request_data.get('reviewer_id') == '' else request_data.get(
-                'reviewer_id')
+            if not customer_identifier:
+                request_data['case_customer_id'] = case.client_id
+            reviewer_identifier = request_data.get('reviewer_id')
+            if reviewer_identifier == '':
+                request_data['reviewer_id'] = None
 
-            # TODO should use self._schema!
-            add_case_schema = CaseSchema()
-            updated_case = add_case_schema.load(request_data, instance=case, partial=True)
+            updated_case = self._schema.load(request_data, instance=case, partial=True)
 
             protagonists = request_data.get('protagonists')
             tags = request_data.get('case_tags')
