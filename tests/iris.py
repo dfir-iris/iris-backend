@@ -99,7 +99,7 @@ class Iris:
         body = {
             'case_name': 'case name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }
         response = self._api.post('/api/v2/cases', body).json()
