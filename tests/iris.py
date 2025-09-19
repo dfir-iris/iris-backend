@@ -31,6 +31,7 @@ _IRIS_PATH = Path('..')
 _ADMINISTRATOR_USER_LOGIN = 'administrator'
 ADMINISTRATOR_USER_IDENTIFIER = 1
 _INITIAL_DEMO_CASE_IDENTIFIER = 1
+_IRIS_INITIAL_CUSTOMER_IDENTIFIER = 1
 
 IRIS_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 IRIS_PERMISSION_ALERTS_READ = 0x4
@@ -125,16 +126,22 @@ class Iris:
         for group in groups['data']:
             identifier = group['group_id']
             self.delete(f'/api/v2/manage/groups/{identifier}')
+        response = self.get('api/v2/alerts').json()
+        for alert in response['data']:
+            identifier = alert['alert_id']
+            self.delete(f'/api/v2/alerts/{identifier}')
         users = self.get('/manage/users/list').json()
         for user in users['data']:
             identifier = user['user_id']
             self.get(f'/manage/users/deactivate/{identifier}')
             self.delete(f'api/v2/manage/users/{identifier}')
             self.delete(f'/api/v2/manage/users/{identifier}')
-        response = self.get('api/v2/alerts').json()
-        for alert in response['data']:
-            identifier = alert['alert_id']
-            self.delete(f'/api/v2/alerts/{identifier}')
+        body = {'customers_membership': [_IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
+        self.create(f'/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}/customers/update', body)
+        customers = self.get('/manage/customers/list').json()
+        for customer in customers['data']:
+            identifier = customer['customer_id']
+            self.create(f'/manage/customers/delete/{identifier}', {})
 
     def extract_logs(self, service):
         return self._docker_compose.extract_logs(service)
