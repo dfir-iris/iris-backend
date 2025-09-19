@@ -444,3 +444,13 @@ class TestsRestUsers(TestCase):
     def test_delete_user_should_return_400_when_user_is_active(self):
         response = self._subject.delete(f'/api/v2/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}')
         self.assertEqual(400, response.status_code)
+
+    def test_delete_user_should_return_204_when_it_has_access_to_a_customer(self):
+        identifier = self._subject.create_dummy_user().get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+        customer_identifier = self._subject.create_dummy_customer()
+        body = {'customers_membership': [customer_identifier]}
+        self._subject.create(f'/manage/users/{identifier}/customers/update', body)
+
+        response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
+        self.assertEqual(204, response.status_code)

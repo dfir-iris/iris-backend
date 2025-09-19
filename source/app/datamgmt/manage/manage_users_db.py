@@ -683,6 +683,8 @@ def delete_user(user_id):
     UserGroup.query.filter(UserGroup.user_id == user_id).delete()
     UserCaseEffectiveAccess.query.filter(UserCaseEffectiveAccess.user_id == user_id).delete()
 
+    # TODO should rather do this with cascade?
+    UserClient.query.filter(UserClient.user_id == user_id).delete()
     User.query.filter(User.id == user_id).delete()
     db.session.commit()
 

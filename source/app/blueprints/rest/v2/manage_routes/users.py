@@ -52,7 +52,7 @@ class Users:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
-    def get(self, identifier):
+    def read(self, identifier):
 
         try:
             user = users_get(identifier)
@@ -81,10 +81,8 @@ class Users:
     def delete(self, identifier):
         try :
             user = users_get(identifier)
-
             if user.active:
                 return response_api_error('Cannot delete active user')
-
             users_delete(user)
             return response_api_deleted()
 
@@ -105,7 +103,7 @@ def create_user():
 @users_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
 def get_user(identifier):
-    return users.get(identifier)
+    return users.read(identifier)
 
 
 @users_blueprint.put('/<int:identifier>')
