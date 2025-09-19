@@ -92,10 +92,6 @@ class CommentsOperations:
         try:
             asset = self._get_asset(asset_identifier, [CaseAccessLevel.full_access])
             comment = comments_get_for_asset(asset, identifier)
-            from app.logger import logger
-            logger.exception('----------------------------------')
-            logger.exception(comment)
-            logger.exception(comment.comment_user_id)
             if comment.comment_user_id != iris_current_user.id:
                 return ac_api_return_access_denied()
 
