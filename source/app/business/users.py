@@ -28,6 +28,7 @@ from app.datamgmt.manage.manage_users_db import update_user
 from app.datamgmt.manage.manage_users_db import delete_user
 from app.datamgmt.manage.manage_users_db import get_user_organisations
 from app.datamgmt.manage.manage_users_db import get_user_primary_org
+from app.datamgmt.comments import user_has_comments
 from app.iris_engine.utils.tracker import track_activity
 
 
@@ -87,6 +88,8 @@ def users_update(user: User, user_password: str) -> User:
 def users_delete(user: User):
     if user.active:
         raise BusinessProcessingError('Cannot delete active user')
+    if user_has_comments(user):
+        raise BusinessProcessingError('Cannot delete user with associated comments')
     delete_user(user.id)
     track_activity(message=f'deleted user ID {user.id}', ctx_less=True)
 

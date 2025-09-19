@@ -459,9 +459,7 @@ class TestsRestUsers(TestCase):
         response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
         self.assertEqual(204, response.status_code)
 
-    # TODO
-    @skip
-    def test_delete_user_should_return_XXX_when_there_is_a_assets_comment_by_the_user(self):
+    def test_delete_user_should_return_400_when_there_is_assets_comment_by_the_user(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
@@ -479,11 +477,9 @@ class TestsRestUsers(TestCase):
 
         self._subject.update(f'/api/v2/manage/users/{user.get_identifier()}', {'user_active': False})
         response = self._subject.delete(f'/api/v2/manage/users/{user.get_identifier()}')
-        self.assertEqual(201, response.status_code)
+        self.assertEqual(400, response.status_code)
 
-    # TODO
-    @skip
-    def test_delete_user_should_return_XXX_when_there_is_a_alerts_comment_by_the_user(self):
+    def test_delete_user_should_return_400_when_there_is_alerts_comment_by_the_user(self):
         user = self._subject.create_dummy_user([IRIS_PERMISSION_SERVER_ADMINISTRATOR, IRIS_PERMISSION_ALERTS_WRITE])
 
         body = {
@@ -497,4 +493,4 @@ class TestsRestUsers(TestCase):
         user.create(f'/api/v2/alerts/{object_identifier}/comments', {})
         self._subject.update(f'/api/v2/manage/users/{user.get_identifier()}', {'user_active': False})
         response = self._subject.delete(f'/api/v2/manage/users/{user.get_identifier()}')
-        self.assertEqual(201, response.status_code)
+        self.assertEqual(400, response.status_code)

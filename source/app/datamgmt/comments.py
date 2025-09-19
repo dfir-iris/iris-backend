@@ -27,6 +27,7 @@ from app.models.comments import AssetComments
 from app.models.comments import EvidencesComments
 from app.models.comments import NotesComments
 from app.models.pagination_parameters import PaginationParameters
+from app.models.authorization import User
 
 
 def _get_filtered_comments(query, pagination_parameters: PaginationParameters) -> Pagination:
@@ -104,3 +105,8 @@ def get_filtered_event_comments(event_identifier, pagination_parameters: Paginat
 def delete_comment(comment: Comments):
     db.session.delete(comment)
     db.session.commit()
+
+
+def user_has_comments(user: User):
+    comment = Comments.query.filter(Comments.comment_user_id == user.id).first()
+    return comment is not None
