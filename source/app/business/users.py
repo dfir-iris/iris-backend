@@ -85,6 +85,8 @@ def users_update(user: User, user_password: str) -> User:
 
 
 def users_delete(user: User):
+    if user.active:
+        raise BusinessProcessingError('Cannot delete active user')
     delete_user(user.id)
     track_activity(message=f'deleted user ID {user.id}', ctx_less=True)
 

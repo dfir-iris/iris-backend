@@ -28,7 +28,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
-from app.business.errors import ObjectNotFoundError
+from app.business.errors import ObjectNotFoundError, BusinessProcessingError
 from app.business.users import users_create
 from app.business.users import users_get
 from app.business.users import users_update
@@ -81,13 +81,13 @@ class Users:
     def delete(self, identifier):
         try :
             user = users_get(identifier)
-            if user.active:
-                return response_api_error('Cannot delete active user')
             users_delete(user)
             return response_api_deleted()
 
         except ObjectNotFoundError:
             return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
 
 users = Users()
