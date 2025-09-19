@@ -26,10 +26,13 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_deleted
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.comments import comments_get_filtered_by_asset
 from app.business.comments import comments_create_for_asset
 from app.business.comments import comments_get_for_asset
+from app.business.comments import comments_delete_for_asset
 from app.business.assets import assets_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
@@ -85,6 +88,22 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def delete(self, asset_identifier, identifier):
+        try:
+            asset = self._get_asset(asset_identifier, [CaseAccessLevel.full_access])
+            comment = comments_get_for_asset(asset, identifier)
+            from app.logger import logger
+            logger.exception('----------------------------------')
+            logger.exception(comment)
+            logger.exception(comment.comment_user_id)
+            if comment.comment_user_id != iris_current_user.id:
+                return ac_api_return_access_denied()
+
+            comments_delete_for_asset(asset, comment)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 assets_comments_blueprint = Blueprint('assets_comments', __name__, url_prefix='/<int:asset_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -106,3 +125,9 @@ def create_assets_comment(asset_identifier):
 @ac_api_requires()
 def get_assets_comment(asset_identifier, identifier):
     return comments_operations.read(asset_identifier, identifier)
+
+
+@assets_comments_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_alerts_comment(asset_identifier, identifier):
+    return comments_operations.delete(asset_identifier, identifier)

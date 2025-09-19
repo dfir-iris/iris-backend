@@ -37,7 +37,7 @@ from app.business.comments import comments_delete_for_alert
 from app.business.comments import comments_get_for_alert
 from app.business.alerts import alerts_get
 from app.iris_engine.access_control.iris_user import iris_current_user
-from app.business.errors import ObjectNotFoundError, BusinessProcessingError
+from app.business.errors import ObjectNotFoundError
 
 
 class CommentsOperations:
@@ -84,12 +84,8 @@ class CommentsOperations:
 
             comments_delete_for_alert(comment)
             return response_api_deleted()
-        except ValidationError as e:
-            return response_api_error('Data error', data=e.normalized_messages())
         except ObjectNotFoundError:
             return response_api_not_found()
-        except BusinessProcessingError as e:
-            return response_api_error(e.get_message(), data=e.get_data())
 
 
 alerts_comments_blueprint = Blueprint('alerts_comments', __name__, url_prefix='/<int:alert_identifier>/comments')

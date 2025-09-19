@@ -408,11 +408,11 @@ def case_comment_asset_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_delete(cur_id, com_id, caseid):
-    success, msg = delete_asset_comment(cur_id, com_id, caseid)
+    success, msg = delete_asset_comment(cur_id, com_id)
     if not success:
         return response_error(msg)
 
     call_modules_hook('on_postload_asset_comment_delete', data=com_id, caseid=caseid)
 
-    track_activity(f"comment {com_id} on asset {cur_id} deleted", caseid=caseid)
+    track_activity(f'comment {com_id} on asset {cur_id} deleted', caseid=caseid)
     return response_success(msg)
