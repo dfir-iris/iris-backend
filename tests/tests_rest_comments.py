@@ -19,7 +19,9 @@
 from unittest import TestCase
 from iris import Iris
 from iris import ADMINISTRATOR_USER_IDENTIFIER
+from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
 from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_PERMISSION_ALERTS_WRITE
 from iris import IRIS_CASE_ACCESS_LEVEL_READ_ONLY
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
@@ -569,3 +571,48 @@ class TestsRestComments(TestCase):
         identifier = response['comment_id']
         response = self._subject.get(f'/api/v2/events/{object_identifier}/comments/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_delete_alerts_comment_should_return_204(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.delete(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_get_alerts_comment_should_return_404_when_deleted(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        self._subject.delete(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_alerts_comment_should_return_403_when_comment_was_created_by_another_user(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_SERVER_ADMINISTRATOR, IRIS_PERMISSION_ALERTS_WRITE])
+
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = user.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = user.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.delete(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        self.assertEqual(403, response.status_code)

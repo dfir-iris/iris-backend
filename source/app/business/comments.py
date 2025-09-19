@@ -33,6 +33,7 @@ from app.datamgmt.comments import get_filtered_ioc_comments
 from app.datamgmt.comments import get_filtered_note_comments
 from app.datamgmt.comments import get_filtered_task_comments
 from app.datamgmt.comments import get_filtered_event_comments
+from app.datamgmt.comments import delete_comment
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
@@ -286,3 +287,10 @@ def comments_get_for_event(event: CasesEvent, identifier) -> Comments:
     if comment is None:
         raise ObjectNotFoundError
     return comment
+
+
+def comments_delete_for_alert(comment: Comments):
+    delete_comment(comment)
+
+    call_modules_hook('on_postload_alert_comment_delete', comment.comment_id)
+    track_activity(f'comment {comment.comment_id} on alert {comment.comment_alert_id} deleted', ctx_less=True)

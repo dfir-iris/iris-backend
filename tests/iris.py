@@ -78,8 +78,13 @@ class Iris:
         user = self._api.post('/manage/users/add', body).json()
         return User(API_URL, user_name, user['data']['user_api_key'], user['data']['id'])
 
-    def create_dummy_user(self):
-        return self.create_user(f'user{uuid4()}', 'aA.1234567890')
+    def create_dummy_user(self, permissions = None):
+        user = self.create_user(f'user{uuid4()}', 'aA.1234567890')
+        if permissions:
+            group_identifier = self.create_dummy_group(permissions)
+            body = {'groups_membership': [group_identifier]}
+            self.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
+        return user
 
     def create_dummy_group(self, permissions):
         group_name = f'group{uuid4()}'

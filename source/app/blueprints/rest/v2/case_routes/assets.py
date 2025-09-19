@@ -56,7 +56,7 @@ class AssetsOperations:
             raise ObjectNotFoundError
         return asset
 
-    def list(self, case_identifier):
+    def search(self, case_identifier):
         if not ac_fast_check_current_user_has_case_access(case_identifier,
                                                           [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=case_identifier)
@@ -97,7 +97,7 @@ class AssetsOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 
-    def get(self, case_identifier, identifier):
+    def read(self, case_identifier, identifier):
         try:
             asset = self._get_asset_in_case(identifier, case_identifier)
 
@@ -140,7 +140,6 @@ class AssetsOperations:
         try:
             asset = self._get_asset_in_case(identifier, case_identifier)
 
-            # perform authz check
             if not ac_fast_check_current_user_has_case_access(asset.case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=asset.case_id)
 
@@ -161,7 +160,7 @@ case_assets_blueprint = Blueprint('case_assets',
 @case_assets_blueprint.get('')
 @ac_api_requires()
 def case_list_assets(case_identifier):
-    return assets_operations.list(case_identifier)
+    return assets_operations.search(case_identifier)
 
 
 @case_assets_blueprint.post('')
@@ -173,7 +172,7 @@ def add_asset(case_identifier):
 @case_assets_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_asset(case_identifier, identifier):
-    return assets_operations.get(case_identifier, identifier)
+    return assets_operations.read(case_identifier, identifier)
 
 
 @case_assets_blueprint.put('/<int:identifier>')
