@@ -185,7 +185,7 @@ jobs:
           PYTHONUNBUFFERED=true python -m unittest --verbose
       - name: Check the absence of errors/stack traces in logs
         run: |
-          docker compose logs app | grep Traceback -A100 test.log && exit 1
+          docker compose logs app | grep Traceback -A100 && exit 1
       - name: Stop development server
         if: ${{ always() }}
         run: |
