@@ -17,7 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
-from unittest import skip
 from iris import Iris
 from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
