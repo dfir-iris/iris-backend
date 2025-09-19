@@ -17,8 +17,12 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from unittest import TestCase
+from unittest import skip
 from iris import Iris
 from iris import ADMINISTRATOR_USER_IDENTIFIER
+from iris import IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
+from iris import IRIS_PERMISSION_ALERTS_WRITE
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -454,3 +458,43 @@ class TestsRestUsers(TestCase):
 
         response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    # TODO
+    @skip
+    def test_delete_user_should_return_XXX_when_there_is_a_assets_comment_by_the_user(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        user = self._subject.create_dummy_user()
+        user_identifier = user.get_identifier()
+        body = {
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS,
+            'cases_list': [case_identifier]
+        }
+        self._subject.create(f'/manage/users/{user_identifier}/cases-access/update', body)
+
+        user.create(f'/api/v2/assets/{object_identifier}/comments', {})
+
+        self._subject.update(f'/api/v2/manage/users/{user.get_identifier()}', {'user_active': False})
+        response = self._subject.delete(f'/api/v2/manage/users/{user.get_identifier()}')
+        self.assertEqual(201, response.status_code)
+
+    # TODO
+    @skip
+    def test_delete_user_should_return_XXX_when_there_is_a_alerts_comment_by_the_user(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_SERVER_ADMINISTRATOR, IRIS_PERMISSION_ALERTS_WRITE])
+
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = user.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        user.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        self._subject.update(f'/api/v2/manage/users/{user.get_identifier()}', {'user_active': False})
+        response = self._subject.delete(f'/api/v2/manage/users/{user.get_identifier()}')
+        self.assertEqual(201, response.status_code)
