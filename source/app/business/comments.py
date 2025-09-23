@@ -47,6 +47,7 @@ from app.datamgmt.case.case_notes_db import get_case_note_comment
 from app.datamgmt.case.case_tasks_db import get_case_task_comment
 from app.datamgmt.case.case_events_db import get_case_event_comment
 from app.datamgmt.case.case_assets_db import delete_asset_comment
+from app.datamgmt.case.case_rfiles_db import delete_evidence_comment
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
@@ -302,3 +303,10 @@ def comments_delete_for_asset(asset: CaseAssets, comment: Comments):
 
     call_modules_hook('on_postload_asset_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on asset {asset.asset_id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_evidence(evidence: CaseReceivedFile, comment: Comments):
+    delete_evidence_comment(evidence.id, comment.comment_id)
+
+    call_modules_hook('on_postload_evidence_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on evidence {evidence.id} deleted', caseid=comment.comment_case_id)
