@@ -50,6 +50,7 @@ from app.datamgmt.case.case_assets_db import delete_asset_comment
 from app.datamgmt.case.case_rfiles_db import delete_evidence_comment
 from app.datamgmt.case.case_iocs_db import delete_ioc_comment
 from app.datamgmt.case.case_notes_db import delete_note_comment
+from app.datamgmt.case.case_tasks_db import delete_task_comment
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
@@ -326,3 +327,10 @@ def comments_delete_for_note(note: Notes, comment: Comments):
 
     call_modules_hook('on_postload_note_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on note {note.note_id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_task(task: CaseTasks, comment: Comments):
+    delete_task_comment(task.id, comment.comment_id)
+
+    call_modules_hook('on_postload_task_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on task {task.id} deleted', caseid=comment.comment_case_id)
