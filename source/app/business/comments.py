@@ -321,8 +321,6 @@ def comments_delete_for_ioc(ioc: Ioc, comment: Comments):
     track_activity(f'comment {comment.comment_id} on ioc {ioc.ioc_id} deleted', caseid=comment.comment_case_id)
 
 
-
-
 def comments_delete_for_note(note: Notes, comment: Comments):
     delete_note_comment(note.note_id, comment.comment_id)
 

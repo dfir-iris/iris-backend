@@ -650,7 +650,6 @@ class TestsRestComments(TestCase):
         response = self._subject.delete(f'/api/v2/iocs/{object_identifier}/comments/{identifier}')
         self.assertEqual(204, response.status_code)
 
-
     def test_delete_notes_comment_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
