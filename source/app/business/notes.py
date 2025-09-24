@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -111,6 +112,10 @@ def notes_update(note: Notes):
         track_activity(f'updated note "{note.note_title}"', caseid=note.note_case_id)
 
         return note
+
+    except IntegrityError as e:
+        logger.error(e)
+        raise BusinessProcessingError('Invalid values provided for update')
 
     except Exception as e:
         raise UnhandledBusinessError('Unexpected error server-side', str(e))
