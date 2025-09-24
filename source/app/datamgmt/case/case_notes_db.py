@@ -360,6 +360,8 @@ def get_case_note_comment(note_id, comment_id):
         Comments.comment_date,
         Comments.comment_update_date,
         Comments.comment_uuid,
+        Comments.comment_user_id,
+        Comments.comment_case_id,
         User.name,
         User.user
     ).join(
