@@ -42,6 +42,8 @@ IRIS_PERMISSION_CUSTOMERS_WRITE = 0x80
 IRIS_CASE_ACCESS_LEVEL_READ_ONLY = 0x2
 IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS = 0x4
 
+GROUP_ANALYSTS_IDENTIFIER = 2
+
 
 class Iris:
 
@@ -125,6 +127,8 @@ class Iris:
         groups = self.get('/manage/groups/list').json()
         for group in groups['data']:
             identifier = group['group_id']
+            if identifier == GROUP_ANALYSTS_IDENTIFIER:
+                continue
             self.delete(f'/api/v2/manage/groups/{identifier}')
         response = self.get('api/v2/alerts').json()
         for alert in response['data']:

@@ -41,6 +41,11 @@ def groups_get(identifier) -> Group:
     return group
 
 
+def groups_exist(identifier) -> bool:
+    group = get_group_details(identifier)
+    return group is not None
+
+
 def groups_update():
     update_group()
 

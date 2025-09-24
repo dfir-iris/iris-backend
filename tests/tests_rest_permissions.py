@@ -18,11 +18,11 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import GROUP_ANALYSTS_IDENTIFIER
 
 _INITIAL_DEMO_CASE_IDENTIFIER = 1
 _CASE_ACCESS_LEVEL_FULL_ACCESS = 4
-
-_GROUP_ANALYSTS_IDENTIFIER = 2
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
 
 class TestsRestPermissions(TestCase):
@@ -53,12 +53,20 @@ class TestsRestPermissions(TestCase):
         }
         self._subject.create(f'/manage/users/{user.get_identifier()}/cases-access/update', body)
         body = {
-            'groups_membership': [_GROUP_ANALYSTS_IDENTIFIER]
+            'groups_membership': [GROUP_ANALYSTS_IDENTIFIER]
         }
         self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
 
         response = user.delete(f'/api/v2/cases/{case_identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_update_user_group_which_does_not_exist_should_return_400(self):
+        user = self._subject.create_dummy_user()
+        body = {
+            'groups_membership': [_IDENTIFIER_FOR_NONEXISTENT_OBJECT]
+        }
+        response = self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
+        self.assertEqual(400, response.status_code)
 
     def test_create_ioc_should_return_403_when_user_has_insufficient_rights(self):
         case_identifier = self._subject.create_dummy_case()
