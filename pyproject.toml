@@ -1,5 +1,5 @@
 [tool.ruff.lint]
 preview = true
-select = ["E101", "E225", "E23", "E24", "E3", "E4", "E7", "E9", "F", "RET506", "UP032", "W29"]
+select = ["E101", "E225", "E23", "E24", "E3", "E4", "E7", "E9", "F", "PLR0402", "RET506", "UP032", "W29"]
 ignore = ["E402", "E711", "E712", "E721", "E722"]
 
