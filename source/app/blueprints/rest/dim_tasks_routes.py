@@ -37,7 +37,7 @@ from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
-from app.business.dim_tasks import asynchronous_tasks_search
+from app.business.asynchronous_tasks import asynchronous_tasks_search
 
 dim_tasks_rest_blueprint = Blueprint('dim_tasks_rest', __name__)
 
