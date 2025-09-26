@@ -17,9 +17,9 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from datetime import datetime
-from sqlalchemy.exc import IntegrityError
 
 from app import db
+from app.datamgmt.persistence_error import PersistenceError
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.logger import logger
 from app.business.errors import BusinessProcessingError
@@ -27,6 +27,7 @@ from app.business.errors import UnhandledBusinessError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.case.case_notes_db import get_note
 from app.datamgmt.case.case_notes_db import delete_note
+from app.datamgmt.case.case_notes_db import update_note_revision
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteRevisions
@@ -76,32 +77,8 @@ def notes_get(identifier) -> Notes:
 
 def notes_update(note: Notes):
     try:
-        latest_version = db.session.query(
-            NoteRevisions
-        ).filter_by(
-            note_id=note.note_id
-        ).order_by(
-            NoteRevisions.revision_number.desc()
-        ).first()
-        revision_number = 1 if latest_version is None else latest_version.revision_number + 1
-
-        no_changes = False
-        if revision_number > 1:
-            if latest_version.note_title == note.note_title and latest_version.note_content == note.note_content:
-                no_changes = True
-                logger.debug(f'Note {note.note_id} has not changed, skipping versioning')
-
-        if not no_changes:
-            note_version = NoteRevisions(
-                note_id=note.note_id,
-                revision_number=revision_number,
-                note_title=note.note_title,
-                note_content=note.note_content,
-                note_user=iris_current_user.id,
-                revision_timestamp=datetime.utcnow()
-            )
-            db.session.add(note_version)
-            db.session.commit()
+        if not update_note_revision(note):
+            logger.debug(f'Note {note.note_id} has not changed, skipping versioning')
 
         note.update_date = datetime.utcnow()
         note.user_id = iris_current_user.id
@@ -113,7 +90,7 @@ def notes_update(note: Notes):
 
         return note
 
-    except IntegrityError as e:
+    except PersistenceError as e:
         logger.error(e)
         raise BusinessProcessingError('Invalid values provided for update')
 

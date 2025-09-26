@@ -17,8 +17,11 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 from app import db
+from app.datamgmt.persistence_error import PersistenceError
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_notes_state
@@ -67,7 +70,7 @@ def delete_directory(directory: NoteDirectory):
     return False
 
 
-def get_note_raw(note_id, caseid):
+def get_note_raw(note_id, caseid) -> Notes:
     note = Notes.query.filter(
         Notes.note_case_id == caseid,
         Notes.note_id == note_id
@@ -127,6 +130,37 @@ def update_note(note_content, note_title, update_date, user_id, note_id, caseid)
 
     else:
         return None
+
+
+def update_note_revision(note: Notes) -> bool:
+    try:
+        latest_version = db.session.query(
+            NoteRevisions
+        ).filter_by(
+            note_id=note.note_id
+        ).order_by(
+            NoteRevisions.revision_number.desc()
+        ).first()
+        revision_number = 1 if latest_version is None else latest_version.revision_number + 1
+
+        if (revision_number > 1
+                and latest_version.note_title == note.note_title and latest_version.note_content == note.note_content):
+                return False
+
+        note_version = NoteRevisions(
+            note_id=note.note_id,
+            revision_number=revision_number,
+            note_title=note.note_title,
+            note_content=note.note_content,
+            note_user=iris_current_user.id,
+            revision_timestamp=datetime.utcnow()
+        )
+        db.session.add(note_version)
+        db.session.commit()
+
+        return True
+    except IntegrityError as e:
+        raise PersistenceError(e)
 
 
 def add_note(note_title, creation_date, user_id, caseid, directory_id, note_content=""):
