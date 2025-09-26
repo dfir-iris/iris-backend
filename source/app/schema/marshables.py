@@ -626,7 +626,7 @@ class AssetTypeSchema(ma.SQLAlchemyAutoSchema):
             AssetsType.asset_id != data.asset_id
         ).first()
         if client:
-            raise ValidationError("Asset type name already exists", field_name="asset_name")
+            raise ValidationError('Asset type name already exists', field_name='asset_name')
 
         return data
 
