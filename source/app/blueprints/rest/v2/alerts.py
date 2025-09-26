@@ -50,7 +50,7 @@ class AlertsOperations:
     def __init__(self):
         self._schema = AlertSchema()
 
-    def list(self):
+    def search(self):
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
 
@@ -218,7 +218,7 @@ alerts_operations = AlertsOperations()
 @alerts_blueprint.get('')
 @ac_api_requires(Permissions.alerts_read)
 def alerts_list_route() -> Response:
-    return alerts_operations.list()
+    return alerts_operations.search()
 
 
 @alerts_blueprint.post('')
