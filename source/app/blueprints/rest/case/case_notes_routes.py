@@ -341,7 +341,6 @@ def case_search_notes(caseid):
     return response_success(data=serialized_notes)
 
 
-
 @case_notes_rest_blueprint.route('/case/notes/groups/add', methods=['POST'])
 @endpoint_removed('Use /case/notes/directories/add', 'v2.4.0')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
