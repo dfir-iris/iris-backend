@@ -8,6 +8,13 @@ root_package = "app"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
+name = "Do not import the persistence layer from the API layer"
+type = "forbidden"
+source_modules = "app.blueprints.rest.v2.alerts"
+forbidden_modules = "app.datamgmt.alerts"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "Do not import sqlalchemy from the API layer"
 type = "forbidden"
 source_modules = ["app.blueprints.rest.search_routes", "app.blueprints.rest.dim_tasks_routes", "app.blueprints.rest.case.case_notes_routes", "app.blueprints.rest.case.case_routes"]
