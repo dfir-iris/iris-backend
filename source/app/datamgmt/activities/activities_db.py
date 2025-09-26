@@ -30,7 +30,7 @@ def get_auto_activities(caseid):
     caseid: the case from which to get activities
     """
     auto_activities = UserActivity.query.with_entities(
-        User.name.label("user_name"),
+        User.name.label('user_name'),
         UserActivity.activity_date,
         UserActivity.activity_desc,
         UserActivity.user_input
@@ -130,3 +130,21 @@ def get_all_users_activities():
     )).order_by(desc(UserActivity.activity_date)).limit(10000).all()
 
     return user_activities
+
+
+def search_users_activity_in_case(case_identifier):
+    ua = UserActivity.query.with_entities(
+        UserActivity.activity_date,
+        User.name,
+        UserActivity.activity_desc,
+        UserActivity.is_from_api
+    ).filter(and_(
+        UserActivity.case_id == case_identifier,
+        UserActivity.display_in_ui == True
+    )).join(
+        UserActivity.user
+    ).order_by(
+        desc(UserActivity.activity_date)
+    ).limit(40).all()
+
+    return [a._asdict() for a in ua]

@@ -22,8 +22,6 @@ import marshmallow
 import traceback
 from flask import Blueprint
 from flask import request
-from sqlalchemy import and_
-from sqlalchemy import desc
 
 from app import app
 from app import db
@@ -39,14 +37,13 @@ from app.datamgmt.manage.manage_groups_db import get_group_with_members
 from app.datamgmt.manage.manage_users_db import get_user
 from app.datamgmt.manage.manage_users_db import get_users_list_restricted_from_case
 from app.business.access_controls import set_user_case_access, ac_fast_check_user_has_case_access
+from app.business.activity import activity_search_in_case
 from app.business.cases import cases_export_to_json
 from app.iris_engine.access_control.utils import ac_set_case_access_for_users
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import CaseStatus
 from app.models.models import ReviewStatusList
-from app.models.models import UserActivity
 from app.models.authorization import CaseAccessLevel
-from app.models.authorization import User
 from app.schema.marshables import TaskLogSchema
 from app.schema.marshables import CaseSchema
 from app.schema.marshables import CaseDetailsSchema
@@ -111,21 +108,7 @@ def summary_fetch(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def activity_fetch(caseid):
-    ua = UserActivity.query.with_entities(
-        UserActivity.activity_date,
-        User.name,
-        UserActivity.activity_desc,
-        UserActivity.is_from_api
-    ).filter(and_(
-        UserActivity.case_id == caseid,
-        UserActivity.display_in_ui == True
-    )).join(
-        UserActivity.user
-    ).order_by(
-        desc(UserActivity.activity_date)
-    ).limit(40).all()
-
-    output = [a._asdict() for a in ua]
+    output = activity_search_in_case(caseid)
 
     return response_success('', data=output)
 
