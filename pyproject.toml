@@ -22,8 +22,16 @@ forbidden_modules = "sqlalchemy"
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "Do not import sqlalchemy from the business layer"
+name = "Do not import sqlalchemy from the business layer (1/2)"
 type = "forbidden"
 source_modules = "app.business.search"
 forbidden_modules = "sqlalchemy"
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Do not import sqlalchemy from the business layer (2/2)"
+type = "forbidden"
+source_modules = "app.business.asynchronous_tasks"
+forbidden_modules = "sqlalchemy"
+allow_indirect_imports = true
+

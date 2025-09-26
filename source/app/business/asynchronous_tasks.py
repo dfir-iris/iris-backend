@@ -18,10 +18,9 @@
 
 import json
 import pickle
-from sqlalchemy import desc
 
 from app import celery
-from app.models.models import CeleryTaskMeta
+from app.datamgmt.asynchronous_tasks import search_asynchronous_tasks
 from iris_interface.IrisInterfaceStatus import IIStatus
 
 
@@ -91,9 +90,7 @@ def dim_tasks_get(task_identifier):
 
 
 def asynchronous_tasks_search(count):
-    tasks = CeleryTaskMeta.query.filter(
-        ~ CeleryTaskMeta.name.like('app.iris_engine.updater.updater.%')
-    ).order_by(desc(CeleryTaskMeta.date_done)).limit(count).all()
+    tasks = search_asynchronous_tasks(count)
 
     data = []
 
