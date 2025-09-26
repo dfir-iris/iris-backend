@@ -25,15 +25,20 @@ from app.logger import logger
 from app.business.errors import BusinessProcessingError
 from app.business.errors import UnhandledBusinessError
 from app.business.errors import ObjectNotFoundError
+from app.datamgmt.case.case_notes_db import search_notes_in_case
 from app.datamgmt.case.case_notes_db import get_note
-from app.datamgmt.case.case_notes_db import delete_note
 from app.datamgmt.case.case_notes_db import update_note_revision
+from app.datamgmt.case.case_notes_db import delete_note
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteRevisions
 from app.models.models import Notes
 from app.models.authorization import User
 from app.util import add_obj_history_entry
+
+
+def notes_search(case_identifier, search_input):
+    return search_notes_in_case(case_identifier, search_input)
 
 
 def notes_create(note: Notes, case_identifier):

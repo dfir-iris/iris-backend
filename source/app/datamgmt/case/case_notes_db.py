@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from sqlalchemy import and_
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 
@@ -489,3 +490,12 @@ def search_notes(search_value):
     ).all()
 
     return [row._asdict() for row in notes]
+
+
+def search_notes_in_case(case_identifier, search_input):
+    notes = Notes.query.filter(
+        and_(Notes.note_case_id == case_identifier,
+             or_(Notes.note_title.ilike(f'%{search_input}%'),
+                 Notes.note_content.ilike(f'%{search_input}%')))
+    ).all()
+    return notes

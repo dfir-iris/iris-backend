@@ -20,8 +20,6 @@ from marshmallow import ValidationError
 from datetime import datetime
 from flask import Blueprint
 from flask import request
-from sqlalchemy import or_
-from sqlalchemy import and_
 
 from app import db
 from app import app
@@ -48,7 +46,7 @@ from app.datamgmt.case.case_notes_db import get_note
 from app.datamgmt.states import get_notes_state
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.models.models import Notes
+from app.business.notes import notes_search
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.schema.marshables import CaseNoteRevisionSchema
@@ -335,16 +333,13 @@ def case_notes_state(caseid):
 def case_search_notes(caseid):
     search_input = request.args.get('search_input')
 
-    notes = Notes.query.filter(
-        and_(Notes.note_case_id == caseid,
-             or_(Notes.note_title.ilike(f'%{search_input}%'),
-                 Notes.note_content.ilike(f'%{search_input}%')))
-    ).all()
+    notes = notes_search(caseid, search_input)
 
     note_schema = CaseNoteSchema(many=True)
     serialized_notes = note_schema.dump(notes)
 
     return response_success(data=serialized_notes)
+
 
 
 @case_notes_rest_blueprint.route('/case/notes/groups/add', methods=['POST'])
