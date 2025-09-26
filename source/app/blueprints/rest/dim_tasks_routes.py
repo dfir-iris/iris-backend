@@ -18,12 +18,8 @@
 
 from flask import Blueprint
 from flask import request
-import json
-import pickle
-from sqlalchemy import desc
 
 from app.iris_engine.module_handler.module_handler import call_modules_hook
-from app.models.models import CeleryTaskMeta
 from app.models.models import IrisHook
 from app.models.models import IrisModule
 from app.models.models import IrisModuleHook
@@ -41,7 +37,7 @@ from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
-from iris_interface.IrisInterfaceStatus import IIStatus
+from app.business.dim_tasks import asynchronous_tasks_search
 
 dim_tasks_rest_blueprint = Blueprint('dim_tasks_rest', __name__)
 
@@ -176,55 +172,6 @@ def list_dim_hook_options_ioc(hook_type):
 @dim_tasks_rest_blueprint.route('/dim/tasks/list/<int:count>', methods=['GET'])
 @ac_api_requires()
 def list_dim_tasks(count):
-    tasks = CeleryTaskMeta.query.filter(
-        ~ CeleryTaskMeta.name.like('app.iris_engine.updater.updater.%')
-    ).order_by(desc(CeleryTaskMeta.date_done)).limit(count).all()
+    data = asynchronous_tasks_search(count)
 
-    data = []
-
-    for row in tasks:
-
-        tkp = {'state': row.status, 'case': "Unknown", 'module': row.name, 'task_id': row.task_id, 'date_done': row.date_done, 'user': "Unknown"}
-
-        try:
-            _ = row.result
-        except AttributeError:
-            # Legacy task
-            data.append(tkp)
-            continue
-
-        if row.name is not None and 'task_hook_wrapper' in row.name:
-            task_name = f"{row.kwargs}::{row.kwargs}"
-        else:
-            task_name = row.name
-
-        user = None
-        case_name = None
-        if row.kwargs and row.kwargs != b'{}':
-            kwargs = json.loads(row.kwargs.decode('utf-8'))
-            if kwargs:
-                user = kwargs.get('init_user')
-                case_name = f"Case #{kwargs.get('caseid')}"
-                task_name = f"{kwargs.get('module_name')}::{kwargs.get('hook_name')}"
-
-        try:
-            result = pickle.loads(row.result)
-        except:
-            result = None
-
-        if isinstance(result, IIStatus):
-            try:
-                success = result.is_success()
-            except:
-                success = None
-        else:
-            success = None
-
-        tkp['state'] = "success" if success else str(row.result)
-        tkp['user'] = user if user else "Shadow Iris"
-        tkp['module'] = task_name
-        tkp['case'] = case_name if case_name else ""
-
-        data.append(tkp)
-
-    return response_success("", data=data)
+    return response_success('', data=data)
