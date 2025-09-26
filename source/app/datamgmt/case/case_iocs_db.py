@@ -305,7 +305,6 @@ def get_filtered_iocs(
     return get_filtered_data(Ioc, base_filter, pagination_parameters, request_parameters, relationship_model_map)
 
 
-
 def search_iocs(search_value):
     search_condition = and_()
     res = Ioc.query.with_entities(
