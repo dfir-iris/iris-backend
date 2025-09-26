@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from sqlalchemy import and_
+from sqlalchemy import and_
 
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -28,6 +29,8 @@ from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.authorization import User
+from app.models.cases import Cases
+from app.models.models import Client
 
 
 def get_note(note_id):
@@ -431,3 +434,24 @@ def get_directory_with_note_count(directory):
             directory_dict['subdirectories'].append(get_directory_with_note_count(subdirectory))
 
     return directory_dict
+
+
+def search_notes(search_value):
+    search_condition = and_()
+    notes = Notes.query.filter(
+        Notes.note_content.like(f'%{search_value}%'),
+        Cases.client_id == Client.client_id,
+        search_condition
+    ).with_entities(
+        Notes.note_id,
+        Notes.note_title,
+        Cases.name.label('case_name'),
+        Client.name.label('client_name'),
+        Cases.case_id
+    ).join(
+        Notes.case
+    ).order_by(
+        Client.name
+    ).all()
+
+    return [row._asdict() for row in notes]

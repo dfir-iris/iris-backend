@@ -304,3 +304,28 @@ def get_filtered_iocs(
     base_filter = Ioc.case_id == caseid if caseid is not None else None
     return get_filtered_data(Ioc, base_filter, pagination_parameters, request_parameters, relationship_model_map)
 
+
+
+def search_iocs(search_value):
+    search_condition = and_()
+    res = Ioc.query.with_entities(
+        Ioc.ioc_value.label('ioc_name'),
+        Ioc.ioc_description.label('ioc_description'),
+        Ioc.ioc_misp,
+        IocType.type_name,
+        Tlp.tlp_name,
+        Tlp.tlp_bscolor,
+        Cases.name.label('case_name'),
+        Cases.case_id,
+        Client.name.label('customer_name')
+    ).filter(
+        and_(
+            Ioc.ioc_value.like(search_value),
+            Ioc.case_id == Cases.case_id,
+            Client.client_id == Cases.client_id,
+            Ioc.ioc_tlp_id == Tlp.tlp_id,
+            search_condition
+        )
+    ).join(Ioc.ioc_type).all()
+
+    return [row._asdict() for row in res]

@@ -8,8 +8,15 @@ root_package = "app"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "Do not import sqlalchemy from API layer"
+name = "Do not import sqlalchemy from the API layer"
 type = "forbidden"
 source_modules = "app.blueprints.rest.search_routes"
+forbidden_modules = "sqlalchemy"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Do not import sqlalchemy from the business layer"
+type = "forbidden"
+source_modules = "app.business.search"
 forbidden_modules = "sqlalchemy"
 allow_indirect_imports = true
