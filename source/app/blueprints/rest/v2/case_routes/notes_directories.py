@@ -36,6 +36,9 @@ from app.business.notes_directories import notes_directories_update
 from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
+from app.datamgmt.case.case_db import get_case
+from app.datamgmt.case.case_notes_db import get_directories_with_note_count
+from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 
 
@@ -53,6 +56,16 @@ class NotesDirectories:
 
     def _load(self, request_data, **kwargs):
         return self._schema.load(request_data, **kwargs)
+
+    def search(self, case_identifier):
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(case_identifier)
+
+        if not get_case(case_identifier):
+            return response_api_error('Invalid case ID')
+
+        directories = get_directories_with_note_count(case_identifier)
+        return response_api_success(directories)
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -155,3 +168,9 @@ def update_note_directory(case_identifier, identifier):
 @ac_api_requires()
 def delete_note_directory(case_identifier, identifier):
     return notes_directories.delete(case_identifier, identifier)
+
+
+@case_notes_directories_blueprint.get('')
+@ac_api_requires()
+def get_note_directory_filter(case_identifier):
+    return notes_directories.get(case_identifier)

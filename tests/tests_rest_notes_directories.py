@@ -252,3 +252,28 @@ class TestsRestNotesDirectories(TestCase):
         user = self._subject.create_dummy_user()
         response = user.delete(f'/api/v2/cases/{case_identifier}/notes-directories/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_get_notes_directories_filter_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories')
+        self.assertEqual(200, response.status_code)
+
+    def test_get_notes_directories_filter_should_return_directory_name(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories').json()
+        self.assertEqual('directory_name', response[0]['name'])
+
+    def test_get_notes_directories_should_return_403_when_user_has_no_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/cases/{case_identifier}/notes-directories')
+        self.assertEqual(403, response.status_code)
