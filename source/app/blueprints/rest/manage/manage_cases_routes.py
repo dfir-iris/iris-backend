@@ -38,7 +38,7 @@ from app.datamgmt.manage.manage_cases_db import close_case, map_alert_resolution
 from app.datamgmt.manage.manage_cases_db import get_case_details_rt
 from app.datamgmt.manage.manage_cases_db import list_cases_dict
 from app.datamgmt.manage.manage_cases_db import reopen_case
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.module_handler.module_handler import configure_module_on_init
 from app.iris_engine.module_handler.module_handler import instantiate_module_from_name

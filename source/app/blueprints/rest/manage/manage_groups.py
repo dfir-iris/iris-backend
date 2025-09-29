@@ -37,10 +37,9 @@ from app.datamgmt.manage.manage_groups_db import remove_user_from_group
 from app.datamgmt.manage.manage_groups_db import update_group_members
 from app.datamgmt.manage.manage_users_db import get_user
 from app.iris_engine.access_control.utils import ac_ldp_group_removal
-from app.iris_engine.access_control.utils import ac_flag_match_mask
 from app.iris_engine.access_control.utils import ac_ldp_group_update
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac_from_users_list
-from app.models.authorization import Permissions
+from app.models.authorization import Permissions, ac_flag_match_mask
 from app.schema.marshables import AuthorizationGroupSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied

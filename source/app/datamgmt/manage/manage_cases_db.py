@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
@@ -56,6 +57,7 @@ from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.models import UserActivity
 from app.models.alerts import AlertCaseAssociation
+from app.models.comments import Comments, IocComments, AssetComments
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
 from app.models.authorization import OrganisationCaseAccess
@@ -67,6 +69,10 @@ from app.models.cases import CaseProtagonist
 from app.models.cases import CaseTags
 from app.models.cases import CaseState
 from app.models.pagination_parameters import PaginationParameters
+from app.datamgmt.case.case_rfiles_db import delete_evidences_comments_in_case
+from app.datamgmt.case.case_notes_db import delete_notes_comments_in_case
+from app.datamgmt.case.case_tasks_db import delete_tasks_comments_in_case
+from app.datamgmt.case.case_events_db import delete_events_comments_in_case
 
 
 def list_cases_id():
@@ -314,14 +320,98 @@ def get_case_details_rt(case_id):
     return res
 
 
+def _delete_iocs(case_identifier):
+    # TODO should do this with the 2.0 SQLAlchemy API
+    # TODO maybe this can be performed automatically with cascades
+    com_ids = IocComments.query.with_entities(
+        IocComments.comment_id
+    ).join(
+        Ioc
+    ).filter(
+        IocComments.comment_ioc_id == Ioc.ioc_id,
+        Ioc.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    IocComments.query.filter(IocComments.comment_id.in_(com_ids)).delete()
+
+    Comments.query.filter(
+        Comments.comment_id.in_(com_ids)
+    ).delete()
+    Ioc.query.filter(Ioc.case_id == case_identifier).delete()
+
+
+def _delete_assets(case_identifier):
+    com_ids = AssetComments.query.with_entities(
+        AssetComments.comment_id
+    ).join(CaseAssets).filter(
+        AssetComments.comment_asset_id == CaseAssets.asset_id,
+        CaseAssets.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    AssetComments.query.filter(AssetComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
+
+    CaseAssetsAlias = aliased(CaseAssets)
+
+    # Query for CaseAssets that are not referenced in alerts and match the case_id
+    assets_to_delete = db.session.query(CaseAssets).filter(
+        and_(
+            CaseAssets.case_id == case_identifier,
+            ~db.session.query(alert_assets_association).filter(
+                alert_assets_association.c.asset_id == CaseAssetsAlias.asset_id
+            ).exists()
+        )
+    )
+    # Delete the assets
+    assets_to_delete.delete(synchronize_session='fetch')
+
+
+def _delete_evidences(case_identifier):
+    delete_evidences_comments_in_case(case_identifier)
+    CaseReceivedFile.query.filter(CaseReceivedFile.case_id == case_identifier).delete()
+
+
+def _delete_notes(case_identifier):
+    delete_notes_comments_in_case(case_identifier)
+    # Legacy code
+    NotesGroupLink.query.filter(NotesGroupLink.case_id == case_identifier).delete()
+    NotesGroup.query.filter(NotesGroup.group_case_id == case_identifier).delete()
+    NoteRevisions.query.filter(
+        and_(
+            Notes.note_case_id == case_identifier,
+            NoteRevisions.note_id == Notes.note_id
+        )
+    ).delete()
+    Notes.query.filter(Notes.note_case_id == case_identifier).delete()
+    NoteDirectory.query.filter(NoteDirectory.case_id == case_identifier).delete()
+
+
+def _delete_tasks(case_identifier):
+    delete_tasks_comments_in_case(case_identifier)
+    tasks = CaseTasks.query.filter(CaseTasks.task_case_id == case_identifier).all()
+    for task in tasks:
+        TaskAssignee.query.filter(TaskAssignee.task_id == task.id).delete()
+        CaseTasks.query.filter(CaseTasks.id == task.id).delete()
+
+
+def _delete_events(case_identifier):
+    delete_events_comments_in_case(case_identifier)
+    da = CasesEvent.query.with_entities(CasesEvent.event_id).filter(CasesEvent.case_id == case_identifier).all()
+    for event in da:
+        CaseEventCategory.query.filter(CaseEventCategory.event_id == event.event_id).delete()
+    CasesEvent.query.filter(CasesEvent.case_id == case_identifier).delete()
+
+
 def delete_case(case_id):
     if not Cases.query.filter(Cases.case_id == case_id).first():
         return False
 
     delete_case_states(caseid=case_id)
     UserActivity.query.filter(UserActivity.case_id == case_id).delete()
-    CaseReceivedFile.query.filter(CaseReceivedFile.case_id == case_id).delete()
-    Ioc.query.filter(Ioc.case_id == case_id).delete()
+    _delete_evidences(case_id)
+    _delete_iocs(case_id)
 
     CaseTags.query.filter(CaseTags.case_id == case_id).delete()
     CaseProtagonist.query.filter(CaseProtagonist.case_id == case_id).delete()
@@ -347,20 +437,7 @@ def delete_case(case_id):
     CaseEventsAssets.query.filter(CaseEventsAssets.case_id == case_id).delete()
     CaseEventsIoc.query.filter(CaseEventsIoc.case_id == case_id).delete()
 
-    CaseAssetsAlias = aliased(CaseAssets)
-
-    # Query for CaseAssets that are not referenced in alerts and match the case_id
-    assets_to_delete = db.session.query(CaseAssets).filter(
-        and_(
-            CaseAssets.case_id == case_id,
-            ~db.session.query(alert_assets_association).filter(
-                alert_assets_association.c.asset_id == CaseAssetsAlias.asset_id
-            ).exists()
-        )
-    )
-
-    # Delete the assets
-    assets_to_delete.delete(synchronize_session='fetch')
+    _delete_assets(case_id)
 
     # Get all alerts associated with assets in the case
     alerts_to_update = db.session.query(CaseAssets).filter(CaseAssets.case_id == case_id)
@@ -369,30 +446,10 @@ def delete_case(case_id):
     alerts_to_update.update({CaseAssets.case_id: None}, synchronize_session='fetch')
     db.session.commit()
 
-    # Legacy code
-    NotesGroupLink.query.filter(NotesGroupLink.case_id == case_id).delete()
-    NotesGroup.query.filter(NotesGroup.group_case_id == case_id).delete()
+    _delete_notes(case_id)
+    _delete_tasks(case_id)
 
-    NoteRevisions.query.filter(
-        and_(
-            Notes.note_case_id == case_id,
-            NoteRevisions.note_id == Notes.note_id
-        )
-    ).delete()
-
-    Notes.query.filter(Notes.note_case_id == case_id).delete()
-    NoteDirectory.query.filter(NoteDirectory.case_id == case_id).delete()
-
-    tasks = CaseTasks.query.filter(CaseTasks.task_case_id == case_id).all()
-    for task in tasks:
-        TaskAssignee.query.filter(TaskAssignee.task_id == task.id).delete()
-        CaseTasks.query.filter(CaseTasks.id == task.id).delete()
-
-    da = CasesEvent.query.with_entities(CasesEvent.event_id).filter(CasesEvent.case_id == case_id).all()
-    for event in da:
-        CaseEventCategory.query.filter(CaseEventCategory.event_id == event.event_id).delete()
-
-    CasesEvent.query.filter(CasesEvent.case_id == case_id).delete()
+    _delete_events(case_id)
 
     UserCaseAccess.query.filter(UserCaseAccess.case_id == case_id).delete()
     UserCaseEffectiveAccess.query.filter(UserCaseEffectiveAccess.case_id == case_id).delete()

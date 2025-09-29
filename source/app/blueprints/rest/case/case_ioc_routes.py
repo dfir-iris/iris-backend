@@ -45,7 +45,7 @@ from app.datamgmt.case.case_iocs_db import get_ioc_type_id
 from app.datamgmt.case.case_iocs_db import get_tlps_dict
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import get_ioc_state
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
@@ -259,6 +259,7 @@ def case_comment_ioc_list(cur_id, caseid):
 
 
 @case_ioc_rest_blueprint.route('/case/ioc/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/iocs/{ioc_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_add(cur_id, caseid):

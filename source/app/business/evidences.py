@@ -47,7 +47,7 @@ def evidences_create(case_identifier, request_json) -> CaseReceivedFile:
 
     evidence = _load(request_data)
 
-    crf = add_rfile(evidence=evidence, user_id=iris_current_user.id, caseid=case_identifier)
+    crf = add_rfile(evidence, case_identifier, iris_current_user.id)
 
     crf = call_modules_hook('on_postload_evidence_create', data=crf, caseid=case_identifier)
     if not crf:

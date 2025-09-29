@@ -35,7 +35,7 @@ from app.business.iocs import iocs_get
 from app.business.iocs import iocs_delete
 from app.business.iocs import iocs_update
 from app.datamgmt.case.case_iocs_db import get_filtered_iocs
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import IocSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_return_access_denied

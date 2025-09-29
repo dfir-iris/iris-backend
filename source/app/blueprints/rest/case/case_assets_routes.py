@@ -47,7 +47,7 @@ from app.datamgmt.case.case_db import get_case_client_id
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.manage.manage_users_db import get_user_cases_fast
 from app.datamgmt.states import get_assets_state
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import AnalysisStatus
@@ -349,6 +349,7 @@ def case_comment_asset_list(cur_id, caseid):
 
 
 @case_assets_rest_blueprint.route('/case/assets/<int:cur_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/assets/{asset_identifier}/comments')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_add(cur_id, caseid):

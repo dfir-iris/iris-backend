@@ -25,8 +25,7 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_evidences_state
 from app.models.models import CaseReceivedFile
-from app.models.models import Comments
-from app.models.models import EvidencesComments
+from app.models.comments import Comments, EvidencesComments
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.conversions import convert_sort_direction
@@ -60,7 +59,7 @@ def get_paginated_evidences(case_identifier, pagination_parameters: PaginationPa
     )
 
 
-def add_rfile(evidence, caseid, user_id):
+def add_rfile(evidence: CaseReceivedFile, caseid, user_id):
 
     evidence.date_added = datetime.datetime.now()
     evidence.case_id = caseid
@@ -108,6 +107,19 @@ def delete_rfile(evidence: CaseReceivedFile):
         update_evidences_state(caseid=evidence.case_id)
 
         db.session.commit()
+
+
+def delete_evidences_comments_in_case(case_identifier):
+    com_ids = EvidencesComments.query.with_entities(
+        EvidencesComments.comment_id
+    ).join(CaseReceivedFile).filter(
+        EvidencesComments.comment_evidence_id == CaseReceivedFile.id,
+        CaseReceivedFile.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    EvidencesComments.query.filter(EvidencesComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
 
 def get_case_evidence_comments(evidence_id):

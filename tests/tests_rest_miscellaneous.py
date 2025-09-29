@@ -19,8 +19,6 @@
 from unittest import TestCase
 from iris import Iris
 
-from time import sleep
-
 
 class TestsRestMiscellaneous(TestCase):
 
@@ -72,25 +70,11 @@ class TestsRestMiscellaneous(TestCase):
     #        since, by then, the case has already been removed from database, on the identifier and the fields with a server_default are filled
     #        in particulier, client_id is None, and the code fails during the commit
     def test_delete_case_should_set_module_state_to_success(self):
-        response = self._subject.get('/manage/modules/list').json()
-        module_identifier = None
-        for module in response['data']:
-            if module['module_human_name'] == 'IrisCheck':
-                module_identifier = module['id']
+        module_identifier = self._subject.get_module_identifier_by_name('IrisCheck')
         self._subject.create(f'/manage/modules/enable/{module_identifier}', {})
         case_identifier = self._subject.create_dummy_case()
         self._subject.delete(f'/api/v2/cases/{case_identifier}')
         self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
 
-        response = self._subject.get('/dim/tasks/list/1').json()
-        attempts = 0
-        while len(response['data']) == 0:
-            sleep(1)
-            response = self._subject.get('/dim/tasks/list/1').json()
-            attempts += 1
-            if attempts > 20:
-                logs = self._subject.extract_logs('worker')
-                self.fail(f'Timed out with logs: {logs}')
-        module = response['data'][0]
-
-        self.assertEqual('success', module['state'])
+        task = self._subject.wait_for_module_task()
+        self.assertEqual('success', task['state'])

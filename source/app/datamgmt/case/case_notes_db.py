@@ -21,11 +21,10 @@ from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_notes_state
-from app.models.models import Comments
+from app.models.comments import Comments, NotesComments
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
 from app.models.models import Notes
-from app.models.models import NotesComments
 from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.authorization import User
@@ -96,6 +95,19 @@ def delete_note(note_identifier, case_identifier):
         Notes.query.filter(Notes.note_id == note_identifier).delete()
 
         update_notes_state(caseid=case_identifier)
+
+
+def delete_notes_comments_in_case(case_identifier):
+    com_ids = NotesComments.query.with_entities(
+        NotesComments.comment_id
+    ).join(Notes).filter(
+        NotesComments.comment_note_id == Notes.note_id,
+        Notes.note_case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    NotesComments.query.filter(NotesComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
 
 def update_note(note_content, note_title, update_date, user_id, note_id, caseid):

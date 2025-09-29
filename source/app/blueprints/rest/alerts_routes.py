@@ -1019,6 +1019,7 @@ def alert_comment_edit(alert_id, com_id):
 
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>/comments/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/alerts/{alert_identifier}/comments')
 @ac_api_requires(Permissions.alerts_write)
 def case_comment_add(alert_id):
     """

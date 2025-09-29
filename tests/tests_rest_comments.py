@@ -18,7 +18,9 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_CASE_ACCESS_LEVEL_READ_ONLY
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -112,7 +114,7 @@ class TestsRestComments(TestCase):
         response = self._subject.get(f'/api/v2/assets/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
 
-    def test_get_assets_comments_should_return_403_when_user_has_no_permission_to_access_case(self):
+    def test_get_assets_comments_should_return_404_when_user_has_no_permission_to_access_case(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
@@ -120,7 +122,7 @@ class TestsRestComments(TestCase):
 
         user = self._subject.create_dummy_user()
         response = user.get(f'/api/v2/assets/{object_identifier}/comments')
-        self.assertEqual(403, response.status_code)
+        self.assertEqual(404, response.status_code)
 
     def test_get_assets_comments_should_return_404_when_asset_is_not_found(self):
         response = self._subject.get(f'/api/v2/assets/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments')
@@ -137,8 +139,8 @@ class TestsRestComments(TestCase):
     def test_get_iocs_comments_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
-        test = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
-        object_identifier = test['ioc_id']
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
         response = self._subject.get(f'/api/v2/iocs/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
 
@@ -172,3 +174,318 @@ class TestsRestComments(TestCase):
 
         response = self._subject.get(f'/api/v2/events/{object_identifier}/comments')
         self.assertEqual(200, response.status_code)
+
+    def test_create_alerts_comment_should_return_201(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_create_alerts_comment_should_set_comment_text(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        body = {
+            'comment_text': 'comment text'
+        }
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', body).json()
+        self.assertEqual('comment text', response['comment_text'])
+
+    def test_create_alerts_comment_should_set_comment_alert_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        self.assertEqual(object_identifier, response['comment_alert_id'])
+
+    def test_create_alerts_comment_should_set_comment_user_id(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        self.assertEqual(ADMINISTRATOR_USER_IDENTIFIER, response['comment_user_id'])
+
+    def test_create_alerts_comment_should_add_history_entry_on_alert(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        response = self._subject.get(f'/api/v2/alerts/{object_identifier}', body).json()
+        history_entry = self._subject.get_most_recent_object_history_entry(response)
+        self.assertEqual('commented', history_entry['action'])
+
+    def test_create_alerts_comment_should_call_module_hook(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+
+        module_identifier = self._subject.get_module_identifier_by_name('IrisCheck')
+        self._subject.create(f'/manage/modules/enable/{module_identifier}', {})
+        self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
+        task = self._subject.wait_for_module_task()
+        self.assertEqual('iris_check_module::on_postload_alert_commented', task['module'])
+
+    def test_create_alerts_comment_should_be_tracked(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+
+        self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {})
+        activity = self._subject.get_latest_activity()
+        self.assertEqual(f'Alert "{object_identifier}" commented', activity['activity_desc'])
+
+    def test_create_alerts_comment_should_return_404_when_alert_is_not_found(self):
+        response = self._subject.create(f'/api/v2/alerts/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments', {})
+        self.assertEqual(404, response.status_code)
+
+    def test_create_alerts_comment_should_return_400_when_comment_text_is_not_a_string(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        body = {
+            'comment_text': 1
+        }
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_create_assets_comments_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_create_assets_comment_should_set_comment_text(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        body = {
+            'comment_text': 'comment text'
+        }
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', body).json()
+        self.assertEqual('comment text', response['comment_text'])
+
+    def test_create_assets_comment_should_return_404_when_asset_is_not_found(self):
+        response = self._subject.create(f'/api/v2/assets/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/comments', {})
+        self.assertEqual(404, response.status_code)
+
+    def test_create_assets_comment_should_return_404_when_user_has_only_read_only_case_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        user = self._subject.create_dummy_user()
+        user_identifier = user.get_identifier()
+        body = {
+            'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY,
+            'cases_list': [case_identifier]
+        }
+        self._subject.create(f'/manage/users/{user_identifier}/cases-access/update', body)
+        response = user.create(f'/api/v2/assets/{object_identifier}/comments', body)
+        self.assertEqual(404, response.status_code)
+
+    def test_create_assets_comment_should_return_400_when_comment_text_is_not_a_string(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+        body = {
+            'comment_text': 1
+        }
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_create_evidences_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        response = self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_create_evidences_comment_should_return_404_when_user_has_only_read_only_case_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        user = self._subject.create_dummy_user()
+        user_identifier = user.get_identifier()
+        body = {
+            'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY,
+            'cases_list': [case_identifier]
+        }
+        self._subject.create(f'/manage/users/{user_identifier}/cases-access/update', body)
+        response = user.create(f'/api/v2/evidences/{object_identifier}/comments', body)
+        self.assertEqual(404, response.status_code)
+
+    def test_create_iocs_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
+
+        response = self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_create_notes_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+
+        response = self._subject.create(f'/api/v2/notes/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_delete_case_with_ioc_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
+
+        self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_case_with_ioc_comment_should_not_delete_comments_in_another_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
+        self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {})
+
+        case_identifier2 = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier2}/iocs', body).json()
+        object_identifier2 = response['ioc_id']
+        self._subject.create(f'/api/v2/iocs/{object_identifier2}/comments', {})
+        self._subject.delete(f'/api/v2/cases/{case_identifier2}')
+
+        response = self._subject.get(f'/api/v2/iocs/{object_identifier}/comments').json()
+        self.assertEqual(1, response['total'])
+
+    def test_delete_case_with_asset_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_case_with_evidences_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_case_with_notes_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+
+        self._subject.create(f'/api/v2/notes/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_create_tasks_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'task_assignees_id': [], 'task_status_id': 1, 'task_title': 'dummy title'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/tasks', body).json()
+        object_identifier = response['id']
+
+        response = self._subject.create(f'/api/v2/tasks/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_delete_case_with_tasks_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'task_assignees_id': [], 'task_status_id': 1, 'task_title': 'dummy title'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/tasks', body).json()
+        object_identifier = response['id']
+
+        self._subject.create(f'/api/v2/tasks/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_create_events_comment_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        object_identifier = response['event_id']
+
+        response = self._subject.create(f'/api/v2/events/{object_identifier}/comments', {})
+        self.assertEqual(201, response.status_code)
+
+    def test_delete_case_with_events_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        object_identifier = response['event_id']
+
+        self._subject.create(f'/api/v2/events/{object_identifier}/comments', {})
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)

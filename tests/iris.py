@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from time import sleep
 from uuid import uuid4
 from pathlib import Path
 from docker_compose import DockerCompose
@@ -36,6 +37,8 @@ IRIS_PERMISSION_ALERTS_READ = 0x4
 IRIS_PERMISSION_ALERTS_WRITE = 0x8
 IRIS_PERMISSION_ALERTS_DELETE = 0x10
 IRIS_PERMISSION_CUSTOMERS_WRITE = 0x80
+
+IRIS_CASE_ACCESS_LEVEL_READ_ONLY = 0x2
 
 
 class Iris:
@@ -129,3 +132,40 @@ class Iris:
 
     def extract_logs(self, service):
         return self._docker_compose.extract_logs(service)
+
+    def get_module_identifier_by_name(self, module_name):
+        response = self.get('/manage/modules/list').json()
+        module_identifier = None
+        for module in response['data']:
+            if module['module_human_name'] == module_name:
+                module_identifier = module['id']
+        return module_identifier
+
+    @staticmethod
+    def get_most_recent_object_history_entry(response):
+        modification_history = response['modification_history']
+        current_timestamp = 0
+        result = None
+        for timestamp_as_string, modification in modification_history.items():
+            timestamp = float(timestamp_as_string)
+            if timestamp < current_timestamp:
+                continue
+            result = modification
+            current_timestamp = timestamp
+        return result
+
+    def wait_for_module_task(self):
+        response = self.get('/dim/tasks/list/1').json()
+        attempts = 0
+        while len(response['data']) == 0:
+            sleep(1)
+            response = self.get('/dim/tasks/list/1').json()
+            attempts += 1
+            if attempts > 20:
+                logs = self.extract_logs('worker')
+                raise TimeoutError(f'Timed out with logs: {logs}')
+        return response['data'][0]
+
+    def get_latest_activity(self):
+        activities = self.get('/activities/list-all').json()
+        return activities['data'][0]

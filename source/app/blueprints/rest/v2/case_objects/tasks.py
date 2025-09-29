@@ -37,7 +37,7 @@ from app.business.tasks import tasks_update
 from app.business.tasks import tasks_delete
 from app.business.tasks import tasks_filter
 from app.models.authorization import CaseAccessLevel
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 
 case_tasks_blueprint = Blueprint('case_tasks',
                                  __name__,

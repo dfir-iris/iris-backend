@@ -29,8 +29,7 @@ from app.datamgmt.states import update_tasks_state
 from app.models.models import CaseTasks
 from app.models.models import TaskAssignee
 from app.models.cases import Cases
-from app.models.models import Comments
-from app.models.models import TaskComments
+from app.models.comments import Comments, TaskComments
 from app.models.models import TaskStatus
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
@@ -314,6 +313,19 @@ def delete_task_comment(task_id, comment_id):
     db.session.commit()
 
     return True, "Comment deleted"
+
+
+def delete_tasks_comments_in_case(case_identifier):
+    com_ids = TaskComments.query.with_entities(
+        TaskComments.comment_id
+    ).join(CaseTasks).filter(
+        TaskComments.comment_task_id == CaseTasks.id,
+        CaseTasks.task_case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    TaskComments.query.filter(TaskComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
 
 def get_tasks_cases_mapping(open_cases_only=False):

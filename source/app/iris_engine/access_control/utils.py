@@ -1,13 +1,14 @@
 from flask import session
 from sqlalchemy import and_
 
-import app
 from app import db
+from app.business.access_controls import set_case_effective_access_for_user
+from app.logger import logger
 from app.iris_engine.access_control.iris_user import iris_current_user
-from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.authorization import CaseAccessLevel
+from app.models.authorization import ac_flag_match_mask
 from app.models.authorization import UserClient
 from app.models.authorization import Group
 from app.models.authorization import GroupCaseAccess
@@ -16,12 +17,6 @@ from app.models.authorization import User
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import UserGroup
-
-log = app.app.logger
-
-
-def ac_flag_match_mask(flag, mask):
-    return (flag & mask) == mask
 
 
 def ac_get_mask_full_permissions():
@@ -289,42 +284,6 @@ def ac_trace_effective_user_permissions(user_id):
     return perms
 
 
-def ac_fast_check_user_has_case_access(user_id, cid, access_level: list[CaseAccessLevel]):
-    """
-    Checks the user has access to the case with at least one of the access_level
-    if the user has access, returns the access level of the user to the case
-    Returns None otherwise
-    """
-    ucea = UserCaseEffectiveAccess.query.with_entities(
-        UserCaseEffectiveAccess.access_level
-    ).filter(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.case_id == cid
-    ).first()
-
-    if not ucea:
-        # The user has no direct access, check if he is part of the client
-        cuacu = check_ua_case_client(user_id, cid)
-        if cuacu is None:
-            return None
-        ac_set_case_access_for_user(user_id, cid, cuacu.access_level)
-
-        return cuacu.access_level
-
-    if ac_flag_match_mask(ucea[0], CaseAccessLevel.deny_all.value):
-        return None
-
-    for acl in access_level:
-        if ac_flag_match_mask(ucea[0], acl.value):
-            return ucea[0]
-
-    return None
-
-
-def ac_fast_check_current_user_has_case_access(cid, access_level):
-    return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
-
-
 def ac_recompute_effective_ac_from_users_list(users_list):
     """
     Recompute all users effective access of users
@@ -541,7 +500,7 @@ def ac_remove_case_access_from_user(user_id, case_id):
     )).all()
 
     if len(uac) > 1:
-        log.error(f'Multiple access found for user {user_id} and case {case_id}')
+        logger.error(f'Multiple access found for user {user_id} and case {case_id}')
         for u in uac:
             db.session.delete(u)
         db.session.commit()
@@ -571,45 +530,13 @@ def ac_set_case_access_for_users(users, case_id, access_level):
         user_id = user.get('id')
         if user_id == iris_current_user.id:
             logs = "It's done, but I excluded you from the list of users to update, Dave"
-            ac_set_case_access_for_user(user.get('id'), case_id, access_level=CaseAccessLevel.full_access.value)
+            set_case_effective_access_for_user(user.get('id'), case_id, CaseAccessLevel.full_access.value)
             continue
 
-        ac_set_case_access_for_user(user.get('id'), case_id, access_level)
+        set_case_effective_access_for_user(user.get('id'), case_id, access_level)
 
     db.session.commit()
     return True, logs
-
-
-def ac_set_case_access_for_user(user_id, case_id, access_level, commit=True):
-    """
-    Set a case access from a user
-    """
-
-    uac = UserCaseEffectiveAccess.query.where(and_(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.case_id == case_id
-    )).all()
-
-    if len(uac) > 1:
-        log.error(f'Multiple access found for user {user_id} and case {case_id}')
-        for u in uac:
-            db.session.delete(u)
-        db.session.commit()
-
-        uac = UserCaseEffectiveAccess()
-        uac.user_id = user_id
-        uac.case_id = case_id
-        uac.access_level = access_level
-        db.session.add(uac)
-
-    elif len(uac) == 1:
-        uac = uac[0]
-        uac.access_level = access_level
-
-    if commit:
-        db.session.commit()
-
-    return
 
 
 def ac_get_fast_user_cases_access(user_id):
@@ -734,7 +661,6 @@ def ac_trace_user_effective_cases_access_2(user_id):
         UserCaseAccess.user
     ).all()
 
-    effective_cases_access = {}
     cases = Cases.query.with_entities(
         Cases.case_id,
         Cases.name
@@ -755,6 +681,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         UserClient.user_id == user_id
     ).all()
 
+    effective_cases_access = {}
     # Organisation case access. Default access level
     for oca in cases:
         access = {
@@ -775,7 +702,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
                 'case_id': oca.case_id
             },
             'user_access': [],
-            'user_effective_access': CaseAccessLevel.deny_all.value
+            'user_effective_access': ac_access_level_to_list(CaseAccessLevel.deny_all.value)
         }
 
         effective_cases_access[oca.case_id]['user_access'].append(access)
@@ -795,7 +722,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         }
 
         if gca.case_id in effective_cases_access:
-            effective_cases_access[gca.case_id]['user_effective_access'] = gca.access_level
+            effective_cases_access[gca.case_id]['user_effective_access'] = ac_access_level_to_list(gca.access_level)
             for kec in effective_cases_access[gca.case_id]['user_access']:
                 kec['state'] = f'Overwritten by group {gca.group_name}'
 
@@ -806,7 +733,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
                     'case_id': gca.case_id
                 },
                 'user_access': [],
-                'user_effective_access': gca.access_level
+                'user_effective_access': ac_access_level_to_list(gca.access_level)
             }
 
         effective_cases_access[gca.case_id]['user_access'].append(access)
@@ -826,7 +753,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         }
 
         if cca.case_id in effective_cases_access:
-            effective_cases_access[cca.case_id]['user_effective_access'] = cca.access_level
+            effective_cases_access[cca.case_id]['user_effective_access'] = ac_access_level_to_list(cca.access_level)
             for kec in effective_cases_access[cca.case_id]['user_access']:
                 kec['state'] = f'Overwritten by customer {cca.client_name}'
 
@@ -837,7 +764,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
                     'case_id': cca.case_id
                 },
                 'user_access': [],
-                'user_effective_access': cca.access_level
+                'user_effective_access': ac_access_level_to_list(cca.access_level)
             }
 
         effective_cases_access[cca.case_id]['user_access'].append(access)
@@ -857,7 +784,7 @@ def ac_trace_user_effective_cases_access_2(user_id):
         }
 
         if uca.case_id in effective_cases_access:
-            effective_cases_access[uca.case_id]['user_effective_access'] = uca.access_level
+            effective_cases_access[uca.case_id]['user_effective_access'] = ac_access_level_to_list(uca.access_level)
 
             for kec in effective_cases_access[uca.case_id]['user_access']:
                 kec['state'] = 'Overwritten by self user access'
@@ -869,14 +796,10 @@ def ac_trace_user_effective_cases_access_2(user_id):
                     'case_id': uca.case_id
                 },
                 'user_access': [],
-                'user_effective_access': uca.access_level
+                'user_effective_access': ac_access_level_to_list(uca.access_level)
             }
 
         effective_cases_access[uca.case_id]['user_access'].append(access)
-
-    for case_id in effective_cases_access:
-        effective_cases_access[case_id]['user_effective_access'] = ac_access_level_to_list(
-            effective_cases_access[case_id]['user_effective_access'])
 
     return effective_cases_access
 

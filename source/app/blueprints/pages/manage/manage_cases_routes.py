@@ -34,7 +34,7 @@ from app.datamgmt.manage.manage_case_templates_db import get_case_templates_list
 from app.datamgmt.manage.manage_cases_db import get_case_protagonists
 from app.datamgmt.manage.manage_common import get_severities_list
 from app.forms import AddCaseForm
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Permissions

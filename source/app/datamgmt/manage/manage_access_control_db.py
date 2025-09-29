@@ -14,11 +14,14 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+from sqlalchemy import and_
 
 from app import ac_current_user_has_permission
+from app import db
 from app.models.cases import Cases
 from app.models.authorization import Group
 from app.models.authorization import UserClient
+from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
@@ -76,7 +79,7 @@ def manage_ac_audit_users_db():
     return ret
 
 
-def check_ua_case_client(user_id: int, case_id: int) -> Optional[UserClient]:
+def check_ua_case_client(user_id: int, case_id: int) -> Optional[int]:
     """Check if the user has access to the case, through the customer of the case
        (in other words, check that the customer of the case is assigned to the user)
 
@@ -90,18 +93,34 @@ def check_ua_case_client(user_id: int, case_id: int) -> Optional[UserClient]:
     """
     if ac_current_user_has_permission(Permissions.server_administrator):
         # Return a dummy object
-        uc = UserClient()
-        uc.access_level = CaseAccessLevel.full_access.value
-        return uc
+        return CaseAccessLevel.full_access.value
 
     result = UserClient.query.filter(
         UserClient.user_id == user_id,
         Cases.case_id == case_id
-    ).join(Cases,
-           UserClient.client_id == Cases.client_id
+    ).join(
+        Cases,
+        UserClient.client_id == Cases.client_id
     ).first()
 
-    return result
+    if not result:
+        return None
+
+    return result.access_level
+
+
+def get_case_effective_access(user_identifier, case_identifier) -> Optional[int]:
+    row = UserCaseEffectiveAccess.query.with_entities(
+        UserCaseEffectiveAccess.access_level
+    ).filter(
+        UserCaseEffectiveAccess.user_id == user_identifier,
+        UserCaseEffectiveAccess.case_id == case_identifier
+    ).first()
+
+    if not row:
+        return None
+
+    return row[0]
 
 
 def get_client_users(client_id: int) -> list:
@@ -157,3 +176,29 @@ def user_has_client_access(user_id: int, client_id: int) -> bool:
     ).first()
 
     return result is not None
+
+
+def remove_duplicate_user_case_effective_accesses(user_id, case_id):
+    uac = UserCaseEffectiveAccess.query.where(and_(
+        UserCaseEffectiveAccess.user_id == user_id,
+        UserCaseEffectiveAccess.case_id == case_id
+    )).all()
+
+    if len(uac) <= 1:
+        return False
+
+    for u in uac[1:]:
+        db.session.delete(u)
+    db.session.commit()
+    return True
+
+
+def set_user_case_effective_access(access_level, case_id, user_id):
+    uac = UserCaseEffectiveAccess.query.where(and_(
+        UserCaseEffectiveAccess.user_id == user_id,
+        UserCaseEffectiveAccess.case_id == case_id
+    )).first()
+    if uac:
+        uac = uac[0]
+        uac.access_level = access_level
+    db.session.commit()

@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import datetime
+from typing import Optional
 
 from sqlalchemy import and_
 from sqlalchemy import func
@@ -28,12 +29,11 @@ from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
 from app.models.models import AnalysisStatus
 from app.models.models import CaseStatus
-from app.models.models import AssetComments
 from app.models.models import AssetsType
 from app.models.models import CaseAssets
 from app.models.models import CaseEventsAssets
 from app.models.cases import Cases
-from app.models.models import Comments
+from app.models.comments import Comments, AssetComments
 from app.models.models import CompromiseStatus
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
@@ -129,7 +129,7 @@ def get_assets_name(caseid):
     return assets_names
 
 
-def get_asset(asset_id) -> CaseAssets:
+def get_asset(asset_id) -> Optional[CaseAssets]:
     asset = CaseAssets.query.filter(
         CaseAssets.asset_id == asset_id,
     ).first()

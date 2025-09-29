@@ -26,9 +26,8 @@ from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.cases import CasesEvent
-from app.models.models import Comments
+from app.models.comments import Comments, EventComments
 from app.models.models import EventCategory
-from app.models.models import EventComments
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
@@ -172,6 +171,19 @@ def delete_event_comment(event_id, comment_id):
     db.session.commit()
 
     return True, "Comment deleted"
+
+
+def delete_events_comments_in_case(case_identifier):
+    com_ids = EventComments.query.with_entities(
+        EventComments.comment_id
+    ).join(CasesEvent).filter(
+        EventComments.comment_event_id == CasesEvent.event_id,
+        CasesEvent.case_id == case_identifier
+    ).all()
+
+    com_ids = [c.comment_id for c in com_ids]
+    EventComments.query.filter(EventComments.comment_id.in_(com_ids)).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
 
 def add_comment_to_event(event_id, comment_id):

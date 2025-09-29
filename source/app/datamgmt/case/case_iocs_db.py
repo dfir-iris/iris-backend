@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from sqlalchemy import and_
 
 from app import db
@@ -24,16 +25,15 @@ from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_ioc_state
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 from app.models.alerts import Alert
-from app.models.cases import Cases, CasesEvent
-from app.models.models import Client, CaseAssets
-from app.models.models import Comments
+from app.models.cases import Cases
+from app.models.cases import CasesEvent
+from app.models.models import Client
+from app.models.models import CaseAssets
+from app.models.comments import Comments, IocComments
 from app.models.iocs import Ioc
-from app.models.models import IocComments
 from app.models.models import IocType
 from app.models.iocs import Tlp
 from app.models.authorization import User
-from app.models.authorization import UserCaseEffectiveAccess
-from app.models.authorization import CaseAccessLevel
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
 
@@ -90,10 +90,7 @@ def delete_ioc(ioc: Ioc):
 
     com_ids = [c.comment_id for c in com_ids]
     IocComments.query.filter(IocComments.comment_id.in_(com_ids)).delete()
-
-    Comments.query.filter(
-        Comments.comment_id.in_(com_ids)
-    ).delete()
+    Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
     db.session.delete(ioc)
 
@@ -291,17 +288,6 @@ def get_ioc_by_value(ioc_value, caseid=None):
         Ioc.query.filter(Ioc.ioc_value == ioc_value, Ioc.case_id == caseid).first()
 
     return Ioc.query.filter(Ioc.ioc_value == ioc_value).first()
-
-
-def user_list_cases_view(user_id):
-    res = UserCaseEffectiveAccess.query.with_entities(
-        UserCaseEffectiveAccess.case_id
-    ).filter(and_(
-        UserCaseEffectiveAccess.user_id == user_id,
-        UserCaseEffectiveAccess.access_level != CaseAccessLevel.deny_all.value
-    )).all()
-
-    return [r.case_id for r in res]
 
 
 def get_filtered_iocs(

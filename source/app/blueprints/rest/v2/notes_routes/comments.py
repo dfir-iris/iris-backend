@@ -18,17 +18,21 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
+from app.iris_engine.access_control.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.comments import comments_get_filtered_by_note
+from app.business.comments import comments_create_for_note
 from app.business.notes import notes_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
+from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 
 
@@ -37,17 +41,35 @@ class CommentsOperations:
     def __init__(self):
         self._schema = CommentSchema()
 
+    @staticmethod
+    def _get_note(note_identifier, possible_case_access_levels):
+        note = notes_get(note_identifier)
+        if not ac_fast_check_current_user_has_case_access(note.note_case_id, possible_case_access_levels):
+            raise ObjectNotFoundError()
+        return note
+
     def get(self, note_identifier):
         try:
-            note = notes_get(note_identifier)
-            if not ac_fast_check_current_user_has_case_access(note.note_case_id,
-                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-                return ac_api_return_access_denied(caseid=note.note_case_id)
+            note = self._get_note(note_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
             pagination_parameters = parse_pagination_parameters(request)
 
-            comments = comments_get_filtered_by_note(note_identifier, pagination_parameters)
+            comments = comments_get_filtered_by_note(note, pagination_parameters)
             return response_api_paginated(self._schema, comments)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+    def create(self, note_identifier):
+        try:
+            note = self._get_note(note_identifier, [CaseAccessLevel.full_access])
+
+            comment = self._schema.load(request.get_json())
+            comments_create_for_note(iris_current_user, note, comment)
+
+            result = self._schema.dump(comment)
+            return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
         except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -60,3 +82,9 @@ comments_operations = CommentsOperations()
 @ac_api_requires()
 def get_notes_comments(note_identifier):
     return comments_operations.get(note_identifier)
+
+
+@notes_comments_blueprint.post('')
+@ac_api_requires()
+def create_notes_comment(note_identifier):
+    return comments_operations.create(note_identifier)

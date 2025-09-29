@@ -253,3 +253,7 @@ class User(UserMixin, db.Model):
         db.session.commit()
 
         return self
+
+
+def ac_flag_match_mask(flag, mask):
+    return (flag & mask) == mask
