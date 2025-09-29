@@ -588,6 +588,18 @@ class TestsRestComments(TestCase):
         response = self._subject.update(f'/api/v2/alerts/{object_identifier}/comments/{identifier}', body)
         self.assertEqual(200, response.status_code)
 
+    def test_update_assets_comment_should_return_200(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        body = {'comment_text': 'comment'}
+        response = self._subject.update(f'/api/v2/assets/{object_identifier}/comments/{identifier}', body)
+        self.assertEqual(200, response.status_code)
+
     def test_delete_alerts_comment_should_return_204(self):
         body = {
             'alert_title': 'title',
