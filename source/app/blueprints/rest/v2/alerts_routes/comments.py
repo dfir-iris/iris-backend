@@ -35,7 +35,9 @@ from app.business.comments import comments_get_filtered_by_alert
 from app.business.comments import comments_create_for_alert
 from app.business.comments import comments_delete_for_alert
 from app.business.comments import comments_get_for_alert
+from app.blueprints.rest.case_comments import case_comment_update
 from app.business.alerts import alerts_get
+from app.business.alerts import alerts_exists
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import ObjectNotFoundError
 
@@ -75,6 +77,11 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def update(self, alert_identifier, identifier):
+        if not alerts_exists(iris_current_user, alert_identifier):
+            return response_api_not_found()
+        return case_comment_update(identifier, 'events', None)
+
     def delete(self, alert_identifier, identifier):
         try:
             alert = alerts_get(iris_current_user, alert_identifier)
@@ -106,8 +113,14 @@ def create_alerts_comment(alert_identifier):
 
 @alerts_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_read)
-def get_alerts_comment(alert_identifier, identifier):
+def read_alerts_comment(alert_identifier, identifier):
     return comments_operations.read(alert_identifier, identifier)
+
+
+@alerts_comments_blueprint.put('/<int:identifier>')
+@ac_api_requires(Permissions.alerts_write)
+def update_alerts_comment(alert_identifier, identifier):
+    return comments_operations.update(alert_identifier, identifier)
 
 
 @alerts_comments_blueprint.delete('/<int:identifier>')

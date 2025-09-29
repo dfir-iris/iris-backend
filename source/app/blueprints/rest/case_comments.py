@@ -31,10 +31,10 @@ from app.iris_engine.access_control.iris_user import iris_current_user
 def case_comment_update(comment_id, object_type, caseid):
     try:
         comment_schema = CommentSchema()
-        rq_t = request.get_json()
-        comment_text = rq_t.get('comment_text')
+        request_data = request.get_json()
+        comment_text = request_data.get('comment_text')
         comment = comments_update_for_case(iris_current_user, comment_text, comment_id, object_type, caseid)
-        return response_success("Comment edited", data=comment_schema.dump(comment))
+        return response_success('Comment edited', data=comment_schema.dump(comment))
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
     except marshmallow.exceptions.ValidationError as e:

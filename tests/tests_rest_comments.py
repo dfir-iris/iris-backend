@@ -572,6 +572,22 @@ class TestsRestComments(TestCase):
         response = self._subject.get(f'/api/v2/events/{object_identifier}/comments/{identifier}', {})
         self.assertEqual(200, response.status_code)
 
+    def test_update_alerts_comment_should_return_200(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        body = {'comment_text': 'comment'}
+        response = self._subject.update(f'/api/v2/alerts/{object_identifier}/comments/{identifier}', body)
+        self.assertEqual(200, response.status_code)
+
     def test_delete_alerts_comment_should_return_204(self):
         body = {
             'alert_title': 'title',
