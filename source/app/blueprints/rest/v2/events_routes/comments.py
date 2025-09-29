@@ -25,10 +25,12 @@ from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.comments import comments_get_filtered_by_event
 from app.business.comments import comments_create_for_event
+from app.business.comments import comments_get_for_event
 from app.business.events import events_get
 from app.business.errors import ObjectNotFoundError
 from app.models.cases import CasesEvent
@@ -49,7 +51,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return event
 
-    def get(self, event_identifier):
+    def search(self, event_identifier):
         try:
             event = self._get_event(event_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -73,6 +75,17 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def read(self, event_identifier, identifier):
+        try:
+            event = self._get_event(event_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
+            comment = comments_get_for_event(event, identifier)
+            result = self._schema.dump(comment)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 events_comments_blueprint = Blueprint('events_comments', __name__, url_prefix='/<int:event_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -81,10 +94,16 @@ comments_operations = CommentsOperations()
 @events_comments_blueprint.get('')
 @ac_api_requires()
 def get_event_comments(event_identifier):
-    return comments_operations.get(event_identifier)
+    return comments_operations.search(event_identifier)
 
 
 @events_comments_blueprint.post('')
 @ac_api_requires()
 def create_event_comment(event_identifier):
     return comments_operations.create(event_identifier)
+
+
+@events_comments_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_event_comment(event_identifier, identifier):
+    return comments_operations.read(event_identifier, identifier)

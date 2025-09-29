@@ -23,6 +23,7 @@ from marshmallow.exceptions import ValidationError
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.blueprints.rest.endpoints import response_api_paginated
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
@@ -30,6 +31,8 @@ from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.schema.marshables import CommentSchema
 from app.business.comments import comments_get_filtered_by_alert
 from app.business.comments import comments_create_for_alert
+from app.business.comments import comments_get_for_alert
+from app.business.alerts import alerts_get
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import ObjectNotFoundError
 
@@ -58,6 +61,17 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def read(self, alert_identifier, identifier):
+        try:
+            alert = alerts_get(iris_current_user, alert_identifier)
+            comment = comments_get_for_alert(alert, identifier)
+            result = self._schema.dump(comment)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 alerts_comments_blueprint = Blueprint('alerts_comments', __name__, url_prefix='/<int:alert_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -73,3 +87,9 @@ def get_alerts_comments(alert_identifier):
 @ac_api_requires(Permissions.alerts_write)
 def create_alerts_comment(alert_identifier):
     return comments_operations.create(alert_identifier)
+
+
+@alerts_comments_blueprint.get('/<int:identifier>')
+@ac_api_requires(Permissions.alerts_read)
+def get_alerts_comment(alert_identifier, identifier):
+    return comments_operations.read(alert_identifier, identifier)

@@ -25,9 +25,11 @@ from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.comments import comments_get_filtered_by_asset
 from app.business.comments import comments_create_for_asset
+from app.business.comments import comments_get_for_asset
 from app.business.assets import assets_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
@@ -48,7 +50,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return asset
 
-    def get(self, asset_identifier):
+    def search(self, asset_identifier):
         try:
             asset = self._get_asset(asset_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -72,6 +74,17 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def read(self, asset_identifier, identifier):
+        try:
+            asset = self._get_asset(asset_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
+            comment = comments_get_for_asset(asset, identifier)
+            result = self._schema.dump(comment)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 assets_comments_blueprint = Blueprint('assets_comments', __name__, url_prefix='/<int:asset_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -80,10 +93,16 @@ comments_operations = CommentsOperations()
 @assets_comments_blueprint.get('')
 @ac_api_requires()
 def get_assets_comments(asset_identifier):
-    return comments_operations.get(asset_identifier)
+    return comments_operations.search(asset_identifier)
 
 
 @assets_comments_blueprint.post('')
 @ac_api_requires()
 def create_assets_comment(asset_identifier):
     return comments_operations.create(asset_identifier)
+
+
+@assets_comments_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_assets_comment(asset_identifier, identifier):
+    return comments_operations.read(asset_identifier, identifier)

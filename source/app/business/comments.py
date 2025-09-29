@@ -39,6 +39,12 @@ from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
 from app.datamgmt.case.case_notes_db import add_comment_to_note
 from app.datamgmt.case.case_tasks_db import add_comment_to_task
 from app.datamgmt.case.case_events_db import add_comment_to_event
+from app.datamgmt.case.case_assets_db import get_case_asset_comment
+from app.datamgmt.case.case_rfiles_db import get_case_evidence_comment
+from app.datamgmt.case.case_iocs_db import get_case_ioc_comment
+from app.datamgmt.case.case_notes_db import get_case_note_comment
+from app.datamgmt.case.case_tasks_db import get_case_task_comment
+from app.datamgmt.case.case_events_db import get_case_event_comment
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
@@ -50,6 +56,8 @@ from app.models.models import CaseTasks
 from app.models.cases import CasesEvent
 from app.models.pagination_parameters import PaginationParameters
 from app.util import add_obj_history_entry
+from app.datamgmt.alerts.alerts_db import get_alert_comment
+from app.models.alerts import Alert
 
 
 def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
@@ -229,3 +237,52 @@ def _create_comment(current_user, comment, case_identifier):
     comment.comment_update_date = datetime.now()
     db.session.add(comment)
     db.session.commit()
+
+
+def comments_get_for_alert(alert: Alert, identifier) -> Comments:
+    comment = get_alert_comment(alert.alert_id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment
+
+
+def comments_get_for_asset(asset: CaseAssets, identifier) -> Comments:
+    comment = get_case_asset_comment(asset.asset_id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment
+
+
+def comments_get_for_evidence(evidence: CaseReceivedFile, identifier) -> Comments:
+    comment = get_case_evidence_comment(evidence.id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment
+
+
+def comments_get_for_ioc(ioc: Ioc, identifier) -> Comments:
+    comment = get_case_ioc_comment(ioc.ioc_id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment
+
+
+def comments_get_for_note(note: Notes, identifier) -> Comments:
+    comment = get_case_note_comment(note.note_id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment
+
+
+def comments_get_for_task(task: CaseTasks, identifier) -> Comments:
+    comment = get_case_task_comment(task.id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment
+
+
+def comments_get_for_event(event: CasesEvent, identifier) -> Comments:
+    comment = get_case_event_comment(event.event_id, identifier)
+    if comment is None:
+        raise ObjectNotFoundError
+    return comment

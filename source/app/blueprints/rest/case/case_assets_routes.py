@@ -386,6 +386,7 @@ def case_comment_asset_add(cur_id, caseid):
 
 
 @case_assets_rest_blueprint.route('/case/assets/<int:cur_id>/comments/<int:com_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/assets/{asset_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_get(cur_id, com_id, caseid):

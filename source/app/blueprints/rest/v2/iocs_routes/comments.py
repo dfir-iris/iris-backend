@@ -26,9 +26,11 @@ from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.comments import comments_get_filtered_by_ioc
 from app.business.comments import comments_create_for_ioc
+from app.business.comments import comments_get_for_ioc
 from app.business.iocs import iocs_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
@@ -48,7 +50,7 @@ class CommentsOperations:
             raise ObjectNotFoundError()
         return ioc
 
-    def get(self, ioc_identifier):
+    def search(self, ioc_identifier):
         try:
             ioc = self._get_ioc(ioc_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
 
@@ -72,6 +74,17 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def read(self, ioc_identifier, identifier):
+        try:
+            ioc = self._get_ioc(ioc_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
+            comment = comments_get_for_ioc(ioc, identifier)
+            result = self._schema.dump(comment)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 iocs_comments_blueprint = Blueprint('iocs_comments', __name__, url_prefix='/<int:ioc_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -80,10 +93,16 @@ comments_operations = CommentsOperations()
 @iocs_comments_blueprint.get('')
 @ac_api_requires()
 def get_iocs_comments(ioc_identifier):
-    return comments_operations.get(ioc_identifier)
+    return comments_operations.search(ioc_identifier)
 
 
 @iocs_comments_blueprint.post('')
 @ac_api_requires()
 def create_iocs_comment(ioc_identifier):
     return comments_operations.create(ioc_identifier)
+
+
+@iocs_comments_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_ioc_comment(ioc_identifier, identifier):
+    return comments_operations.read(ioc_identifier, identifier)

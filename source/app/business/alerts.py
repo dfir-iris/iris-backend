@@ -18,6 +18,7 @@
 
 import json
 from datetime import datetime
+from typing import Optional
 
 from app import db
 from app import socket_io
@@ -61,24 +62,24 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     return alert
 
 
-def _get(current_user, identifier):
+def _get(user, identifier) -> Optional[Alert]:
     alert = get_alert_by_id(identifier)
     if not alert:
         return None
-    if not user_has_client_access(current_user.id, alert.alert_customer_id):
+    if not user_has_client_access(user.id, alert.alert_customer_id):
         return None
     return alert
 
 
-def alerts_get(current_user, identifier) -> Alert:
-    alert = _get(current_user, identifier)
+def alerts_get(user, identifier) -> Optional[Alert]:
+    alert = _get(user, identifier)
     if not alert:
         raise ObjectNotFoundError()
     return alert
 
 
-def alerts_exists(current_user, identifier) -> bool:
-    alert = _get(current_user, identifier)
+def alerts_exists(user, identifier) -> bool:
+    alert = _get(user, identifier)
 
     return alert is not None
 

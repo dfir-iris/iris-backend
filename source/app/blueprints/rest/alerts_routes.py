@@ -966,6 +966,7 @@ def alert_comment_delete(alert_id, com_id):
 
 
 @alerts_rest_blueprint.route('/alerts/<int:alert_id>/comments/<int:com_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/alerts/{alert_identifier}/comments/{identifier}')
 @ac_api_requires(Permissions.alerts_read)
 def alert_comment_get(alert_id, com_id):
     """
