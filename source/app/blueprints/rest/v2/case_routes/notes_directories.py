@@ -30,6 +30,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
 from app.schema.marshables import CaseNoteDirectorySchema
+from app.schema.marshables import SearchCaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
 from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
@@ -46,6 +47,7 @@ class NotesDirectories:
 
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
+        self._schema_search = SearchCaseNoteDirectorySchema(exclude=('parent_id','case_id'))
 
     @staticmethod
     def _get_note_directory_in_case(identifier, case_identifier):
@@ -65,7 +67,7 @@ class NotesDirectories:
             return response_api_error('Invalid case ID')
 
         directories = get_directories_with_note_count(case_identifier)
-        return response_api_success(directories)
+        return response_api_success(self._schema_search.dump(directories))
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -173,4 +175,4 @@ def delete_note_directory(case_identifier, identifier):
 @case_notes_directories_blueprint.get('')
 @ac_api_requires()
 def get_note_directory_filter(case_identifier):
-    return notes_directories.get(case_identifier)
+    return notes_directories.search(case_identifier)
