@@ -28,7 +28,7 @@ rest_api_blueprint = Blueprint('rest_api', __name__)
 @rest_api_blueprint.route('/api/ping', methods=['GET'])
 @ac_api_requires()
 def api_ping():
-    return response_success("pong")
+    return response_success('pong')
 
 
 @rest_api_blueprint.route('/api/versions', methods=['GET'])
