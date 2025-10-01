@@ -139,7 +139,7 @@ def refresh_token_endpoint():
             return response_api_error('Invalid token type')
 
         user_id = payload.get('user_id')
-        user = get_active_user(user_id=user_id)
+        user = get_active_user(user_id)
 
         if not user:
             return response_api_not_found()
@@ -147,9 +147,7 @@ def refresh_token_endpoint():
         # Generate new tokens
         new_tokens = generate_auth_tokens(user)
 
-        return response_api_success(data={
-            'tokens': new_tokens
-        })
+        return response_api_success({'tokens': new_tokens})
 
     except jwt.ExpiredSignatureError:
         return response_api_error('Refresh token has expired')
