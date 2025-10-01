@@ -588,12 +588,4 @@ def get_filtered_cases(current_user_id,
                                    search_value=search_value, start_open_date=start_open_date, is_open=is_open,
                                    sort_by=pagination_parameters.get_order_by(), sort_dir=pagination_parameters.get_direction())
 
-    try:
-
-        filtered_cases = data.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page(), error_out=False)
-
-    except Exception as e:
-        app.logger.exception(f'Error getting cases: {str(e)}')
-        return None
-
-    return filtered_cases
+    return data.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page(), error_out=False)

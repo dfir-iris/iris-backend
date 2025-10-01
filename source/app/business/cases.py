@@ -53,6 +53,28 @@ from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
 from app.models.cases import Cases
+from app.datamgmt.manage.manage_cases_db import get_filtered_cases
+
+
+def cases_filter(current_user, pagination_parameters, name, case_identifiers, customer_identifier,
+                 description, classification_identifier, owner_identifier, opening_user_identifier,
+                 severity_identifier, status_identifier, soc_identifier,
+                 start_open_date, end_open_date, is_open):
+    return get_filtered_cases(current_user.id, pagination_parameters,
+            start_open_date,
+            end_open_date,
+            customer_identifier,
+            case_identifiers,
+            name,
+            description,
+            classification_identifier,
+            owner_identifier,
+            opening_user_identifier,
+            severity_identifier,
+            status_identifier,
+            soc_identifier,
+            search_value='',
+            is_open=is_open)
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:

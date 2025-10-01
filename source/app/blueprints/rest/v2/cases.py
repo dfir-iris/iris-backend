@@ -43,7 +43,7 @@ from app.business.cases import cases_delete
 from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_update
 from app.business.errors import BusinessProcessingError, ObjectNotFoundError
-from app.datamgmt.manage.manage_cases_db import get_filtered_cases
+from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
@@ -79,26 +79,23 @@ class CasesOperations:
         end_open_date = request.args.get('end_open_date', None, type=str)
         is_open = request.args.get('is_open', None, type=parse_boolean)
 
-        filtered_cases = get_filtered_cases(
-            iris_current_user.id,
+        filtered_cases = cases_filter(
+            iris_current_user,
             pagination_parameters,
-            case_ids=case_ids_str,
-            case_customer_id=case_customer_id,
-            case_name=case_name,
-            case_description=case_description,
-            case_classification_id=case_classification_id,
-            case_owner_id=case_owner_id,
-            case_opening_user_id=case_opening_user_id,
-            case_severity_id=case_severity_id,
-            case_state_id=case_state_id,
-            case_soc_id=case_soc_id,
-            start_open_date=start_open_date,
-            end_open_date=end_open_date,
-            search_value='',
-            is_open=is_open
+            case_name,
+            case_ids_str,
+            case_customer_id,
+            case_description,
+            case_classification_id,
+            case_owner_id,
+            case_opening_user_id,
+            case_severity_id,
+            case_state_id,
+            case_soc_id,
+            start_open_date,
+            end_open_date,
+            is_open
         )
-        if filtered_cases is None:
-            return response_api_error('Filtering error')
 
         return response_api_paginated(self._schema, filtered_cases)
 
