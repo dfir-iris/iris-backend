@@ -22,6 +22,13 @@ forbidden_modules = "sqlalchemy"
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
+name = "Do not import API layer from the business layer"
+type = "forbidden"
+source_modules = "app.business.access_controls"
+forbidden_modules = "app.blueprints.iris_user"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "Do not import sqlalchemy from the business layer"
 type = "forbidden"
 source_modules = "app.business"
