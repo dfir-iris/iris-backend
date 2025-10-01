@@ -41,11 +41,11 @@ from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
 from app.business.alerts import alerts_delete
 from app.business.alerts import related_alerts_get
-from app.business.alerts import get_related_alerts_details
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.access_controls import access_controls_user_has_customer_access
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+
 
 class AlertsOperations:
 
