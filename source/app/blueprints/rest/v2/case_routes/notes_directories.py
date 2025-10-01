@@ -39,7 +39,6 @@ from app.business.cases import cases_exists
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.case.case_notes_db import get_directories_with_note_count
-from app.iris_engine.access_control.utils import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 
 
