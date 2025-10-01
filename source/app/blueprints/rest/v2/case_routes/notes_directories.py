@@ -59,11 +59,10 @@ class NotesDirectories:
         return self._schema.load(request_data, **kwargs)
 
     def search(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(case_identifier)
-
-        if not get_case(case_identifier):
-            return response_api_error('Invalid case ID')
 
         directories = get_directories_with_note_count(case_identifier)
         return response_api_success(self._schema_search.dump(directories))
