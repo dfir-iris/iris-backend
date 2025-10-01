@@ -33,6 +33,7 @@ from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.case.case_iocs_db import get_ioc
 from app.util import add_obj_history_entry
+from app.datamgmt.case.case_iocs_db import get_filtered_iocs
 
 
 def iocs_get(ioc_identifier) -> Ioc:
@@ -142,3 +143,7 @@ def iocs_build_filter_query(ioc_id: int = None,
         conditions.append(Ioc.user_id == user_id)
 
     return Ioc.query.filter(*conditions)
+
+
+def iocs_filter(case_identifier, pagination_parameters, request_parameters):
+    return get_filtered_iocs(case_identifier, pagination_parameters, request_parameters)

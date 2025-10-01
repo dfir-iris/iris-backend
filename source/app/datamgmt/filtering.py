@@ -201,13 +201,13 @@ def get_filtered_data(model,
         try:
             custom_conditions = json.loads(custom_conditions_param)
             if not isinstance(custom_conditions, list):
-                raise BusinessProcessingError("custom_conditions should be a list of condition objects")
+                raise BusinessProcessingError('custom_conditions should be a list of condition objects')
 
             query, conditions = apply_custom_conditions(query, model, custom_conditions, relationship_model_map)
             query = query.filter(combine_conditions(conditions, logical_operator))
         except Exception as e:
             log.exception(e)
-            raise BusinessProcessingError(f"Error parsing custom_conditions: {e}")
+            raise BusinessProcessingError(f'Error parsing custom_conditions: {e}')
 
     # Apply ordering if requested.
     order_by = pagination_parameters.get_order_by()
