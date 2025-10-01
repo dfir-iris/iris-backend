@@ -19,6 +19,7 @@
 from functools import reduce
 
 from sqlalchemy import and_
+from flask_sqlalchemy.pagination import Pagination
 
 from app import db
 from app.logger import logger
@@ -27,9 +28,7 @@ from app.datamgmt.conversions import convert_sort_direction
 from app.models.pagination_parameters import PaginationParameters
 
 
-def get_filtered_tags(tag_title,
-                      tag_namespace,
-                      pagination_parameters: PaginationParameters):
+def get_filtered_tags(tag_title, tag_namespace, pagination_parameters: PaginationParameters) -> Pagination:
 
     conditions = []
     if tag_title:
