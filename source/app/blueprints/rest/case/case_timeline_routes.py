@@ -32,7 +32,9 @@ from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_assets_db import get_asset_by_name
+from app.datamgmt.case.case_assets_db import get_assets_by_case
 from app.datamgmt.case.case_events_db import add_comment_to_event
+from app.datamgmt.case.case_events_db import get_events_by_case
 from app.datamgmt.case.case_events_db import get_category_by_name
 from app.datamgmt.case.case_events_db import get_default_category
 from app.datamgmt.case.case_events_db import delete_event_comment
@@ -178,19 +180,8 @@ def case_get_timeline_state(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_getgraph_assets(caseid):
-    assets_cache = CaseAssets.query.with_entities(
-        CaseEventsAssets.event_id,
-        CaseAssets.asset_name
-    ).filter(
-        CaseEventsAssets.case_id == caseid,
-    ).join(CaseEventsAssets.asset).all()
-
-    timeline = CasesEvent.query.filter(and_(
-        CasesEvent.case_id == caseid,
-        CasesEvent.event_in_summary
-    )).order_by(
-        CasesEvent.event_date
-    ).all()
+    assets_cache = get_assets_by_case(caseid)
+    timeline = get_events_by_case(caseid)
 
     tim = []
     for row in timeline:

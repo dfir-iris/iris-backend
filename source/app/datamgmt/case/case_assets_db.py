@@ -23,17 +23,19 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from flask_sqlalchemy.pagination import Pagination
 
-from app import db, app
+from app import db
+from app import app
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
-from app.models.models import AnalysisStatus
+from app.models.models import AnalysisStatus, CaseAssets, CaseEventsAssets
 from app.models.models import CaseStatus
 from app.models.models import AssetsType
 from app.models.models import CaseAssets
 from app.models.models import CaseEventsAssets
 from app.models.cases import Cases
-from app.models.comments import Comments, AssetComments
+from app.models.comments import Comments
+from app.models.comments import AssetComments
 from app.models.models import CompromiseStatus
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
@@ -104,6 +106,15 @@ def get_assets(case_identifier):
         CaseAssets.analysis_status
     ).all()
     return assets
+
+
+def get_assets_by_case(case_identifier):
+    return CaseAssets.query.with_entities(
+        CaseEventsAssets.event_id,
+        CaseAssets.asset_name
+    ).filter(
+        CaseEventsAssets.case_id == case_identifier,
+    ).join(CaseEventsAssets.asset).all()
 
 
 def filter_assets(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:

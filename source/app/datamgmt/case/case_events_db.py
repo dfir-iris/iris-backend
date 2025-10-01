@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from sqlalchemy import and_
 
 from app import db
@@ -26,7 +27,8 @@ from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.cases import CasesEvent
-from app.models.comments import Comments, EventComments
+from app.models.comments import Comments
+from app.models.comments import EventComments
 from app.models.models import EventCategory
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
@@ -412,3 +414,11 @@ def get_default_category():
         EventCategory.name == "Unspecified"
     ).first()
 
+
+def get_events_by_case(case_identifier):
+    return CasesEvent.query.filter(and_(
+        CasesEvent.case_id == case_identifier,
+        CasesEvent.event_in_summary
+    )).order_by(
+        CasesEvent.event_date
+    ).all()
