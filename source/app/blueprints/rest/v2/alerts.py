@@ -173,7 +173,7 @@ class AlertsOperations:
             alert = alerts_get(iris_current_user, identifier)
             if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
                 return response_api_error('User not entitled to create alerts for the client')
-            
+
             open_alerts = request.args.get('open-alerts', 'false').lower() == 'true'
             open_cases = request.args.get('open-cases', 'false').lower() == 'true'
             closed_cases = request.args.get('closed-cases', 'false').lower() == 'true'
@@ -185,7 +185,7 @@ class AlertsOperations:
                 number_of_results = 100
             if days_back < 0:
                 days_back = 180
-            
+
             similar_alerts = get_related_alerts_details(alert.alert_customer_id, alert.assets, alert.iocs,
                                                 open_alerts, closed_alerts, open_cases, closed_cases,
                                                 days_back, number_of_results)
