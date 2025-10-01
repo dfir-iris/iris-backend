@@ -40,12 +40,12 @@ from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
 from app.business.alerts import alerts_delete
+from app.business.alerts import related_alerts_get
+from app.business.alerts import get_related_alerts_details
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.access_controls import access_controls_user_has_customer_access
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
-from app.datamgmt.alerts.alerts_db import get_related_alerts_details
-
 
 class AlertsOperations:
 
@@ -186,8 +186,7 @@ class AlertsOperations:
             if days_back < 0:
                 days_back = 180
 
-            similar_alerts = get_related_alerts_details(alert.alert_customer_id, alert.assets, alert.iocs,
-                                                open_alerts, closed_alerts, open_cases, closed_cases,
+            similar_alerts = related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cases,
                                                 days_back, number_of_results)
             return response_api_success(similar_alerts)
 

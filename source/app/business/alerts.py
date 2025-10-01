@@ -31,6 +31,7 @@ from app.datamgmt.alerts.alerts_db import delete_related_alerts_cache
 from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.datamgmt.alerts.alerts_db import delete_alert
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
+from app.datamgmt.alerts.alerts_db import get_related_alerts_details
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
@@ -108,6 +109,13 @@ def alerts_get(user, identifier) -> Alert:
     if not alert:
         raise ObjectNotFoundError()
     return alert
+
+
+def related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cases,
+                        days_back, number_of_results):
+    return get_related_alerts_details(alert.alert_customer_id, alert.assets, alert.iocs,
+                                     open_alerts, closed_alerts, open_cases, closed_cases,
+                                     days_back, number_of_results)
 
 
 def alerts_exists(user, identifier) -> bool:
