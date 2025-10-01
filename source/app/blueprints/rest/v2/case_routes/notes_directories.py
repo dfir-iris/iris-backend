@@ -47,7 +47,7 @@ class NotesDirectories:
 
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
-        self._schema_search = SearchCaseNoteDirectorySchema(exclude=('parent_id','case_id'))
+        self._schema_search = SearchCaseNoteDirectorySchema(exclude=('parent_id', 'case_id'))
 
     @staticmethod
     def _get_note_directory_in_case(identifier, case_identifier):
