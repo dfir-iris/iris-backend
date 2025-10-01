@@ -53,7 +53,7 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
 
     if asset:
         track_activity(f'added asset "{asset.asset_name}"', caseid=case_identifier)
-        return 'Asset added', asset
+        return asset
 
     raise BusinessProcessingError('Unable to create asset for internal reasons')
 

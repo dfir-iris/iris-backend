@@ -89,7 +89,7 @@ class AssetsOperations:
             request_data = call_deprecated_on_preload_modules_hook('asset_create', request.get_json(), case_identifier)
             ioc_links = request_data.get('ioc_links')
             asset = self._schema.load(request_data)
-            _, create_asset = assets_create(iris_current_user, case_identifier, asset, ioc_links)
+            create_asset = assets_create(iris_current_user, case_identifier, asset, ioc_links)
             return response_api_created(self._schema.dump(create_asset))
 
         except ValidationError as e:
