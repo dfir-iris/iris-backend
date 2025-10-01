@@ -94,5 +94,5 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
     return None
 
 
-def access_controls_user_has_customer_access(user, cutomer_identifier):
-    return user_has_client_access(user.id, cutomer_identifier)
+def access_controls_user_has_customer_access(user, customer_identifier):
+    return user_has_client_access(user.id, customer_identifier)

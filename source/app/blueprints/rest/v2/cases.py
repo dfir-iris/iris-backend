@@ -51,7 +51,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from app.business.access_controls import access_controls_user_has_customer_access
 
 
 class CasesOperations:
@@ -138,7 +138,7 @@ class CasesOperations:
             customer_identifier = request_data.get('case_customer_id')
             # If user tries to update the customer, check if the user has access to the new customer
             if customer_identifier and customer_identifier != case.client_id:
-                if not user_has_client_access(iris_current_user.id, customer_identifier):
+                if not access_controls_user_has_customer_access(iris_current_user, customer_identifier):
                     raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
             if 'case_name' in request_data:
