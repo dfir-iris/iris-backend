@@ -22,7 +22,8 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
-from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.tasks import tasks_delete
 from app.business.tasks import tasks_get

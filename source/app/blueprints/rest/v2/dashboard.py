@@ -16,12 +16,17 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint, request
+from flask import Blueprint
+from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
-from app.datamgmt.dashboard.dashboard_db import list_user_cases, list_user_tasks, list_user_reviews
-from app.schema.marshables import CaseDetailsSchema, CaseTaskSchema, CaseSchema
+from app.business.cases import cases_filter_by_user
+from app.business.cases import cases_filter_by_reviewer
+from app.business.tasks import tasks_filter_by_user
+from app.schema.marshables import CaseDetailsSchema
+from app.schema.marshables import CaseTaskSchema
+from app.schema.marshables import CaseSchema
 
 dashboard_blueprint = Blueprint('dashboard',
                                 __name__,
@@ -33,9 +38,8 @@ dashboard_blueprint = Blueprint('dashboard',
 @dashboard_blueprint.route('/cases/list', methods=['GET'])
 @ac_api_requires()
 def list_own_cases():
-    cases = list_user_cases(
-        request.args.get('show_closed', 'false', type=str).lower() == 'true'
-    )
+    show_closed = request.args.get('show_closed', 'false', type=str).lower()
+    cases = cases_filter_by_user(show_closed == 'true')
 
     return response_api_success(data=CaseDetailsSchema(many=True).dump(cases))
 
@@ -45,7 +49,7 @@ def list_own_cases():
 @dashboard_blueprint.route('/tasks/list', methods=['GET'])
 @ac_api_requires()
 def list_own_tasks():
-    ct = list_user_tasks()
+    ct = tasks_filter_by_user()
     return response_api_success(data=CaseTaskSchema(many=True).dump(ct))
 
 
@@ -54,7 +58,7 @@ def list_own_tasks():
 @dashboard_blueprint.route('/reviews/list', methods=['GET'])
 @ac_api_requires()
 def list_own_reviews():
-    reviews = list_user_reviews()
+    reviews = cases_filter_by_reviewer()
     return response_api_success(
         data=CaseSchema(
             many=True,

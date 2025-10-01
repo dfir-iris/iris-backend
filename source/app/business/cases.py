@@ -54,6 +54,8 @@ from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
 from app.models.cases import Cases
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
+from app.datamgmt.dashboard.dashboard_db import list_user_cases
+from app.datamgmt.dashboard.dashboard_db import list_user_reviews
 
 
 def cases_filter(current_user, pagination_parameters, name, case_identifiers, customer_identifier,
@@ -75,6 +77,14 @@ def cases_filter(current_user, pagination_parameters, name, case_identifiers, cu
             soc_identifier,
             search_value='',
             is_open=is_open)
+
+
+def cases_filter_by_user(show_all: bool):
+    return list_user_cases(show_all)
+
+
+def cases_filter_by_reviewer():
+    return list_user_reviews()
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:
