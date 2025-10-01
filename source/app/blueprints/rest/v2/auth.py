@@ -15,9 +15,12 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import jwt
-from flask import Blueprint, session
-from flask import redirect, url_for
+from flask import Blueprint
+from flask import session
+from flask import redirect
+from flask import url_for
 from flask import request
 from flask_login import logout_user
 from oic.oauth2.exception import GrantError
@@ -25,8 +28,8 @@ from oic.oauth2.exception import GrantError
 from app import app
 from app import db
 from app import oidc_client
-from app.datamgmt.manage.manage_users_db import get_active_user
 from app.blueprints.iris_user import iris_current_user
+from app.business.errors import ObjectNotFoundError
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
@@ -139,16 +142,15 @@ def refresh_token_endpoint():
             return response_api_error('Invalid token type')
 
         user_id = payload.get('user_id')
-        user = get_active_user(user_id)
-
-        if not user:
-            return response_api_not_found()
+        user = return_authed_user_info(user_id)
 
         # Generate new tokens
         new_tokens = generate_auth_tokens(user)
 
         return response_api_success({'tokens': new_tokens})
 
+    except ObjectNotFoundError:
+        return response_api_not_found()
     except jwt.ExpiredSignatureError:
         return response_api_error('Refresh token has expired')
     except jwt.InvalidTokenError:
