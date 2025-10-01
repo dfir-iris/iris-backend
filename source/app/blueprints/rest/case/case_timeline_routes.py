@@ -207,12 +207,7 @@ def case_getgraph_assets(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_getgraph(caseid):
-    timeline = CasesEvent.query.filter(and_(
-        CasesEvent.case_id == caseid,
-        CasesEvent.event_in_summary
-    )).order_by(
-        CasesEvent.event_date
-    ).all()
+    timeline = get_events_by_case(caseid)
 
     tim = []
     for row in timeline:
