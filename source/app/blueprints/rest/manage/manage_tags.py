@@ -14,6 +14,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import json
 from flask import Blueprint
 from flask import request
@@ -22,6 +23,7 @@ from werkzeug import Response
 from app import app
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.datamgmt.manage.manage_tags_db import get_filtered_tags
+from app.models.pagination_parameters import PaginationParameters
 from app.schema.marshables import TagsSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success, AlchemyEncoder
@@ -54,12 +56,8 @@ def manage_tags_filter() -> Response:
     if type(draw) is not int:
         draw = 1
 
-    filtered_tags = get_filtered_tags(tag_title=tag_title,
-                                      tag_namespace=tag_namespace,
-                                      page=page,
-                                      per_page=per_page,
-                                      sort_by=order_by,
-                                      sort_dir=sort_dir)
+    pagination_parameters = PaginationParameters(page, per_page, order_by, sort_dir)
+    filtered_tags = get_filtered_tags(tag_title, tag_namespace, pagination_parameters)
 
     tags = {
         'total': filtered_tags.total,
@@ -77,12 +75,8 @@ def manage_tags_filter() -> Response:
 @ac_api_requires()
 def manage_tags_suggest() -> Response:
     tag_title = request.args.get('term', None, type=str)
-    filtered_tags = get_filtered_tags(tag_title=tag_title,
-                                      tag_namespace=None,
-                                      page=1,
-                                      per_page=15,
-                                      sort_by='tage_title',
-                                      sort_dir='asc')
+    pagination_parameter = PaginationParameters(1, 15, 'tage_title', 'asc')
+    filtered_tags = get_filtered_tags(tag_title, None, pagination_parameter)
 
     tags = {
         "suggestions": [tag.tag_title for tag in filtered_tags.items]
