@@ -42,7 +42,7 @@ from app.business.alerts import alerts_update
 from app.business.alerts import alerts_delete
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from app.business.access_controls import access_controls_user_has_customer_access
 
 
 class AlertsOperations:
@@ -146,7 +146,7 @@ class AlertsOperations:
             alert = self._schema.load(request_data)
             result = alerts_create(alert, iocs, assets)
 
-            if not user_has_client_access(iris_current_user.id, result.alert_customer_id):
+            if not access_controls_user_has_customer_access(iris_current_user, result.alert_customer_id):
                 return response_api_error('User not entitled to create alerts for the client')
             return response_api_created(self._schema.dump(result))
 

@@ -11,7 +11,7 @@ include_external_packages = true
 name = "Do not import the persistence layer from the API layer"
 type = "forbidden"
 source_modules = "app.blueprints.rest.v2.alerts"
-forbidden_modules = "app.datamgmt.alerts"
+forbidden_modules = "app.datamgmt"
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
