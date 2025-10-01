@@ -137,6 +137,7 @@ def get_task_comment(task_identifier, identifier):
 def update_assets_comment(task_identifier, identifier):
     return comments_operations.update(task_identifier, identifier)
 
+
 @tasks_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_task_comment(task_identifier, identifier):

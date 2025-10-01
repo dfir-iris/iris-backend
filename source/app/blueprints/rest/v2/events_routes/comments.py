@@ -137,6 +137,7 @@ def get_event_comment(event_identifier, identifier):
 def update_assets_comment(event_identifier, identifier):
     return comments_operations.update(event_identifier, identifier)
 
+
 @events_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_task_comment(event_identifier, identifier):

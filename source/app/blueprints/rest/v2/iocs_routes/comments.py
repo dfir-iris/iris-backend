@@ -136,6 +136,7 @@ def get_ioc_comment(ioc_identifier, identifier):
 def update_assets_comment(ioc_identifier, identifier):
     return comments_operations.update(ioc_identifier, identifier)
 
+
 @iocs_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_ioc_comment(ioc_identifier, identifier):
