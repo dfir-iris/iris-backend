@@ -46,13 +46,12 @@ from app.datamgmt.case.case_iocs_db import get_ioc_type_id
 from app.datamgmt.case.case_iocs_db import get_tlps_dict
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import get_ioc_state
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CommentSchema
 from app.schema.marshables import IocSchema
-from app.blueprints.access_controls import ac_requires_case_identifier
+from app.blueprints.access_controls import ac_requires_case_identifier, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error

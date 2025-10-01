@@ -578,3 +578,7 @@ def is_authentication_oidc():
 
 def is_authentication_ldap():
     return app.config.get('AUTHENTICATION_TYPE') == "ldap"
+
+
+def ac_fast_check_current_user_has_case_access(cid, access_level):
+    return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)

@@ -21,10 +21,9 @@ from flask import request
 from werkzeug import Response
 
 from app.datamgmt.manage.manage_assets_db import get_filtered_assets
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
-from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_success
 

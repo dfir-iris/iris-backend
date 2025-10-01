@@ -20,7 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -38,7 +38,6 @@ from app.business.events import events_get
 from app.business.errors import ObjectNotFoundError
 from app.models.cases import CasesEvent
 from app.schema.marshables import CommentSchema
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 from app.blueprints.rest.case_comments import case_comment_update
 

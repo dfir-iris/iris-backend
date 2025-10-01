@@ -18,7 +18,6 @@
 
 from app import db
 
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import remove_duplicate_user_case_effective_accesses
 from app.datamgmt.manage.manage_access_control_db import set_user_case_effective_access
@@ -28,10 +27,6 @@ from app.logger import logger
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import ac_flag_match_mask
-
-
-def ac_fast_check_current_user_has_case_access(cid, access_level):
-    return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
 
 
 def set_user_case_access(user_id, case_id, access_level):
