@@ -155,7 +155,6 @@ def view_user(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>/groups/update', methods=['POST'])
-@endpoint_deprecated('PUT', '/api/v2/manage/users/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def manage_user_group_(cur_id):
 
@@ -284,6 +283,7 @@ def manage_user_cac_delete_cases(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/users/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def update_user_api(cur_id):
 
