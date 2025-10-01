@@ -40,6 +40,7 @@ from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
+from app.blueprints.rest.case_comments import case_comment_update
 
 
 class CommentsOperations:
@@ -76,6 +77,13 @@ class CommentsOperations:
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+    def update(self, evidence_identifier, identifier):
+        try:
+            evidence = self._get_evidence(evidence_identifier, [CaseAccessLevel.full_access])
+            return case_comment_update(identifier, 'evidence', evidence.case_id)
         except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -123,6 +131,12 @@ def create_evidence_comment(evidence_identifier):
 @ac_api_requires()
 def get_evidence_comment(evidence_identifier, identifier):
     return comments_operations.read(evidence_identifier, identifier)
+
+
+@evidences_comments_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_assets_comment(evidence_identifier, identifier):
+    return comments_operations.update(evidence_identifier, identifier)
 
 
 @evidences_comments_blueprint.delete('/<int:identifier>')

@@ -40,6 +40,7 @@ from app.models.cases import CasesEvent
 from app.schema.marshables import CommentSchema
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
+from app.blueprints.rest.case_comments import case_comment_update
 
 
 class CommentsOperations:
@@ -89,6 +90,13 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def update(self, event_identifier, identifier):
+        try:
+            event = self._get_event(event_identifier, [CaseAccessLevel.full_access])
+            return case_comment_update(identifier, 'events', event.case_id)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
     def delete(self, event_identifier, identifier):
         try:
             event = self._get_event(event_identifier, [CaseAccessLevel.full_access])
@@ -123,6 +131,11 @@ def create_event_comment(event_identifier):
 def get_event_comment(event_identifier, identifier):
     return comments_operations.read(event_identifier, identifier)
 
+
+@events_comments_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_assets_comment(event_identifier, identifier):
+    return comments_operations.update(event_identifier, identifier)
 
 @events_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
