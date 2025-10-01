@@ -20,7 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_paginated

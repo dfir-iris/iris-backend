@@ -26,7 +26,7 @@ from app import app
 from app import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_users_db import add_case_access_to_user
 from app.datamgmt.manage.manage_users_db import update_user_customers
 from app.datamgmt.manage.manage_users_db import get_filtered_users

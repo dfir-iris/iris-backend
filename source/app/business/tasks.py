@@ -21,7 +21,7 @@ from datetime import datetime
 from flask_sqlalchemy.pagination import Pagination
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_tasks_db import delete_task
 from app.datamgmt.case.case_tasks_db import add_task
 from app.datamgmt.case.case_tasks_db import update_task_assignees

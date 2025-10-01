@@ -29,7 +29,7 @@ from marshmallow import ValidationError
 from app import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_alert_status_by_name
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.iris_engine.modules_db import get_pipelines_args_from_name

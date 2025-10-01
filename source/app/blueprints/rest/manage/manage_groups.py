@@ -24,7 +24,7 @@ from flask import request
 
 from app import db
 from app import app
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_groups_db import add_all_cases_access_to_group
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_groups_db import delete_group

@@ -19,7 +19,7 @@ from sqlalchemy import and_
 from sqlalchemy import desc
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.models.models import CaseTasks
 from app.models.models import TaskAssignee
 from app.models.models import ReviewStatus

@@ -47,7 +47,7 @@ from app.business.auth import update_session_current_case
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.datamgmt.manage.manage_users_db import get_user
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import ac_fast_check_user_has_case_access
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity

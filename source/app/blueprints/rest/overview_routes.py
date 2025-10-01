@@ -22,7 +22,7 @@ from flask import request
 from app.datamgmt.overview.overview_db import get_overview_db
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 
 overview_rest_blueprint = Blueprint('overview_rest', __name__)
 

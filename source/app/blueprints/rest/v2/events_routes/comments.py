@@ -29,7 +29,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.comments import comments_get_filtered_by_event
 from app.business.comments import comments_create_for_event
 from app.business.comments import comments_get_for_event

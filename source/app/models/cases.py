@@ -37,7 +37,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.states import update_assets_state
 from app.datamgmt.states import update_evidences_state
 from app.datamgmt.states import update_ioc_state

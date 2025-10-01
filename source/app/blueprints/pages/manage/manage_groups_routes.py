@@ -19,7 +19,7 @@ from flask import render_template
 from flask import url_for
 from werkzeug.utils import redirect
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_cases_db import list_cases_dict
 from app.datamgmt.manage.manage_groups_db import get_group_details
 from app.datamgmt.manage.manage_groups_db import get_group_with_members

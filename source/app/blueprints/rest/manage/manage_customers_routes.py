@@ -24,7 +24,7 @@ from marshmallow import ValidationError
 
 from app import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_api_requires
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.client.client_db import create_client
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client

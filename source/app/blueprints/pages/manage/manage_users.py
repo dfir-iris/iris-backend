@@ -21,7 +21,7 @@ from flask import redirect
 from flask import render_template
 from flask import url_for
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.client.client_db import get_client_list
 from app.datamgmt.manage.manage_cases_db import list_cases_dict
 from app.datamgmt.manage.manage_groups_db import get_groups_list

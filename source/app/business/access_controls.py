@@ -18,7 +18,7 @@
 
 from app import db
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import remove_duplicate_user_case_effective_accesses
 from app.datamgmt.manage.manage_access_control_db import set_user_case_effective_access

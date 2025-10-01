@@ -27,7 +27,7 @@ from app import app
 from app import db
 from app import socket_io
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.cases import cases_exists
 from app.datamgmt.case.case_db import get_review_id_from_name
 from app.datamgmt.case.case_db import case_get_desc_crc

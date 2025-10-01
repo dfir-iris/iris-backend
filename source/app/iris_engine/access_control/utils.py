@@ -4,7 +4,7 @@ from sqlalchemy import and_
 from app import db
 from app.business.access_controls import set_case_effective_access_for_user
 from app.logger import logger
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.authorization import CaseAccessLevel

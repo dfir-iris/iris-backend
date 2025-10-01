@@ -24,7 +24,7 @@ from flask import url_for
 from flask_wtf import FlaskForm
 from werkzeug import Response
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.client.client_db import get_client_list
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes

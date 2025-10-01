@@ -26,7 +26,7 @@ from app import app
 from app import db
 from app import oidc_client
 from app.datamgmt.manage.manage_users_db import get_active_user
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc

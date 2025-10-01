@@ -30,7 +30,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.v2.alerts_routes.comments import alerts_comments_blueprint
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.alerts import alerts_search
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema

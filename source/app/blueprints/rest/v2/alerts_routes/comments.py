@@ -38,7 +38,7 @@ from app.business.comments import comments_get_for_alert
 from app.blueprints.rest.case_comments import case_comment_update
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_exists
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.errors import ObjectNotFoundError
 
 

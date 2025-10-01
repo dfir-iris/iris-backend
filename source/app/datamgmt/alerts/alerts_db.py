@@ -50,7 +50,7 @@ from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name
 from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
 from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
 from app.datamgmt.states import update_timeline_state
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.models.cases import Cases

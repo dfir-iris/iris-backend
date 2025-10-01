@@ -21,7 +21,7 @@ from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.context.context_db import ctx_search_user_cases
 
 api_v2_context_blueprint = Blueprint('context_api_v2', __name__, url_prefix='/api/v2')

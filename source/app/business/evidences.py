@@ -18,7 +18,7 @@
 
 from flask_sqlalchemy.pagination import Pagination
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_modules_hook

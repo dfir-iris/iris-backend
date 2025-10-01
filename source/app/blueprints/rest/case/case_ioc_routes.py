@@ -28,7 +28,7 @@ from marshmallow import ValidationError
 from app import db
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.iocs import iocs_create
 from app.business.iocs import iocs_update
 from app.business.iocs import iocs_delete
