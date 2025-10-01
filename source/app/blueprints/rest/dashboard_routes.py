@@ -33,7 +33,9 @@ from app import oidc_client
 
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.dashboard.dashboard_db import get_global_task, list_user_cases, list_user_reviews
+from app.datamgmt.dashboard.dashboard_db import get_global_task
+from app.datamgmt.dashboard.dashboard_db import list_user_cases
+from app.datamgmt.dashboard.dashboard_db import list_user_reviews
 from app.datamgmt.dashboard.dashboard_db import get_tasks_status
 from app.datamgmt.dashboard.dashboard_db import list_global_tasks
 from app.datamgmt.dashboard.dashboard_db import list_user_tasks
@@ -299,6 +301,7 @@ def gtask_delete(cur_id, caseid):
 @ac_api_requires()
 def list_own_cases():
     cases = list_user_cases(
+        iris_current_user.id,
         request.args.get('show_closed', 'false', type=str).lower() == 'true'
     )
 
@@ -308,7 +311,7 @@ def list_own_cases():
 @dashboard_rest_blueprint.route('/user/tasks/list', methods=['GET'])
 @ac_api_requires()
 def get_utasks():
-    ct = list_user_tasks()
+    ct = list_user_tasks(iris_current_user.id)
 
     if ct:
         output = [c._asdict() for c in ct]
@@ -326,7 +329,7 @@ def get_utasks():
 @dashboard_rest_blueprint.route('/user/reviews/list', methods=['GET'])
 @ac_api_requires()
 def get_reviews():
-    ct = list_user_reviews()
+    ct = list_user_reviews(iris_current_user.id)
 
     if ct:
         output = [c._asdict() for c in ct]

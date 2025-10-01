@@ -35,3 +35,10 @@ source_modules = "app.business"
 forbidden_modules = "sqlalchemy"
 allow_indirect_imports = true
 
+[[tool.importlinter.contracts]]
+name = "Do not import API layer from the persistence layer"
+type = "forbidden"
+source_modules = "app.datamgmt.dashboard"
+forbidden_modules = "app.blueprints.iris_user"
+allow_indirect_imports = true
+

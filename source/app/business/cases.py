@@ -80,11 +80,11 @@ def cases_filter(current_user, pagination_parameters, name, case_identifiers, cu
 
 
 def cases_filter_by_user(show_all: bool):
-    return list_user_cases(show_all)
+    return list_user_cases(iris_current_user.id, show_all)
 
 
 def cases_filter_by_reviewer():
-    return list_user_reviews()
+    return list_user_reviews(iris_current_user.id)
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:

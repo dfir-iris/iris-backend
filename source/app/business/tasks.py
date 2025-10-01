@@ -74,7 +74,7 @@ def tasks_filter(case_identifier, pagination_parameters: PaginationParameters) -
 
 
 def tasks_filter_by_user():
-    return list_user_tasks()
+    return list_user_tasks(iris_current_user.id)
 
 
 def tasks_update(task: CaseTasks, task_assignee_list):
