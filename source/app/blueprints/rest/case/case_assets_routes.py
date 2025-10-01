@@ -169,7 +169,7 @@ def deprecated_add_asset(caseid):
         request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
         ioc_links = request_data.get('ioc_links')
         asset = asset_schema.load(request_data)
-        msg, created_asset = assets_create(caseid, asset, ioc_links)
+        msg, created_asset = assets_create(iris_current_user, caseid, asset, ioc_links)
         return response_success(msg, asset_schema.dump(created_asset))
     except ValidationError as e:
         return response_error('Data error', data=e.messages)
