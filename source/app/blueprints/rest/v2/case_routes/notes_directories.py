@@ -84,9 +84,8 @@ class NotesDirectories:
             directory = self._load(request_data)
 
             notes_directories_create(directory)
-            result = self._schema.dump(directory)
 
-            return response_api_created(result)
+            return response_api_created(self._schema.dump(directory))
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
 
@@ -100,8 +99,7 @@ class NotesDirectories:
         try:
             note_directory = self._get_note_directory_in_case(identifier, case_identifier)
 
-            result = self._schema.dump(note_directory)
-            return response_api_success(result)
+            return response_api_success(self._schema.dump(note_directory))
         except ObjectNotFoundError:
             return response_api_not_found()
         except BusinessProcessingError as e:
@@ -122,8 +120,7 @@ class NotesDirectories:
                 self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier, current_id=identifier)
             new_directory = self._load(request_data, instance=directory, partial=True)
             notes_directories_update(new_directory)
-            result = self._schema.dump(new_directory)
-            return response_api_success(result)
+            return response_api_success(self._schema.dump(new_directory))
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
         except ObjectNotFoundError:
