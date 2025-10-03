@@ -48,6 +48,7 @@ customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/cust
 
 customers = Customers()
 
+
 @customers_blueprint.post('')
 @ac_api_requires(Permissions.customers_write)
 def create_customer():

@@ -248,7 +248,7 @@ def add_customers():
     try:
         customer = customer_schema.load(request.json)
 
-        customer = create_client(customer)
+        create_client(customer)
     except ValidationError as e:
         return response_error(msg='Error adding customer', data=e.messages)
     except Exception as e:
