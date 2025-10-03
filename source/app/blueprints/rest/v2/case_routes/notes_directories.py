@@ -20,7 +20,8 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -36,7 +37,7 @@ from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
 from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
-from app.datamgmt.case.case_notes_db import get_directories_with_note_count
+from app.business.notes_directories import notes_directories_filter
 from app.models.authorization import CaseAccessLevel
 
 
@@ -62,7 +63,7 @@ class NotesDirectories:
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(case_identifier)
 
-        directories = get_directories_with_note_count(case_identifier)
+        directories = notes_directories_filter(case_identifier)
         return response_api_success(self._schema_search.dump(directories))
 
     def create(self, case_identifier):
