@@ -244,22 +244,24 @@ def add_customers():
     if not request.is_json:
         return response_error("Invalid request")
 
+    customer_schema = CustomerSchema()
     try:
-        client = create_client(request.json)
+        customer = customer_schema.load(request.json)
+
+        customer = create_client(customer)
     except ValidationError as e:
         return response_error(msg='Error adding customer', data=e.messages)
     except Exception as e:
         print(traceback.format_exc())
         return response_error(f'An error occurred during customer addition. {e}')
 
-    track_activity(f"Added customer {client.name}", ctx_less=True)
+    track_activity(f"Added customer {customer.name}", ctx_less=True)
 
     # Associate the created customer with the current user
-    add_user_to_customer(iris_current_user.id, client.client_id)
+    add_user_to_customer(iris_current_user.id, customer.client_id)
 
     # Return the customer
-    client_schema = CustomerSchema()
-    return response_success("Added successfully", data=client_schema.dump(client))
+    return response_success('Added successfully', data=customer_schema.dump(customer))
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/delete/<int:client_id>', methods=['POST'])

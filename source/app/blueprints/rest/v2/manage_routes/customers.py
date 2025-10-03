@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -18,13 +18,26 @@
 
 from flask import Blueprint
 
-from app.blueprints.rest.v2.manage_routes.groups import create_groups_blueprint
-from app.blueprints.rest.v2.manage_routes.users import users_blueprint
-from app.blueprints.rest.v2.manage_routes.customers import customers_blueprint
 
-manage_v2_blueprint = Blueprint('manage', __name__, url_prefix='/manage')
+from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.access_controls import ac_api_requires
+from app.models.authorization import Permissions
+from app.schema.marshables import CustomerSchema
 
-groups_blueprint = create_groups_blueprint()
-manage_v2_blueprint.register_blueprint(groups_blueprint)
-manage_v2_blueprint.register_blueprint(users_blueprint)
-manage_v2_blueprint.register_blueprint(customers_blueprint)
+
+class Customers:
+
+    def __init__(self):
+        self._schema = CustomerSchema()
+
+    def create(self):
+        return response_api_created(None)
+
+customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
+
+customers = Customers()
+
+@customers_blueprint.post('')
+@ac_api_requires(Permissions.customers_write)
+def create_customer():
+    return customers.create()

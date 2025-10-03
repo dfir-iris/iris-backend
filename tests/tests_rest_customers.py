@@ -39,3 +39,7 @@ class TestsRestCustomers(TestCase):
         response = user.create('/manage/customers/add', body)
 
         self.assertEqual(200, response.status_code)
+
+    def test_create_customer_should_return_201(self):
+        response = self._subject.create('/api/v2/manage/customers', {})
+        self.assertEqual(201, response.status_code)

@@ -31,7 +31,8 @@ from app.business.groups import groups_create
 from app.business.groups import groups_get
 from app.business.groups import groups_update
 from app.business.groups import groups_delete
-from app.models.authorization import Permissions, ac_flag_match_mask
+from app.models.authorization import Permissions
+from app.models.authorization import ac_flag_match_mask
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.blueprints.iris_user import iris_current_user
@@ -43,13 +44,10 @@ class Groups:
     def __init__(self):
         self._schema = AuthorizationGroupSchema()
 
-    def _load(self, request_data, **kwargs):
-        return self._schema.load(request_data, **kwargs)
-
     def create(self):
         try:
             request_data = request.get_json()
-            group = self._load(request_data)
+            group = self._schema.load(request_data)
             group = groups_create(group)
             result = self._schema.dump(group)
             return response_api_created(result)
@@ -69,7 +67,7 @@ class Groups:
             group = groups_get(identifier)
             request_data = request.get_json()
             request_data['group_id'] = identifier
-            updated_group = self._load(request_data, instance=group, partial=True)
+            updated_group = self._schema.load(request_data, instance=group, partial=True)
             if not ac_flag_match_mask(request_data['group_permissions'], Permissions.server_administrator.value) and ac_ldp_group_update(iris_current_user.id):
                 return response_api_error('That might not be a good idea Dave', data='Update the group permissions will lock you out')
             groups_update()

@@ -97,15 +97,10 @@ def get_client_cases(client_id: int):
     return cases_list
 
 
-def create_client(data) -> Client:
+def create_client(customer: Client):
 
-    client_schema = CustomerSchema()
-    client = client_schema.load(data)
-
-    db.session.add(client)
+    db.session.add(customer)
     db.session.commit()
-
-    return client
 
 
 def get_client_contacts(client_id: int) -> List[Contact]:
