@@ -143,7 +143,7 @@ def add_user_to_customer(user_id, customer_id):
     ).first()
 
     if user_client:
-        return True
+        return
 
     user_client = UserClient()
     user_client.user_id = user_id
@@ -154,8 +154,6 @@ def add_user_to_customer(user_id, customer_id):
     db.session.commit()
 
     ac_auto_update_user_effective_access(user_id)
-
-    return True
 
 
 def update_user_customers(user_id, customers):

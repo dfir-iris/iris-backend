@@ -19,6 +19,7 @@
 from unittest import TestCase
 from iris import Iris
 from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 
 
 class TestsRestCustomers(TestCase):
@@ -61,3 +62,13 @@ class TestsRestCustomers(TestCase):
         self._subject.create('/api/v2/manage/customers', body)
         last_activity = self._subject.get_latest_activity()
         self.assertEqual('Added customer customer_name', last_activity['activity_desc'])
+
+    def test_create_customer_should_add_user_to_the_customer(self):
+        body = {'customer_name': 'customer_name'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+        response = self._subject.get(f'/api/v2/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}').json()
+        user_customers_identifiers = []
+        for customer in response['user_customers']:
+            user_customers_identifiers.append(customer['customer_id'])
+        self.assertIn(identifier, user_customers_identifiers)
