@@ -48,3 +48,9 @@ class TestsRestCustomers(TestCase):
         body = {'customer_name': 'customer'}
         response = self._subject.create('/api/v2/manage/customers', body).json()
         self.assertEqual('customer', response['customer_name'])
+
+    def test_create_customer_should_return_400_when_another_customer_with_the_same_name_already_exists(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body)
+        response = self._subject.create('/api/v2/manage/customers', body)
+        self.assertEqual(400, response.status_code)

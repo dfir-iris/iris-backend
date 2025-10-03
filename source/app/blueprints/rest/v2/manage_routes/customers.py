@@ -18,11 +18,14 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
+from app.business.customers import customers_create
 
 
 class Customers:
@@ -31,10 +34,15 @@ class Customers:
         self._schema = CustomerSchema()
 
     def create(self):
-        request_data = request.get_json()
-        customer = self._schema.load(request_data)
-        result = self._schema.dump(customer)
-        return response_api_created(result)
+        try:
+            request_data = request.get_json()
+            customer = self._schema.load(request_data)
+            customers_create(customer)
+            result = self._schema.dump(customer)
+            return response_api_created(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
 
