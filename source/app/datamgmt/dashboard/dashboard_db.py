@@ -19,7 +19,6 @@ from sqlalchemy import and_
 from sqlalchemy import desc
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
 from app.models.models import CaseTasks
 from app.models.models import TaskAssignee
 from app.models.models import ReviewStatus
@@ -83,7 +82,7 @@ def get_tasks_status():
     return TaskStatus.query.all()
 
 
-def list_user_reviews():
+def list_user_reviews(user_identifier):
     ct = Cases.query.with_entities(
         Cases.case_id,
         Cases.name,
@@ -92,7 +91,7 @@ def list_user_reviews():
     ).join(
         Cases.review_status
     ).filter(
-        Cases.reviewer_id == iris_current_user.id,
+        Cases.reviewer_id == user_identifier,
         ReviewStatus.status_name != 'Reviewed',
         ReviewStatus.status_name != 'Not reviewed'
     ).all()
@@ -100,7 +99,7 @@ def list_user_reviews():
     return ct
 
 
-def list_user_tasks():
+def list_user_tasks(user_identifier):
     ct = CaseTasks.query.with_entities(
         CaseTasks.id.label("task_id"),
         CaseTasks.task_title,
@@ -123,7 +122,7 @@ def list_user_tasks():
         CaseTasks.status,
     ).filter(and_(
         TaskAssignee.task_id == CaseTasks.id,
-        TaskAssignee.user_id == iris_current_user.id
+        TaskAssignee.user_id == user_identifier
     )).all()
 
     return ct
@@ -172,14 +171,14 @@ def get_task_status(task_status_id):
     return ret
 
 
-def list_user_cases(show_all=False):
+def list_user_cases(user_identifier, show_all=False):
     if show_all:
         return Cases.query.filter(
-            Cases.owner_id == iris_current_user.id
+            Cases.owner_id == user_identifier
         ).all()
 
     return Cases.query.filter(
-        Cases.owner_id == iris_current_user.id,
+        Cases.owner_id == user_identifier,
         Cases.close_date == None
     ).all()
 

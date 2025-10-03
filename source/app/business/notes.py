@@ -20,7 +20,7 @@ from datetime import datetime
 
 from app import db
 from app.datamgmt.persistence_error import PersistenceError
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app.business.errors import BusinessProcessingError
 from app.business.errors import UnhandledBusinessError

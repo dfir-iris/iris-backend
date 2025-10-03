@@ -17,7 +17,7 @@
 from sqlalchemy import and_
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.manage.manage_cases_db import list_cases_id
 from app.iris_engine.access_control.utils import ac_access_level_mask_from_val_list, ac_ldp_group_removal

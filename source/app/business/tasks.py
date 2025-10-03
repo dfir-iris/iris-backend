@@ -21,13 +21,14 @@ from datetime import datetime
 from flask_sqlalchemy.pagination import Pagination
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_tasks_db import delete_task
 from app.datamgmt.case.case_tasks_db import add_task
 from app.datamgmt.case.case_tasks_db import update_task_assignees
 from app.datamgmt.case.case_tasks_db import get_task
 from app.datamgmt.case.case_tasks_db import get_filtered_tasks
 from app.datamgmt.states import update_tasks_state
+from app.datamgmt.dashboard.dashboard_db import list_user_tasks
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import CaseTasks
@@ -70,6 +71,10 @@ def tasks_get(identifier) -> CaseTasks:
 
 def tasks_filter(case_identifier, pagination_parameters: PaginationParameters) -> Pagination:
     return get_filtered_tasks(case_identifier, pagination_parameters)
+
+
+def tasks_filter_by_user():
+    return list_user_tasks(iris_current_user.id)
 
 
 def tasks_update(task: CaseTasks, task_assignee_list):

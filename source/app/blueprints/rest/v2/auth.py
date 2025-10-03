@@ -15,9 +15,12 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import jwt
-from flask import Blueprint, session
-from flask import redirect, url_for
+from flask import Blueprint
+from flask import session
+from flask import redirect
+from flask import url_for
 from flask import request
 from flask_login import logout_user
 from oic.oauth2.exception import GrantError
@@ -25,8 +28,8 @@ from oic.oauth2.exception import GrantError
 from app import app
 from app import db
 from app import oidc_client
-from app.datamgmt.manage.manage_users_db import get_active_user
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
+from app.business.errors import ObjectNotFoundError
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
@@ -35,7 +38,7 @@ from app.blueprints.rest.endpoints import response_api_error, response_api_not_f
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.auth import validate_ldap_login
 from app.business.auth import validate_local_login
-from app.business.auth import return_authed_user_info
+from app.business.users import users_get_active
 from app.business.auth import generate_auth_tokens
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
@@ -52,7 +55,7 @@ def login():
     if iris_current_user.is_authenticated:
         logger.info('User already authenticated - redirecting')
         logger.debug(f'User {iris_current_user.user} already logged in')
-        user = return_authed_user_info(iris_current_user.id)
+        user = users_get_active(iris_current_user.id)
         result = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
         return response_api_success(result)
 
@@ -139,18 +142,15 @@ def refresh_token_endpoint():
             return response_api_error('Invalid token type')
 
         user_id = payload.get('user_id')
-        user = get_active_user(user_id=user_id)
-
-        if not user:
-            return response_api_not_found()
+        user = users_get_active(user_id)
 
         # Generate new tokens
         new_tokens = generate_auth_tokens(user)
 
-        return response_api_success(data={
-            'tokens': new_tokens
-        })
+        return response_api_success({'tokens': new_tokens})
 
+    except ObjectNotFoundError:
+        return response_api_not_found()
     except jwt.ExpiredSignatureError:
         return response_api_error('Refresh token has expired')
     except jwt.InvalidTokenError:

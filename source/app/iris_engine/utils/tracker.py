@@ -21,7 +21,7 @@ from flask import request
 
 import app
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.models.models import UserActivity
 
 log = app.app.logger

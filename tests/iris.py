@@ -138,7 +138,6 @@ class Iris:
         for user in users['data']:
             identifier = user['user_id']
             self.get(f'/manage/users/deactivate/{identifier}')
-            self.delete(f'api/v2/manage/users/{identifier}')
             self.delete(f'/api/v2/manage/users/{identifier}')
         body = {'customers_membership': [_IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
         self.create(f'/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}/customers/update', body)

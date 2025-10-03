@@ -20,8 +20,8 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.iris_engine.access_control.iris_user import iris_current_user
-from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.iris_user import iris_current_user
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -37,8 +37,8 @@ from app.business.comments import comments_delete_for_note
 from app.business.notes import notes_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
+from app.blueprints.rest.case_comments import case_comment_update
 
 
 class CommentsOperations:
@@ -89,6 +89,13 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def update(self, note_identifier, identifier):
+        try:
+            note = self._get_note(note_identifier, [CaseAccessLevel.full_access])
+            return case_comment_update(identifier, 'notes', note.note_case_id)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
     def delete(self, note_identifier, identifier):
         try:
             note = self._get_note(note_identifier, [CaseAccessLevel.full_access])
@@ -122,6 +129,12 @@ def create_notes_comment(note_identifier):
 @ac_api_requires()
 def get_note_comment(note_identifier, identifier):
     return comments_operations.read(note_identifier, identifier)
+
+
+@notes_comments_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_assets_comment(note_identifier, identifier):
+    return comments_operations.update(note_identifier, identifier)
 
 
 @notes_comments_blueprint.delete('/<int:identifier>')

@@ -23,7 +23,7 @@ import os
 from datetime import datetime
 
 from app.business.errors import BusinessProcessingError
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from docx_generator.docx_generator import DocxGenerator
 from docx_generator.exceptions import rendering_error
 

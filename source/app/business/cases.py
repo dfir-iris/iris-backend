@@ -20,7 +20,7 @@ import datetime
 import traceback
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app.util import add_obj_history_entry
 from app.models.models import ReviewStatusList
@@ -53,6 +53,38 @@ from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
 from app.models.cases import Cases
+from app.datamgmt.manage.manage_cases_db import get_filtered_cases
+from app.datamgmt.dashboard.dashboard_db import list_user_cases
+from app.datamgmt.dashboard.dashboard_db import list_user_reviews
+
+
+def cases_filter(current_user, pagination_parameters, name, case_identifiers, customer_identifier,
+                 description, classification_identifier, owner_identifier, opening_user_identifier,
+                 severity_identifier, status_identifier, soc_identifier,
+                 start_open_date, end_open_date, is_open):
+    return get_filtered_cases(current_user.id, pagination_parameters,
+            start_open_date,
+            end_open_date,
+            customer_identifier,
+            case_identifiers,
+            name,
+            description,
+            classification_identifier,
+            owner_identifier,
+            opening_user_identifier,
+            severity_identifier,
+            status_identifier,
+            soc_identifier,
+            search_value='',
+            is_open=is_open)
+
+
+def cases_filter_by_user(show_all: bool):
+    return list_user_cases(iris_current_user.id, show_all)
+
+
+def cases_filter_by_reviewer():
+    return list_user_reviews(iris_current_user.id)
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:

@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,22 +16,11 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint
-from flask import request
+from flask_sqlalchemy.pagination import Pagination
 
-from app.datamgmt.overview.overview_db import get_overview_db
-from app.blueprints.access_controls import ac_api_requires
-from app.blueprints.responses import response_success
-from app.blueprints.iris_user import iris_current_user
-
-overview_rest_blueprint = Blueprint('overview_rest', __name__)
+from app.datamgmt.manage.manage_tags_db import get_filtered_tags
+from app.models.pagination_parameters import PaginationParameters
 
 
-@overview_rest_blueprint.route('/overview/filter', methods=['GET'])
-@ac_api_requires()
-def get_overview_filter():
-    """Return an overview of the cases"""
-    show_full = request.args.get('show_closed', 'false') == 'true'
-    overview = get_overview_db(iris_current_user.id, show_full)
-
-    return response_success('', data=overview)
+def tags_filter(title, namespace, pagination_parameters: PaginationParameters) -> Pagination:
+    return get_filtered_tags(title, namespace, pagination_parameters)

@@ -30,7 +30,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from flask import current_app
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 
 
 class FileRemover(object):

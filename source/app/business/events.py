@@ -19,7 +19,7 @@
 from datetime import datetime
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.models.cases import CasesEvent
 from app.business.errors import ObjectNotFoundError
 from app.util import add_obj_history_entry
