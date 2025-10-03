@@ -276,6 +276,13 @@ class TestsRestNotesDirectories(TestCase):
         self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
 
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories').json()
-
         self.assertEqual(1, response['total'])
 
+    def test_get_notes_directories_filter_should_accept_per_page_query_parameter(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'name': 'directory_name'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+        self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories', body).json()
+
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/notes-directories', {'per_page': 1}).json()
+        self.assertEqual(1, len(response['data']))

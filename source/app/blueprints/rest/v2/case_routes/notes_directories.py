@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -64,7 +65,8 @@ class NotesDirectories:
         if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(case_identifier)
 
-        directories = notes_directories_filter(case_identifier)
+        pagination_parameters = parse_pagination_parameters(request, default_order_by='name', default_direction='asc')
+        directories = notes_directories_filter(case_identifier, pagination_parameters)
         return response_api_paginated(self._schema_search, directories)
 
     def create(self, case_identifier):

@@ -25,10 +25,11 @@ from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_evidences_state
 from app.models.models import CaseReceivedFile
-from app.models.comments import Comments, EvidencesComments
+from app.models.comments import Comments
+from app.models.comments import EvidencesComments
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
-from app.datamgmt.conversions import convert_sort_direction
+from app.datamgmt.filtering import paginate
 
 
 def get_rfiles(caseid):
@@ -45,18 +46,8 @@ def get_paginated_evidences(case_identifier, pagination_parameters: PaginationPa
     query = CaseReceivedFile.query.filter(
         CaseReceivedFile.case_id == case_identifier
     )
-    order_func = convert_sort_direction(pagination_parameters.get_direction())
 
-    order_by = pagination_parameters.get_order_by()
-    column = getattr(CaseReceivedFile, order_by)
-
-    query = query.order_by(order_func(column))
-
-    return query.paginate(
-        page=pagination_parameters.get_page(),
-        per_page=pagination_parameters.get_per_page(),
-        error_out=False
-    )
+    return paginate(CaseReceivedFile, pagination_parameters, query)
 
 
 def add_rfile(evidence: CaseReceivedFile, caseid, user_id):

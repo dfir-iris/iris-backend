@@ -20,13 +20,15 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
+from flask_sqlalchemy.pagination import Pagination
 
 from app import db
 from app.datamgmt.persistence_error import PersistenceError
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_notes_state
-from app.models.comments import Comments, NotesComments
+from app.models.comments import Comments
+from app.models.comments import NotesComments
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
 from app.models.models import Notes
@@ -35,6 +37,8 @@ from app.models.models import NotesGroupLink
 from app.models.authorization import User
 from app.models.cases import Cases
 from app.models.models import Client
+from app.models.pagination_parameters import PaginationParameters
+from app.datamgmt.filtering import paginate
 
 
 def get_note(note_id):
@@ -164,7 +168,7 @@ def update_note_revision(note: Notes) -> bool:
         raise PersistenceError(e)
 
 
-def add_note(note_title, creation_date, user_id, caseid, directory_id, note_content=""):
+def add_note(note_title, creation_date, user_id, caseid, directory_id, note_content=''):
     note = Notes()
     note.note_title = note_title
     note.note_creationdate = note.note_lastupdate = creation_date
@@ -279,7 +283,7 @@ def add_note_group(group_title, caseid, userid, creationdate):
     db.session.commit()
 
     if group_title == '':
-        ng.group_title = "New notes group"
+        ng.group_title = 'New notes group'
 
     db.session.commit()
 
@@ -420,7 +424,7 @@ def delete_note_comment(note_id, comment_id):
         Comments.comment_user_id == iris_current_user.id
     ).first()
     if not comment:
-        return False, "You are not allowed to delete this comment"
+        return False, 'You are not allowed to delete this comment'
 
     NotesComments.query.filter(
         NotesComments.comment_note_id == note_id,
@@ -430,7 +434,7 @@ def delete_note_comment(note_id, comment_id):
     db.session.delete(comment)
     db.session.commit()
 
-    return True, "Comment deleted"
+    return True, 'Comment deleted'
 
 
 def get_directories_with_note_count(case_id):
@@ -454,16 +458,10 @@ def get_directories_with_note_count(case_id):
     return directories_with_note_count
 
 
-def paginate_notes_directories(case_id):
-    query = NoteDirectory.query.filter_by(case_id=case_id).order_by(
-        NoteDirectory.name.asc()
-    )
+def paginate_notes_directories(case_id, pagination_parameters: PaginationParameters) -> Pagination:
+    query = NoteDirectory.query.filter_by(case_id=case_id)
 
-    return query.paginate(
-        #page=pagination_parameters.get_page(),
-        #per_page=pagination_parameters.get_per_page(),
-        error_out=False
-    )
+    return paginate(NoteDirectory, pagination_parameters, query)
 
 def get_directory_with_note_count(directory):
     note_count = Notes.query.filter_by(directory_id=directory.id).count()
