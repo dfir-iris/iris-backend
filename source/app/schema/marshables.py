@@ -2437,7 +2437,7 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         model = Cases
         include_fk = True
         load_instance = True
-        exclude = ['name', 'description', 'soc_id', 'client_id', 'initial_date', 'state_id', 'owner_id']
+        exclude = ['name', 'description', 'soc_id', 'client_id', 'initial_date']
         unknown = EXCLUDE
 
     @pre_load
@@ -2477,16 +2477,17 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
             ValidationError: If the customer ID is not valid.
 
         """
-        assert_type_mml(input_var=data.get('case_customer'),
-                        field_name='case_customer',
+        customer_identifier = data.get('case_customer_id')
+        assert_type_mml(input_var=customer_identifier,
+                        field_name='case_customer_id',
                         type=int,
                         allow_none=True)
 
-        client = Client.query.filter(Client.client_id == data.get('case_customer')).first()
+        client = Client.query.filter(Client.client_id == customer_identifier).first()
         if client:
             return data
 
-        raise ValidationError("Invalid client id", field_name="case_customer")
+        raise ValidationError('Invalid client id', field_name='case_customer_id')
 
 
 class CaseDetailsSchema(ma.SQLAlchemyAutoSchema):

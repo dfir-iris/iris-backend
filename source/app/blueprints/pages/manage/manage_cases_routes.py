@@ -122,7 +122,7 @@ def add_case_modal(caseid: int, url_redir: bool):
                                   is_server_administrator=ac_current_user_has_permission(
                                       Permissions.server_administrator))
 
-    form.case_customer.choices = [(c['customer_id'], c['customer_name']) for c in client_list]
+    form.case_customer_id.choices = [(c['customer_id'], c['customer_name']) for c in client_list]
 
     form.classification_id.choices = [(clc['id'], clc['name_expanded']) for clc in get_case_classifications_list()]
     form.case_template_id.choices = [(ctp['id'], ctp['display_name']) for ctp in get_case_templates_list()]

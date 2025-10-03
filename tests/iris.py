@@ -99,7 +99,7 @@ class Iris:
         body = {
             'case_name': 'case name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }
         response = self._api.post('/api/v2/cases', body).json()
@@ -123,7 +123,6 @@ class Iris:
         for user in users['data']:
             identifier = user['user_id']
             self.get(f'/manage/users/deactivate/{identifier}')
-            self.create(f'/manage/users/delete/{identifier}', {})
             self.delete(f'/api/v2/manage/users/{identifier}')
         response = self.get('api/v2/alerts').json()
         for alert in response['data']:

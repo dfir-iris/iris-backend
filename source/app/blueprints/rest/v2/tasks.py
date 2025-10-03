@@ -34,39 +34,52 @@ from app.business.access_controls import ac_fast_check_current_user_has_case_acc
 from app.blueprints.rest.v2.tasks_routes.comments import tasks_comments_blueprint
 
 
+class Tasks:
+
+    def __init__(self):
+        self._schema = CaseTaskSchema()
+
+    def read(self, identifier):
+
+        try:
+            task = tasks_get(identifier)
+
+            if not ac_fast_check_current_user_has_case_access(task.task_case_id,
+                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=task.task_case_id)
+
+            result = self._schema.dump(task)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+    def delete(self, identifier):
+        try:
+            task = tasks_get(identifier)
+
+            if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=identifier)
+
+            tasks_delete(task)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message())
+
+
 tasks_blueprint = Blueprint('tasks', __name__, url_prefix='/tasks')
 tasks_blueprint.register_blueprint(tasks_comments_blueprint)
+tasks_operations = Tasks()
 
 
 @tasks_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_case_task(identifier):
-
-    try:
-        task = tasks_get(identifier)
-
-        if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=task.task_case_id)
-
-        task_schema = CaseTaskSchema()
-        return response_api_success(task_schema.dump(task))
-    except ObjectNotFoundError:
-        return response_api_not_found()
+    return tasks_operations.read(identifier)
 
 
 @tasks_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_case_task(identifier):
-
-    try:
-        task = tasks_get(identifier)
-
-        if not ac_fast_check_current_user_has_case_access(task.task_case_id, [CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=identifier)
-
-        tasks_delete(task)
-        return response_api_deleted()
-    except ObjectNotFoundError:
-        return response_api_not_found()
-    except BusinessProcessingError as e:
-        return response_api_error(e.get_message())
+    return tasks_operations.delete(identifier)

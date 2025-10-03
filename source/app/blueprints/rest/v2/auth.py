@@ -33,8 +33,12 @@ from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
 from app.blueprints.rest.endpoints import response_api_error, response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.business.auth import validate_ldap_login, validate_local_login, return_authed_user_info, generate_auth_tokens
+from app.business.auth import validate_ldap_login
+from app.business.auth import validate_local_login
+from app.business.auth import return_authed_user_info
+from app.business.auth import generate_auth_tokens
 from app.iris_engine.utils.tracker import track_activity
+from app.schema.marshables import UserSchema
 
 
 auth_blueprint = Blueprint('auth', __name__, url_prefix='/auth')
@@ -48,8 +52,9 @@ def login():
     if iris_current_user.is_authenticated:
         logger.info('User already authenticated - redirecting')
         logger.debug(f'User {iris_current_user.user} already logged in')
-        user = return_authed_user_info(user_id=iris_current_user.id)
-        return response_api_success(data=user)
+        user = return_authed_user_info(iris_current_user.id)
+        result = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+        return response_api_success(result)
 
     if is_authentication_oidc() and app.config.get('AUTHENTICATION_LOCAL_FALLBACK') is False:
         return redirect(url_for('login.oidc_login'))
@@ -58,8 +63,7 @@ def login():
     password = request.json.get('password')
 
     if is_authentication_ldap() is True:
-        authed_user = validate_ldap_login(
-            username, password, app.config.get('AUTHENTICATION_LOCAL_FALLBACK'))
+        authed_user = validate_ldap_login(username, password, app.config.get('AUTHENTICATION_LOCAL_FALLBACK'))
 
     else:
         authed_user = validate_local_login(username, password)
@@ -69,8 +73,14 @@ def login():
         track_activity(f'User {username} tried to login. Invalid credentials', ctx_less=True, display_in_ui=False)
         return response_api_error('Invalid credentials')
 
+    user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(authed_user)
+
+    # Generate auth tokens for API access
+    tokens = generate_auth_tokens(authed_user)
+    user_data.update({'tokens': tokens})
+
     track_activity(f'User {username} logged in', ctx_less=True, display_in_ui=False)
-    return response_api_success(data=authed_user)
+    return response_api_success(data=user_data)
 
 
 @auth_blueprint.post('/logout')

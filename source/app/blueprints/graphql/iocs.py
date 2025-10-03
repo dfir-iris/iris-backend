@@ -32,6 +32,8 @@ from app.business.iocs import iocs_create
 from app.business.iocs import iocs_get
 from app.business.iocs import iocs_update
 from app.business.iocs import iocs_delete
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.schema.marshables import IocSchema
 
 from graphene.relay import Connection
 
@@ -78,7 +80,11 @@ class IOCCreate(Mutation):
         }
         permissions_check_current_user_has_some_case_access(case_id, [CaseAccessLevel.full_access])
 
-        ioc, _ = iocs_create(request, case_id)
+        request_data = call_deprecated_on_preload_modules_hook('ioc_create', request, case_id)
+        request_data['case_id'] = case_id
+        add_ioc_schema = IocSchema()
+        ioc = add_ioc_schema.load(request_data)
+        ioc = iocs_create(ioc)
         return IOCCreate(ioc=ioc)
 
 
@@ -124,7 +130,15 @@ class IOCUpdate(Mutation):
         if modification_history:
             request['modification_history'] = modification_history
         ioc = iocs_get(ioc_id)
-        ioc, _ = iocs_update(ioc, request)
+
+        request_data = call_deprecated_on_preload_modules_hook('ioc_update', request, ioc.case_id)
+
+        # validate before saving
+        ioc_schema = IocSchema()
+        request_data['ioc_id'] = ioc.ioc_id
+        request_data['case_id'] = ioc.case_id
+        ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
+        ioc = iocs_update(ioc, ioc_sc)
         return IOCCreate(ioc=ioc)
 
 

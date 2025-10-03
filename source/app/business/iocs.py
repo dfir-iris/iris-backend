@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from marshmallow.exceptions import ValidationError
 
 from app import db
 from app.iris_engine.access_control.iris_user import iris_current_user
@@ -36,14 +35,6 @@ from app.datamgmt.case.case_iocs_db import get_ioc
 from app.util import add_obj_history_entry
 
 
-def _load(request_data):
-    try:
-        add_ioc_schema = IocSchema()
-        return add_ioc_schema.load(request_data)
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
-
-
 def iocs_get(ioc_identifier) -> Ioc:
     ioc = get_ioc(ioc_identifier)
     if not ioc:
@@ -51,12 +42,7 @@ def iocs_get(ioc_identifier) -> Ioc:
     return ioc
 
 
-def iocs_create(request_json, case_identifier):
-
-    # TODO ideally schema validation should be done before, outside the business logic in the REST API
-    #      for that the hook should be called after schema validation
-    request_data = call_modules_hook('on_preload_ioc_create', data=request_json, caseid=case_identifier)
-    ioc = _load({**request_data, 'case_id': case_identifier})
+def iocs_create(ioc: Ioc):
 
     if not ioc:
         raise BusinessProcessingError('Unable to create IOC for internal reasons')
@@ -67,34 +53,24 @@ def iocs_create(request_json, case_identifier):
     if case_iocs_db_exists(ioc):
         raise BusinessProcessingError('IOC with same value and type already exists')
 
-    add_ioc(ioc, iris_current_user.id, case_identifier)
+    add_ioc(ioc, iris_current_user.id, ioc.case_id)
 
-    ioc = call_modules_hook('on_postload_ioc_create', data=ioc, caseid=case_identifier)
+    ioc = call_modules_hook('on_postload_ioc_create', data=ioc, caseid=ioc.case_id)
 
     if ioc:
-        track_activity(f'added ioc "{ioc.ioc_value}"', caseid=case_identifier)
+        track_activity(f'added ioc "{ioc.ioc_value}"', caseid=ioc.case_id)
 
-        msg = 'IOC added'
-        return ioc, msg
+        return ioc
 
     raise BusinessProcessingError('Unable to create IOC for internal reasons')
 
 
-def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
+def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
     """
     Identifier: the IOC identifier
     Request JSON: the Request
     """
     try:
-        # TODO ideally schema validation should be done before, outside the business logic in the REST API
-        #      for that the hook should be called after schema validation
-        request_data = call_modules_hook('on_preload_ioc_update', data=request_json, caseid=ioc.case_id)
-
-        # validate before saving
-        ioc_schema = IocSchema()
-        request_data['ioc_id'] = ioc.ioc_id
-        request_data['case_id'] = ioc.case_id
-        ioc_sc = ioc_schema.load(request_data, instance=ioc, partial=True)
         ioc_sc.user_id = iris_current_user.id
 
         if not check_ioc_type_id(type_id=ioc_sc.ioc_type_id):
@@ -108,13 +84,9 @@ def iocs_update(ioc: Ioc, request_json: dict) -> (Ioc, str):
 
         if ioc_sc:
             track_activity(f'updated ioc "{ioc_sc.ioc_value}"', caseid=ioc.case_id)
-            return ioc, f'Updated ioc "{ioc_sc.ioc_value}"'
+            return ioc_sc
 
         raise BusinessProcessingError('Unable to update ioc for internal reasons')
-
-    # TODO most probably the scope of this try catch could be reduced, this exception is probably raised only on load
-    except ValidationError as e:
-        raise BusinessProcessingError('Data error', e.messages)
 
     except Exception as e:
         raise BusinessProcessingError('Unexpected error server-side', e)

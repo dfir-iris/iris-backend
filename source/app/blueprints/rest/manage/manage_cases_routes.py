@@ -24,6 +24,7 @@ from flask import Blueprint
 from flask import request
 from werkzeug import Response
 from werkzeug.utils import secure_filename
+from marshmallow import ValidationError
 
 from app import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
@@ -59,7 +60,10 @@ from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.cases import cases_delete
 from app.business.cases import cases_update
 from app.business.cases import cases_create
+from app.business.cases import cases_get_by_identifier
 from app.business.errors import BusinessProcessingError
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 manage_cases_rest_blueprint = Blueprint('manage_case_rest', __name__)
 
@@ -245,8 +249,13 @@ def api_add_case():
     case_schema = CaseSchema()
 
     try:
-        case = cases_create(request.get_json())
-        return response_success('Case created', data=case_schema.dump(case))
+        request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
+        case = case_schema.load(request_data)
+        case_template_id = request_data.pop('case_template_id', None)
+        result = cases_create(case, case_template_id)
+        return response_success('Case created', data=case_schema.dump(result))
+    except ValidationError as e:
+        raise response_error('Data error', e.messages)
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -268,8 +277,30 @@ def update_case_info(identifier):
 
     case_schema = CaseSchema()
     try:
-        case, msg = cases_update(identifier, request.get_json())
-        return response_success(msg, data=case_schema.dump(case))
+        case = cases_get_by_identifier(identifier)
+
+        request_data = request.get_json()
+        # If user tries to update the customer, check if the user has access to the new customer
+        if request_data.get('case_customer') and request_data.get('case_customer') != case.client_id:
+            if not user_has_client_access(iris_current_user.id, request_data.get('case_customer')):
+                raise BusinessProcessingError('Invalid customer ID. Permission denied.')
+
+        if 'case_name' in request_data:
+            short_case_name = request_data.get('case_name').replace(f'#{case.case_id} - ', '')
+            request_data['case_name'] = f'#{case.case_id} - {short_case_name}'
+        request_data['case_customer'] = case.client_id if not request_data.get('case_customer') else request_data.get(
+            'case_customer')
+        request_data['reviewer_id'] = None if request_data.get('reviewer_id') == '' else request_data.get('reviewer_id')
+
+        updated_case = case_schema.load(request_data, instance=case, partial=True)
+
+        protagonists = request_data.get('protagonists')
+        tags = request_data.get('case_tags')
+        case = cases_update(case, updated_case, protagonists, tags)
+        return response_success('Updated', data=case_schema.dump(case))
+    except ValidationError as e:
+        return response_error('Data error', e.messages)
+
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 

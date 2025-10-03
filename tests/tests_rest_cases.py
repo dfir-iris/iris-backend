@@ -44,7 +44,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases', {
             'case_name': 'name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         })
         self.assertEqual(201, response.status_code)
@@ -53,7 +53,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases/', {
             'case_name': 'name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         })
         self.assertEqual(404, response.status_code)
@@ -61,7 +61,7 @@ class TestsRestCases(TestCase):
     def test_create_case_with_missing_name_should_return_400(self):
         response = self._subject.create('/api/v2/cases', {
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         })
         self.assertEqual(400, response.status_code)
@@ -70,7 +70,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases', {
             'case_name': 'name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': '',
             'classification_id': 2
         }).json()
@@ -88,7 +88,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases', {
             'case_name': 'name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }).json()
         identifier = response['case_id']
@@ -99,7 +99,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases', {
             'case_name': 'name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }).json()
         identifier = response['case_id']
@@ -110,7 +110,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases', {
             'case_name': 'name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }).json()
         identifier = response['case_id']
@@ -131,7 +131,7 @@ class TestsRestCases(TestCase):
         response = self._subject.create('/api/v2/cases', {
             'case_name': 'test_get_cases_should_filter_on_case_name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }).json()
         case_identifier = response['case_id']
@@ -178,17 +178,17 @@ class TestsRestCases(TestCase):
         body = {
             'case_name': 'case name',
             'case_description': 'description',
-            'case_customer': '',
+            'case_customer_id': '',
             'case_soc_id': ''
         }
         response = self._subject.create('/api/v2/cases', body).json()
-        self.assertIn('case_customer', response['data'])
+        self.assertIn('case_customer_id', response['data'])
 
     def test_create_case_should_return_field_case_customer(self):
         body = {
             'case_name': 'case name',
             'case_description': 'description',
-            'case_customer': 1,
+            'case_customer_id': 1,
             'case_soc_id': ''
         }
         response = self._subject.create('/api/v2/cases', body).json()
@@ -228,7 +228,7 @@ class TestsRestCases(TestCase):
     def test_update_case_should_allow_to_update_customer(self):
         identifier = self._subject.create_dummy_case()
         customer_identifier = self._subject.create_dummy_customer()
-        response = self._subject.update(f'/api/v2/cases/{identifier}', {'case_customer': customer_identifier}).json()
+        response = self._subject.update(f'/api/v2/cases/{identifier}', {'case_customer_id': customer_identifier}).json()
         self.assertEqual(customer_identifier, response['case_customer_id'])
 
     def test_update_case_should_allow_to_update_reviewer(self):

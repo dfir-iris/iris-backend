@@ -18,6 +18,7 @@
 
 from flask import Blueprint
 from flask import request
+from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.business.access_controls import ac_fast_check_current_user_has_case_access
@@ -39,6 +40,7 @@ from app.business.evidences import evidences_get
 from app.business.evidences import evidences_update
 from app.business.evidences import evidences_filter
 from app.business.evidences import evidences_delete
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 
 class EvidencesOperations:
@@ -53,7 +55,7 @@ class EvidencesOperations:
             raise BusinessProcessingError(f'Evidence {evidence.id} does not belong to case {case_identifier}')
         return evidence
 
-    def list(self, case_identifier):
+    def search(self, case_identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
@@ -78,13 +80,20 @@ class EvidencesOperations:
             return ac_api_return_access_denied(caseid=case_identifier)
 
         try:
-            evidence = evidences_create(case_identifier, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('evidence_create', request.get_json(),
+                                                                   case_identifier)
+            evidence = self._schema.load(request_data)
 
+            evidence = evidences_create(case_identifier, evidence)
             return response_api_created(self._schema.dump(evidence))
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 
-    def get(self, case_identifier, identifier):
+    def read(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
@@ -110,10 +119,17 @@ class EvidencesOperations:
             if not ac_fast_check_current_user_has_case_access(evidence.case_id, [CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=evidence.case_id)
 
-            evidence = evidences_update(evidence, request.get_json())
+            request_data = call_deprecated_on_preload_modules_hook('evidence_update', request.get_json(), evidence.case_id)
+            request_data['id'] = evidence.id
+            evidence = self._schema.load(request_data, instance=evidence, partial=True)
+
+            evidence = evidences_update(evidence)
 
             result = self._schema.dump(evidence)
             return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
         except ObjectNotFoundError:
             return response_api_not_found()
         except BusinessProcessingError as e:
@@ -144,7 +160,7 @@ case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_pre
 @case_evidences_blueprint.get('')
 @ac_api_requires()
 def get_evidences(case_identifier):
-    return evidences_operations.list(case_identifier)
+    return evidences_operations.search(case_identifier)
 
 
 @case_evidences_blueprint.post('')
@@ -156,7 +172,7 @@ def create_evidence(case_identifier):
 @case_evidences_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_evidence(case_identifier, identifier):
-    return evidences_operations.get(case_identifier, identifier)
+    return evidences_operations.read(case_identifier, identifier)
 
 
 @case_evidences_blueprint.put('/<int:identifier>')

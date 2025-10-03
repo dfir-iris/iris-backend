@@ -18,7 +18,7 @@
 
 from datetime import datetime
 
-import marshmallow
+from marshmallow import ValidationError
 from flask import Blueprint
 from flask import request
 
@@ -49,6 +49,7 @@ from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 case_tasks_rest_blueprint = Blueprint('case_tasks_rest', __name__)
 
@@ -110,9 +111,22 @@ def case_task_status_update(cur_id: int, caseid: int):
 def deprecated_case_add_task(caseid: int):
     task_schema = CaseTaskSchema()
     try:
-        msg, task = tasks_create(case_identifier=caseid,
-                                 request_json=request.get_json())
-        return response_success(msg, data=task_schema.dump(task))
+        request_data = call_deprecated_on_preload_modules_hook('task_create', request.get_json(), caseid)
+
+        if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
+            raise BusinessProcessingError('task_assignee_id is not valid anymore since v1.5.0')
+
+        task_assignee_list = request_data['task_assignees_id']
+        del request_data['task_assignees_id']
+
+        task = task_schema.load(request_data)
+        task.task_case_id = caseid
+        task = tasks_create(task, task_assignee_list)
+        return response_success(f'Task "{task.task_title}" added', data=task_schema.dump(task))
+
+    except ValidationError as e:
+        return response_error('Data error', e.messages)
+
     except BusinessProcessingError as e:
         return response_error(e.get_message(), data=e.get_data())
 
@@ -136,18 +150,29 @@ def deprecated_case_task_view(cur_id: int, caseid: int):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def deprecated_case_edit_task(cur_id: int, caseid: int):
+    task_schema = CaseTaskSchema()
     try:
         task = get_task(task_id=cur_id)
         if not task:
             return response_error(msg='Invalid task ID for this case')
 
-        task = tasks_update(task, request.get_json())
-        task_schema = CaseTaskSchema()
+        case_identifier = task.task_case_id
+        request_data = call_deprecated_on_preload_modules_hook('task_update', request.get_json(), case_identifier)
+
+        if 'task_assignee_id' in request_data or 'task_assignees_id' not in request_data:
+            return response_error('task_assignee_id is not valid anymore since v1.5.0')
+
+        task_assignee_list = request_data['task_assignees_id']
+        del request_data['task_assignees_id']
+
+        request_data['id'] = task.id
+        task = task_schema.load(request_data, instance=task)
+
+        task = tasks_update(task, task_assignee_list)
 
         return response_success(msg='Task updated', data=task_schema.dump(task))
-
-    except marshmallow.exceptions.ValidationError as e:
-        return response_error(msg='Data error', data=e.messages)
+    except ValidationError as e:
+        return response_error('Data error', data=e.messages)
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/delete/<int:cur_id>', methods=['POST'])
@@ -160,7 +185,7 @@ def deprecated_case_delete_task(cur_id: int, caseid: int):
         tasks_delete(task)
         return response_success('Task deleted')
     except BusinessProcessingError as e:
-        return response_error(msg=e.get_message(), data=e.get_data())
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/<int:cur_id>/comments/list', methods=['GET'])
@@ -210,7 +235,7 @@ def case_comment_task_add(cur_id: int, caseid: int):
         track_activity(f"task \"{task.task_title}\" commented", caseid=caseid)
         return response_success("Task commented", data=comment_schema.dump(comment))
 
-    except marshmallow.exceptions.ValidationError as e:
+    except ValidationError as e:
         return response_error(msg="Data error", data=e.normalized_messages())
 
 

@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from typing import List
+from typing import Optional
 
 from functools import reduce
 from flask_login import AnonymousUserMixin
@@ -48,12 +49,12 @@ from app.models.authorization import UserGroup
 from app.models.authorization import UserOrganisation
 
 
-def get_user(user_id, id_key: str = 'id') -> [User, None]:
+def get_user(user_id, id_key: str = 'id') -> Optional[User]:
     user = User.query.filter(getattr(User, id_key) == user_id).first()
     return user
 
 
-def get_active_user(user_id, id_key: str = 'id') -> [User, None]:
+def get_active_user(user_id, id_key: str = 'id') -> Optional[User]:
     user = User.query.filter(
         and_(
             getattr(User, id_key) == user_id,
