@@ -16,31 +16,9 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint
-from flask import request
-
-from app.blueprints.rest.endpoints import response_api_created
-from app.blueprints.access_controls import ac_api_requires
-from app.models.authorization import Permissions
-from app.schema.marshables import CustomerSchema
+from app.datamgmt.client.client_db import create_client
+from app.models.models import Client
 
 
-class Customers:
-
-    def __init__(self):
-        self._schema = CustomerSchema()
-
-    def create(self):
-        request_data = request.get_json()
-        customer = self._schema.load(request_data)
-        result = self._schema.dump(customer)
-        return response_api_created(result)
-
-customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
-
-customers = Customers()
-
-@customers_blueprint.post('')
-@ac_api_requires(Permissions.customers_write)
-def create_customer():
-    return customers.create()
+def customers_create(customer: Client):
+    create_client(customer)

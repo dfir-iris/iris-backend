@@ -43,3 +43,8 @@ class TestsRestCustomers(TestCase):
     def test_create_customer_should_return_201(self):
         response = self._subject.create('/api/v2/manage/customers', {})
         self.assertEqual(201, response.status_code)
+
+    def test_create_customer_should_return_customer_name(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        self.assertEqual('customer', response['customer_name'])
