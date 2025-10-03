@@ -18,7 +18,9 @@
 
 from app.datamgmt.client.client_db import create_client
 from app.models.models import Client
+from app.iris_engine.utils.tracker import track_activity
 
 
 def customers_create(customer: Client):
     create_client(customer)
+    track_activity(f'Added customer {customer.name}', ctx_less=True)
