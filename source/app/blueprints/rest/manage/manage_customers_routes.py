@@ -46,6 +46,7 @@ from app.schema.marshables import CustomerSchema
 from app.blueprints.access_controls import ac_api_requires_client_access
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_customers_rest_blueprint = Blueprint('manage_customers_rest', __name__)
 
@@ -239,6 +240,7 @@ def view_customers(client_id):
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/customers')
 @ac_api_requires(Permissions.customers_write)
 def add_customers():
     if not request.is_json:
