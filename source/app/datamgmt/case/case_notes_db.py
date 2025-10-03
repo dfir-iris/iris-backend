@@ -463,6 +463,7 @@ def paginate_notes_directories(case_id, pagination_parameters: PaginationParamet
 
     return paginate(NoteDirectory, pagination_parameters, query)
 
+
 def get_directory_with_note_count(directory):
     note_count = Notes.query.filter_by(directory_id=directory.id).count()
 
