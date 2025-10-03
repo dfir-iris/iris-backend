@@ -15,9 +15,14 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from sqlalchemy import and_
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 from app import db
+from app.datamgmt.persistence_error import PersistenceError
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_notes_state
@@ -28,6 +33,8 @@ from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.authorization import User
+from app.models.cases import Cases
+from app.models.models import Client
 
 
 def get_note(note_id):
@@ -64,7 +71,7 @@ def delete_directory(directory: NoteDirectory):
     return False
 
 
-def get_note_raw(note_id, caseid):
+def get_note_raw(note_id, caseid) -> Notes:
     note = Notes.query.filter(
         Notes.note_case_id == caseid,
         Notes.note_id == note_id
@@ -124,6 +131,37 @@ def update_note(note_content, note_title, update_date, user_id, note_id, caseid)
 
     else:
         return None
+
+
+def update_note_revision(note: Notes) -> bool:
+    try:
+        latest_version = db.session.query(
+            NoteRevisions
+        ).filter_by(
+            note_id=note.note_id
+        ).order_by(
+            NoteRevisions.revision_number.desc()
+        ).first()
+        revision_number = 1 if latest_version is None else latest_version.revision_number + 1
+
+        if (revision_number > 1
+                and latest_version.note_title == note.note_title and latest_version.note_content == note.note_content):
+                return False
+
+        note_version = NoteRevisions(
+            note_id=note.note_id,
+            revision_number=revision_number,
+            note_title=note.note_title,
+            note_content=note.note_content,
+            note_user=iris_current_user.id,
+            revision_timestamp=datetime.utcnow()
+        )
+        db.session.add(note_version)
+        db.session.commit()
+
+        return True
+    except IntegrityError as e:
+        raise PersistenceError(e)
 
 
 def add_note(note_title, creation_date, user_id, caseid, directory_id, note_content=""):
@@ -431,3 +469,33 @@ def get_directory_with_note_count(directory):
             directory_dict['subdirectories'].append(get_directory_with_note_count(subdirectory))
 
     return directory_dict
+
+
+def search_notes(search_value):
+    search_condition = and_()
+    notes = Notes.query.filter(
+        Notes.note_content.like(f'%{search_value}%'),
+        Cases.client_id == Client.client_id,
+        search_condition
+    ).with_entities(
+        Notes.note_id,
+        Notes.note_title,
+        Cases.name.label('case_name'),
+        Client.name.label('client_name'),
+        Cases.case_id
+    ).join(
+        Notes.case
+    ).order_by(
+        Client.name
+    ).all()
+
+    return [row._asdict() for row in notes]
+
+
+def search_notes_in_case(case_identifier, search_input):
+    notes = Notes.query.filter(
+        and_(Notes.note_case_id == case_identifier,
+             or_(Notes.note_title.ilike(f'%{search_input}%'),
+                 Notes.note_content.ilike(f'%{search_input}%')))
+    ).all()
+    return notes

@@ -31,7 +31,7 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.v2.alerts_routes.comments import alerts_comments_blueprint
 from app.iris_engine.access_control.iris_user import iris_current_user
-from app.datamgmt.alerts.alerts_db import get_filtered_alerts
+from app.business.alerts import alerts_search
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import IocSchema
@@ -50,7 +50,7 @@ class AlertsOperations:
     def __init__(self):
         self._schema = AlertSchema()
 
-    def list(self):
+    def search(self):
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
 
@@ -91,31 +91,31 @@ class AlertsOperations:
         else:
             fields = None
 
-        filtered_alerts = get_filtered_alerts(
-            start_date=request.args.get('creation_start_date'),
-            end_date=request.args.get('creation_end_date'),
-            source_start_date=request.args.get('source_start_date'),
-            source_end_date=request.args.get('source_end_date'),
-            source_reference=request.args.get('source_reference'),
-            title=request.args.get('alert_title'),
-            description=request.args.get('alert_description'),
-            status=request.args.get('alert_status_id', type=int),
-            severity=request.args.get('alert_severity_id', type=int),
-            owner=request.args.get('alert_owner_id', type=int),
-            source=request.args.get('alert_source'),
-            tags=request.args.get('alert_tags'),
-            classification=request.args.get('alert_classification_id', type=int),
-            client=request.args.get('alert_customer_id'),
-            case_id=request.args.get('case_id', type=int),
-            alert_ids=alert_ids,
-            page=page,
-            per_page=per_page,
-            sort=request.args.get('sort'),
-            custom_conditions=request.args.get('custom_conditions'),
-            assets=alert_assets,
-            iocs=alert_iocs,
-            resolution_status=request.args.get('alert_resolution_id', type=int),
-            current_user_id=iris_current_user.id
+        filtered_alerts = alerts_search(
+            iris_current_user.id,
+            request.args.get('creation_start_date'),
+            request.args.get('creation_end_date'),
+            request.args.get('source_start_date'),
+            request.args.get('source_end_date'),
+            request.args.get('alert_title'),
+            request.args.get('alert_description'),
+            request.args.get('alert_status_id', type=int),
+            request.args.get('alert_severity_id', type=int),
+            request.args.get('alert_owner_id', type=int),
+            request.args.get('alert_source'),
+            request.args.get('alert_tags'),
+            request.args.get('case_id', type=int),
+            request.args.get('alert_customer_id'),
+            request.args.get('alert_classification_id', type=int),
+            alert_ids,
+            alert_assets,
+            alert_iocs,
+            request.args.get('alert_resolution_id', type=int),
+            request.args.get('source_reference'),
+            request.args.get('custom_conditions'),
+            page,
+            per_page,
+            request.args.get('sort')
         )
 
         if filtered_alerts is None:
@@ -218,7 +218,7 @@ alerts_operations = AlertsOperations()
 @alerts_blueprint.get('')
 @ac_api_requires(Permissions.alerts_read)
 def alerts_list_route() -> Response:
-    return alerts_operations.list()
+    return alerts_operations.search()
 
 
 @alerts_blueprint.post('')

@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,25 +16,22 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint
-from flask import request
-
-from app.models.authorization import Permissions
-from app.blueprints.access_controls import ac_api_requires
-from app.blueprints.responses import response_success
-from app.business.search import search
-
-search_rest_blueprint = Blueprint('search_rest', __name__)
+from app.iris_engine.utils.tracker import track_activity
+from app.datamgmt.comments import search_comments
+from app.datamgmt.case.case_notes_db import search_notes
+from app.datamgmt.case.case_iocs_db import search_iocs
 
 
-@search_rest_blueprint.route('/search', methods=['POST'])
-@ac_api_requires(Permissions.search_across_cases)
-def search_file_post():
+def search(search_type, search_value):
+    track_activity(f'started a global search for {search_value} on {search_type}')
 
-    jsdata = request.get_json()
-    search_value = jsdata.get('search_value')
-    search_type = jsdata.get('search_type')
+    files = []
+    if search_type == 'ioc':
+        files = search_iocs(search_value)
 
-    files = search(search_type, search_value)
+    if search_type == 'notes' and search_value:
+        files = search_notes(search_value)
 
-    return response_success('Results fetched', files)
+    if search_type == 'comments':
+        files = search_comments(search_value)
+    return files

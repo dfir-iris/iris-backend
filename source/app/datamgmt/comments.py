@@ -17,8 +17,10 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask_sqlalchemy.pagination import Pagination
+from sqlalchemy import and_
 
 from app import db
+from app.models.cases import Cases
 from app.models.comments import Comments
 from app.models.comments import EventComments
 from app.models.comments import TaskComments
@@ -28,6 +30,7 @@ from app.models.comments import EvidencesComments
 from app.models.comments import NotesComments
 from app.models.pagination_parameters import PaginationParameters
 from app.models.authorization import User
+from app.models.models import Client
 
 
 def _get_filtered_comments(query, pagination_parameters: PaginationParameters) -> Pagination:
@@ -110,3 +113,26 @@ def delete_comment(comment: Comments):
 def user_has_comments(user: User):
     comment = Comments.query.filter(Comments.comment_user_id == user.id).first()
     return comment is not None
+
+
+def search_comments(search_value):
+    search_condition = and_()
+    comments = Comments.query.filter(
+        Comments.comment_text.like(f'%{search_value}%'),
+        Cases.client_id == Client.client_id,
+        search_condition
+    ).with_entities(
+        Comments.comment_id,
+        Comments.comment_text,
+        Cases.name.label('case_name'),
+        Client.name.label('customer_name'),
+        Cases.case_id
+    ).join(
+        Comments.case
+    ).join(
+        Cases.client
+    ).order_by(
+        Client.name
+    ).all()
+
+    return [row._asdict() for row in comments]

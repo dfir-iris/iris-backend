@@ -26,7 +26,7 @@ from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_case_requires, ac_requires
 from app.blueprints.responses import response_error
-from app.business.dim_tasks import dim_tasks_get
+from app.business.asynchronous_tasks import dim_tasks_get
 
 dim_tasks_blueprint = Blueprint(
     'dim_tasks',

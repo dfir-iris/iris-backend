@@ -31,6 +31,12 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --output-format=github
+      - name: Check dependencies with import-linter
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install import-linter
+          PYTHONPATH=source lint-imports
 
   build-docker-db:
     name: Build docker db

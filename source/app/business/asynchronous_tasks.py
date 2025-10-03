@@ -16,7 +16,11 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import json
+import pickle
+
 from app import celery
+from app.datamgmt.asynchronous_tasks import search_asynchronous_tasks
 from iris_interface.IrisInterfaceStatus import IIStatus
 
 
@@ -83,3 +87,59 @@ def dim_tasks_get(task_identifier):
         'Logs': logs,
         'Traceback': task.traceback
     }
+
+
+def asynchronous_tasks_search(count):
+    tasks = search_asynchronous_tasks(count)
+
+    data = []
+
+    for row in tasks:
+
+        tkp = {'state': row.status, 'case': 'Unknown', 'module': row.name, 'task_id': row.task_id,
+               'date_done': row.date_done, 'user': 'Unknown'}
+
+        try:
+            _ = row.result
+        except AttributeError:
+            # Legacy task
+            data.append(tkp)
+            continue
+
+        if row.name is not None and 'task_hook_wrapper' in row.name:
+            task_name = f'{row.kwargs}::{row.kwargs}'
+        else:
+            task_name = row.name
+
+        user = None
+        case_name = None
+        if row.kwargs and row.kwargs != b'{}':
+            kwargs = json.loads(row.kwargs.decode('utf-8'))
+            if kwargs:
+                user = kwargs.get('init_user')
+                case_identifier = kwargs.get('caseid')
+                case_name = f'Case #{case_identifier}'
+                module_name = kwargs.get('module_name')
+                hook_name = kwargs.get('hook_name')
+                task_name = f'{module_name}::{hook_name}'
+
+        try:
+            result = pickle.loads(row.result)
+        except:
+            result = None
+
+        if isinstance(result, IIStatus):
+            try:
+                success = result.is_success()
+            except:
+                success = None
+        else:
+            success = None
+
+        tkp['state'] = 'success' if success else str(row.result)
+        tkp['user'] = user if user else 'Shadow Iris'
+        tkp['module'] = task_name
+        tkp['case'] = case_name if case_name else ''
+
+        data.append(tkp)
+    return data

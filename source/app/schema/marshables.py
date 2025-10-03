@@ -97,6 +97,7 @@ from app.schema.utils import stream_sha256sum
 from app.schema.utils import str_to_bool
 from app.business.users import get_primary_organisation
 from app.business.users import get_organisations
+from app.datamgmt.case.assets_type import get_asset_type_by_name_case_insensitive
 
 
 ALLOWED_EXTENSIONS = {'png', 'svg'}
@@ -621,12 +622,9 @@ class AssetTypeSchema(ma.SQLAlchemyAutoSchema):
                         type=int,
                         allow_none=True)
 
-        client = AssetsType.query.filter(
-            func.lower(AssetsType.asset_name) == func.lower(data.asset_name),
-            AssetsType.asset_id != data.asset_id
-        ).first()
-        if client:
-            raise ValidationError("Asset type name already exists", field_name="asset_name")
+        asset_type = get_asset_type_by_name_case_insensitive(data.asset_name)
+        if asset_type and asset_type.asset_id != data.asset_id:
+            raise ValidationError('Asset type name already exists', field_name='asset_name')
 
         return data
 
