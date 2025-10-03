@@ -45,6 +45,7 @@ from app.models.authorization import Permissions
 from app.schema.marshables import UserSchema
 from app.schema.marshables import BasicUserSchema
 from app.schema.marshables import UserFullSchema
+from app.business.groups import groups_exist
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -171,8 +172,12 @@ def manage_user_group_(cur_id):
     if not user:
         return response_error("Invalid user ID")
 
-    update_user_groups(user_id=cur_id,
-                       groups=request.json.get('groups_membership'))
+    groups = request.json.get('groups_membership')
+    for group_identifier in groups:
+        if not groups_exist(group_identifier):
+            return response_error(f'No group with identifier {group_identifier}')
+
+    update_user_groups(cur_id, groups)
 
     track_activity(f"groups membership of user {cur_id} updated", ctx_less=True)
 

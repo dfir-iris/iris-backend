@@ -183,11 +183,16 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
           PYTHONUNBUFFERED=true python -m unittest --verbose
+      - name: Check the absence of errors/stack traces in logs
+        run: |
+          ! docker compose logs app | grep Traceback -A100
       - name: Stop development server
+        if: ${{ always() }}
         run: |
           docker compose logs app > ${{ runner.temp }}/iriswebapp_app.log
           docker compose down
       - name: Upload artifact
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: Test API iriswebapp_app logs

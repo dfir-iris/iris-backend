@@ -21,16 +21,19 @@ from flask import request
 from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.comments import comments_get_filtered_by_event
 from app.business.comments import comments_create_for_event
 from app.business.comments import comments_get_for_event
+from app.business.comments import comments_delete_for_event
 from app.business.events import events_get
 from app.business.errors import ObjectNotFoundError
 from app.models.cases import CasesEvent
@@ -86,6 +89,18 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def delete(self, event_identifier, identifier):
+        try:
+            event = self._get_event(event_identifier, [CaseAccessLevel.full_access])
+            comment = comments_get_for_event(event, identifier)
+            if comment.comment_user_id != iris_current_user.id:
+                return ac_api_return_access_denied()
+
+            comments_delete_for_event(event, comment)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 events_comments_blueprint = Blueprint('events_comments', __name__, url_prefix='/<int:event_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -107,3 +122,9 @@ def create_event_comment(event_identifier):
 @ac_api_requires()
 def get_event_comment(event_identifier, identifier):
     return comments_operations.read(event_identifier, identifier)
+
+
+@events_comments_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_task_comment(event_identifier, identifier):
+    return comments_operations.delete(event_identifier, identifier)

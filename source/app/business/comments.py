@@ -33,6 +33,7 @@ from app.datamgmt.comments import get_filtered_ioc_comments
 from app.datamgmt.comments import get_filtered_note_comments
 from app.datamgmt.comments import get_filtered_task_comments
 from app.datamgmt.comments import get_filtered_event_comments
+from app.datamgmt.comments import delete_comment
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
@@ -45,6 +46,12 @@ from app.datamgmt.case.case_iocs_db import get_case_ioc_comment
 from app.datamgmt.case.case_notes_db import get_case_note_comment
 from app.datamgmt.case.case_tasks_db import get_case_task_comment
 from app.datamgmt.case.case_events_db import get_case_event_comment
+from app.datamgmt.case.case_assets_db import delete_asset_comment
+from app.datamgmt.case.case_rfiles_db import delete_evidence_comment
+from app.datamgmt.case.case_iocs_db import delete_ioc_comment
+from app.datamgmt.case.case_notes_db import delete_note_comment
+from app.datamgmt.case.case_tasks_db import delete_task_comment
+from app.datamgmt.case.case_events_db import delete_event_comment
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
@@ -110,7 +117,7 @@ def comments_update_for_case(current_user, comment_text, comment_id, object_type
 
     call_modules_hook(f'on_postload_{hook}_comment_update', data=comment, caseid=caseid)
 
-    track_activity(f"comment {comment.comment_id} on {object_type} edited", caseid=caseid)
+    track_activity(f'comment {comment.comment_id} on {object_type} edited', caseid=caseid)
     return comment
 
 
@@ -286,3 +293,52 @@ def comments_get_for_event(event: CasesEvent, identifier) -> Comments:
     if comment is None:
         raise ObjectNotFoundError
     return comment
+
+
+def comments_delete_for_alert(comment: Comments):
+    delete_comment(comment)
+
+    call_modules_hook('on_postload_alert_comment_delete', comment.comment_id)
+    track_activity(f'comment {comment.comment_id} on alert {comment.comment_alert_id} deleted', ctx_less=True)
+
+
+def comments_delete_for_asset(asset: CaseAssets, comment: Comments):
+    delete_asset_comment(asset.asset_id, comment.comment_id)
+
+    call_modules_hook('on_postload_asset_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on asset {asset.asset_id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_evidence(evidence: CaseReceivedFile, comment: Comments):
+    delete_evidence_comment(evidence.id, comment.comment_id)
+
+    call_modules_hook('on_postload_evidence_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on evidence {evidence.id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_ioc(ioc: Ioc, comment: Comments):
+    delete_ioc_comment(ioc.ioc_id, comment.comment_id)
+
+    call_modules_hook('on_postload_ioc_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on ioc {ioc.ioc_id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_note(note: Notes, comment: Comments):
+    delete_note_comment(note.note_id, comment.comment_id)
+
+    call_modules_hook('on_postload_note_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on note {note.note_id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_task(task: CaseTasks, comment: Comments):
+    delete_task_comment(task.id, comment.comment_id)
+
+    call_modules_hook('on_postload_task_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on task {task.id} deleted', caseid=comment.comment_case_id)
+
+
+def comments_delete_for_event(event: CasesEvent, comment: Comments):
+    delete_event_comment(event.event_id, comment.comment_id)
+
+    call_modules_hook('on_postload_event_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
+    track_activity(f'comment {comment.comment_id} on event {event.event_id} deleted', caseid=comment.comment_case_id)

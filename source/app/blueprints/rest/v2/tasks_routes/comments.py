@@ -22,15 +22,18 @@ from marshmallow import ValidationError
 
 from app.iris_engine.access_control.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.business.comments import comments_get_filtered_by_task
 from app.business.comments import comments_create_for_task
 from app.business.comments import comments_get_for_task
+from app.business.comments import comments_delete_for_task
 from app.business.tasks import tasks_get
 from app.business.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
@@ -86,6 +89,18 @@ class CommentsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def delete(self, task_identifier, identifier):
+        try:
+            task = self._get_task(task_identifier, [CaseAccessLevel.full_access])
+            comment = comments_get_for_task(task, identifier)
+            if comment.comment_user_id != iris_current_user.id:
+                return ac_api_return_access_denied()
+
+            comments_delete_for_task(task, comment)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 tasks_comments_blueprint = Blueprint('tasks_comments', __name__, url_prefix='/<int:task_identifier>/comments')
 comments_operations = CommentsOperations()
@@ -107,3 +122,9 @@ def create_tasks_comment(task_identifier):
 @ac_api_requires()
 def get_task_comment(task_identifier, identifier):
     return comments_operations.read(task_identifier, identifier)
+
+
+@tasks_comments_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_task_comment(task_identifier, identifier):
+    return comments_operations.delete(task_identifier, identifier)

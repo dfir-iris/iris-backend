@@ -19,7 +19,9 @@
 from unittest import TestCase
 from iris import Iris
 from iris import ADMINISTRATOR_USER_IDENTIFIER
+from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
 from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_PERMISSION_ALERTS_WRITE
 from iris import IRIS_CASE_ACCESS_LEVEL_READ_ONLY
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
@@ -569,3 +571,119 @@ class TestsRestComments(TestCase):
         identifier = response['comment_id']
         response = self._subject.get(f'/api/v2/events/{object_identifier}/comments/{identifier}', {})
         self.assertEqual(200, response.status_code)
+
+    def test_delete_alerts_comment_should_return_204(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.delete(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_get_alerts_comment_should_return_404_when_deleted(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = self._subject.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        self._subject.delete(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        response = self._subject.get(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_alerts_comment_should_return_403_when_comment_was_created_by_another_user(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_SERVER_ADMINISTRATOR, IRIS_PERMISSION_ALERTS_WRITE])
+
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = user.create('/api/v2/alerts', body).json()
+        object_identifier = response['alert_id']
+        response = user.create(f'/api/v2/alerts/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.delete(f'/api/v2/alerts/{object_identifier}/comments/{identifier}')
+        self.assertEqual(403, response.status_code)
+
+    def test_delete_assets_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()
+        object_identifier = response['asset_id']
+
+        response = self._subject.create(f'/api/v2/assets/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.delete(f'/api/v2/assets/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_evidences_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'filename': 'filename'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()
+        object_identifier = response['id']
+
+        response = self._subject.create(f'/api/v2/evidences/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+        response = self._subject.delete(f'/api/v2/evidences/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_iocs_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()
+        object_identifier = response['ioc_id']
+        response = self._subject.create(f'/api/v2/iocs/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        response = self._subject.delete(f'/api/v2/iocs/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_notes_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        directory_identifier = response['id']
+        body = {'directory_id': directory_identifier}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()
+        object_identifier = response['note_id']
+        response = self._subject.create(f'/api/v2/notes/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        response = self._subject.delete(f'/api/v2/notes/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_tasks_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'task_assignees_id': [], 'task_status_id': 1, 'task_title': 'dummy title'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/tasks', body).json()
+        object_identifier = response['id']
+        response = self._subject.create(f'/api/v2/tasks/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        response = self._subject.delete(f'/api/v2/tasks/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_events_comment_should_return_204(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        object_identifier = response['event_id']
+        response = self._subject.create(f'/api/v2/events/{object_identifier}/comments', {}).json()
+        identifier = response['comment_id']
+
+        response = self._subject.delete(f'/api/v2/events/{object_identifier}/comments/{identifier}')
+        self.assertEqual(204, response.status_code)

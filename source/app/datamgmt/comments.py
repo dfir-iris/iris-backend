@@ -18,9 +18,16 @@
 
 from flask_sqlalchemy.pagination import Pagination
 
-from app.models.comments import Comments, EventComments, TaskComments, IocComments, AssetComments, EvidencesComments, \
-    NotesComments
+from app import db
+from app.models.comments import Comments
+from app.models.comments import EventComments
+from app.models.comments import TaskComments
+from app.models.comments import IocComments
+from app.models.comments import AssetComments
+from app.models.comments import EvidencesComments
+from app.models.comments import NotesComments
 from app.models.pagination_parameters import PaginationParameters
+from app.models.authorization import User
 
 
 def _get_filtered_comments(query, pagination_parameters: PaginationParameters) -> Pagination:
@@ -93,3 +100,13 @@ def get_filtered_event_comments(event_identifier, pagination_parameters: Paginat
         Comments.comment_id == EventComments.comment_id
     )
     return _get_filtered_comments(query, pagination_parameters)
+
+
+def delete_comment(comment: Comments):
+    db.session.delete(comment)
+    db.session.commit()
+
+
+def user_has_comments(user: User):
+    comment = Comments.query.filter(Comments.comment_user_id == user.id).first()
+    return comment is not None

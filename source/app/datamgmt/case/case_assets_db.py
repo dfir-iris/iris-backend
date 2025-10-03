@@ -354,6 +354,8 @@ def get_case_asset_comment(asset_id, comment_id) -> Optional[Comments]:
         Comments.comment_date,
         Comments.comment_update_date,
         Comments.comment_uuid,
+        Comments.comment_user_id,
+        Comments.comment_case_id,
         User.name,
         User.user
     ).join(
@@ -363,7 +365,7 @@ def get_case_asset_comment(asset_id, comment_id) -> Optional[Comments]:
     ).first()
 
 
-def delete_asset_comment(asset_id, comment_id, case_id):
+def delete_asset_comment(asset_id, comment_id):
     comment = Comments.query.filter(
         Comments.comment_id == comment_id,
         Comments.comment_user_id == iris_current_user.id

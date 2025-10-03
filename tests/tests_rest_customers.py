@@ -20,8 +20,6 @@ from unittest import TestCase
 from iris import Iris
 from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
 
-_IRIS_INITIAL_CLIENT_IDENTIFIER = 1
-
 
 class TestsRestCustomers(TestCase):
 
@@ -30,15 +28,6 @@ class TestsRestCustomers(TestCase):
 
     def tearDown(self):
         self._subject.clear_database()
-        users = self._subject.get('/manage/users/list').json()
-        for user in users['data']:
-            identifier = user['user_id']
-            body = {'customers_membership': [_IRIS_INITIAL_CLIENT_IDENTIFIER]}
-            self._subject.create(f'/manage/users/{identifier}/customers/update', body)
-        customers = self._subject.get('/manage/customers/list').json()
-        for customer in customers['data']:
-            identifier = customer['customer_id']
-            self._subject.create(f'/manage/customers/delete/{identifier}', {})
 
     def test_create_customer_should_return_200_when_user_has_customer_write_right(self):
         group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_CUSTOMERS_WRITE])

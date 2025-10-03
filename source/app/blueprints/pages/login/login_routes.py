@@ -42,7 +42,8 @@ from app.blueprints.responses import response_error
 from app.business.auth import validate_ldap_login
 from app.business.users import retrieve_user_by_username
 from app.business.auth import wrap_login_user
-from app.datamgmt.manage.manage_users_db import create_user, update_user_groups
+from app.datamgmt.manage.manage_users_db import create_user
+from app.datamgmt.manage.manage_users_db import update_user_groups
 from app.datamgmt.manage.manage_users_db import get_user
 from app.forms import LoginForm, MFASetupForm
 from app.iris_engine.access_control.iris_user import iris_current_user
