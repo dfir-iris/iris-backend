@@ -29,7 +29,7 @@ from marshmallow import ValidationError
 from app import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.alerts.alerts_db import get_alert_status_by_name
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.iris_engine.modules_db import get_pipelines_args_from_name
@@ -39,7 +39,6 @@ from app.datamgmt.manage.manage_cases_db import close_case, map_alert_resolution
 from app.datamgmt.manage.manage_cases_db import get_case_details_rt
 from app.datamgmt.manage.manage_cases_db import list_cases_dict
 from app.datamgmt.manage.manage_cases_db import reopen_case
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.module_handler.module_handler import configure_module_on_init
 from app.iris_engine.module_handler.module_handler import instantiate_module_from_name
@@ -51,7 +50,7 @@ from app.models.authorization import Permissions
 from app.schema.marshables import CaseSchema
 from app.schema.marshables import CaseDetailsSchema
 from app.util import add_obj_history_entry
-from app.blueprints.access_controls import ac_requires_case_identifier
+from app.blueprints.access_controls import ac_requires_case_identifier, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error

@@ -41,7 +41,7 @@ from app.blueprints.graphql.permissions import permissions_check_current_user_ha
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import CaseSchema
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 from app.blueprints.graphql.iocs import IOCConnection

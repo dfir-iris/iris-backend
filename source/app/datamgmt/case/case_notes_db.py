@@ -23,7 +23,7 @@ from datetime import datetime
 
 from app import db
 from app.datamgmt.persistence_error import PersistenceError
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_notes_state
 from app.models.comments import Comments, NotesComments

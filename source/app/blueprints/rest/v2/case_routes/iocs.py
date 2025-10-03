@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.logger import logger
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -36,8 +37,7 @@ from app.business.iocs import iocs_create
 from app.business.iocs import iocs_get
 from app.business.iocs import iocs_delete
 from app.business.iocs import iocs_update
-from app.datamgmt.case.case_iocs_db import get_filtered_iocs
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
+from app.business.iocs import iocs_filter
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import IocSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_return_access_denied
@@ -67,11 +67,7 @@ class IocsOperations:
             pagination_parameters = parse_pagination_parameters(request)
             fields = parse_fields_parameters(request)
 
-            filtered_iocs = get_filtered_iocs(
-                case_identifier,
-                pagination_parameters,
-                request.args.to_dict()
-            )
+            filtered_iocs = iocs_filter(case_identifier, pagination_parameters, request.args.to_dict())
 
             if fields:
                 iocs_schema = IocSchemaForAPIV2(only=fields)

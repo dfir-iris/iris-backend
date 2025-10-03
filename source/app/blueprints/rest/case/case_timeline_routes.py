@@ -30,7 +30,7 @@ from app import db
 from app import app
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_assets_db import get_asset_by_name
 from app.datamgmt.case.case_events_db import add_comment_to_event
 from app.datamgmt.case.case_events_db import get_category_by_name

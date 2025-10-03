@@ -20,7 +20,7 @@ from sqlalchemy import and_
 
 from app import db
 from app import app
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_ioc_state
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access

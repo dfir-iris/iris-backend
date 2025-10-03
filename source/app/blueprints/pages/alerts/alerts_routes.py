@@ -29,7 +29,7 @@ from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.models.authorization import Permissions
 from app.blueprints.responses import response_error
 from app.blueprints.access_controls import ac_requires
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 
 alerts_blueprint = Blueprint(
     'alerts',

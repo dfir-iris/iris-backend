@@ -18,7 +18,7 @@
 
 from flask import Blueprint
 
-from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
@@ -28,7 +28,6 @@ from app.business.assets import assets_delete
 from app.business.assets import assets_get
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
 from app.blueprints.access_controls import ac_api_return_access_denied

@@ -17,18 +17,16 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app import db
-from app.datamgmt.manage.manage_access_control_db import get_case_effective_access, \
-    remove_duplicate_user_case_effective_accesses, set_user_case_effective_access
+
+from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
+from app.datamgmt.manage.manage_access_control_db import remove_duplicate_user_case_effective_accesses
+from app.datamgmt.manage.manage_access_control_db import set_user_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.logger import logger
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import ac_flag_match_mask
-
-
-def ac_fast_check_current_user_has_case_access(cid, access_level):
-    return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
 
 
 def set_user_case_access(user_id, case_id, access_level):
@@ -94,3 +92,7 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
             return access_level
 
     return None
+
+
+def access_controls_user_has_customer_access(user, customer_identifier):
+    return user_has_client_access(user.id, customer_identifier)

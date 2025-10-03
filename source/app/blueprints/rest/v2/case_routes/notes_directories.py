@@ -20,7 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -35,7 +35,6 @@ from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
 from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 
 

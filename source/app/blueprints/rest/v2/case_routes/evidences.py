@@ -20,8 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.models.authorization import CaseAccessLevel
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError

@@ -79,6 +79,13 @@ def users_get(identifier) -> User:
     return user
 
 
+def users_get_active(user_id) -> User:
+    user = get_active_user(user_id)
+    if not user:
+        raise ObjectNotFoundError
+    return user
+
+
 def users_update(user: User, user_password: str) -> User:
     user = update_user(user, password=user_password)
     track_activity(f'updated user {user.user}', ctx_less=True)

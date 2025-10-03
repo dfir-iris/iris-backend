@@ -29,7 +29,7 @@ from werkzeug.utils import secure_filename
 
 from app import app
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.authorization import User

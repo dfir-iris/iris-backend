@@ -22,7 +22,7 @@ from flask import render_template
 from flask import url_for
 from flask_wtf import FlaskForm
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.case.case_tasks_db import get_case_tasks_comments_count
 from app.datamgmt.case.case_tasks_db import get_task

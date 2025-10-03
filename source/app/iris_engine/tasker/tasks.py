@@ -21,7 +21,7 @@ import urllib.parse
 from celery.signals import task_prerun
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_db import get_case
 from app.iris_engine.module_handler.module_handler import pipeline_dispatcher
 from app.iris_engine.utils.common import build_upload_path

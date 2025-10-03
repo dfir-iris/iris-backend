@@ -23,7 +23,7 @@ from flask import request
 from app import app
 from app import cache
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.context.context_db import ctx_search_user_cases
 from app.models.authorization import Permissions
 from app.models.cases import Cases

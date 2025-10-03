@@ -23,7 +23,7 @@ from functools import reduce
 from flask_login import AnonymousUserMixin
 from sqlalchemy import and_
 
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app import bc
 from app import db
@@ -477,7 +477,6 @@ def get_user_details(user_id, include_api_key=False):
 
 
 def get_user_details_return_user(user_id):
-
     return User.query.filter(User.id == user_id).first()
 
 

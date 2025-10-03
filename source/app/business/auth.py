@@ -32,28 +32,13 @@ from app.business.cases import cases_get_first
 from app.logger import logger
 from app.business.users import retrieve_user_by_username
 from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
-from app.datamgmt.manage.manage_users_db import get_active_user
 from app.iris_engine.access_control.ldap_handler import ldap_authenticate
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import User
-from app.business.errors import ObjectNotFoundError
 
 import datetime
 import jwt
-
-
-def return_authed_user_info(user_id) -> User:
-    """
-    Return the user object by user id.
-
-    :param user_id: User ID
-    :return: User object if found, None otherwise
-    """
-    user = get_active_user(user_id)
-    if not user:
-        raise ObjectNotFoundError
-    return user
 
 
 def validate_ldap_login(username: str, password: str, local_fallback: bool = True):

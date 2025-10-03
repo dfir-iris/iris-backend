@@ -19,7 +19,6 @@
 from flask_sqlalchemy.pagination import Pagination
 
 from app import db
-from app.iris_engine.access_control.iris_user import iris_current_user
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
@@ -37,12 +36,12 @@ from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 
 
-def assets_create(case_identifier, asset: CaseAssets, ioc_links):
+def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
     asset.case_id = case_identifier
 
     if case_assets_db_exists(asset):
         raise BusinessProcessingError('Asset with same value and type already exists')
-    asset = create_asset(asset=asset, caseid=case_identifier, user_id=iris_current_user.id)
+    asset = create_asset(asset=asset, caseid=case_identifier, user_id=user.id)
     # TODO should the custom attributes be set?
     if ioc_links:
         errors, _ = set_ioc_links(ioc_links, asset.asset_id)
@@ -54,7 +53,7 @@ def assets_create(case_identifier, asset: CaseAssets, ioc_links):
 
     if asset:
         track_activity(f'added asset "{asset.asset_name}"', caseid=case_identifier)
-        return 'Asset added', asset
+        return asset
 
     raise BusinessProcessingError('Unable to create asset for internal reasons')
 

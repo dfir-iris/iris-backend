@@ -37,22 +37,21 @@ from app.blueprints.rest.v2.case_routes.notes_directories import case_notes_dire
 from app.blueprints.rest.v2.case_routes.tasks import case_tasks_blueprint
 from app.blueprints.rest.v2.case_routes.evidences import case_evidences_blueprint
 from app.blueprints.rest.v2.case_routes.events import case_events_blueprint
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.business.cases import cases_get_by_identifier
-from app.datamgmt.case.case_db import get_case
 from app.business.cases import cases_update
-from app.business.errors import BusinessProcessingError
-from app.datamgmt.manage.manage_cases_db import get_filtered_cases
+from app.business.errors import BusinessProcessingError, ObjectNotFoundError
+from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_requires
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from app.business.access_controls import access_controls_user_has_customer_access
 
 
 class CasesOperations:
@@ -80,26 +79,23 @@ class CasesOperations:
         end_open_date = request.args.get('end_open_date', None, type=str)
         is_open = request.args.get('is_open', None, type=parse_boolean)
 
-        filtered_cases = get_filtered_cases(
-            iris_current_user.id,
+        filtered_cases = cases_filter(
+            iris_current_user,
             pagination_parameters,
-            case_ids=case_ids_str,
-            case_customer_id=case_customer_id,
-            case_name=case_name,
-            case_description=case_description,
-            case_classification_id=case_classification_id,
-            case_owner_id=case_owner_id,
-            case_opening_user_id=case_opening_user_id,
-            case_severity_id=case_severity_id,
-            case_state_id=case_state_id,
-            case_soc_id=case_soc_id,
-            start_open_date=start_open_date,
-            end_open_date=end_open_date,
-            search_value='',
-            is_open=is_open
+            case_name,
+            case_ids_str,
+            case_customer_id,
+            case_description,
+            case_classification_id,
+            case_owner_id,
+            case_opening_user_id,
+            case_severity_id,
+            case_state_id,
+            case_soc_id,
+            start_open_date,
+            end_open_date,
+            is_open
         )
-        if filtered_cases is None:
-            return response_api_error('Filtering error')
 
         return response_api_paginated(self._schema, filtered_cases)
 
@@ -117,14 +113,15 @@ class CasesOperations:
             return response_api_error(e.get_message(), e.get_data())
 
     def read(self, identifier):
-        case = get_case(identifier)
-        if not case:
+        try:
+            case = cases_get_by_identifier(identifier)
+            if not ac_fast_check_current_user_has_case_access(identifier,
+                                                              [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                return ac_api_return_access_denied(caseid=identifier)
+            result = self._schema.dump(case)
+            return response_api_success(result)
+        except ObjectNotFoundError:
             return response_api_not_found()
-        if not ac_fast_check_current_user_has_case_access(identifier,
-                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            return ac_api_return_access_denied(caseid=identifier)
-        result = self._schema.dump(case)
-        return response_api_success(result)
 
     def update(self, identifier):
         if not ac_fast_check_current_user_has_case_access(identifier, [CaseAccessLevel.full_access]):
@@ -138,7 +135,7 @@ class CasesOperations:
             customer_identifier = request_data.get('case_customer_id')
             # If user tries to update the customer, check if the user has access to the new customer
             if customer_identifier and customer_identifier != case.client_id:
-                if not user_has_client_access(iris_current_user.id, customer_identifier):
+                if not access_controls_user_has_customer_access(iris_current_user, customer_identifier):
                     raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
             if 'case_name' in request_data:

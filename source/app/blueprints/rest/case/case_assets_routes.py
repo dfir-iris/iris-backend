@@ -29,7 +29,7 @@ from app.business.assets import assets_delete
 from app.business.assets import assets_create
 from app.business.assets import assets_get
 from app.business.assets import assets_update
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.business.errors import BusinessProcessingError
 from app.datamgmt.case.case_assets_db import get_raw_assets
 from app.datamgmt.case.case_assets_db import get_linked_iocs_finfo_from_asset
@@ -47,14 +47,13 @@ from app.datamgmt.case.case_db import get_case_client_id
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.manage.manage_users_db import get_user_cases_fast
 from app.datamgmt.states import get_assets_state
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import AnalysisStatus
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
 from app.schema.marshables import CommentSchema
-from app.blueprints.access_controls import ac_requires_case_identifier
+from app.blueprints.access_controls import ac_requires_case_identifier, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
@@ -170,8 +169,8 @@ def deprecated_add_asset(caseid):
         request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
         ioc_links = request_data.get('ioc_links')
         asset = asset_schema.load(request_data)
-        msg, created_asset = assets_create(caseid, asset, ioc_links)
-        return response_success(msg, asset_schema.dump(created_asset))
+        created_asset = assets_create(iris_current_user, caseid, asset, ioc_links)
+        return response_success('Asset added', asset_schema.dump(created_asset))
     except ValidationError as e:
         return response_error('Data error', data=e.messages)
     except BusinessProcessingError as e:

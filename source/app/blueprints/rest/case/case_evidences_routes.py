@@ -25,7 +25,7 @@ from flask import request
 from app import db
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_rfiles_db import add_comment_to_evidence
 from app.datamgmt.case.case_rfiles_db import delete_evidence_comment
 from app.datamgmt.case.case_rfiles_db import get_case_evidence_comment

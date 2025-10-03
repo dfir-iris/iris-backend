@@ -24,7 +24,7 @@ from sqlalchemy import func
 from flask_sqlalchemy.pagination import Pagination
 
 from app import db, app
-from app.iris_engine.access_control.iris_user import iris_current_user
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
 from app.models.models import AnalysisStatus

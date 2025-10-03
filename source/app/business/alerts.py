@@ -103,7 +103,7 @@ def _get(user, identifier) -> Optional[Alert]:
     return alert
 
 
-def alerts_get(user, identifier) -> Optional[Alert]:
+def alerts_get(user, identifier) -> Alert:
     alert = _get(user, identifier)
     if not alert:
         raise ObjectNotFoundError()

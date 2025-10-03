@@ -20,7 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -38,10 +38,10 @@ from app.business.assets import assets_update
 from app.business.assets import assets_delete
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
-from app.business.access_controls import ac_fast_check_current_user_has_case_access
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
+from app.blueprints.iris_user import iris_current_user
 
 
 class AssetsOperations:
@@ -89,7 +89,7 @@ class AssetsOperations:
             request_data = call_deprecated_on_preload_modules_hook('asset_create', request.get_json(), case_identifier)
             ioc_links = request_data.get('ioc_links')
             asset = self._schema.load(request_data)
-            _, create_asset = assets_create(case_identifier, asset, ioc_links)
+            create_asset = assets_create(iris_current_user, case_identifier, asset, ioc_links)
             return response_api_created(self._schema.dump(create_asset))
 
         except ValidationError as e:
