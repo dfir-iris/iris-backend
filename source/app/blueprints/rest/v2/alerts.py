@@ -172,7 +172,7 @@ class AlertsOperations:
         try:
             alert = alerts_get(iris_current_user, identifier)
             if not user_has_client_access(iris_current_user.id, alert.alert_customer_id):
-                return response_api_error('User not entitled to create alerts for the client')
+                return response_api_error('Alert not found')
 
             open_alerts = request.args.get('open-alerts', 'false').lower() == 'true'
             open_cases = request.args.get('open-cases', 'false').lower() == 'true'
