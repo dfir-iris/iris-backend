@@ -27,6 +27,7 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
@@ -64,7 +65,7 @@ class NotesDirectories:
             return ac_api_return_access_denied(case_identifier)
 
         directories = notes_directories_filter(case_identifier)
-        return response_api_success(self._schema_search.dump(directories))
+        return response_api_paginated(self._schema_search, directories)
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):

@@ -454,6 +454,17 @@ def get_directories_with_note_count(case_id):
     return directories_with_note_count
 
 
+def paginate_notes_directories(case_id):
+    query = NoteDirectory.query.filter_by(case_id=case_id).order_by(
+        NoteDirectory.name.asc()
+    )
+
+    return query.paginate(
+        #page=pagination_parameters.get_page(),
+        #per_page=pagination_parameters.get_per_page(),
+        error_out=False
+    )
+
 def get_directory_with_note_count(directory):
     note_count = Notes.query.filter_by(directory_id=directory.id).count()
 
