@@ -195,14 +195,14 @@ jobs:
       - name: Stop development server
         if: ${{ always() }}
         run: |
-          docker compose logs app > ${{ runner.temp }}/iriswebapp_app.log
+          docker compose logs > ${{ runner.temp }}/iriswebapp.log
           docker compose down
       - name: Upload artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: Test API iriswebapp_app logs
-          path: ${{ runner.temp }}/iriswebapp_app.log
+          name: Test API logs
+          path: ${{ runner.temp }}/iriswebapp.log
 
   test-database-migration:
     name: Database migration tests
