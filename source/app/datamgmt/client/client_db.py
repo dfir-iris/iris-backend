@@ -20,6 +20,7 @@ import marshmallow
 from sqlalchemy import func
 from sqlalchemy import and_
 from typing import List
+from typing import Optional
 
 from app import db
 from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
@@ -59,9 +60,8 @@ def get_client_list(current_user_id: int = None,
     return output
 
 
-def get_client(client_id: int) -> Client:
-    client = Client.query.filter(Client.client_id == client_id).first()
-    return client
+def get_client(client_id: int) -> Optional[Client]:
+    return Client.query.filter(Client.client_id == client_id).first()
 
 
 def get_client_api(client_id: str) -> Client:

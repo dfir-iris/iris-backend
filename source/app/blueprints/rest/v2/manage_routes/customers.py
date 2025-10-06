@@ -22,10 +22,12 @@ from marshmallow import ValidationError
 
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
+from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
 from app.business.customers import customers_create
+from app.business.customers import customers_get
 from app.blueprints.iris_user import iris_current_user
 
 
@@ -44,6 +46,11 @@ class Customers:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
+    def read(self, identifier):
+        customer = customers_get(identifier)
+        result = self._schema.dump(customer)
+        return response_api_success(result)
+
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
 
@@ -54,3 +61,9 @@ customers = Customers()
 @ac_api_requires(Permissions.customers_write)
 def create_customer():
     return customers.create()
+
+
+@customers_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_event(identifier):
+    return customers.read(identifier)

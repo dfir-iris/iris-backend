@@ -72,3 +72,10 @@ class TestsRestCustomers(TestCase):
         for customer in response['user_customers']:
             user_customers_identifiers.append(customer['customer_id'])
         self.assertIn(identifier, user_customers_identifiers)
+
+    def test_get_customer_should_return_200(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+        response = self._subject.get(f'/api/v2/manage/customers/{identifier}')
+        self.assertEqual(200, response.status_code)
