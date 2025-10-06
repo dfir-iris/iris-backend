@@ -20,21 +20,26 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.errors import ObjectNotFoundError
 from app.business.errors import BusinessProcessingError
 from app.schema.marshables import CaseNoteDirectorySchema
+from app.schema.marshables import SearchCaseNoteDirectorySchema
 from app.business.notes_directories import notes_directories_create
 from app.business.notes_directories import notes_directories_get
 from app.business.notes_directories import notes_directories_update
 from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
+from app.business.notes_directories import notes_directories_filter
 from app.models.authorization import CaseAccessLevel
 
 
@@ -42,6 +47,7 @@ class NotesDirectories:
 
     def __init__(self):
         self._schema = CaseNoteDirectorySchema()
+        self._schema_search = SearchCaseNoteDirectorySchema(exclude=('parent_id', 'case_id'))
 
     @staticmethod
     def _get_note_directory_in_case(identifier, case_identifier):
@@ -52,6 +58,16 @@ class NotesDirectories:
 
     def _load(self, request_data, **kwargs):
         return self._schema.load(request_data, **kwargs)
+
+    def search(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(case_identifier)
+
+        pagination_parameters = parse_pagination_parameters(request, default_order_by='name', default_direction='asc')
+        directories = notes_directories_filter(case_identifier, pagination_parameters)
+        return response_api_paginated(self._schema_search, directories)
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -69,9 +85,8 @@ class NotesDirectories:
             directory = self._load(request_data)
 
             notes_directories_create(directory)
-            result = self._schema.dump(directory)
 
-            return response_api_created(result)
+            return response_api_created(self._schema.dump(directory))
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
 
@@ -85,8 +100,7 @@ class NotesDirectories:
         try:
             note_directory = self._get_note_directory_in_case(identifier, case_identifier)
 
-            result = self._schema.dump(note_directory)
-            return response_api_success(result)
+            return response_api_success(self._schema.dump(note_directory))
         except ObjectNotFoundError:
             return response_api_not_found()
         except BusinessProcessingError as e:
@@ -107,8 +121,7 @@ class NotesDirectories:
                 self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier, current_id=identifier)
             new_directory = self._load(request_data, instance=directory, partial=True)
             notes_directories_update(new_directory)
-            result = self._schema.dump(new_directory)
-            return response_api_success(result)
+            return response_api_success(self._schema.dump(new_directory))
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
         except ObjectNotFoundError:
@@ -154,3 +167,9 @@ def update_note_directory(case_identifier, identifier):
 @ac_api_requires()
 def delete_note_directory(case_identifier, identifier):
     return notes_directories.delete(case_identifier, identifier)
+
+
+@case_notes_directories_blueprint.get('')
+@ac_api_requires()
+def get_note_directory_filter(case_identifier):
+    return notes_directories.search(case_identifier)

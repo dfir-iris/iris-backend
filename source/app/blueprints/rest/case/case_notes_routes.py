@@ -366,6 +366,7 @@ def case_get_notes_group(cur_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/filter', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/notes-directories')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_filter_notes_directories(caseid):

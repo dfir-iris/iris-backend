@@ -209,11 +209,15 @@ def get_filtered_data(model,
             log.exception(e)
             raise BusinessProcessingError(f'Error parsing custom_conditions: {e}')
 
-    # Apply ordering if requested.
+    return paginate(model, pagination_parameters, query)
+
+
+def paginate(model, pagination_parameters: PaginationParameters, query):
     order_by = pagination_parameters.get_order_by()
     if order_by is not None and hasattr(model, order_by):
         order_func = convert_sort_direction(pagination_parameters.get_direction())
-        query = query.order_by(order_func(getattr(model, order_by)))
+        column = getattr(model, order_by)
+        query = query.order_by(order_func(column))
 
     # Paginate and return the results.
     result = query.paginate(

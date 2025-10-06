@@ -231,6 +231,20 @@ class CaseNoteDirectorySchema(ma.SQLAlchemyAutoSchema):
         return data
 
 
+class SearchCaseNoteDirectorySchema(CaseNoteDirectorySchema):
+    """Schema for serializing and deserializing SearchCaseNoteDirectory objects.
+
+    This schema defines the fields to include when serializing and deserializing CaseNoteDirectory objects.
+    It includes fields for the CSRF token, directory name, directory description, and directory ID.
+    It also includes a method for verifying the directory name.
+
+    """
+
+    note_count: int = fields.Integer(required=False)
+    subdirectories: List[str] = fields.List(fields.String, required=False)
+    notes:  List[str] = fields.List(fields.String, required=False)
+
+
 class UserSchema(ma.SQLAlchemyAutoSchema):
     """Schema for serializing and deserializing User objects.
 

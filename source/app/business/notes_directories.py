@@ -22,6 +22,12 @@ from app.models.models import NoteDirectory
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.case.case_notes_db import get_directory
 from app.datamgmt.case.case_notes_db import delete_directory
+from app.datamgmt.case.case_notes_db import paginate_notes_directories
+from app.models.pagination_parameters import PaginationParameters
+
+
+def notes_directories_filter(case_identifier: int, pagination_parameters: PaginationParameters):
+    return paginate_notes_directories(case_identifier, pagination_parameters)
 
 
 def notes_directories_create(directory: NoteDirectory):
