@@ -82,7 +82,7 @@ class Events:
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
 
-    def get(self, case_identifier, identifier):
+    def read(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
@@ -163,7 +163,7 @@ def create_event(case_identifier):
 @case_events_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_event(case_identifier, identifier):
-    return events.get(case_identifier, identifier)
+    return events.read(case_identifier, identifier)
 
 
 @case_events_blueprint.put('/<int:identifier>')
