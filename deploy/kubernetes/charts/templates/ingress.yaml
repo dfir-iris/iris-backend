@@ -39,7 +39,7 @@ spec:
                         {{- end }}
         {{- end }}
     {{- end }}
-  {{- if and .Values.ingress.enableTls.enabled (gt (len .Values.ingress.tls.hosts) 0) }}
+  {{- if and .Values.ingress.enableTls (gt (len .Values.ingress.tls.hosts) 0) }}
   tls:
     - hosts:
       {{- range .Values.ingress.tls.hosts }}
