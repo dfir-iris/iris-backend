@@ -157,7 +157,7 @@ class AlertsOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 
-    def get(self, identifier):
+    def read(self, identifier):
 
         try:
             alert = alerts_get(iris_current_user, identifier)
@@ -255,7 +255,7 @@ def create_alert():
 @alerts_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_read)
 def get_alert(identifier):
-    return alerts_operations.get(identifier)
+    return alerts_operations.read(identifier)
 
 
 @alerts_blueprint.put('/<int:identifier>')
