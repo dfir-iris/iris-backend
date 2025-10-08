@@ -347,12 +347,10 @@ def ac_add_user_effective_access_from_map(users_map, case_id):
     db.session.commit()
 
 
-def ac_set_new_case_access(case_id, customer_id):
+def ac_set_new_case_access(user, case_id, customer_id):
     """
     Set a new case access
     """
-
-    user = iris_current_user
 
     users = ac_apply_autofollow_groups_access(case_id)
     if user.id in users:
