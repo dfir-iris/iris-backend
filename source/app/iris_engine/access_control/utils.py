@@ -347,7 +347,7 @@ def ac_add_user_effective_access_from_map(users_map, case_id):
     db.session.commit()
 
 
-def ac_set_new_case_access(case_id, customer_id = None):
+def ac_set_new_case_access(case_id, customer_id):
     """
     Set a new case access
     """
