@@ -36,8 +36,15 @@ from app.models.models import Languages
 from app.models.models import ReportType
 
 
-def get_first_case() -> Cases:
+def get_first_case() -> Optional[Cases]:
     return Cases.query.order_by(Cases.case_id).first()
+
+
+def get_first_case_with_customer(customer_identifier) -> Optional[Cases]:
+    case = Cases.query.filter(
+        Cases.client_id == customer_identifier
+    ).first()
+    return case
 
 
 def get_case_summary(caseid):

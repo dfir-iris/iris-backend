@@ -52,10 +52,12 @@ from app.datamgmt.reporter.report_db import export_case_assets_json
 from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
-from app.models.cases import Cases
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_reviews
+from app.datamgmt.case.case_db import get_first_case_with_customer
+from app.models.cases import Cases
+from app.models.models import Client
 
 
 def cases_filter(current_user, pagination_parameters, name, case_identifiers, customer_identifier,
@@ -96,6 +98,10 @@ def cases_get_by_identifier(case_identifier) -> Cases:
 
 def cases_get_first() -> Cases:
     return get_first_case()
+
+
+def cases_get_first_with_customer(client: Client) -> Cases:
+    return get_first_case_with_customer(client.client_id)
 
 
 def cases_exists(identifier):

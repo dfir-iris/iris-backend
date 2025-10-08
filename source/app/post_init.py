@@ -37,6 +37,7 @@ from sqlalchemy_utils import database_exists
 from app import bc
 from app import celery
 from app import db
+from app.business.cases import cases_get_first_with_customer
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
 from app.iris_engine.access_control.utils import ac_get_mask_analyst
@@ -45,7 +46,8 @@ from app.iris_engine.module_handler.module_handler import check_module_health
 from app.iris_engine.module_handler.module_handler import instantiate_module_from_name
 from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.demo_builder import create_demo_users
-from app.models.models import create_safe_limited, AssetsType
+from app.models.models import create_safe_limited
+from app.models.models import AssetsType
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus
@@ -696,7 +698,7 @@ def create_safe_assets():
         create_asset_type_if_not_exists(db.session, AssetsType(**asse_type))
 
 
-def create_safe_client():
+def create_safe_client() -> Client:
     """Creates a new Client object if it does not already exist.
 
     This function creates a new Client object with the specified client name
@@ -704,10 +706,7 @@ def create_safe_client():
 
     """
     # Create a new Client object if it does not already exist
-    client = get_or_create(db.session, Client,
-                           name="IrisInitialClient")
-
-    return client
+    return get_or_create(db.session, Client, name='IrisInitialClient')
 
 
 def create_safe_case(user, client, groups):
@@ -719,9 +718,7 @@ def create_safe_case(user, client, groups):
 
     """
     # Check if a case already exists for the client
-    case = Cases.query.filter(
-        Cases.client_id == client.client_id
-    ).first()
+    case = cases_get_first_with_customer(client)
 
     if not case:
         # Create a new case for the client
@@ -743,8 +740,6 @@ def create_safe_case(user, client, groups):
     for group in groups:
         add_case_access_to_group(group, [case.case_id], CaseAccessLevel.full_access.value)
         add_several_user_effective_access([user.id], 1, CaseAccessLevel.full_access.value)
-
-    return case
 
 
 def create_safe_report_types():
@@ -1654,15 +1649,11 @@ class PostInit:
                     self._logger.info("Registering default modules")
                     self._register_default_modules()
 
-                self._logger.info("Creating initial customer")
+                self._logger.info('Creating initial customer')
                 client = create_safe_client()
 
-                self._logger.info("Creating initial case")
-                create_safe_case(
-                    user=admin,
-                    client=client,
-                    groups=[gadm, ganalysts]
-                )
+                self._logger.info('Creating initial case')
+                create_safe_case(admin, client, [gadm, ganalysts])
 
                 # Setup symlinks for custom_assets
                 self._logger.info('Creating symlinks for custom asset icons')
