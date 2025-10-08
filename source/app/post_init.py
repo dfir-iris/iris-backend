@@ -37,8 +37,6 @@ from sqlalchemy_utils import database_exists
 from app import bc
 from app import celery
 from app import db
-from app.business.cases import cases_get_first_with_customer
-from app.business.errors import ObjectNotFoundError
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
 from app.iris_engine.access_control.utils import ac_get_mask_analyst
@@ -76,9 +74,12 @@ from app.models.models import TaskStatus
 from app.models.iocs import Tlp
 from app.models.models import create_safe
 from app.models.models import create_safe_attr
+from app.models.models import get_or_create
 from app.business.asset_types import create_asset_type_if_not_exists
 from app.business.customers import customers_get_by_name
-from app.models.models import get_or_create
+from app.business.customers import customers_create
+from app.business.cases import cases_get_first_with_customer
+from app.business.errors import ObjectNotFoundError
 from app.datamgmt.iris_engine.modules_db import iris_module_disable_by_id
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_group
@@ -712,7 +713,9 @@ def create_safe_client() -> Client:
     try:
         return customers_get_by_name(_INITIAL_CLIENT_NAME)
     except ObjectNotFoundError:
-        return get_or_create(db.session, Client, name=_INITIAL_CLIENT_NAME)
+        customer = Client(name=_INITIAL_CLIENT_NAME)
+        customers_create(customer)
+        return customer
 
 
 def create_safe_case(user, client, groups):

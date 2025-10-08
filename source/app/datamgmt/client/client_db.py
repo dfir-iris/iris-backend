@@ -100,7 +100,7 @@ def get_client_cases(client_id: int):
     return cases_list
 
 
-def create_client(customer: Client):
+def create_customer(customer: Client):
     db.session.add(customer)
     db.session.commit()
 

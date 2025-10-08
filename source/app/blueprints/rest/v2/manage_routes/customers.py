@@ -26,7 +26,7 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
-from app.business.customers import customers_create
+from app.business.customers import customers_create_with_user
 from app.business.customers import customers_get
 from app.blueprints.iris_user import iris_current_user
 
@@ -40,7 +40,7 @@ class Customers:
         try:
             request_data = request.get_json()
             customer = self._schema.load(request_data)
-            customers_create(iris_current_user, customer)
+            customers_create_with_user(iris_current_user, customer)
             result = self._schema.dump(customer)
             return response_api_created(result)
         except ValidationError as e:

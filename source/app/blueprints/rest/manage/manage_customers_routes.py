@@ -25,7 +25,7 @@ from marshmallow import ValidationError
 from app import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.client.client_db import create_client
+from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
 from app.datamgmt.client.client_db import delete_contact
@@ -250,7 +250,7 @@ def add_customers():
     try:
         customer = customer_schema.load(request.json)
 
-        create_client(customer)
+        create_customer(customer)
     except ValidationError as e:
         return response_error(msg='Error adding customer', data=e.messages)
     except Exception as e:
