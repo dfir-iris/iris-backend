@@ -364,18 +364,7 @@ def ac_set_new_case_access(case_id, customer_id):
     # Default users case access - Full access
     add_several_user_effective_access(users_full_access, case_id, CaseAccessLevel.deny_all.value)
 
-    # Add specific right for the user creating the case
-    UserCaseAccess.query.filter(
-        UserCaseAccess.case_id == case_id,
-        UserCaseAccess.user_id == user.id
-    ).delete()
-    db.session.commit()
-    uca = UserCaseAccess()
-    uca.case_id = case_id
-    uca.user_id = user.id
-    uca.access_level = CaseAccessLevel.full_access.value
-    db.session.add(uca)
-    db.session.commit()
+    set_user_case_access(user, case_id)
 
     add_several_user_effective_access([user.id], case_id, CaseAccessLevel.full_access.value)
 
@@ -389,6 +378,22 @@ def ac_set_new_case_access(case_id, customer_id):
         ).all()
         users_map = { u.user_id: u.access_level for u in users_client }
         ac_add_user_effective_access_from_map(users_map, case_id)
+
+
+# TODO try to move down into app.datamgmt.manage.manage_users_db
+def set_user_case_access(user, case_id):
+    # Add specific right for the user creating the case
+    UserCaseAccess.query.filter(
+        UserCaseAccess.case_id == case_id,
+        UserCaseAccess.user_id == user.id
+    ).delete()
+    db.session.commit()
+    uca = UserCaseAccess()
+    uca.case_id = case_id
+    uca.user_id = user.id
+    uca.access_level = CaseAccessLevel.full_access.value
+    db.session.add(uca)
+    db.session.commit()
 
 
 def ac_apply_autofollow_groups_access(case_id):
