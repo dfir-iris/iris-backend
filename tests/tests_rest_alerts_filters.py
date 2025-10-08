@@ -34,7 +34,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter name',
             'filter_description': 'filter description',
-            'filter_data' :{
+            'filter_data' : {
                 'alert_tilte': 'filter name',
                 'alert_description': '',
                 'alert_source': '',

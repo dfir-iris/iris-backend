@@ -34,7 +34,7 @@ class AlertsFiltersOperations:
 
     def create(self):
         saved_filter_schema = SavedFilterSchema()
- 
+
         request_data = request.get_json()
         request_data ['created_by'] = iris_current_user.id
 
