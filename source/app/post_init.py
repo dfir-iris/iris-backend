@@ -1323,8 +1323,8 @@ class PostInit:
 
         """
         # Create new Organisation object
-        def_org = get_or_create(db.session, Organisation, org_name="Default Org",
-                                org_description="Default Organisation")
+        def_org = get_or_create(db.session, Organisation, org_name='Default Org',
+                                org_description='Default Organisation')
 
         # Create new Administrator Group object
         try:
