@@ -606,7 +606,7 @@ def alerts_escalate_route(alert_id) -> Response:
         if not case:
             return response_error('Failed to create case from alert')
 
-        ac_set_new_case_access(None, case.case_id, case.client_id)
+        ac_set_new_case_access(case.case_id, case.client_id)
 
         case = call_modules_hook('on_postload_case_create', data=case)
 
@@ -884,7 +884,7 @@ def alerts_batch_escalate_route() -> Response:
         if not case:
             return response_error('Failed to create case from alert')
 
-        ac_set_new_case_access(None, case.case_id, case.client_id)
+        ac_set_new_case_access(case.case_id, case.client_id)
 
         case = call_modules_hook('on_postload_case_create', data=case)
 

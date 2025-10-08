@@ -347,14 +347,16 @@ def ac_add_user_effective_access_from_map(users_map, case_id):
     db.session.commit()
 
 
-def ac_set_new_case_access(org_members, case_id, customer_id = None):
+def ac_set_new_case_access(case_id, customer_id = None):
     """
     Set a new case access
     """
 
+    user = iris_current_user
+
     users = ac_apply_autofollow_groups_access(case_id)
-    if iris_current_user.id in users:
-        del users[iris_current_user.id]
+    if user.id in users:
+        del users[user.id]
 
     users_full = User.query.with_entities(User.id).all()
     users_full_access = list(set([u.id for u in users_full]) - set(users.keys()))
@@ -365,17 +367,17 @@ def ac_set_new_case_access(org_members, case_id, customer_id = None):
     # Add specific right for the user creating the case
     UserCaseAccess.query.filter(
         UserCaseAccess.case_id == case_id,
-        UserCaseAccess.user_id == iris_current_user.id
+        UserCaseAccess.user_id == user.id
     ).delete()
     db.session.commit()
     uca = UserCaseAccess()
     uca.case_id = case_id
-    uca.user_id = iris_current_user.id
+    uca.user_id = user.id
     uca.access_level = CaseAccessLevel.full_access.value
     db.session.add(uca)
     db.session.commit()
 
-    add_several_user_effective_access([iris_current_user.id], case_id, CaseAccessLevel.full_access.value)
+    add_several_user_effective_access([user.id], case_id, CaseAccessLevel.full_access.value)
 
     # Add customer permissions for all users belonging to the customer
     if customer_id:
