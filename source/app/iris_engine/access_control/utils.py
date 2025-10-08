@@ -370,14 +370,20 @@ def ac_set_new_case_access(case_id, customer_id):
 
     # Add customer permissions for all users belonging to the customer
     if customer_id:
-        users_client = UserClient.query.filter(
-            UserClient.client_id == customer_id
-        ).with_entities(
-            UserClient.user_id,
-            UserClient.access_level
-        ).all()
+        users_client = get_user_access_levels_by_customer(customer_id)
         users_map = { u.user_id: u.access_level for u in users_client }
         ac_add_user_effective_access_from_map(users_map, case_id)
+
+
+# TODO move down into app.datamgmt.manage.manage_access_control_db
+def get_user_access_levels_by_customer(customer_id):
+    users_client = UserClient.query.filter(
+        UserClient.client_id == customer_id
+    ).with_entities(
+        UserClient.user_id,
+        UserClient.access_level
+    ).all()
+    return users_client
 
 
 # TODO try to move down into app.datamgmt.manage.manage_users_db
