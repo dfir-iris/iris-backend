@@ -51,12 +51,14 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CommentSchema
 from app.schema.marshables import IocSchema
-from app.blueprints.access_controls import ac_requires_case_identifier, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_requires_case_identifier
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 
 case_ioc_rest_blueprint = Blueprint('case_ioc_rest', __name__)
 
@@ -74,7 +76,8 @@ def case_list_ioc(caseid):
         out = ioc._asdict()
 
         # Get links of the IoCs seen in other cases
-        ial = get_ioc_links(ioc.ioc_id)
+        user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
 
         out['link'] = [row._asdict() for row in ial]
         # Legacy, must be changed next version

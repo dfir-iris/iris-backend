@@ -45,7 +45,8 @@ def list_case_state() -> Response:
         Flask Response object
 
     """
-    l_cl = get_case_states_list()
+    case_states = get_case_states_list()
+    l_cl = CaseStateSchema(many=True).dump(case_states)
 
     return response_success("", data=l_cl)
 

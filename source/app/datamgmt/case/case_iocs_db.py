@@ -23,7 +23,6 @@ from app import app
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_ioc_state
-from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 from app.models.alerts import Alert
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
@@ -119,12 +118,11 @@ def get_detailed_iocs(caseid):
     return detailed_iocs
 
 
-def get_ioc_links(ioc_id):
-    search_condition = and_(Cases.case_id.in_([]))
-
-    user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
+def get_ioc_links(ioc_id, user_search_limitations):
     if user_search_limitations:
         search_condition = and_(Cases.case_id.in_(user_search_limitations))
+    else:
+        search_condition = and_(Cases.case_id.in_([]))
 
     ioc = Ioc.query.filter(Ioc.ioc_id == ioc_id).first()
 

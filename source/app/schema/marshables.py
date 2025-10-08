@@ -98,6 +98,7 @@ from app.schema.utils import str_to_bool
 from app.business.users import get_primary_organisation
 from app.business.users import get_organisations
 from app.datamgmt.case.assets_type import get_asset_type_by_name_case_insensitive
+from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 
 
 ALLOWED_EXTENSIONS = {'png', 'svg'}
@@ -941,7 +942,8 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     tlp = ma.Nested(TlpSchema)
 
     def get_link(self, ioc):
-        ial = get_ioc_links(ioc.ioc_id)
+        user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
         return [row._asdict() for row in ial]
 
     link = ma.Method('get_link')
