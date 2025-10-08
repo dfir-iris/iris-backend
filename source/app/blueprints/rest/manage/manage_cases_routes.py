@@ -251,7 +251,7 @@ def api_add_case():
         request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
         case = case_schema.load(request_data)
         case_template_id = request_data.pop('case_template_id', None)
-        result = cases_create(case, case_template_id)
+        result = cases_create(iris_current_user, case, case_template_id)
         return response_success('Case created', data=case_schema.dump(result))
     except ValidationError as e:
         raise response_error('Data error', e.messages)

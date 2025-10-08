@@ -104,7 +104,7 @@ class CasesOperations:
             request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json(), None)
             case = self._schema.load(request_data)
             case_template_id = request_data.pop('case_template_id', None)
-            case = cases_create(case, case_template_id)
+            case = cases_create(iris_current_user, case, case_template_id)
             result = self._schema.dump(case)
             return response_api_created(result)
         except ValidationError as e:

@@ -20,7 +20,6 @@ import datetime
 import traceback
 
 from app import db
-from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app.util import add_obj_history_entry
 from app.models.models import ReviewStatusList
@@ -81,12 +80,12 @@ def cases_filter(current_user, pagination_parameters, name, case_identifiers, cu
             is_open=is_open)
 
 
-def cases_filter_by_user(show_all: bool):
-    return list_user_cases(iris_current_user.id, show_all)
+def cases_filter_by_user(user, show_all: bool):
+    return list_user_cases(user.id, show_all)
 
 
-def cases_filter_by_reviewer():
-    return list_user_reviews(iris_current_user.id)
+def cases_filter_by_reviewer(user):
+    return list_user_reviews(user.id)
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:
@@ -108,8 +107,8 @@ def cases_exists(identifier):
     return case_db_exists(identifier)
 
 
-def cases_create(case: Cases, case_template_id) -> Cases:
-    case.owner_id = iris_current_user.id
+def cases_create(user, case: Cases, case_template_id) -> Cases:
+    case.owner_id = user.id
     case.severity_id = 4
 
     if case_template_id and len(case_template_id) > 0:
