@@ -29,7 +29,8 @@ from app.datamgmt.manage.manage_tags_db import add_db_tag
 from app.models.authorization import User
 from app.models.cases import CaseProtagonist
 from app.models.cases import Cases
-from app.models.models import CaseTemplateReport, ReviewStatus
+from app.models.models import CaseTemplateReport
+from app.models.models import ReviewStatus
 from app.models.models import Client
 from app.models.models import Languages
 from app.models.models import ReportType
