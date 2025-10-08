@@ -32,15 +32,16 @@ class AlertsFiltersOperations:
     def __init__(self):
         self._schema = SavedFilterSchema()
 
-    def create(self):
-        saved_filter_schema = SavedFilterSchema()
+    def _load(self, request_data):
+        return self._schema.load(request_data)
 
+    def create(self):
         request_data = request.get_json()
         request_data ['created_by'] = iris_current_user.id
 
         try:
-            new_saved_filter = saved_filter_schema.load(request_data)
-            return response_api_created(saved_filter_schema.dump(new_saved_filter))
+            new_saved_filter = self._load(request_data)
+            return response_api_created(self._schema.dump(new_saved_filter))
 
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
