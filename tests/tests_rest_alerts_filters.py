@@ -52,7 +52,17 @@ class TestsRestAlertsFilters(TestCase):
                 'case_id': '',
                 'custom_conditions': '',
 
-            },
+            }
         }
         response = self._subject.create('/api/v2/alerts-filters', body)
         self.assertEqual(201, response.status_code)
+
+    def test_create_alert_filter_should_return_400_when_filter_data_is_missing(self):
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'filter name',
+            'filter_description': 'filter description',
+        }
+        response = self._subject.create('/api/v2/alerts-filters', body)
+        self.assertEqual(400, response.status_code)
