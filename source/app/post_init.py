@@ -37,7 +37,7 @@ from sqlalchemy_utils import database_exists
 from app import bc
 from app import celery
 from app import db
-from app.iris_engine.access_control.utils import ac_add_user_effective_access
+from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
 from app.iris_engine.access_control.utils import ac_get_mask_analyst
 from app.iris_engine.access_control.utils import ac_get_mask_full_permissions
@@ -744,9 +744,9 @@ def create_safe_case(user, client, groups):
         add_case_access_to_group(group=group,
                                  cases_list=[case.case_id],
                                  access_level=CaseAccessLevel.full_access.value)
-        ac_add_user_effective_access(users_list=[user.id],
-                                     case_id=1,
-                                     access_level=CaseAccessLevel.full_access.value)
+        add_several_user_effective_access(user_identifiers=[user.id],
+                                          case_identifier=1,
+                                          access_level=CaseAccessLevel.full_access.value)
 
     return case
 

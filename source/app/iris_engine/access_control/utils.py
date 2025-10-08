@@ -3,6 +3,7 @@ from sqlalchemy import and_
 
 from app import db
 from app.business.access_controls import set_case_effective_access_for_user
+from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.logger import logger
 from app.blueprints.iris_user import iris_current_user
 from app.models.cases import Cases
@@ -320,31 +321,9 @@ def ac_add_users_multi_effective_access(users_list, cases_list, access_level):
     Add multiple users to multiple cases with a specific access level
     """
     for case_id in cases_list:
-        ac_add_user_effective_access(users_list, case_id=case_id, access_level=access_level)
+        add_several_user_effective_access(users_list, case_identifier=case_id, access_level=access_level)
 
     return
-
-
-def ac_add_user_effective_access(users_list, case_id, access_level):
-    """
-    Directly add a set of effective user access
-    """
-
-    UserCaseEffectiveAccess.query.filter(
-        UserCaseEffectiveAccess.case_id == case_id,
-        UserCaseEffectiveAccess.user_id.in_(users_list)
-    ).delete()
-
-    access_to_add = []
-    for user_id in users_list:
-        ucea = UserCaseEffectiveAccess()
-        ucea.user_id = user_id
-        ucea.case_id = case_id
-        ucea.access_level = access_level
-        access_to_add.append(ucea)
-
-    db.session.add_all(access_to_add)
-    db.session.commit()
 
 
 def ac_add_user_effective_access_from_map(users_map, case_id):
@@ -381,7 +360,7 @@ def ac_set_new_case_access(org_members, case_id, customer_id = None):
     users_full_access = list(set([u.id for u in users_full]) - set(users.keys()))
 
     # Default users case access - Full access
-    ac_add_user_effective_access(users_full_access, case_id, CaseAccessLevel.deny_all.value)
+    add_several_user_effective_access(users_full_access, case_id, CaseAccessLevel.deny_all.value)
 
     # Add specific right for the user creating the case
     UserCaseAccess.query.filter(
@@ -396,7 +375,7 @@ def ac_set_new_case_access(org_members, case_id, customer_id = None):
     db.session.add(uca)
     db.session.commit()
 
-    ac_add_user_effective_access([iris_current_user.id], case_id, CaseAccessLevel.full_access.value)
+    add_several_user_effective_access([iris_current_user.id], case_id, CaseAccessLevel.full_access.value)
 
     # Add customer permissions for all users belonging to the customer
     if customer_id:
