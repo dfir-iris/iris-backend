@@ -16,10 +16,10 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from sqlalchemy import and_
 
-from app import ac_current_user_has_permission, db
+from app import ac_current_user_has_permission
 from app import db
 from app.models.cases import Cases
-from app.models.authorization import Group, UserCaseEffectiveAccess
+from app.models.authorization import Group
 from app.models.authorization import UserClient
 from app.models.authorization import UserCaseEffectiveAccess
 from app.models.authorization import Permissions
