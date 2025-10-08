@@ -96,3 +96,33 @@ class TestsRestAlertsFilters(TestCase):
         }
         response = self._subject.create('/api/v2/alerts-filters', body).json()
         self.assertEqual(filter_type, response['filter_type'])
+
+    def test_create_alert_filter_should_return_filter_name(self):
+        filter_name = 'name'
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': filter_name,
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_tilte': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        self.assertEqual(filter_name, response['filter_name'])
