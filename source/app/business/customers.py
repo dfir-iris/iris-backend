@@ -20,7 +20,8 @@ from app.datamgmt.client.client_db import create_client
 from app.models.models import Client
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
-from app.datamgmt.client.client_db import get_client
+from app.datamgmt.client.client_db import get_customer
+from app.datamgmt.client.client_db import get_customer_by_name
 from app.business.errors import ObjectNotFoundError
 
 
@@ -31,8 +32,14 @@ def customers_create(user, customer: Client):
 
 
 def customers_get(identifier) -> Client:
-    customer = get_client(identifier)
+    customer = get_customer(identifier)
     if not customer:
         raise ObjectNotFoundError()
     return customer
 
+
+def customers_get_by_name(name) -> Client:
+    customer = get_customer_by_name(name)
+    if not customer:
+        raise ObjectNotFoundError()
+    return customer

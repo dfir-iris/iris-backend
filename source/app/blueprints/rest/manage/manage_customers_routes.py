@@ -29,7 +29,7 @@ from app.datamgmt.client.client_db import create_client
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
 from app.datamgmt.client.client_db import delete_contact
-from app.datamgmt.client.client_db import get_client
+from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_client_api
 from app.datamgmt.client.client_db import get_client_cases
 from app.datamgmt.client.client_db import get_client_contacts
@@ -81,7 +81,7 @@ def customer_update_contact(client_id, contact_id):
     if not request.is_json:
         return response_error("Invalid request")
 
-    if not get_client(client_id):
+    if not get_customer(client_id):
         return response_error(f"Invalid Customer ID {client_id}")
 
     try:
@@ -110,7 +110,7 @@ def customer_add_contact(client_id):
     if not request.is_json:
         return response_error("Invalid request")
 
-    if not get_client(client_id):
+    if not get_customer(client_id):
         return response_error(f"Invalid Customer ID {client_id}")
 
     try:
