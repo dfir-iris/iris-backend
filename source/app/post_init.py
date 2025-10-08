@@ -741,12 +741,8 @@ def create_safe_case(user, client, groups):
 
     # Add the specified user and groups to the case with full access level
     for group in groups:
-        add_case_access_to_group(group=group,
-                                 cases_list=[case.case_id],
-                                 access_level=CaseAccessLevel.full_access.value)
-        add_several_user_effective_access(user_identifiers=[user.id],
-                                          case_identifier=1,
-                                          access_level=CaseAccessLevel.full_access.value)
+        add_case_access_to_group(group, [case.case_id], CaseAccessLevel.full_access.value)
+        add_several_user_effective_access([user.id], 1, CaseAccessLevel.full_access.value)
 
     return case
 
