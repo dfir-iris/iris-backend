@@ -20,19 +20,21 @@ from flask import Blueprint, request
 from werkzeug import Response
 
 from app import db
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filters.filters_db import get_filter_by_id
 from app.datamgmt.filters.filters_db import list_filters_by_type
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import SavedFilterSchema
+from app.blueprints.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
 from app.blueprints.responses import response_error
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 saved_filters_rest_blueprint = Blueprint('saved_filters_rest', __name__)
 
 
 @saved_filters_rest_blueprint.route('/filters/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/alerts-filters')
 @ac_api_requires()
 def filters_add_route() -> Response:
     """
