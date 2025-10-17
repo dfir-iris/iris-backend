@@ -19,9 +19,11 @@
 from app import db
 from app.datamgmt.filters.filters_db import get_filter_by_id
 
+
 def alerts_filters_add(new_saved_filter):
     db.session.add(new_saved_filter)
     db.session.commit()
 
+
 def alerts_filters_get(identifier):
-    return get_filter_by_id(identifier)    
+    return get_filter_by_id(identifier)
