@@ -19,6 +19,8 @@
 from unittest import TestCase
 from iris import Iris
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestAlertsFilters(TestCase):
 
@@ -221,3 +223,7 @@ class TestsRestAlertsFilters(TestCase):
         identifier = response['filter_id']
         response = self._subject.get(f'/api/v2/alerts-filters/{identifier}').json()
         self.assertEqual(filter_name, response['filter_name'])
+    
+    def test_get_alert_filter_should_return_404_when_alert_filter_not_found(self):
+        response = self._subject.get(f'/api/v2/alerts-filters/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
