@@ -17,8 +17,11 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app import db
+from app.datamgmt.filters.filters_db import get_filter_by_id
 
-
-def add_alerts_filters(new_saved_filter):
+def alerts_filters_add(new_saved_filter):
     db.session.add(new_saved_filter)
     db.session.commit()
+
+def alerts_filters_get(identifier):
+    return get_filter_by_id(identifier)    
