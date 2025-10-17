@@ -28,6 +28,7 @@ from app.schema.marshables import SavedFilterSchema
 
 from app.business.alerts_filters import alerts_filters_add
 
+
 class AlertsFiltersOperations:
 
     def __init__(self):
