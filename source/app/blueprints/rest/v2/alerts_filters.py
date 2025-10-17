@@ -26,6 +26,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.iris_user import iris_current_user
 from app.schema.marshables import SavedFilterSchema
 
+from app.business.alerts_filters import alerts_filters_add
 
 class AlertsFiltersOperations:
 
@@ -41,6 +42,7 @@ class AlertsFiltersOperations:
 
         try:
             new_saved_filter = self._load(request_data)
+            alerts_filters_add(new_saved_filter)
             return response_api_created(self._schema.dump(new_saved_filter))
 
         except ValidationError as e:
