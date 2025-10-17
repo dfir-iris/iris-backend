@@ -53,7 +53,7 @@ class AlertsFiltersOperations:
 
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
-    
+
     def get(self, identifier):
         try:
             saved_filter = get_filter_by_id(identifier)
@@ -61,7 +61,6 @@ class AlertsFiltersOperations:
 
         except ObjectNotFoundError:
             return response_api_not_found()
-
 
 
 alerts_filters_blueprint = Blueprint('alerts_filters_rest_v2', __name__, url_prefix='/alerts-filters')
@@ -72,6 +71,7 @@ alerts_filters_operations = AlertsFiltersOperations()
 @ac_api_requires()
 def create_alert_filter():
     return alerts_filters_operations.create()
+
 
 @alerts_filters_blueprint.get('/<int:identifier>')
 @ac_api_requires()
