@@ -53,7 +53,7 @@ class AlertsFiltersOperations:
 
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
-    
+
     def get(self, identifier):
         try:
             saved_filter = alert_filter_get(identifier)
