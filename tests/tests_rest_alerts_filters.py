@@ -183,8 +183,8 @@ class TestsRestAlertsFilters(TestCase):
 
             }
         }
-        user = self._subject.create_dummy_user()
-        response = user.create('/api/v2/alerts-filters', body).json()
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
         identifier = response['filter_id']
         response = self._subject.get(f'/api/v2/alerts-filters/{identifier}')
         self.assertEqual(200, response.status_code)
