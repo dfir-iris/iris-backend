@@ -32,5 +32,6 @@ def alert_filter_get(identifier):
         raise ObjectNotFoundError()
     return alert_filter
 
+
 def alert_filter_update():
     db.session.commit()
