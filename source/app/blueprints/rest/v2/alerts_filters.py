@@ -105,6 +105,7 @@ def get_alert_filter(identifier):
 def update_alert_filter(identifier):
     return alerts_filters_operations.put(identifier)
 
+
 @alerts_filters_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
 def delete_alert_filter(identifier):
