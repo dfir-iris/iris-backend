@@ -505,3 +505,7 @@ class TestsRestAlertsFilters(TestCase):
         identifier = response['filter_id']
         response = self._subject.delete(f'/api/v2/alerts-filters/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_delete_alert_filter_should_return_404_when_alert_not_found(self):
+        response = self._subject.delete(f'/api/v2/alerts-filters/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
