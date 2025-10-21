@@ -468,7 +468,6 @@ class TestsRestAlertsFilters(TestCase):
         }
 
         response = self._subject.create('/api/v2/alerts-filters', body).json()
-        identifier = response['filter_id']
         body = {
             'filter_data':  { 'alert_title' : 'alert_title' },
         }
