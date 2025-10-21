@@ -25,6 +25,7 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.iris_user import iris_current_user
 
 
@@ -33,6 +34,7 @@ from app.business.errors import ObjectNotFoundError
 from app.business.alerts_filters import alert_filter_add
 from app.business.alerts_filters import alert_filter_get
 from app.business.alerts_filters import alert_filter_update
+from app.business.alerts_filters import alert_filter_delete
 
 
 class AlertsFiltersOperations:
@@ -73,6 +75,14 @@ class AlertsFiltersOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def delete(self, identifier):
+        try:
+            saved_filter = alert_filter_get(identifier)
+            alert_filter_delete(saved_filter)
+            return response_api_deleted()
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 alerts_filters_blueprint = Blueprint('alerts_filters_rest_v2', __name__, url_prefix='/alerts-filters')
 alerts_filters_operations = AlertsFiltersOperations()
@@ -94,3 +104,8 @@ def get_alert_filter(identifier):
 @ac_api_requires()
 def update_alert_filter(identifier):
     return alerts_filters_operations.put(identifier)
+
+@alerts_filters_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_alert_filter(identifier):
+    return alerts_filters_operations.delete(identifier)

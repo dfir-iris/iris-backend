@@ -473,3 +473,35 @@ class TestsRestAlertsFilters(TestCase):
         }
         response = self._subject.update(f'/api/v2/alerts-filters/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
+
+    def test_delete_alert_filter_should_return_204(self):
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        response = self._subject.delete(f'/api/v2/alerts-filters/{identifier}')
+        self.assertEqual(204, response.status_code)

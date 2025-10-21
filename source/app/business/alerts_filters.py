@@ -35,3 +35,8 @@ def alert_filter_get(identifier):
 
 def alert_filter_update():
     db.session.commit()
+
+
+def alert_filter_delete(saved_filter):
+    db.session.delete(saved_filter)
+    db.session.commit()
