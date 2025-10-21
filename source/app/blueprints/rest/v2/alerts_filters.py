@@ -32,6 +32,7 @@ from app.schema.marshables import SavedFilterSchema
 from app.business.errors import ObjectNotFoundError
 from app.business.alerts_filters import alert_filter_add
 from app.business.alerts_filters import alert_filter_get
+from app.business.alerts_filters import alert_filter_update
 
 
 class AlertsFiltersOperations:
@@ -39,8 +40,8 @@ class AlertsFiltersOperations:
     def __init__(self):
         self._schema = SavedFilterSchema()
 
-    def _load(self, request_data):
-        return self._schema.load(request_data)
+    def _load(self, request_data, **kwargs):
+        return self._schema.load(request_data, **kwargs)
 
     def create(self):
         request_data = request.get_json()
@@ -61,6 +62,17 @@ class AlertsFiltersOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def put(self, identifier):
+        request_data = request.get_json()
+
+        try:
+            saved_filter = alert_filter_get(identifier)
+            new_saved_filter = self._load(request_data, instance=saved_filter, partial=True)
+            alert_filter_update()
+            return response_api_success(self._schema.dump(new_saved_filter))
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 alerts_filters_blueprint = Blueprint('alerts_filters_rest_v2', __name__, url_prefix='/alerts-filters')
 alerts_filters_operations = AlertsFiltersOperations()
@@ -74,6 +86,11 @@ def create_alert_filter():
 
 @alerts_filters_blueprint.get('/<int:identifier>')
 @ac_api_requires()
-def get_alert(identifier):
+def get_alert_filter(identifier):
     return alerts_filters_operations.get(identifier)
 
+
+@alerts_filters_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def update_alert_filter(identifier):
+    return alerts_filters_operations.put(identifier)
