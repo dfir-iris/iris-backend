@@ -439,3 +439,38 @@ class TestsRestAlertsFilters(TestCase):
         }
         response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body).json()
         self.assertEqual(alert_title, response['filter_data']['alert_title'])
+
+    def test_update_alert_filter_should_return_404_when_alert_filter_is_not_found(self):
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        body = {
+            'filter_data':  { 'alert_title' : 'alert_title' },
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
+        self.assertEqual(404, response.status_code)
