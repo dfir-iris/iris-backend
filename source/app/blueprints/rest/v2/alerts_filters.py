@@ -30,6 +30,7 @@ from app.blueprints.iris_user import iris_current_user
 
 
 from app.schema.marshables import SavedFilterSchema
+from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.alerts_filters import alert_filter_add
 from app.business.alerts_filters import alert_filter_get
@@ -57,10 +58,14 @@ class AlertsFiltersOperations:
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
 
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
     def get(self, identifier):
         try:
             saved_filter = alert_filter_get(identifier)
             return response_api_success(self._schema.dump(saved_filter))
+        
         except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -72,6 +77,10 @@ class AlertsFiltersOperations:
             new_saved_filter = self._load(request_data, instance=saved_filter, partial=True)
             alert_filter_update()
             return response_api_success(self._schema.dump(new_saved_filter))
+        
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+        
         except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -80,6 +89,7 @@ class AlertsFiltersOperations:
             saved_filter = alert_filter_get(identifier)
             alert_filter_delete(saved_filter)
             return response_api_deleted()
+        
         except ObjectNotFoundError:
             return response_api_not_found()
 
