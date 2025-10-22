@@ -25,7 +25,6 @@ from flask import url_for
 from sqlalchemy import and_
 
 from app.forms import SearchForm
-from app.iris_engine.access_control.utils import ac_flag_match_mask
 from app.iris_engine.utils.tracker import track_activity
 from app.models import Comments
 from app.models.authorization import Permissions
