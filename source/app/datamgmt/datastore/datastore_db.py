@@ -419,13 +419,11 @@ def datastore_get_local_file_path(file_id, caseid):
     datastore_path = Path(app.config['DATASTORE_PATH']).resolve()
     file_path = Path(dsf.file_local_name).resolve()
     if datastore_path in file_path.parents or datastore_path == file_path:
-        return False, dsf.file_local_name
+        return False, dsf
     else:
         # The file path is outside the datastore directory, which is not allowed
         log.warning(f"File {file_path} not found in datastore - attempted access outside datastore directory.")
-        return True, ''
-
-    return False, dsf
+        return True, None
 
 
 def datastore_filter_tree(filter_d, caseid):
