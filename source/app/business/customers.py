@@ -1,5 +1,5 @@
 #  IRIS Source Code
-#  Copyright (C) 2024 - DFIR-IRIS
+#  Copyright (C) 2025 - DFIR-IRIS
 #  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
@@ -16,15 +16,13 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from flask import Blueprint
+from app.datamgmt.client.client_db import create_client
+from app.models.models import Client
+from app.iris_engine.utils.tracker import track_activity
+from app.datamgmt.manage.manage_users_db import add_user_to_customer
 
-from app.blueprints.rest.v2.manage_routes.groups import create_groups_blueprint
-from app.blueprints.rest.v2.manage_routes.users import users_blueprint
-from app.blueprints.rest.v2.manage_routes.customers import customers_blueprint
 
-manage_v2_blueprint = Blueprint('manage', __name__, url_prefix='/manage')
-
-groups_blueprint = create_groups_blueprint()
-manage_v2_blueprint.register_blueprint(groups_blueprint)
-manage_v2_blueprint.register_blueprint(users_blueprint)
-manage_v2_blueprint.register_blueprint(customers_blueprint)
+def customers_create(user, customer: Client):
+    create_client(customer)
+    track_activity(f'Added customer {customer.name}', ctx_less=True)
+    add_user_to_customer(user.id, customer.client_id)

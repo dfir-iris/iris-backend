@@ -19,6 +19,7 @@
 from unittest import TestCase
 from iris import Iris
 from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
+from iris import ADMINISTRATOR_USER_IDENTIFIER
 
 
 class TestsRestCustomers(TestCase):
@@ -39,3 +40,35 @@ class TestsRestCustomers(TestCase):
         response = user.create('/manage/customers/add', body)
 
         self.assertEqual(200, response.status_code)
+
+    def test_create_customer_should_return_201(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body)
+        self.assertEqual(201, response.status_code)
+
+    def test_create_customer_should_return_customer_name(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        self.assertEqual('customer', response['customer_name'])
+
+    def test_create_customer_should_return_400_when_another_customer_with_the_same_name_already_exists(self):
+        body = {'customer_name': 'customer'}
+        self._subject.create('/api/v2/manage/customers', body)
+        response = self._subject.create('/api/v2/manage/customers', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_create_customer_should_add_an_activity(self):
+        body = {'customer_name': 'customer_name'}
+        self._subject.create('/api/v2/manage/customers', body)
+        last_activity = self._subject.get_latest_activity()
+        self.assertEqual('Added customer customer_name', last_activity['activity_desc'])
+
+    def test_create_customer_should_add_user_to_the_customer(self):
+        body = {'customer_name': 'customer_name'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+        response = self._subject.get(f'/api/v2/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}').json()
+        user_customers_identifiers = []
+        for customer in response['user_customers']:
+            user_customers_identifiers.append(customer['customer_id'])
+        self.assertIn(identifier, user_customers_identifiers)

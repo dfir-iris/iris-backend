@@ -32,7 +32,9 @@ from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_assets_db import get_asset_by_name
+from app.datamgmt.case.case_assets_db import get_assets_by_case
 from app.datamgmt.case.case_events_db import add_comment_to_event
+from app.datamgmt.case.case_events_db import get_events_by_case
 from app.datamgmt.case.case_events_db import get_category_by_name
 from app.datamgmt.case.case_events_db import get_default_category
 from app.datamgmt.case.case_events_db import delete_event_comment
@@ -178,19 +180,8 @@ def case_get_timeline_state(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_getgraph_assets(caseid):
-    assets_cache = CaseAssets.query.with_entities(
-        CaseEventsAssets.event_id,
-        CaseAssets.asset_name
-    ).filter(
-        CaseEventsAssets.case_id == caseid,
-    ).join(CaseEventsAssets.asset).all()
-
-    timeline = CasesEvent.query.filter(and_(
-        CasesEvent.case_id == caseid,
-        CasesEvent.event_in_summary
-    )).order_by(
-        CasesEvent.event_date
-    ).all()
+    assets_cache = get_assets_by_case(caseid)
+    timeline = get_events_by_case(caseid)
 
     tim = []
     for row in timeline:
@@ -216,12 +207,7 @@ def case_getgraph_assets(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_getgraph(caseid):
-    timeline = CasesEvent.query.filter(and_(
-        CasesEvent.case_id == caseid,
-        CasesEvent.event_in_summary
-    )).order_by(
-        CasesEvent.event_date
-    ).all()
+    timeline = get_events_by_case(caseid)
 
     tim = []
     for row in timeline:
@@ -359,6 +345,11 @@ def case_filter_timeline(caseid):
     assets = filter_d.get('asset')
     assets_id = filter_d.get('asset_id')
     event_ids = filter_d.get('event_id')
+    if event_ids:
+        try:
+            event_ids = [int(event_id) for event_id in event_ids]
+        except Exception as _:
+            return response_error('Invalid event id')
     iocs = filter_d.get('ioc')
     iocs_id = filter_d.get('ioc_id')
     tags = filter_d.get('tag')
@@ -371,6 +362,46 @@ def case_filter_timeline(caseid):
     sources = filter_d.get('source')
     flag = filter_d.get('flag')
 
+    cache, events_list, tim = _extract_timeline(assets, assets_id, caseid, categories, descriptions, end_date, event_ids,
+                                                flag, iocs, iocs_id, raws, sources, start_date, tags, titles)
+
+    if request.cookies.get('session'):
+
+        iocs = Ioc.query.with_entities(
+            Ioc.ioc_id,
+            Ioc.ioc_value,
+            Ioc.ioc_description,
+        ).filter(
+            Ioc.case_id == caseid
+        ).all()
+
+        events_comments_map = {}
+        events_comments_set = get_case_events_comments_count(events_list)
+        for k, v in events_comments_set:
+            events_comments_map.setdefault(k, []).append(v)
+
+        resp = {
+            "tim": tim,
+            "comments_map": events_comments_map,
+            "assets": cache,
+            "iocs": [ioc._asdict() for ioc in iocs],
+            "categories": [cat.name for cat in get_events_categories()],
+            "state": get_timeline_state(caseid=caseid)
+        }
+
+    else:
+        resp = {
+            "timeline": tim,
+            "state": get_timeline_state(caseid=caseid)
+        }
+
+    return response_success("ok", data=resp)
+
+
+def _extract_timeline(assets: str | None, assets_id: str | None, caseid, categories: str | None,
+                      descriptions: str | None, end_date: str | None, event_ids: list[int] | None,
+                      flag: str | None, iocs: str | None, iocs_id: str | None, raws: str | None, sources: str | None,
+                      start_date: str | None, tags: str | None, titles: str | None):
     condition = (CasesEvent.case_id == caseid)
 
     if assets:
@@ -437,11 +468,6 @@ def case_filter_timeline(caseid):
                              EventCategory.name == category)
 
     if event_ids:
-        try:
-            event_ids = [int(event_id) for event_id in event_ids]
-        except Exception as _:
-            return response_error('Invalid event id')
-
         condition = and_(condition,
                          CasesEvent.event_id.in_(event_ids))
 
@@ -491,7 +517,7 @@ def case_filter_timeline(caseid):
     ).filter(
         assets_cache_condition
     ).join(CaseEventsAssets.asset)
-     .join(CaseAssets.asset_type).all())
+                    .join(CaseAssets.asset_type).all())
 
     iocs_cache_condition = and_(
         CaseEventsIoc.case_id == caseid
@@ -521,8 +547,7 @@ def case_filter_timeline(caseid):
         if asset.asset_id not in cache:
             cache[asset.asset_id] = [asset.asset_name, asset.type]
 
-        if (assets and asset.asset_name.lower() in assets) \
-                or (assets_id and asset.asset_id in assets_id):
+        if (assets and asset.asset_name.lower() in assets) or (assets_id and asset.asset_id in assets_id):
             if asset.event_id in assets_map:
                 assets_map[asset.event_id] += 1
             else:
@@ -549,10 +574,10 @@ def case_filter_timeline(caseid):
     events_list = []
     for row in timeline:
         if (assets is not None or assets_id is not None) and row.event_id not in assets_filter:
-                continue
+            continue
 
         if iocs is not None and row.event_id not in iocs_filter:
-                continue
+            continue
 
         ras = row._asdict()
 
@@ -594,38 +619,7 @@ def case_filter_timeline(caseid):
         ras['iocs'] = alki
 
         tim.append(ras)
-
-    if request.cookies.get('session'):
-
-        iocs = Ioc.query.with_entities(
-            Ioc.ioc_id,
-            Ioc.ioc_value,
-            Ioc.ioc_description,
-        ).filter(
-            Ioc.case_id == caseid
-        ).all()
-
-        events_comments_map = {}
-        events_comments_set = get_case_events_comments_count(events_list)
-        for k, v in events_comments_set:
-            events_comments_map.setdefault(k, []).append(v)
-
-        resp = {
-            "tim": tim,
-            "comments_map": events_comments_map,
-            "assets": cache,
-            "iocs": [ioc._asdict() for ioc in iocs],
-            "categories": [cat.name for cat in get_events_categories()],
-            "state": get_timeline_state(caseid=caseid)
-        }
-
-    else:
-        resp = {
-            "timeline": tim,
-            "state": get_timeline_state(caseid=caseid)
-        }
-
-    return response_success("ok", data=resp)
+    return cache, events_list, tim
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/delete/<int:cur_id>', methods=['POST'])

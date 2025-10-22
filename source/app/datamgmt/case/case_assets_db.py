@@ -23,7 +23,8 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from flask_sqlalchemy.pagination import Pagination
 
-from app import db, app
+from app import db
+from app.logger import logger
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
@@ -33,16 +34,14 @@ from app.models.models import AssetsType
 from app.models.models import CaseAssets
 from app.models.models import CaseEventsAssets
 from app.models.cases import Cases
-from app.models.comments import Comments, AssetComments
+from app.models.comments import Comments
+from app.models.comments import AssetComments
 from app.models.models import CompromiseStatus
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
 from app.models.authorization import User
 from app.models.pagination_parameters import PaginationParameters
-
-
-log = app.logger
 
 
 relationship_model_map = {
@@ -104,6 +103,15 @@ def get_assets(case_identifier):
         CaseAssets.analysis_status
     ).all()
     return assets
+
+
+def get_assets_by_case(case_identifier):
+    return CaseAssets.query.with_entities(
+        CaseEventsAssets.event_id,
+        CaseAssets.asset_name
+    ).filter(
+        CaseEventsAssets.case_id == case_identifier,
+    ).join(CaseEventsAssets.asset).all()
 
 
 def filter_assets(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:
@@ -278,7 +286,7 @@ def set_ioc_links(ioc_list, asset_id):
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        log.exception(e)
+        logger.exception(e)
         return True, e.__str__()
 
     return False, ""

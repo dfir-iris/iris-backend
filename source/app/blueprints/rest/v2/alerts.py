@@ -40,6 +40,7 @@ from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
 from app.business.alerts import alerts_delete
+from app.business.alerts import related_alerts_get
 from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.access_controls import access_controls_user_has_customer_access
@@ -165,6 +166,30 @@ class AlertsOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def get_related_alerts(self, identifier):
+
+        try:
+            alert = alerts_get(iris_current_user, identifier)
+
+            open_alerts = request.args.get('open-alerts', 'false').lower() == 'true'
+            open_cases = request.args.get('open-cases', 'false').lower() == 'true'
+            closed_cases = request.args.get('closed-cases', 'false').lower() == 'true'
+            closed_alerts = request.args.get('closed-alerts', 'false').lower() == 'true'
+            days_back = request.args.get('days-back', 180, type=int)
+            number_of_results = request.args.get('number-of-nodes', 100, type=int)
+
+            if number_of_results < 0:
+                number_of_results = 100
+            if days_back < 0:
+                days_back = 180
+
+            similar_alerts = related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cases,
+                                                days_back, number_of_results)
+            return response_api_success(similar_alerts)
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
     def update(self, identifier):
         try:
             alert = alerts_get(iris_current_user, identifier)
@@ -243,3 +268,9 @@ def update_alert(identifier):
 @ac_api_requires(Permissions.alerts_delete)
 def delete_alert(identifier):
     return alerts_operations.delete(identifier)
+
+
+@alerts_blueprint.get('<int:identifier>/related-alerts')
+@ac_api_requires(Permissions.alerts_read)
+def get_related_alerts(identifier):
+    return alerts_operations.get_related_alerts(identifier)
