@@ -202,8 +202,17 @@ def datastore_update_file(cur_id: int, caseid: int):
 
     dsf_schema = DSFileSchema()
     try:
-
-        dsf_sc = dsf_schema.load(request.form, instance=dsf, partial=True)
+        # Ensure the form only contains fields that are allowed to be updated
+        # Allowed fields: file_original_name, file_description, file_is_ioc, file_is_evidence, file_password
+        form_data = {
+            'file_original_name': request.form.get('file_original_name'),
+            'file_description': request.form.get('file_description'),
+            'file_password': request.form.get('file_password'),
+            'file_is_ioc': request.form.get('file_is_ioc'),
+            'file_is_evidence': request.form.get('file_is_evidence'),
+            'file_parent_id': request.form.get('file_parent_id')
+        }
+        dsf_sc = dsf_schema.load(form_data, instance=dsf, partial=True)
         add_obj_history_entry(dsf_sc, 'updated')
 
         dsf.file_is_ioc = request.form.get('file_is_ioc') is not None or request.form.get('file_is_ioc') is True
@@ -324,7 +333,15 @@ def datastore_add_file(cur_id: int, caseid: int):
     dsf_schema = DSFileSchema()
     try:
 
-        dsf_sc = dsf_schema.load(request.form, partial=True)
+        file_data = {
+            'file_original_name': request.form.get('file_original_name'),
+            'file_description': request.form.get('file_description'),
+            'file_password': request.form.get('file_password'),
+            'file_is_ioc': request.form.get('file_is_ioc') is not None or request.form.get('file_is_ioc') is True,
+            'file_is_evidence': request.form.get('file_is_evidence') is not None or request.form.get('file_is_evidence') is True
+        }
+
+        dsf_sc = dsf_schema.load(file_data, partial=True)
 
         dsf_sc.file_parent_id = dsp.path_id
         dsf_sc.added_by_user_id = current_user.id

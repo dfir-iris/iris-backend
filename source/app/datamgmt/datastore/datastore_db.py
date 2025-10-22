@@ -19,6 +19,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import datetime
+import logging
 from pathlib import Path
 
 from flask_login import current_user
@@ -35,6 +36,7 @@ from app.models import Ioc
 from app.models import IocType
 from app.models import Tlp
 
+log = logging.getLogger(__name__)
 
 def datastore_get_root(cid):
     dsp_root = DataStorePath.query.filter(
@@ -180,7 +182,7 @@ def datastore_add_child_node(parent_node, folder_name, cid):
             DataStorePath.path_case_id == cid
         ).first()
 
-    except Exception as e:
+    except Exception:
         return True, f'Unable to request datastore for parent node : {parent_node}', None
 
     if dsp_base is None:
@@ -206,7 +208,7 @@ def datastore_rename_node(parent_node, folder_name, cid):
             DataStorePath.path_case_id == cid
         ).first()
 
-    except Exception as e:
+    except Exception:
         return True, f'Unable to request datastore for parent node : {parent_node}', None
 
     if dsp_base is None:
@@ -226,7 +228,7 @@ def datastore_delete_node(node_id, cid):
             DataStorePath.path_case_id == cid
         ).first()
 
-    except Exception as e:
+    except Exception:
         return True, f'Unable to request datastore for parent node : {node_id}'
 
     if dsp_base is None:
@@ -339,8 +341,14 @@ def datastore_delete_file(cur_id, cid):
 
     fln = Path(dsf.file_local_name)
     if fln.is_file():
-        fln.unlink(missing_ok=True)
-
+        # Ensure the file is from the datastore directory
+        datastore_path = Path(app.config['DATASTORE_PATH']).resolve()
+        file_path = fln.resolve()
+        if datastore_path in file_path.parents or datastore_path == file_path:
+            fln.unlink(missing_ok=True)
+        else:
+            log.warning(f"File {file_path} physically not deleted - attempted deletion outside datastore directory.")
+            
     db.session.delete(dsf)
     db.session.commit()
 
@@ -406,6 +414,16 @@ def datastore_get_local_file_path(file_id, caseid):
 
     if dsf is None:
         return True, 'Invalid DS file ID for this case'
+
+    # Ensure the path is within the datastore directory
+    datastore_path = Path(app.config['DATASTORE_PATH']).resolve()
+    file_path = Path(dsf.file_local_name).resolve()
+    if datastore_path in file_path.parents or datastore_path == file_path:
+        return False, dsf.file_local_name
+    else:
+        # The file path is outside the datastore directory, which is not allowed
+        log.warning(f"File {file_path} not found in datastore - attempted access outside datastore directory.")
+        return True, ''
 
     return False, dsf
 
