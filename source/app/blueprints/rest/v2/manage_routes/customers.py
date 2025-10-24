@@ -69,6 +69,6 @@ def create_customer():
 
 
 @customers_blueprint.get('/<int:identifier>')
-@ac_api_requires()
+@ac_api_requires(Permissions.customers_read)
 def get_event(identifier):
     return customers.read(identifier)

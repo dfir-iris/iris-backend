@@ -85,3 +85,12 @@ class TestsRestCustomers(TestCase):
     def test_get_customer_should_return_404_when_customer_does_not_exist(self):
         response = self._subject.get(f'/api/v2/manage/customers/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
         self.assertEqual(404, response.status_code)
+
+    def test_get_customer_should_return_405_when_user_has_no_permission_to_read_customers(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/manage/customers/{identifier}')
+        self.assertEqual(403, response.status_code)
