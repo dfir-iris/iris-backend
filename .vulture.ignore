@@ -1181,7 +1181,6 @@ has_deletion_confirmation  # unused variable (/home/ubuntu/code/dfir-iris/iris-w
 Meta  # unused class (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2181)
 load_instance  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2183)
 exclude  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2184)
-validate_asset_type  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2189)
 validate_asset_tlp  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2206)
 Meta  # unused class (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2231)
 load_instance  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/schema/marshables.py:2233)
