@@ -62,6 +62,15 @@ datastore_blueprint = Blueprint(
 
 logger = app.logger
 
+ALLOWED_FIELDS_DS_FILE = [
+    'file_original_name',
+    'file_description',
+    'file_is_ioc',
+    'file_is_evidence',
+    'file_password',
+    'file_tags',
+    'file_parent_id'
+]
 
 @datastore_blueprint.route('/datastore/list/tree', methods=['GET'])
 @ac_api_case_requires(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
@@ -203,15 +212,11 @@ def datastore_update_file(cur_id: int, caseid: int):
     dsf_schema = DSFileSchema()
     try:
         # Ensure the form only contains fields that are allowed to be updated
-        # Allowed fields: file_original_name, file_description, file_is_ioc, file_is_evidence, file_password
-        form_data = {
-            'file_original_name': request.form.get('file_original_name'),
-            'file_description': request.form.get('file_description'),
-            'file_password': request.form.get('file_password'),
-            'file_is_ioc': request.form.get('file_is_ioc'),
-            'file_is_evidence': request.form.get('file_is_evidence'),
-            'file_parent_id': request.form.get('file_parent_id')
-        }
+        # Remove the fields that are not allowed to be updated
+        form_data = request.form.to_dict()
+        for key in list(form_data.keys()):
+            if key not in ALLOWED_FIELDS_DS_FILE:
+                form_data.pop(key)
         dsf_sc = dsf_schema.load(form_data, instance=dsf, partial=True)
         add_obj_history_entry(dsf_sc, 'updated')
 
@@ -333,15 +338,12 @@ def datastore_add_file(cur_id: int, caseid: int):
     dsf_schema = DSFileSchema()
     try:
 
-        file_data = {
-            'file_original_name': request.form.get('file_original_name'),
-            'file_description': request.form.get('file_description'),
-            'file_password': request.form.get('file_password'),
-            'file_is_ioc': request.form.get('file_is_ioc') is not None or request.form.get('file_is_ioc') is True,
-            'file_is_evidence': request.form.get('file_is_evidence') is not None or request.form.get('file_is_evidence') is True
-        }
+        form_data = request.form.to_dict()
+        for key in list(form_data.keys()):
+            if key not in ALLOWED_FIELDS_DS_FILE:
+                form_data.pop(key)
 
-        dsf_sc = dsf_schema.load(file_data, partial=True)
+        dsf_sc = dsf_schema.load(form_data, partial=True)
 
         dsf_sc.file_parent_id = dsp.path_id
         dsf_sc.added_by_user_id = current_user.id
