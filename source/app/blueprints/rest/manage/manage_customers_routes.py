@@ -62,6 +62,7 @@ def list_customers():
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/customers/{identifier}')
 @ac_api_requires(Permissions.customers_read)
 @ac_api_requires_client_access()
 def view_customer(client_id):
