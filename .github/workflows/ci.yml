@@ -38,7 +38,7 @@ jobs:
       - name: Looking for dead code with vulture
         run: |
           pip install vulture
-          vulture --verbose
+          vulture
 
   build-docker-db:
     name: Build docker db
