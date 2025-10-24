@@ -54,7 +54,6 @@ class Users:
             return response_api_error('Data error', data=e.messages)
 
     def read(self, identifier):
-
         try:
             user = users_get(identifier)
             result = self._schema.dump(user)

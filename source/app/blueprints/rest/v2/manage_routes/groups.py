@@ -54,7 +54,7 @@ class Groups:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
-    def get(self, identifier):
+    def read(self, identifier):
         try:
             group = groups_get(identifier)
             result = self._schema.dump(group)
@@ -99,7 +99,7 @@ def create_groups_blueprint():
     create_group = wrap_with_permission_checks(groups.create, Permissions.server_administrator)
     blueprint.add_url_rule('', view_func=create_group, methods=['POST'])
 
-    get_group = wrap_with_permission_checks(groups.get, Permissions.server_administrator)
+    get_group = wrap_with_permission_checks(groups.read, Permissions.server_administrator)
     blueprint.add_url_rule('/<int:identifier>', view_func=get_group, methods=['GET'])
 
     update_group = wrap_with_permission_checks(groups.update, Permissions.server_administrator)
