@@ -2186,40 +2186,6 @@ class BasicUserSchema(ma.SQLAlchemyAutoSchema):
         unknown = EXCLUDE
 
 
-def validate_asset_type(asset_id: int) -> None:
-    """Validates the asset type ID.
-
-    This function validates the asset type ID by checking if it exists in the database.
-    If the ID is invalid, it raises a validation error.
-
-    Args:
-        asset_id: The asset type ID to validate.
-
-    Raises:
-        ValidationError: If the asset type ID is invalid.
-
-    """
-    if not AssetsType.query.get(asset_id):
-        raise ValidationError("Invalid asset_type ID")
-
-
-def validate_asset_tlp(tlp_id: int) -> None:
-    """Validates the asset TLP ID.
-
-    This function validates the asset TLP ID by checking if it exists in the database.
-    If the ID is invalid, it raises a validation error.
-
-    Args:
-        tlp_id: The asset TLP ID to validate.
-
-    Raises:
-        ValidationError: If the asset TLP ID is invalid.
-
-    """
-    if not Tlp.query.get(tlp_id):
-        raise ValidationError("Invalid asset_tlp ID")
-
-
 class SeveritySchema(ma.SQLAlchemyAutoSchema):
     """Schema for serializing and deserializing Severity objects.
 
