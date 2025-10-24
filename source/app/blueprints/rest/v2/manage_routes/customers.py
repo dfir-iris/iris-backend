@@ -23,9 +23,11 @@ from marshmallow import ValidationError
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
+from app.business.errors import ObjectNotFoundError
 from app.business.customers import customers_create_with_user
 from app.business.customers import customers_get
 from app.blueprints.iris_user import iris_current_user
@@ -47,9 +49,12 @@ class Customers:
             return response_api_error('Data error', data=e.messages)
 
     def read(self, identifier):
-        customer = customers_get(identifier)
-        result = self._schema.dump(customer)
-        return response_api_success(result)
+        try:
+            customer = customers_get(identifier)
+            result = self._schema.dump(customer)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')

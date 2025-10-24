@@ -21,6 +21,8 @@ from iris import Iris
 from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
 from iris import ADMINISTRATOR_USER_IDENTIFIER
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestCustomers(TestCase):
 
@@ -79,3 +81,7 @@ class TestsRestCustomers(TestCase):
         identifier = response['customer_id']
         response = self._subject.get(f'/api/v2/manage/customers/{identifier}')
         self.assertEqual(200, response.status_code)
+
+    def test_get_customer_should_return_404_when_customer_does_not_exist(self):
+        response = self._subject.get(f'/api/v2/manage/customers/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
