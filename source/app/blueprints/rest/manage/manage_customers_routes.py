@@ -241,7 +241,7 @@ def view_customers(client_id):
         if not customer:
             raise response_error('Invalid Customer ID')
 
-        client = update_client(client_schema, customer, request.json)
+        update_client(client_schema, customer, request.json)
 
     except ValidationError as e:
         return response_error("", data=e.messages)
@@ -250,7 +250,7 @@ def view_customers(client_id):
         print(traceback.format_exc())
         return response_error(f'An error occurred during Customer update. {e}')
 
-    return response_success("Customer updated", client_schema.dump(client))
+    return response_success("Customer updated", client_schema.dump(customer))
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/add', methods=['POST'])
