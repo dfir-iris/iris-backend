@@ -25,6 +25,8 @@ from marshmallow import ValidationError
 from app import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.business.customers import customers_get
+from app.business.errors import ObjectNotFoundError
 from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
@@ -283,10 +285,9 @@ def add_customers():
 @ac_api_requires_client_access()
 def delete_customers(client_id):
     try:
-
-        delete_client(client_id)
-
-    except ElementNotFoundException:
+        customer = customers_get(client_id)
+        delete_client(customer)
+    except ObjectNotFoundError:
         return response_error('Invalid Customer ID')
 
     except ElementInUseException:

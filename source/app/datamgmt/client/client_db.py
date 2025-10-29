@@ -172,16 +172,9 @@ def update_client(schema, customer: Client, data):
     update_customer()
 
 
-def delete_client(client_id: int) -> None:
-    client = Client.query.filter(
-        Client.client_id == client_id
-    ).first()
-
-    if not client:
-        raise ElementNotFoundException('No Customer found with this uuid.')
-
+def delete_client(customer: Client) -> None:
     try:
-        db.session.delete(client)
+        db.session.delete(customer)
         db.session.commit()
     except Exception:
         raise ElementInUseException('A currently referenced customer cannot be deleted')
