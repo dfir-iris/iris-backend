@@ -163,11 +163,15 @@ def update_contact(data, contact_id, customer_id) -> Contact:
     return contact
 
 
+def update_customer():
+    db.session.commit()
+
+
 def update_client(client_id: int, data) -> Client:
     # TODO: Possible reuse somewhere else ...
-    client = get_customer(client_id)
+    customer = get_customer(client_id)
 
-    if not client:
+    if not customer:
         raise ElementNotFoundException('No Customer found with this uuid.')
 
     exists = Client.query.filter(
@@ -177,16 +181,16 @@ def update_client(client_id: int, data) -> Client:
 
     if exists:
         raise marshmallow.exceptions.ValidationError(
-            "Customer already exists",
-            field_name="customer_name"
+            'Customer already exists',
+            field_name='customer_name'
         )
 
     client_schema = CustomerSchema()
-    client_schema.load(data, instance=client)
+    client_schema.load(data, instance=customer)
 
-    db.session.commit()
+    update_customer()
 
-    return client
+    return customer
 
 
 def delete_client(client_id: int) -> None:
@@ -198,10 +202,8 @@ def delete_client(client_id: int) -> None:
         raise ElementNotFoundException('No Customer found with this uuid.')
 
     try:
-
         db.session.delete(client)
         db.session.commit()
-
     except Exception:
         raise ElementInUseException('A currently referenced customer cannot be deleted')
 

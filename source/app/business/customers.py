@@ -16,12 +16,13 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.datamgmt.client.client_db import create_customer
 from app.models.models import Client
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
+from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_customer_by_name
+from app.datamgmt.client.client_db import update_customer
 from app.business.errors import ObjectNotFoundError
 
 
@@ -48,3 +49,7 @@ def customers_get_by_name(name) -> Client:
     if not customer:
         raise ObjectNotFoundError()
     return customer
+
+
+def customers_update():
+    update_customer()

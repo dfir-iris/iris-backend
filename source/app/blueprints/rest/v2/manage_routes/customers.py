@@ -30,6 +30,7 @@ from app.schema.marshables import CustomerSchema
 from app.business.errors import ObjectNotFoundError
 from app.business.customers import customers_create_with_user
 from app.business.customers import customers_get
+from app.business.customers import customers_update
 from app.blueprints.iris_user import iris_current_user
 
 
@@ -56,6 +57,19 @@ class Customers:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def update(self, identifier):
+        try:
+            customer = customers_get(identifier)
+            request_data = request.get_json()
+            updated_customer = self._schema.load(request_data, instance=customer)
+            customers_update()
+            result = self._schema.dump(updated_customer)
+            return response_api_success(result)
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
 
@@ -70,5 +84,10 @@ def create_customer():
 
 @customers_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.customers_read)
-def get_event(identifier):
+def get_customer(identifier):
     return customers.read(identifier)
+
+@customers_blueprint.put('/<int:identifier>')
+@ac_api_requires(Permissions.customers_write)
+def put_customer(identifier):
+    return customers.update(identifier)

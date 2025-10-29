@@ -94,3 +94,12 @@ class TestsRestCustomers(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get(f'/api/v2/manage/customers/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_put_customer_should_return_200(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        body = {'customer_name': 'new name'}
+        response = self._subject.update(f'/api/v2/manage/customers/{identifier}', body)
+        self.assertEqual(200, response.status_code)
