@@ -629,11 +629,11 @@ class AssetTypeSchema(ma.SQLAlchemyAutoSchema):
         """
 
         assert_type_mml(input_var=data.asset_name,
-                        field_name="asset_name",
+                        field_name='asset_name',
                         type=str)
 
         assert_type_mml(input_var=data.asset_id,
-                        field_name="asset_id",
+                        field_name='asset_id',
                         type=int,
                         allow_none=True)
 
@@ -1786,6 +1786,18 @@ class CustomerSchema(ma.SQLAlchemyAutoSchema):
         exclude = ['name', 'client_id', 'description', 'sla']
         unknown = EXCLUDE
 
+    @pre_load
+    def verify_unique_name(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        if 'customer_name' not in data:
+            return data
+        customer = Client.query.filter(
+            func.upper(Client.name) == data['customer_name'].upper(),
+            Client.client_id != data.get('customer_id')
+        ).first()
+        if customer:
+            raise ValidationError('Customer already exists', field_name='customer_name')
+        return data
+
     @post_load
     def verify_unique(self, data: Client, **kwargs: Any) -> Client:
         """Verifies that the customer name is unique.
@@ -1811,13 +1823,6 @@ class CustomerSchema(ma.SQLAlchemyAutoSchema):
                         field_name='customer_id',
                         type=int,
                         allow_none=True)
-
-        client = Client.query.filter(
-            func.upper(Client.name) == data.name.upper(),
-            Client.client_id != data.client_id
-        ).first()
-        if client:
-            raise ValidationError("Customer already exists", field_name="customer_name")
 
         return data
 
@@ -2159,7 +2164,7 @@ class AuthorizationOrganisationSchema(ma.SQLAlchemyAutoSchema):
 
         for organisation in organisations:
             if data.get('org_id') is None or organisation.org_id != data.get('org_id'):
-                raise ValidationError("Organisation name already exists", field_name="org_name")
+                raise ValidationError('Organisation name already exists', field_name='org_name')
 
         return data
 

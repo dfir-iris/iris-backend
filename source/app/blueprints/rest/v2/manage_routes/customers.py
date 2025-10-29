@@ -61,6 +61,7 @@ class Customers:
         try:
             customer = customers_get(identifier)
             request_data = request.get_json()
+            request_data['customer_id'] = identifier
             updated_customer = self._schema.load(request_data, instance=customer)
             customers_update()
             result = self._schema.dump(updated_customer)
@@ -86,6 +87,7 @@ def create_customer():
 @ac_api_requires(Permissions.customers_read)
 def get_customer(identifier):
     return customers.read(identifier)
+
 
 @customers_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.customers_write)
