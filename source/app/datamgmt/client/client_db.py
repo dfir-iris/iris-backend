@@ -24,7 +24,6 @@ from typing import Optional
 
 from app import db
 from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
-from app.datamgmt.exceptions.ElementExceptions import ElementNotFoundException
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import Contact
@@ -137,14 +136,7 @@ def get_client_contact(contact_id: int) -> Contact:
     return contact
 
 
-def delete_contact(contact_id: int) -> None:
-    contact = Contact.query.filter(
-        Contact.id == contact_id
-    ).first()
-
-    if not contact:
-        raise ElementNotFoundException('No Contact found with this uuid.')
-
+def delete_contact(contact: Contact):
     try:
 
         db.session.delete(contact)

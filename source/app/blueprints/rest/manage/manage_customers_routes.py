@@ -26,6 +26,7 @@ from app import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
 from app.business.customers import customers_get
+from app.business.customers_contacts import customers_contacts_get
 from app.business.errors import ObjectNotFoundError
 from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
@@ -40,7 +41,6 @@ from app.datamgmt.client.client_db import get_client_contact
 from app.datamgmt.client.client_db import update_client
 from app.datamgmt.client.client_db import update_contact
 from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
-from app.datamgmt.exceptions.ElementExceptions import ElementNotFoundException
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
@@ -306,10 +306,11 @@ def delete_customers(client_id):
 @ac_api_requires_client_access()
 def delete_contact_route(client_id, contact_id):
     try:
+        contact = customers_contacts_get(contact_id)
 
-        delete_contact(contact_id)
+        delete_contact(contact)
 
-    except ElementNotFoundException:
+    except ObjectNotFoundError:
         return response_error('Invalid contact ID')
 
     except ElementInUseException:
