@@ -47,7 +47,7 @@ def list_own_cases():
 
 # TODO this endpoint does not adhere to the conventions (verb in URL).
 #      We should rather have /api/v2/tasks?
-@dashboard_blueprint.route('/tasks/list', methods=['GET'])
+@dashboard_blueprint.get('/tasks/list')
 @ac_api_requires()
 def list_own_tasks():
     ct = tasks_filter_by_user()
@@ -56,7 +56,7 @@ def list_own_tasks():
 
 # TODO this endpoint does not adhere to the conventions (verb in URL).
 #      We should rather have /api/v2/reviews?
-@dashboard_blueprint.route('/reviews/list', methods=['GET'])
+@dashboard_blueprint.get('/reviews/list')
 @ac_api_requires()
 def list_own_reviews():
     reviews = cases_filter_by_reviewer(iris_current_user)

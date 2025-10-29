@@ -5,6 +5,7 @@ ignore = ["E402", "E711", "E712", "E721", "E722"]
 
 [tool.vulture]
 paths = ["source/app", ".vulture.ignore"]
+ignore_decorators = ["@*.post", "@*.get", "@*.put", "@*.delete", "@pre_load"]
 
 [tool.importlinter]
 root_package = "app"
