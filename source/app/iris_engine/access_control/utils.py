@@ -369,7 +369,7 @@ def ac_set_new_case_access(user, case_id, customer_id):
     # Add customer permissions for all users belonging to the customer
     if customer_id:
         users_client = get_user_access_levels_by_customer(customer_id)
-        users_map = { u.user_id: u.access_level for u in users_client }
+        users_map = {u.user_id: u.access_level for u in users_client}
         ac_add_user_effective_access_from_map(users_map, case_id)
 
 

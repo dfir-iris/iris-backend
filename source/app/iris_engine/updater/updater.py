@@ -324,7 +324,7 @@ def call_ext_updater(update_archive, scope, need_reboot):
                           '1' if need_reboot else '0',                      # Do we need to restart the app
                           '&'])
 
-    except Exception as e :
+    except Exception as e:
         log.error(str(e))
         return False
 
