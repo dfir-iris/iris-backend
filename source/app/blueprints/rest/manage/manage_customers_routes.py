@@ -226,6 +226,7 @@ def get_customer_case_stats(client_id):
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/update/<int:client_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/customers/{identifier}')
 @ac_api_requires(Permissions.customers_write)
 @ac_api_requires_client_access()
 def view_customers(client_id):
