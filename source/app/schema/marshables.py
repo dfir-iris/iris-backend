@@ -42,6 +42,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 from werkzeug.datastructures import FileStorage
+from app.business.customers import customers_exists_another_with_same_name
 from app import db
 from app import ma
 from app.blueprints.iris_user import iris_current_user
@@ -1790,11 +1791,9 @@ class CustomerSchema(ma.SQLAlchemyAutoSchema):
     def verify_unique_name(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         if 'customer_name' not in data:
             return data
-        customer = Client.query.filter(
-            func.upper(Client.name) == data['customer_name'].upper(),
-            Client.client_id != data.get('customer_id')
-        ).first()
-        if customer:
+        identifier = data.get('customer_id')
+        name = data['customer_name']
+        if customers_exists_another_with_same_name(identifier, name):
             raise ValidationError('Customer already exists', field_name='customer_name')
         return data
 

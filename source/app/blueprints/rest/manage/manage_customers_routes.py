@@ -34,6 +34,7 @@ from app.datamgmt.client.client_db import get_client_api
 from app.datamgmt.client.client_db import get_client_cases
 from app.datamgmt.client.client_db import get_client_contacts
 from app.datamgmt.client.client_db import get_client_list
+from app.datamgmt.client.client_db import get_client_contact
 from app.datamgmt.client.client_db import update_client
 from app.datamgmt.client.client_db import update_contact
 from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
@@ -86,8 +87,13 @@ def customer_update_contact(client_id, contact_id):
         return response_error(f"Invalid Customer ID {client_id}")
 
     try:
+        data = request.json
+        contact = get_client_contact(client_id, contact_id)
+        data['client_id'] = client_id
+        contact_schema = ContactSchema()
+        contact_schema.load(data, instance=contact)
 
-        contact = update_contact(request.json, contact_id, client_id)
+        update_contact()
 
     except ValidationError as e:
         return response_error(msg='Error update contact', data=e.messages)
@@ -113,10 +119,14 @@ def customer_add_contact(client_id):
 
     if not get_customer(client_id):
         return response_error(f"Invalid Customer ID {client_id}")
+    contact_schema = ContactSchema()
 
     try:
+        data = request.json
+        data['client_id'] = client_id
+        contact = contact_schema.load(data)
 
-        contact = create_contact(request.json, client_id)
+        create_contact(contact)
 
     except ValidationError as e:
         return response_error(msg='Error adding contact', data=e.messages)
@@ -128,7 +138,6 @@ def customer_add_contact(client_id):
     track_activity(f"Added contact {contact.contact_name}", ctx_less=True)
 
     # Return the customer
-    contact_schema = ContactSchema()
     return response_success("Added successfully", data=contact_schema.dump(contact))
 
 
@@ -223,11 +232,13 @@ def view_customers(client_id):
     if not request.is_json:
         return response_error("Invalid request")
 
+    client_schema = CustomerSchema()
     try:
-        client = update_client(client_id, request.json)
+        customer = get_customer(client_id)
+        if not customer:
+            raise response_error('Invalid Customer ID')
 
-    except ElementNotFoundException:
-        return response_error('Invalid Customer ID')
+        client = update_client(client_schema, customer, request.json)
 
     except ValidationError as e:
         return response_error("", data=e.messages)
@@ -236,7 +247,6 @@ def view_customers(client_id):
         print(traceback.format_exc())
         return response_error(f'An error occurred during Customer update. {e}')
 
-    client_schema = CustomerSchema()
     return response_success("Customer updated", client_schema.dump(client))
 
 

@@ -51,5 +51,14 @@ def customers_get_by_name(name) -> Client:
     return customer
 
 
+def customers_exists_another_with_same_name(identifier, name: str) -> bool:
+    customer = get_customer_by_name(name, case_insensitive=True)
+    if not customer:
+        return False
+    if customer.client_id == identifier:
+        return False
+    return True
+
+
 def customers_update():
     update_customer()
