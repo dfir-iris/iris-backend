@@ -559,4 +559,3 @@ def datastore_filter_tree(filter_d, caseid):
             datastore_iter_tree(dpath_parent_id, path_node, droot_children)
 
     return path_tree, 'Success'
-

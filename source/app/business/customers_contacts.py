@@ -26,5 +26,3 @@ def customers_contacts_get(identifier) -> Contact:
     if not contact:
         raise ObjectNotFoundError()
     return contact
-
-
