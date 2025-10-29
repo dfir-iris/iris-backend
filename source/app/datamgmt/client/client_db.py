@@ -129,9 +129,8 @@ def get_client_contacts(client_id: int) -> List[Contact]:
     return contacts
 
 
-def get_client_contact(client_id: int, contact_id: int) -> Contact:
+def get_client_contact(contact_id: int) -> Contact:
     contact = Contact.query.filter(
-        Contact.client_id == client_id,
         Contact.id == contact_id
     ).first()
 

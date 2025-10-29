@@ -92,7 +92,7 @@ def customer_edit_contact_modal(client_id, contact_id, caseid, url_redir):
     if url_redir:
         return redirect(url_for('manage_customers.manage_customers', cid=caseid))
 
-    contact = get_client_contact(client_id, contact_id)
+    contact = get_client_contact(contact_id)
     if not contact:
         return response_error(f"Invalid Contact ID {contact_id}")
 

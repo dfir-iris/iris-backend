@@ -83,14 +83,14 @@ def view_customer(client_id):
 def customer_update_contact(client_id, contact_id):
 
     if not request.is_json:
-        return response_error("Invalid request")
+        return response_error('Invalid request')
 
     if not get_customer(client_id):
-        return response_error(f"Invalid Customer ID {client_id}")
+        return response_error(f'Invalid Customer ID {client_id}')
 
     try:
         data = request.json
-        contact = get_client_contact(client_id, contact_id)
+        contact = get_client_contact(contact_id)
         data['client_id'] = client_id
         contact_schema = ContactSchema()
         contact_schema.load(data, instance=contact)
@@ -104,11 +104,11 @@ def customer_update_contact(client_id, contact_id):
         print(traceback.format_exc())
         return response_error(f'An error occurred during contact update. {e}')
 
-    track_activity(f"Updated contact {contact.contact_name}", ctx_less=True)
+    track_activity(f'Updated contact {contact.contact_name}', ctx_less=True)
 
     # Return the customer
     contact_schema = ContactSchema()
-    return response_success("Added successfully", data=contact_schema.dump(contact))
+    return response_success('Added successfully', data=contact_schema.dump(contact))
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>/contacts/add', methods=['POST'])
