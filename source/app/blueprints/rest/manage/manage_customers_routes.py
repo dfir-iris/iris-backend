@@ -285,6 +285,7 @@ def add_customers():
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/delete/<int:client_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/customers/{identifier}')
 @ac_api_requires(Permissions.customers_write)
 @ac_api_requires_client_access()
 def delete_customers(client_id):
