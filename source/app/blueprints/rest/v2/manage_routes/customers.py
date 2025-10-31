@@ -26,10 +26,10 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.access_controls import ac_api_requires
-from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
 from app.models.errors import ObjectNotFoundError
+from app.models.errors import ElementInUseError
 from app.business.customers import customers_create_with_user
 from app.business.customers import customers_get
 from app.business.customers import customers_update
@@ -82,8 +82,8 @@ class Customers:
 
         except ObjectNotFoundError:
             return response_api_not_found()
-        except ElementInUseException:
-            return response_api_error('Cannot delete a referenced customer')
+        except ElementInUseError as e:
+            return response_api_error(e.get_message())
 
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')

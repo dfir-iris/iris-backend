@@ -23,7 +23,7 @@ from typing import List
 from typing import Optional
 
 from app import db
-from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
+from app.models.errors import ElementInUseError
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import Contact
@@ -143,7 +143,7 @@ def delete_contact(contact: Contact):
         db.session.commit()
 
     except Exception:
-        raise ElementInUseException('A currently referenced contact cannot be deleted')
+        raise ElementInUseError('A currently referenced contact cannot be deleted')
 
 
 def update_client(schema, customer: Client, data):
@@ -168,7 +168,7 @@ def delete_client(customer: Client) -> None:
         db.session.delete(customer)
         db.session.commit()
     except Exception:
-        raise ElementInUseException('A currently referenced customer cannot be deleted')
+        raise ElementInUseError('Cannot delete a referenced customer')
 
 
 def get_case_client(case_id: int) -> Client:

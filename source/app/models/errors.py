@@ -41,7 +41,11 @@ class ObjectNotFoundError(BusinessProcessingError):
 class UnhandledBusinessError(BusinessProcessingError):
 
     def __init__(self, message, data=None):
-        self._message = message
-        self._data = data
+        super().__init__(message, data)
         logger.exception(message)
         logger.exception(data)
+
+
+class ElementInUseError(BusinessProcessingError):
+
+    pass

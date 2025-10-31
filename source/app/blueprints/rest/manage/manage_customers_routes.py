@@ -28,6 +28,7 @@ from app.blueprints.iris_user import iris_current_user
 from app.business.customers import customers_get
 from app.business.customers_contacts import customers_contacts_get
 from app.models.errors import ObjectNotFoundError
+from app.models.errors import ElementInUseError
 from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
@@ -40,7 +41,6 @@ from app.datamgmt.client.client_db import get_client_list
 from app.datamgmt.client.client_db import get_client_contact
 from app.datamgmt.client.client_db import update_client
 from app.datamgmt.client.client_db import update_contact
-from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
@@ -290,7 +290,7 @@ def delete_customers(client_id):
     except ObjectNotFoundError:
         return response_error('Invalid Customer ID')
 
-    except ElementInUseException:
+    except ElementInUseError:
         return response_error('Cannot delete a referenced customer')
 
     except Exception:
@@ -313,7 +313,7 @@ def delete_contact_route(client_id, contact_id):
     except ObjectNotFoundError:
         return response_error('Invalid contact ID')
 
-    except ElementInUseException:
+    except ElementInUseError:
         return response_error('Cannot delete a referenced contact')
 
     except Exception:
