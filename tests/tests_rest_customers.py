@@ -142,7 +142,7 @@ class TestsRestCustomers(TestCase):
         response = self._subject.delete(f'/api/v2/manage/customers/{identifier}')
         self.assertEqual(204, response.status_code)
 
-    def test_delete_customer_should_return_400_when_referenced_by_a_customer(self):
+    def test_delete_customer_should_return_400_when_referenced_in_a_case(self):
         body = {'customer_name': 'customer'}
         response = self._subject.create('/api/v2/manage/customers', body).json()
         identifier = response['customer_id']
