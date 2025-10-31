@@ -42,7 +42,7 @@ from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_update
-from app.business.errors import BusinessProcessingError, ObjectNotFoundError
+from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_requires

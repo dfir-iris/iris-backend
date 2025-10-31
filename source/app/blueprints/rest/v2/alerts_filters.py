@@ -30,8 +30,8 @@ from app.blueprints.iris_user import iris_current_user
 
 
 from app.schema.marshables import SavedFilterSchema
-from app.business.errors import BusinessProcessingError
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.business.alerts_filters import alert_filter_add
 from app.business.alerts_filters import alert_filter_get
 from app.business.alerts_filters import alert_filter_update

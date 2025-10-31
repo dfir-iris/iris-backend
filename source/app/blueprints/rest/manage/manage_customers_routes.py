@@ -27,7 +27,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
 from app.business.customers import customers_get
 from app.business.customers_contacts import customers_contacts_get
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client

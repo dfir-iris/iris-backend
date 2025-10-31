@@ -79,7 +79,7 @@ from app.business.asset_types import create_asset_type_if_not_exists
 from app.business.customers import customers_get_by_name
 from app.business.customers import customers_create
 from app.business.cases import cases_get_first_with_customer
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.datamgmt.iris_engine.modules_db import iris_module_disable_by_id
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_group

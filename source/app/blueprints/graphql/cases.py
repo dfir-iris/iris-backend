@@ -36,7 +36,7 @@ from app.business.cases import cases_create
 from app.business.cases import cases_delete
 from app.business.cases import cases_update
 from app.business.cases import cases_get_by_identifier
-from app.business.errors import BusinessProcessingError
+from app.models.errors import BusinessProcessingError
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_permission
 from app.blueprints.graphql.permissions import permissions_check_current_user_has_some_case_access
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook

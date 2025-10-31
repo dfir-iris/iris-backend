@@ -24,7 +24,7 @@ from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_customer_by_name
 from app.datamgmt.client.client_db import update_customer
 from app.datamgmt.client.client_db import delete_client
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 
 
 # TODO maybe this method should be removed and always create a customer with at least a user

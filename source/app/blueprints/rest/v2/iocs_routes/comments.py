@@ -35,7 +35,7 @@ from app.business.comments import comments_create_for_ioc
 from app.business.comments import comments_get_for_ioc
 from app.business.comments import comments_delete_for_ioc
 from app.business.iocs import iocs_get
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
 from app.models.authorization import CaseAccessLevel
 from app.blueprints.rest.case_comments import case_comment_update

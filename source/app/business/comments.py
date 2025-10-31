@@ -23,8 +23,8 @@ from flask_sqlalchemy.pagination import Pagination
 from app import db
 from app.business.alerts import alerts_exists
 from app.business.alerts import alerts_get
-from app.business.errors import ObjectNotFoundError
-from app.business.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
 from app.datamgmt.case.case_comments import get_case_comment
 from app.datamgmt.comments import get_filtered_alert_comments
 from app.datamgmt.comments import get_filtered_asset_comments

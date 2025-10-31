@@ -60,7 +60,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.util import add_obj_history_entry
 from app.blueprints.responses import response_success
-from app.business.errors import BusinessProcessingError
+from app.models.errors import BusinessProcessingError
 from app.business.alerts import alerts_create
 
 alerts_rest_blueprint = Blueprint('alerts_rest', __name__)

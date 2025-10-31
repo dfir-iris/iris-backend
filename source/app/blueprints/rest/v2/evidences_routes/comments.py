@@ -36,7 +36,7 @@ from app.business.comments import comments_get_for_evidence
 from app.business.comments import comments_delete_for_evidence
 from app.models.models import CaseReceivedFile
 from app.business.evidences import evidences_get
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema
 from app.models.authorization import CaseAccessLevel
 from app.blueprints.rest.case_comments import case_comment_update

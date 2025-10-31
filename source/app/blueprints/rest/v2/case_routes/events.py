@@ -34,8 +34,8 @@ from app.business.events import events_update
 from app.business.events import events_delete
 from app.models.cases import CasesEvent
 from app.schema.marshables import EventSchema
-from app.business.errors import BusinessProcessingError
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
 from app.iris_engine.utils.collab import notify
 from app.models.authorization import CaseAccessLevel

@@ -41,8 +41,8 @@ from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
 from app.business.alerts import alerts_delete
 from app.business.alerts import related_alerts_get
-from app.business.errors import BusinessProcessingError
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.business.access_controls import access_controls_user_has_customer_access
 
 

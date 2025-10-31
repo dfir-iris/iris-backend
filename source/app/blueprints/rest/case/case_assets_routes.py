@@ -30,7 +30,7 @@ from app.business.assets import assets_create
 from app.business.assets import assets_get
 from app.business.assets import assets_update
 from app.blueprints.iris_user import iris_current_user
-from app.business.errors import BusinessProcessingError
+from app.models.errors import BusinessProcessingError
 from app.datamgmt.case.case_assets_db import get_raw_assets
 from app.datamgmt.case.case_assets_db import get_linked_iocs_finfo_from_asset
 from app.datamgmt.case.case_assets_db import add_comment_to_asset
