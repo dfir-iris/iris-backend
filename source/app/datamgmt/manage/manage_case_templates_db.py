@@ -30,7 +30,6 @@ from app.models.models import CaseTemplate
 from app.models.models import Tags
 from app.models.models import NoteDirectory
 from app.models.authorization import User
-from app.schema.marshables import CaseSchema
 from app.schema.marshables import CaseTaskSchema
 from app.schema.marshables import CaseNoteDirectorySchema
 from app.schema.marshables import CaseNoteSchema
