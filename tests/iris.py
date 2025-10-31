@@ -104,11 +104,11 @@ class Iris:
         response = self.create('/manage/customers/add', {'customer_name': f'customer{uuid4()}'}).json()
         return response['data']['customer_id']
 
-    def create_dummy_case(self):
+    def create_dummy_case(self, customer_identifier=IRIS_INITIAL_CUSTOMER_IDENTIFIER):
         body = {
             'case_name': 'case name',
             'case_description': 'description',
-            'case_customer_id': 1,
+            'case_customer_id': customer_identifier,
             'case_soc_id': ''
         }
         response = self._api.post('/api/v2/cases', body).json()

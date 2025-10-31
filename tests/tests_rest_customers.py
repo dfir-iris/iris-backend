@@ -141,3 +141,17 @@ class TestsRestCustomers(TestCase):
 
         response = self._subject.delete(f'/api/v2/manage/customers/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    def test_delete_customer_should_return_400_when_referenced_by_a_customer(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        self._subject.create_dummy_case(identifier)
+
+        # TODO currently, to remove a customer, no user should have any access to it. I am not sure this is the optimum behavior.
+        body = {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
+        self._subject.create(f'/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}/customers/update', body)
+
+        response = self._subject.delete(f'/api/v2/manage/customers/{identifier}')
+        self.assertEqual(400, response.status_code)
