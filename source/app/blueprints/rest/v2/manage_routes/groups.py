@@ -25,7 +25,7 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
-from app.blueprints.access_controls import wrap_with_permission_checks
+from app.blueprints.access_controls import ac_api_requires
 from app.schema.marshables import AuthorizationGroupSchema
 from app.business.groups import groups_create
 from app.business.groups import groups_get
@@ -92,20 +92,30 @@ class Groups:
             return response_api_error(e.get_message())
 
 
-def create_groups_blueprint():
-    blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
-    groups = Groups()
+groups_blueprint = Blueprint('rest_v2_groups', __name__, url_prefix='/groups')
+groups = Groups()
 
-    create_group = wrap_with_permission_checks(groups.create, Permissions.server_administrator)
-    blueprint.add_url_rule('', view_func=create_group, methods=['POST'])
 
-    get_group = wrap_with_permission_checks(groups.read, Permissions.server_administrator)
-    blueprint.add_url_rule('/<int:identifier>', view_func=get_group, methods=['GET'])
+@groups_blueprint.post('')
+@ac_api_requires(Permissions.server_administrator)
+def create_group():
+    return groups.create()
 
-    update_group = wrap_with_permission_checks(groups.update, Permissions.server_administrator)
-    blueprint.add_url_rule('/<int:identifier>', view_func=update_group, methods=['PUT'])
 
-    delete_group = wrap_with_permission_checks(groups.delete, Permissions.server_administrator)
-    blueprint.add_url_rule('/<int:identifier>', view_func=delete_group, methods=['DELETE'])
+@groups_blueprint.get('/<int:identifier>')
+@ac_api_requires(Permissions.server_administrator)
+def read_group(identifier):
+    return groups.read(identifier)
 
-    return blueprint
+
+@groups_blueprint.put('/<int:identifier>')
+@ac_api_requires(Permissions.server_administrator)
+def update_group(identifier):
+    return groups.update(identifier)
+
+
+@groups_blueprint.delete('/<int:identifier>')
+@ac_api_requires(Permissions.server_administrator)
+def update_group(identifier):
+    return groups.delete(identifier)
+
