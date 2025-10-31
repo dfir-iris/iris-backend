@@ -116,6 +116,5 @@ def update_group(identifier):
 
 @groups_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
-def update_group(identifier):
+def delete_group(identifier):
     return groups.delete(identifier)
-
