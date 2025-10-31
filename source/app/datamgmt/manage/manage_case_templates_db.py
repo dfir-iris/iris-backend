@@ -158,7 +158,7 @@ def validate_case_template(data: dict, update: bool = False) -> Optional[str]:
         return str(e)
 
 
-def case_template_pre_modifier(case_schema: CaseSchema, case_template_id: str):
+def case_template_pre_modifier(case_schema: Cases, case_template_id: str):
     case_template = get_case_template_by_id(int(case_template_id))
     if not case_template:
         return None
