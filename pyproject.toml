@@ -60,3 +60,10 @@ source_modules = "app.datamgmt.case"
 forbidden_modules = "app.iris_engine"
 allow_indirect_imports = true
 
+[[tool.importlinter.contracts]]
+name = "Do not import marshmallow from the persistence layer"
+type = "forbidden"
+source_modules = "app.datamgmt.client"
+forbidden_modules = "marshmallow"
+allow_indirect_imports = true
+

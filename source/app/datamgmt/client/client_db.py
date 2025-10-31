@@ -16,7 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import marshmallow
 from sqlalchemy import func
 from sqlalchemy import and_
 from typing import List
@@ -144,23 +143,6 @@ def delete_contact(contact: Contact):
 
     except Exception:
         raise ElementInUseError('A currently referenced contact cannot be deleted')
-
-
-def update_client(schema, customer: Client, data):
-    exists = Client.query.filter(
-        Client.client_id != customer.client_id,
-        func.lower(Client.name) == data.get('customer_name').lower()
-    ).first()
-
-    if exists:
-        raise marshmallow.exceptions.ValidationError(
-            'Customer already exists',
-            field_name='customer_name'
-        )
-
-    schema.load(data, instance=customer)
-
-    update_customer()
 
 
 def delete_client(customer: Client) -> None:
