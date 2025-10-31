@@ -31,7 +31,7 @@ _IRIS_PATH = Path('..')
 _ADMINISTRATOR_USER_LOGIN = 'administrator'
 ADMINISTRATOR_USER_IDENTIFIER = 1
 _INITIAL_DEMO_CASE_IDENTIFIER = 1
-_IRIS_INITIAL_CUSTOMER_IDENTIFIER = 1
+IRIS_INITIAL_CUSTOMER_IDENTIFIER = 1
 
 IRIS_PERMISSION_SERVER_ADMINISTRATOR = 0x2
 IRIS_PERMISSION_ALERTS_READ = 0x4
@@ -139,7 +139,7 @@ class Iris:
             identifier = user['user_id']
             self.get(f'/manage/users/deactivate/{identifier}')
             self.delete(f'/api/v2/manage/users/{identifier}')
-        body = {'customers_membership': [_IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
+        body = {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
         self.create(f'/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}/customers/update', body)
         customers = self.get('/manage/customers/list').json()
         for customer in customers['data']:

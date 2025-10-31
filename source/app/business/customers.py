@@ -23,6 +23,7 @@ from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_customer_by_name
 from app.datamgmt.client.client_db import update_customer
+from app.datamgmt.client.client_db import delete_client
 from app.business.errors import ObjectNotFoundError
 
 
@@ -62,3 +63,8 @@ def customers_exists_another_with_same_name(identifier, name: str) -> bool:
 
 def customers_update():
     update_customer()
+
+
+def customers_delete(customer: Client):
+    delete_client(customer)
+    track_activity(f'Deleted Customer with ID {customer.client_id}', ctx_less=True)

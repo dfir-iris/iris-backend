@@ -20,6 +20,7 @@ from unittest import TestCase
 from iris import Iris
 from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
 from iris import ADMINISTRATOR_USER_IDENTIFIER
+from iris import IRIS_INITIAL_CUSTOMER_IDENTIFIER
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
 
@@ -128,3 +129,15 @@ class TestsRestCustomers(TestCase):
         body = {'customer_name': 'customer'}
         response = self._subject.update(f'/api/v2/manage/customers/{identifier}', body)
         self.assertEqual(200, response.status_code)
+
+    def test_delete_customer_should_return_204(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        # TODO currently, to remove a customer, no user should have any access to it. I am not sure this is the optimum behavior.
+        body = {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
+        self._subject.create(f'/manage/users/{ADMINISTRATOR_USER_IDENTIFIER}/customers/update', body)
+
+        response = self._subject.delete(f'/api/v2/manage/customers/{identifier}')
+        self.assertEqual(204, response.status_code)
