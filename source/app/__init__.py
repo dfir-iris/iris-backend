@@ -39,6 +39,7 @@ from app.iris_engine.tasker.celery import make_celery
 from app.iris_engine.tasker.celery import set_celery_flask_context
 from app.iris_engine.access_control.oidc_handler import get_oidc_client
 from app.jinja_filters import register_jinja_filters
+from app.models.authorization import ac_flag_match_mask
 
 
 class ReverseProxied(object):
@@ -75,10 +76,13 @@ def ac_current_user_has_permission(*permissions):
     """
     Return True if current user has permission
     """
+    if not 'permissions' in session:
+        return False
+
+    current_user_permissions = session['permissions']
     for permission in permissions:
 
-        if ('permissions' in session and
-                session['permissions'] & permission.value == permission.value):
+        if ac_flag_match_mask(current_user_permissions, permission.value):
             return True
 
     return False
