@@ -22,7 +22,7 @@ from flask import Blueprint
 from flask import request
 from flask import session
 
-from app import db
+from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_users_db import get_user
 from app.datamgmt.manage.manage_users_db import get_user_primary_org

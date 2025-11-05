@@ -20,7 +20,7 @@ import datetime
 from sqlalchemy import desc
 from flask_sqlalchemy.pagination import Pagination
 
-from app import db
+from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_evidences_state

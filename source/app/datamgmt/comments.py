@@ -19,7 +19,7 @@
 from flask_sqlalchemy.pagination import Pagination
 from sqlalchemy import and_
 
-from app import db
+from app.db import db
 from app.models.cases import Cases
 from app.models.comments import Comments
 from app.models.comments import EventComments

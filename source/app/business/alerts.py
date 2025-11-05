@@ -20,7 +20,7 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from app import db
+from app.db import db
 from app import socket_io
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.models.alerts import Alert

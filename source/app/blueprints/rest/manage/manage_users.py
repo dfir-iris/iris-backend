@@ -23,7 +23,7 @@ from flask import Blueprint
 from flask import request
 
 from app import app
-from app import db
+from app.db import db
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.iris_user import iris_current_user

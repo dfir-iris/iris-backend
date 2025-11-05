@@ -26,7 +26,7 @@ from flask_login import logout_user
 from oic.oauth2.exception import GrantError
 
 from app import app
-from app import db
+from app.db import db
 from app import oidc_client
 from app.blueprints.iris_user import iris_current_user
 from app.models.errors import ObjectNotFoundError

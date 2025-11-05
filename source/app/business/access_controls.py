@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app import db
+from app.db import db
 
 from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import remove_duplicate_user_case_effective_accesses

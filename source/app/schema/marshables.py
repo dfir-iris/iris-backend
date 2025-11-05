@@ -43,7 +43,7 @@ from typing import Tuple
 from typing import Union
 from werkzeug.datastructures import FileStorage
 from app.business.customers import customers_exists_another_with_same_name
-from app import db
+from app.db import db
 from app import ma
 from app.blueprints.iris_user import iris_current_user
 from app.logger import logger

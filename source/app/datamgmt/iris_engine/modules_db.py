@@ -18,7 +18,8 @@
 import base64
 import datetime
 
-from app import db, app
+from app.db import db
+from app import app
 from app.blueprints.iris_user import iris_current_user
 from app.models.models import IrisHook
 from app.models.models import IrisModule

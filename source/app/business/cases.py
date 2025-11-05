@@ -19,7 +19,7 @@
 import datetime
 import traceback
 
-from app import db
+from app.db import db
 from app.logger import logger
 from app.util import add_obj_history_entry
 from app.models.models import ReviewStatusList

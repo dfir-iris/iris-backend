@@ -27,7 +27,7 @@ from flask import request
 from flask import send_file
 from pathlib import Path
 
-from app import db
+from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.datastore.datastore_db import datastore_add_child_node
 from app.datamgmt.datastore.datastore_db import datastore_add_file_as_evidence

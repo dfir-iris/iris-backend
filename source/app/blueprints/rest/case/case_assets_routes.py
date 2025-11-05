@@ -22,7 +22,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
-from app import db
+from app.db import db
 from app.blueprints.rest.case_comments import case_comment_update
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.business.assets import assets_delete

@@ -25,7 +25,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import aliased
 from functools import reduce
 
-from app import db
+from app.db import db
 from app.datamgmt.alerts.alerts_db import search_alert_resolution_by_name
 from app.datamgmt.case.case_db import get_case_tags
 from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name

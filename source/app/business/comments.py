@@ -20,7 +20,7 @@ from datetime import datetime
 
 from flask_sqlalchemy.pagination import Pagination
 
-from app import db
+from app.db import db
 from app.business.alerts import alerts_exists
 from app.business.alerts import alerts_get
 from app.models.errors import ObjectNotFoundError

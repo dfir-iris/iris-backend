@@ -44,7 +44,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
 
 from app import app
-from app import db
+from app.db import db
 
 Base = declarative_base()
 metadata = Base.metadata

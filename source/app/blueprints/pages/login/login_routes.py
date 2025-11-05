@@ -34,7 +34,7 @@ from oic.oic.message import AuthorizationResponse
 
 from app import app
 from app import bc
-from app import db
+from app.db import db
 from app import oidc_client
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import is_authentication_ldap

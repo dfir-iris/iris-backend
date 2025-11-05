@@ -37,7 +37,7 @@ from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.pagination import Pagination
 
 import app
-from app import db
+from app.db import db
 from app.datamgmt.filtering import combine_conditions
 from app.datamgmt.filtering import apply_custom_conditions
 from app.datamgmt.case.case_assets_db import create_asset

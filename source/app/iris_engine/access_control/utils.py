@@ -1,6 +1,6 @@
 from sqlalchemy import and_
 
-from app import db
+from app.db import db
 from app.business.access_controls import set_case_effective_access_for_user
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.logger import logger

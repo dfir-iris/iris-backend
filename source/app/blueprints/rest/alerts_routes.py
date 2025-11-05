@@ -24,7 +24,7 @@ from flask import current_app
 from typing import List
 from werkzeug import Response
 
-from app import db
+from app.db import db
 from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.case_comments import case_comment_update

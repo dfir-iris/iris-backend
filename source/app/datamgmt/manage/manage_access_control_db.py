@@ -17,7 +17,7 @@
 from sqlalchemy import and_
 
 from app import ac_current_user_has_permission
-from app import db
+from app.db import db
 from app.models.cases import Cases
 from app.models.authorization import Group
 from app.models.authorization import UserClient
