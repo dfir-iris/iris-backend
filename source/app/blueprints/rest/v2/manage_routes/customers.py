@@ -52,7 +52,6 @@ class CustomersOperations:
         customers = customers_filter(iris_current_user, pagination_parameters, user_is_server_administrator)
         return response_api_paginated(self._schema, customers)
 
-
     def create(self):
         try:
             request_data = request.get_json()
