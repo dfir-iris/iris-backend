@@ -67,8 +67,8 @@ from app.datamgmt.alerts.alerts_db import get_alert_comment
 from app.models.alerts import Alert
 
 
-def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    if not alerts_exists(current_user, alert_identifier):
+def comments_get_filtered_by_alert(current_user, permissions, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
+    if not alerts_exists(current_user, permissions, alert_identifier):
         raise ObjectNotFoundError()
 
     return get_filtered_alert_comments(alert_identifier, pagination_parameters)

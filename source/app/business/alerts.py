@@ -119,8 +119,8 @@ def related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cas
                                      days_back, number_of_results)
 
 
-def alerts_exists(identifier) -> bool:
-    alert = _get(identifier, permissions)
+def alerts_exists(user, permissions, identifier) -> bool:
+    alert = _get(user, permissions, identifier)
 
     return alert is not None
 

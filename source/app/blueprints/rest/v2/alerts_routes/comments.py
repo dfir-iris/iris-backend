@@ -51,7 +51,7 @@ class CommentsOperations:
     def search(self, alert_identifier):
         pagination_parameters = parse_pagination_parameters(request)
         try:
-            comments = comments_get_filtered_by_alert(iris_current_user, alert_identifier, pagination_parameters)
+            comments = comments_get_filtered_by_alert(iris_current_user, session['permissions'], alert_identifier, pagination_parameters)
             return response_api_paginated(self._schema, comments)
         except ObjectNotFoundError:
             return response_api_not_found()
@@ -79,7 +79,7 @@ class CommentsOperations:
             return response_api_not_found()
 
     def update(self, alert_identifier, identifier):
-        if not alerts_exists(iris_current_user, alert_identifier):
+        if not alerts_exists(iris_current_user, session['permissions'], alert_identifier):
             return response_api_not_found()
         return case_comment_update(identifier, 'events', None)
 
