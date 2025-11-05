@@ -159,7 +159,7 @@ case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_pre
 
 @case_evidences_blueprint.get('')
 @ac_api_requires()
-def get_evidences(case_identifier):
+def search_evidences(case_identifier):
     return evidences_operations.search(case_identifier)
 
 

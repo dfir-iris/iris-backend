@@ -103,8 +103,7 @@ def manage_user_customers_modal(cur_id, caseid, url_redir):
         return response_error("Invalid user ID")
 
     user_is_server_administrator = ac_current_user_has_permission(Permissions.server_administrator)
-    groups = get_client_list(current_user_id=iris_current_user.id,
-                             is_server_administrator=user_is_server_administrator)
+    groups = get_client_list(iris_current_user.id, user_is_server_administrator)
 
     return render_template("modal_manage_user_customers.html", groups=groups, user=user)
 

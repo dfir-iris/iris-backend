@@ -155,3 +155,7 @@ class TestsRestCustomers(TestCase):
 
         response = self._subject.delete(f'/api/v2/manage/customers/{identifier}')
         self.assertEqual(400, response.status_code)
+
+    def test_search_customers_should_return_200(self):
+        response = self._subject.get(f'/api/v2/manage/customers')
+        self.assertEqual(200, response.status_code)

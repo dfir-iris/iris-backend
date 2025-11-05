@@ -24,23 +24,34 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.access_controls import ac_api_requires
+from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
 from app.models.errors import ObjectNotFoundError
 from app.models.errors import ElementInUseError
 from app.business.customers import customers_create_with_user
+from app.business.customers import customers_filter
 from app.business.customers import customers_get
 from app.business.customers import customers_update
 from app.business.customers import customers_delete
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.parsing import parse_pagination_parameters
 
 
-class Customers:
+class CustomersOperations:
 
     def __init__(self):
         self._schema = CustomerSchema()
+
+    def search(self):
+        pagination_parameters = parse_pagination_parameters(request)
+        user_is_server_administrator = ac_current_user_has_permission(Permissions.server_administrator)
+        customers = customers_filter(iris_current_user, pagination_parameters, user_is_server_administrator)
+        return response_api_paginated(self._schema, customers)
+
 
     def create(self):
         try:
@@ -88,28 +99,34 @@ class Customers:
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
 
-customers = Customers()
+customers_operations = CustomersOperations()
+
+
+@customers_blueprint.get('')
+@ac_api_requires(Permissions.customers_read)
+def search_evidences():
+    return customers_operations.search()
 
 
 @customers_blueprint.post('')
 @ac_api_requires(Permissions.customers_write)
 def create_customer():
-    return customers.create()
+    return customers_operations.create()
 
 
 @customers_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.customers_read)
 def get_customer(identifier):
-    return customers.read(identifier)
+    return customers_operations.read(identifier)
 
 
 @customers_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.customers_write)
 def put_customer(identifier):
-    return customers.update(identifier)
+    return customers_operations.update(identifier)
 
 
 @customers_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.customers_write)
 def delete_user(identifier):
-    return customers.delete(identifier)
+    return customers_operations.delete(identifier)
