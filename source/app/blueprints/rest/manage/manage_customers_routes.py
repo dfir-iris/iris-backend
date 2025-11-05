@@ -55,6 +55,7 @@ manage_customers_rest_blueprint = Blueprint('manage_customers_rest', __name__)
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/customers')
 @ac_api_requires(Permissions.customers_read)
 def list_customers():
     user_is_server_administrator = ac_current_user_has_permission(Permissions.server_administrator)
