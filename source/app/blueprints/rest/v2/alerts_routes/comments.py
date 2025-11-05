@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import session
 from flask import request
 from marshmallow.exceptions import ValidationError
 
@@ -58,7 +59,7 @@ class CommentsOperations:
     def create(self, alert_identifier):
         try:
             comment = self._schema.load(request.get_json())
-            comments_create_for_alert(iris_current_user, comment, alert_identifier)
+            comments_create_for_alert(iris_current_user, session['permissions'], comment, alert_identifier)
             result = self._schema.dump(comment)
             return response_api_created(result)
         except ValidationError as e:
@@ -68,7 +69,7 @@ class CommentsOperations:
 
     def read(self, alert_identifier, identifier):
         try:
-            alert = alerts_get(iris_current_user, alert_identifier)
+            alert = alerts_get(iris_current_user, session['permissions'], alert_identifier)
             comment = comments_get_for_alert(alert, identifier)
             result = self._schema.dump(comment)
             return response_api_success(result)
@@ -84,7 +85,7 @@ class CommentsOperations:
 
     def delete(self, alert_identifier, identifier):
         try:
-            alert = alerts_get(iris_current_user, alert_identifier)
+            alert = alerts_get(iris_current_user, session['permissions'], alert_identifier)
             comment = comments_get_for_alert(alert, identifier)
             if comment.comment_user_id != iris_current_user.id:
                 return ac_api_return_access_denied()

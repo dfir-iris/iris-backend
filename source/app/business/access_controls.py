@@ -25,6 +25,7 @@ from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
 from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 from app.logger import logger
 from app.models.authorization import UserCaseAccess
+from app.models.authorization import ac_has_permission_server_administrator
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import ac_flag_match_mask
 
@@ -94,5 +95,8 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
     return None
 
 
-def access_controls_user_has_customer_access(user, customer_identifier):
+def access_controls_user_has_customer_access(user, permissions, customer_identifier):
+    if ac_has_permission_server_administrator(permissions):
+        return True
+
     return user_has_client_access(user.id, customer_identifier)

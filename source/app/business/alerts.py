@@ -20,9 +20,9 @@ import json
 from datetime import datetime
 from typing import Optional
 
+from app.business.access_controls import access_controls_user_has_customer_access
 from app.db import db
 from app import socket_io
-from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.models.alerts import Alert
 from app.models.iocs import Ioc
 from app.models.models import CaseAssets
@@ -96,17 +96,17 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     return alert
 
 
-def _get(user, identifier) -> Optional[Alert]:
+def _get(user, permissions, identifier) -> Optional[Alert]:
     alert = get_alert_by_id(identifier)
     if not alert:
         return None
-    if not ac_current_user_has_customer_access(alert.alert_customer_id):
+    if not access_controls_user_has_customer_access(user, permissions, alert.alert_customer_id):
         return None
     return alert
 
 
-def alerts_get(user, identifier) -> Alert:
-    alert = _get(user, identifier)
+def alerts_get(user, permissions, identifier) -> Alert:
+    alert = _get(user, permissions, identifier)
     if not alert:
         raise ObjectNotFoundError()
     return alert
@@ -119,8 +119,8 @@ def related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cas
                                      days_back, number_of_results)
 
 
-def alerts_exists(user, identifier) -> bool:
-    alert = _get(user, identifier)
+def alerts_exists(identifier) -> bool:
+    alert = _get(identifier, permissions)
 
     return alert is not None
 

@@ -121,8 +121,8 @@ def comments_update_for_case(current_user, comment_text, comment_id, object_type
     return comment
 
 
-def comments_create_for_alert(current_user, comment: Comments, alert_identifier: int):
-    alert = alerts_get(current_user, alert_identifier)
+def comments_create_for_alert(current_user, permissions, comment: Comments, alert_identifier: int):
+    alert = alerts_get(current_user, permissions, alert_identifier)
     comment.comment_alert_id = alert_identifier
     comment.comment_user_id = current_user.id
     comment.comment_date = datetime.now()
