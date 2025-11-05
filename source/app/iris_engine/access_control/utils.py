@@ -1,4 +1,3 @@
-from flask import session
 from sqlalchemy import and_
 
 from app import db
@@ -842,10 +841,3 @@ def ac_user_has_permission(user, permission):
     Return True if user has permission
     """
     return ac_flag_match_mask(ac_get_effective_permissions_of_user(user), permission.value)
-
-
-def ac_current_user_has_permission(permission):
-    """
-    Return True if current user has permission
-    """
-    return ac_flag_match_mask(session['permissions'], permission.value)

@@ -27,7 +27,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.access_controls import ac_api_requires
-from app.iris_engine.access_control.utils import ac_current_user_has_permission
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
 from app.models.errors import ObjectNotFoundError

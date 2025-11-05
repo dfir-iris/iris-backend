@@ -34,11 +34,12 @@ from app.datamgmt.manage.manage_case_templates_db import get_case_templates_list
 from app.datamgmt.manage.manage_cases_db import get_case_protagonists
 from app.datamgmt.manage.manage_common import get_severities_list
 from app.forms import AddCaseForm
-from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Permissions
 from app.schema.marshables import CaseDetailsSchema
-from app.blueprints.access_controls import ac_api_return_access_denied, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_requires
 from app.blueprints.responses import response_error
 from app.schema.marshables import CaseStateSchema

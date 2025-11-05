@@ -20,7 +20,8 @@ from copy import deepcopy
 import json
 from datetime import datetime
 from datetime import timedelta
-from typing import List, Optional
+from typing import List
+from typing import Optional
 from typing import Tuple
 
 from sqlalchemy import desc
@@ -51,7 +52,7 @@ from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
 from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
 from app.datamgmt.states import update_timeline_state
 from app.blueprints.iris_user import iris_current_user
-from app.iris_engine.access_control.utils import ac_current_user_has_permission
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.models.cases import Cases
 from app.models.models import EventCategory

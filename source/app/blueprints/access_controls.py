@@ -52,6 +52,7 @@ from app.business.access_controls import ac_fast_check_user_has_case_access
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
+from app.models.authorization import ac_flag_match_mask
 from app.models.authorization import CaseAccessLevel
 
 
@@ -582,3 +583,10 @@ def is_authentication_ldap():
 
 def ac_fast_check_current_user_has_case_access(cid, access_level):
     return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
+
+
+def ac_current_user_has_permission(permission):
+    """
+    Return True if current user has permission
+    """
+    return ac_flag_match_mask(session['permissions'], permission.value)
