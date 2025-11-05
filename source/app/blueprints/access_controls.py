@@ -593,4 +593,7 @@ def ac_current_user_has_permission(permission):
 
 
 def ac_current_user_has_customer_access(customer_identifier):
-    return access_controls_user_has_customer_access(iris_current_user.id, customer_identifier)
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        return True
+
+    return access_controls_user_has_customer_access(iris_current_user, customer_identifier)
