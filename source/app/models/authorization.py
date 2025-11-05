@@ -261,7 +261,7 @@ def ac_flag_match_mask(flag, mask):
 
 
 def ac_has_permission_server_administrator(permissions):
-    return ac_flag_match_mask(permissions, Permissions.server_administrator)
+    return ac_flag_match_mask(permissions, Permissions.server_administrator.value)
 
 
 def ac_access_level_mask_from_val_list(access_levels) -> int:
