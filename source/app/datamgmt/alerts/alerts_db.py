@@ -117,10 +117,9 @@ def get_filtered_alerts(
         page: int,
         per_page: int,
         sort: str,
-        user_identifier_filter: int | None,
+        user_identifier: int | None,
         source_reference,
-        custom_conditions: List[dict],
-        logical_operator: str = 'and'  # Logical operator: 'and', 'or', 'not'
+        custom_conditions: List[dict]
     ) -> Pagination:
     conditions = []
 
@@ -190,7 +189,7 @@ def get_filtered_alerts(
         if isinstance(iocs, list):
             conditions.append(Alert.iocs.any(Ioc.ioc_value.in_(iocs)))
 
-    if user_identifier_filter is not None:
+    if user_identifier is not None:
         clients_filters = get_user_clients_id(user_identifier)
         if clients_filters is not None:
             conditions.append(Alert.alert_customer_id.in_(clients_filters))
@@ -218,8 +217,8 @@ def get_filtered_alerts(
         query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
         conditions.extend(conditions_tmp)
 
-        # Combine conditions
-    combined_conditions = combine_conditions(conditions, logical_operator)
+    # Combine conditions
+    combined_conditions = combine_conditions(conditions, 'and')
 
     order_func = desc if sort == "desc" else asc
 

@@ -157,5 +157,5 @@ class TestsRestCustomers(TestCase):
         self.assertEqual(400, response.status_code)
 
     def test_search_customers_should_return_200(self):
-        response = self._subject.get(f'/api/v2/manage/customers')
+        response = self._subject.get('/api/v2/manage/customers')
         self.assertEqual(200, response.status_code)
