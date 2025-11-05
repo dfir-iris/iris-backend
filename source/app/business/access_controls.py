@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app import db
+from app import ac_current_user_has_permission
 
 from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import remove_duplicate_user_case_effective_accesses
@@ -27,6 +28,7 @@ from app.logger import logger
 from app.models.authorization import UserCaseAccess
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import ac_flag_match_mask
+from app.models.authorization import Permissions
 
 
 def set_user_case_access(user_id, case_id, access_level):
@@ -95,4 +97,7 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
 
 
 def access_controls_user_has_customer_access(user, customer_identifier):
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        return True
+
     return user_has_client_access(user.id, customer_identifier)

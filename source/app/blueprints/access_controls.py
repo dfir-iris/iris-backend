@@ -389,7 +389,7 @@ def ac_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not access_controls_user_has_customer_access(iris_current_user.id, client_id):
+            if not ac_current_user_has_customer_access(client_id):
                 return _ac_return_access_denied()
 
             return f(*args, **kwargs)
@@ -439,7 +439,7 @@ def ac_api_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not access_controls_user_has_customer_access(iris_current_user.id, client_id):
+            if not ac_current_user_has_customer_access(client_id):
                 return response_error("Permission denied", status=403)
 
             return f(*args, **kwargs)
@@ -590,3 +590,7 @@ def ac_current_user_has_permission(permission):
     Return True if current user has permission
     """
     return ac_flag_match_mask(session['permissions'], permission.value)
+
+
+def ac_current_user_has_customer_access(customer_identifier):
+    return access_controls_user_has_customer_access(iris_current_user.id, customer_identifier)

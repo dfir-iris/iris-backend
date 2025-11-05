@@ -50,7 +50,9 @@ from app.models.authorization import Permissions
 from app.schema.marshables import CaseSchema
 from app.schema.marshables import CaseDetailsSchema
 from app.util import add_obj_history_entry
-from app.blueprints.access_controls import ac_requires_case_identifier, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_requires_case_identifier
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
@@ -62,7 +64,6 @@ from app.business.cases import cases_create
 from app.business.cases import cases_get_by_identifier
 from app.models.errors import BusinessProcessingError
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
-from app.business.access_controls import access_controls_user_has_customer_access
 
 manage_cases_rest_blueprint = Blueprint('manage_case_rest', __name__)
 
@@ -281,7 +282,7 @@ def update_case_info(identifier):
         request_data = request.get_json()
         # If user tries to update the customer, check if the user has access to the new customer
         if request_data.get('case_customer') and request_data.get('case_customer') != case.client_id:
-            if not access_controls_user_has_customer_access(iris_current_user.id, request_data.get('case_customer')):
+            if not ac_current_user_has_customer_access(request_data.get('case_customer')):
                 raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
         if 'case_name' in request_data:

@@ -22,6 +22,7 @@ from flask import Response
 from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
@@ -44,7 +45,6 @@ from app.business.alerts import alerts_delete
 from app.business.alerts import related_alerts_get
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
-from app.business.access_controls import access_controls_user_has_customer_access
 
 
 class AlertsOperations:
@@ -152,7 +152,7 @@ class AlertsOperations:
             alert = self._schema.load(request_data)
             result = alerts_create(alert, iocs, assets)
 
-            if not access_controls_user_has_customer_access(iris_current_user, result.alert_customer_id):
+            if not ac_current_user_has_customer_access(result.alert_customer_id):
                 return response_api_error('User not entitled to create alerts for the client')
             return response_api_created(self._schema.dump(result))
 
