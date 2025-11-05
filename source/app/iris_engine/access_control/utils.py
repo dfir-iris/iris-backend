@@ -834,10 +834,3 @@ def ac_access_level_to_list(access_level):
             })
 
     return access_levels
-
-
-def ac_user_has_permission(user, permission):
-    """
-    Return True if user has permission
-    """
-    return ac_flag_match_mask(ac_get_effective_permissions_of_user(user), permission.value)

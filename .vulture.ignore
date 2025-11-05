@@ -318,7 +318,6 @@ org_type  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/for
 case_organisations  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/forms.py:148)
 CaseNoteForm  # unused class (/home/ubuntu/code/dfir-iris/iris-web/source/app/forms.py:223)
 ac_get_effective_permissions_from_groups  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/access_control/utils.py:138)
-ac_user_has_permission  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/access_control/utils.py:840)
 check_module_compatibility  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:46)
 get_mod_config_by_name  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:234)
 register_hook  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:323)
