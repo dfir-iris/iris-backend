@@ -45,7 +45,7 @@ from app.blueprints.responses import response_error
 from app.business.auth import validate_auth_token
 from app.business.auth import update_session_current_case
 from app.datamgmt.case.case_db import get_case
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from app.business.access_controls import access_controls_user_has_customer_access
 from app.datamgmt.manage.manage_users_db import get_user
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import ac_fast_check_user_has_case_access
@@ -389,7 +389,7 @@ def ac_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(iris_current_user.id, client_id):
+            if not access_controls_user_has_customer_access(iris_current_user.id, client_id):
                 return _ac_return_access_denied()
 
             return f(*args, **kwargs)
@@ -439,7 +439,7 @@ def ac_api_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(iris_current_user.id, client_id):
+            if not access_controls_user_has_customer_access(iris_current_user.id, client_id):
                 return response_error("Permission denied", status=403)
 
             return f(*args, **kwargs)

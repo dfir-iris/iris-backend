@@ -36,7 +36,7 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.models.errors import ObjectNotFoundError
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from app.business.access_controls import access_controls_user_has_customer_access
 
 
 def alerts_search(start_date, end_date, source_start_date, source_end_date, title, description,
@@ -100,7 +100,7 @@ def _get(user, identifier) -> Optional[Alert]:
     alert = get_alert_by_id(identifier)
     if not alert:
         return None
-    if not user_has_client_access(user.id, alert.alert_customer_id):
+    if not access_controls_user_has_customer_access(user.id, alert.alert_customer_id):
         return None
     return alert
 

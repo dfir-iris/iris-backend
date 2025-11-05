@@ -42,8 +42,7 @@ from app.blueprints.graphql.permissions import permissions_check_current_user_ha
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import CaseSchema
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
-
+from app.business.access_controls import access_controls_user_has_customer_access
 from app.blueprints.graphql.iocs import IOCConnection
 
 
@@ -185,7 +184,7 @@ class CaseUpdate(Mutation):
 
         # If user tries to update the customer, check if the user has access to the new customer
         if request.get('case_customer') and request.get('case_customer') != case.client_id:
-            if not user_has_client_access(iris_current_user.id, request.get('case_customer')):
+            if not access_controls_user_has_customer_access(iris_current_user.id, request.get('case_customer')):
                 raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
         if 'case_name' in request:
