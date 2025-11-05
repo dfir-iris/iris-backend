@@ -22,6 +22,7 @@ from flask import Response
 from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_error
@@ -92,8 +93,11 @@ class AlertsOperations:
         else:
             fields = None
 
+        user_identifier_filter = iris_current_user.id
+        if ac_current_user_has_permission(Permissions.server_administrator):
+            user_identifier_filter = None
+
         filtered_alerts = alerts_search(
-            iris_current_user.id,
             request.args.get('creation_start_date'),
             request.args.get('creation_end_date'),
             request.args.get('source_start_date'),
@@ -114,6 +118,7 @@ class AlertsOperations:
             request.args.get('alert_resolution_id', type=int),
             request.args.get('source_reference'),
             request.args.get('custom_conditions'),
+            user_identifier_filter,
             page,
             per_page,
             request.args.get('sort')

@@ -57,6 +57,7 @@ from app.schema.marshables import CaseAssetsSchema
 from app.schema.marshables import IocSchema
 from app.schema.marshables import CommentSchema
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.responses import response_error
 from app.util import add_obj_history_entry
 from app.blueprints.responses import response_success
@@ -137,31 +138,35 @@ def alerts_list_route() -> Response:
         fields = None
 
     try:
+        user_identifier_filter = iris_current_user.id
+        if ac_current_user_has_permission(Permissions.server_administrator):
+            user_identifier_filter = None
+
         filtered_alerts = get_filtered_alerts(
-            start_date=request.args.get('creation_start_date'),
-            end_date=request.args.get('creation_end_date'),
-            source_start_date=request.args.get('source_start_date'),
-            source_end_date=request.args.get('source_end_date'),
-            source_reference=request.args.get('source_reference'),
-            title=request.args.get('alert_title'),
-            description=request.args.get('alert_description'),
-            status=request.args.get('alert_status_id', type=int),
-            severity=request.args.get('alert_severity_id', type=int),
-            owner=request.args.get('alert_owner_id', type=int),
-            source=request.args.get('alert_source'),
-            tags=request.args.get('alert_tags'),
-            classification=request.args.get('alert_classification_id', type=int),
-            client=request.args.get('alert_customer_id'),
-            case_id=request.args.get('case_id', type=int),
-            alert_ids=alert_ids,
-            page=page,
-            per_page=per_page,
-            sort=request.args.get('sort', 'desc', type=str),
-            custom_conditions=request.args.get('custom_conditions'),
-            assets=alert_assets,
-            iocs=alert_iocs,
-            resolution_status=request.args.get('alert_resolution_id', type=int),
-            current_user_id=iris_current_user.id
+            request.args.get('creation_start_date'),
+            request.args.get('creation_end_date'),
+            request.args.get('source_start_date'),
+            request.args.get('source_end_date'),
+            request.args.get('alert_title'),
+            request.args.get('alert_description'),
+            request.args.get('alert_status_id', type=int),
+            request.args.get('alert_severity_id', type=int),
+            request.args.get('alert_owner_id', type=int),
+            request.args.get('alert_source'),
+            request.args.get('alert_tags'),
+            request.args.get('case_id', type=int),
+            request.args.get('alert_customer_id', type=int),
+            request.args.get('alert_classification_id', type=int),
+            alert_ids,
+            alert_assets,
+            alert_iocs,
+            request.args.get('alert_resolution_id', type=int),
+            page,
+            per_page,
+            request.args.get('sort', 'desc', type=str),
+            user_identifier_filter,
+            request.args.get('source_reference'),
+            request.args.get('custom_conditions')
         )
 
     except Exception as e:
