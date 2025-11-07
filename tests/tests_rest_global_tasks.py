@@ -31,6 +31,5 @@ class TestsRestGlobalTasks(TestCase):
 
     def test_create_global_task_should_return_201(self):
         body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
-        response = self._subject.create(f'/api/v2/global-tasks', body)
+        response = self._subject.create('/api/v2/global-tasks', body)
         self.assertEqual(201, response.status_code)
-
