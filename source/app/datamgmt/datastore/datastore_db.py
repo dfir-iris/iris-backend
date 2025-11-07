@@ -25,6 +25,7 @@ from sqlalchemy import and_
 from sqlalchemy import func
 
 from app import app
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.models.models import CaseReceivedFile
@@ -146,8 +147,7 @@ def init_ds_tree(cid):
     dsp_root.path_case_id = cid
     dsp_root.path_parent_id = 0
 
-    db.session.add(dsp_root)
-    db.session.commit()
+    db_create(dsp_root)
 
     for path in ['Evidences', 'IOCs', 'Images']:
         dsp_init = DataStorePath()
@@ -193,8 +193,7 @@ def datastore_add_child_node(parent_node, folder_name, cid):
     dsp.path_parent_id = parent_node
     dsp.path_is_root = False
 
-    db.session.add(dsp)
-    db.session.commit()
+    db_create(dsp)
 
     return False, 'Folder added', dsp
 
@@ -296,8 +295,7 @@ def datastore_get_interactive_path_node(cid):
         dsp.path_name = 'Notes Upload'
         dsp.path_is_root = False
 
-        db.session.add(dsp)
-        db.session.commit()
+        db_create(dsp)
 
     return dsp
 
@@ -370,8 +368,7 @@ def datastore_add_file_as_ioc(dsf, caseid):
         ioc.ioc_tags = "datastore"
         ioc.user_id = iris_current_user.id
 
-        db.session.add(ioc)
-        db.session.commit()
+        db_create(ioc)
 
 
 def datastore_add_file_as_evidence(dsf, caseid):
@@ -389,8 +386,7 @@ def datastore_add_file_as_evidence(dsf, caseid):
         crf.file_size = dsf.file_size
         crf.user_id = iris_current_user.id
 
-        db.session.add(crf)
-        db.session.commit()
+        db_create(crf)
 
     return
 

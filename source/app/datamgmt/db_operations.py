@@ -16,22 +16,9 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.models.models import GlobalTasks
-from datetime import datetime
-from app.iris_engine.module_handler.module_handler import call_modules_hook
-from app.iris_engine.utils.tracker import track_activity
-from app.datamgmt.db_operations import db_create
+from app.db import db
 
 
-def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:
-    global_task.task_userid_update = user.id
-    global_task.task_open_date = datetime.utcnow()
-    global_task.task_last_update = datetime.utcnow()
-    global_task.task_last_update = datetime.utcnow()
-
-    db_create(global_task)
-
-    global_task = call_modules_hook('on_postload_global_task_create', data=global_task)
-    track_activity(f'created new global task "{global_task.task_title}"')
-
-    return global_task
+def db_create(element):
+    db.session.add(element)
+    db.session.commit()

@@ -73,6 +73,7 @@ from app.models.alerts import Severity
 from app.models.authorization import User
 from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
+from app.datamgmt.db_operations import db_create
 
 
 relationship_model_map = {
@@ -271,8 +272,7 @@ def add_alert(
     alert.alert_owner_id = owner
 
     # Add the alert to the database
-    db.session.add(alert)
-    db.session.commit()
+    db_create(alert)
 
     return alert
 
@@ -518,8 +518,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
                     new_alert_ioc.user_id = iris_current_user.id
                     new_alert_ioc.case_id = case.case_id
 
-                    db.session.add(new_alert_ioc)
-                    db.session.commit()
+                    db_create(new_alert_ioc)
 
                     alert_ioc = new_alert_ioc
 
@@ -541,8 +540,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
                     new_alert_asset.asset_id = None
                     new_alert_asset.asset_uuid = asset_uuid
 
-                    db.session.add(new_alert_asset)
-                    db.session.commit()
+                    db_create(new_alert_asset)
 
                     alert_asset = new_alert_asset
 

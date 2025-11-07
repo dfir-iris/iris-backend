@@ -29,11 +29,6 @@ from app.models.models import TaskStatus
 from app.models.authorization import User
 
 
-def create_global_task(global_task: GlobalTasks):
-    db.session.add(global_task)
-    db.session.commit()
-
-
 def list_global_tasks():
     ct = GlobalTasks.query.with_entities(
         GlobalTasks.id.label("task_id"),

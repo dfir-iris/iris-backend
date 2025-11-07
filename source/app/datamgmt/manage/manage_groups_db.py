@@ -32,11 +32,6 @@ from app.models.authorization import User
 from app.models.authorization import UserGroup
 
 
-def create_group(group: Group):
-    db.session.add(group)
-    db.session.commit()
-
-
 def get_groups_list():
     groups = Group.query.all()
 

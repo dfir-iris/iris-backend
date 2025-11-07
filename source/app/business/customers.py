@@ -18,10 +18,10 @@
 
 from flask_sqlalchemy.pagination import Pagination
 
+from app.datamgmt.db_operations import db_create
 from app.models.models import Client
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
-from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import get_paginated_customers
 from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_customer_by_name
@@ -37,11 +37,11 @@ def customers_filter(user, pagination_parameters: PaginationParameters, is_serve
 
 # TODO maybe this method should be removed and always create a customer with at least a user
 def customers_create(customer: Client):
-    create_customer(customer)
+    db_create(customer)
 
 
 def customers_create_with_user(user, customer: Client):
-    create_customer(customer)
+    customers_create(customer)
     track_activity(f'Added customer {customer.name}', ctx_less=True)
     add_user_to_customer(user.id, customer.client_id)
 

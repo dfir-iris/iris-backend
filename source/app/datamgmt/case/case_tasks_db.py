@@ -22,6 +22,7 @@ from typing import Optional
 from sqlalchemy import desc
 from sqlalchemy import and_
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.conversions import convert_sort_direction
@@ -241,8 +242,7 @@ def add_comment_to_task(task_id, comment_id):
     ec.comment_task_id = task_id
     ec.comment_id = comment_id
 
-    db.session.add(ec)
-    db.session.commit()
+    db_create(ec)
 
 
 def get_case_tasks_comments_count(tasks_list):
