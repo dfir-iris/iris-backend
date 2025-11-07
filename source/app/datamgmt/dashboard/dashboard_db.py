@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 from sqlalchemy import and_
 from sqlalchemy import desc
 
@@ -26,6 +27,11 @@ from app.models.cases import Cases
 from app.models.models import GlobalTasks
 from app.models.models import TaskStatus
 from app.models.authorization import User
+
+
+def create_global_task(global_task: GlobalTasks):
+    db.session.add(global_task)
+    db.session.commit()
 
 
 def list_global_tasks():
