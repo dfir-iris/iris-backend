@@ -257,7 +257,6 @@ def change_user_primary_org(user_id, old_org_id, new_org_id):
         uo_new.is_primary_org = True
 
     db.session.commit()
-    return
 
 
 def add_user_to_organisation(user_id, org_id, make_primary=False):
@@ -271,8 +270,7 @@ def add_user_to_organisation(user_id, org_id, make_primary=False):
     if uo_exists:
         uo_exists.is_primary_org = make_primary
         db.session.commit()
-
-        return True
+        return
 
     # Check if user has a primary org already
     prim_org = get_user_primary_org(user_id=user_id)
@@ -286,7 +284,6 @@ def add_user_to_organisation(user_id, org_id, make_primary=False):
     uo.org_id = org_id
     uo.is_primary_org = prim_org is None
     db_create(uo)
-    return True
 
 
 def get_user_primary_org(user_id):
@@ -322,13 +319,12 @@ def add_user_to_group(user_id, group_id):
     ).scalar()
 
     if exists:
-        return True
+        return
 
     ug = UserGroup()
     ug.user_id = user_id
     ug.group_id = group_id
     db_create(ug)
-    return True
 
 
 def get_user_organisations(user_id):
