@@ -46,6 +46,12 @@
 							</a>
 						</li>
 						<li class="nav-item">
+							<a href="/statistics?cid={{session['current_case'].case_id}}">
+								<i class="fa-solid fa-chart-pie"></i>
+								<span>Statistics</span>
+							</a>
+						</li>
+						<li class="nav-item">
 							<a href="/overview?cid={{session['current_case'].case_id}}">
 								<i class="fa-solid fa-street-view"></i>
 								<span>Overview</span>
@@ -122,7 +128,7 @@
 								<span class="sub-item">Advanced</span>
 								<span class="caret"></span>
 							</a>
-							<div class="collapse" id="advanced-nav" style="">
+							<div class="collapse" id="advanced-nav">
 
 								<ul class="nav nav-collapse">
 									{% if user_has_perm(std_permissions.server_administrator) %}

@@ -16,9 +16,12 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import json
+
 import marshmallow
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 
 from flask import Blueprint
 from flask import redirect
@@ -43,9 +46,15 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import User
 from app.models.cases import Cases
+from app.models.alerts import Alert
+from app.models.alerts import AlertCaseAssociation
+from app.models.alerts import AlertResolutionStatus
+from app.models.alerts import AlertStatus
+from app.models.alerts import Severity
 from app.models.models import CaseTasks
 from app.models.models import GlobalTasks
 from app.models.models import TaskStatus
+from app.models.models import CaseStatus
 from app.schema.marshables import CaseTaskSchema, CaseDetailsSchema
 from app.schema.marshables import GlobalTasksSchema
 from app.util import ac_api_requires, regenerate_session
@@ -55,6 +64,10 @@ from app.util import not_authenticated_redirection_url
 from app.util import response_error
 from app.util import response_success
 from app.util import is_authentication_oidc
+
+from sqlalchemy import func
+from sqlalchemy import and_
+from sqlalchemy import distinct
 
 from oic.oauth2.exception import GrantError
 
@@ -67,6 +80,193 @@ dashboard_blueprint = Blueprint(
     __name__,
     template_folder='templates'
 )
+
+
+_TIMEFRAME_DEFAULT_DAYS = 30
+
+
+def _parse_datetime_param(value):
+    if value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc).replace(tzinfo=None)
+
+    if not isinstance(value, str):
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    candidates = (
+        raw,
+        raw.replace('Z', '+00:00'),
+    )
+
+    for candidate in candidates:
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            if parsed.tzinfo:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except ValueError:
+            continue
+
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
+        try:
+            parsed = datetime.strptime(raw, fmt)
+            return parsed
+        except ValueError:
+            continue
+
+    return None
+
+
+def _resolve_timeframe(args):
+    start_raw = args.get('start') or args.get('from')
+    end_raw = args.get('end') or args.get('to')
+
+    end_dt = _parse_datetime_param(end_raw)
+    if end_raw and end_dt is None:
+        raise ValueError('Invalid end timeframe value')
+
+    start_dt = _parse_datetime_param(start_raw)
+    if start_raw and start_dt is None:
+        raise ValueError('Invalid start timeframe value')
+
+    if end_dt is None:
+        end_dt = datetime.utcnow()
+
+    if start_dt is None:
+        start_dt = end_dt - timedelta(days=_TIMEFRAME_DEFAULT_DAYS)
+
+    if start_dt > end_dt:
+        raise ValueError('Start timeframe must be earlier than end timeframe')
+
+    return start_dt, end_dt
+
+
+def _safe_datetime(value):
+    if not value:
+        return None
+
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc).replace(tzinfo=None) if value.tzinfo else value
+
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc).replace(tzinfo=None)
+
+    if isinstance(value, str):
+        return _parse_datetime_param(value)
+
+    if hasattr(value, 'isoformat'):
+        try:
+            return _parse_datetime_param(value.isoformat())
+        except Exception:
+            return None
+
+    return None
+
+
+def _extract_custom_timestamp(custom_attributes, keys):
+    if not custom_attributes:
+        return None
+
+    data = custom_attributes
+    if isinstance(custom_attributes, str):
+        try:
+            data = json.loads(custom_attributes)
+        except ValueError:
+            return None
+
+    if not isinstance(data, dict):
+        return None
+
+    for key in keys:
+        if key in data:
+            dt = _safe_datetime(data.get(key))
+            if dt:
+                return dt
+
+    return None
+
+
+def _extract_history_timestamp(history, keywords):
+    if not history:
+        return None
+
+    data = history
+    if isinstance(history, str):
+        try:
+            data = json.loads(history)
+        except ValueError:
+            return None
+
+    if not isinstance(data, dict):
+        return None
+
+    matches = []
+
+    for ts_raw, details in data.items():
+        action = ''
+        if isinstance(details, dict):
+            action = details.get('action', '') or ''
+        else:
+            action = str(details)
+
+        action_lower = action.lower()
+        if not any(keyword in action_lower for keyword in keywords):
+            continue
+
+        try:
+            ts_float = float(ts_raw)
+        except (TypeError, ValueError):
+            continue
+
+        matches.append(datetime.fromtimestamp(ts_float, tz=timezone.utc).replace(tzinfo=None))
+
+    if not matches:
+        return None
+
+    return min(matches)
+
+
+def _get_case_phase_timestamp(case_obj, keywords, custom_keys):
+    ts = _extract_custom_timestamp(case_obj.custom_attributes, custom_keys)
+    if ts:
+        return ts
+
+    return _extract_history_timestamp(case_obj.modification_history, keywords)
+
+
+def _average_seconds(durations):
+    values = [delta.total_seconds() for delta in durations if delta is not None]
+    if not values:
+        return None
+
+    return sum(values) / len(values)
+
+
+def _duration_payload(avg_seconds):
+    if avg_seconds is None:
+        return {
+            'seconds': None,
+            'hours': None
+        }
+
+    hours = avg_seconds / 3600
+    return {
+        'seconds': avg_seconds,
+        'hours': hours
+    }
+
+
+def _percentage(numerator, denominator):
+    if denominator in (None, 0):
+        return None
+
+    return (numerator / denominator) * 100
 
 
 # Logout user
@@ -136,6 +336,225 @@ def get_cases_charts():
         retr = [list(rk.keys()), list(rk.values())]
 
     return response_success("", retr)
+
+
+@dashboard_blueprint.route('/dashboard/kpis', methods=['GET'])
+@ac_api_requires()
+def get_dashboard_kpis():
+    try:
+        start_dt, end_dt = _resolve_timeframe(request.args)
+    except ValueError as exc:
+        return response_error(str(exc))
+
+    client_id = request.args.get('client_id', type=int)
+    severity_filter = request.args.get('severity_id', type=int)
+    case_status_filter = request.args.get('case_status_id', type=int)
+
+    # Alert metrics ---------------------------------------------------
+    alert_filters = []
+    if client_id:
+        alert_filters.append(Alert.alert_customer_id == client_id)
+    if severity_filter:
+        alert_filters.append(Alert.alert_severity_id == severity_filter)
+
+    alert_query = Alert.query.filter(and_(Alert.alert_creation_time >= start_dt, Alert.alert_creation_time <= end_dt))
+    if alert_filters:
+        alert_query = alert_query.filter(*alert_filters)
+
+    alert_rows = alert_query.with_entities(
+        Alert.alert_id,
+        Alert.alert_source_event_time,
+        Alert.alert_creation_time,
+        Alert.alert_resolution_status_id,
+        Alert.alert_status_id
+    ).all()
+
+    total_alerts = len(alert_rows)
+
+    false_positive_resolution = AlertResolutionStatus.query.with_entities(AlertResolutionStatus.resolution_status_id).filter(
+        func.lower(AlertResolutionStatus.resolution_status_name) == 'false positive'
+    ).first()
+    false_positive_resolution_id = false_positive_resolution.resolution_status_id if false_positive_resolution else None
+
+    escalated_status = AlertStatus.query.with_entities(AlertStatus.status_id).filter(
+        func.lower(AlertStatus.status_name) == 'escalated'
+    ).first()
+    escalated_status_id = escalated_status.status_id if escalated_status else None
+
+    alert_mttd_deltas = []
+    false_positive_alerts = 0
+    escalated_alerts = 0
+
+    for row in alert_rows:
+        source_time = _safe_datetime(row.alert_source_event_time)
+        creation_time = _safe_datetime(row.alert_creation_time)
+
+        if source_time and creation_time and creation_time >= source_time:
+            alert_mttd_deltas.append(creation_time - source_time)
+
+        if false_positive_resolution_id and row.alert_resolution_status_id == false_positive_resolution_id:
+            false_positive_alerts += 1
+
+        if escalated_status_id and row.alert_status_id == escalated_status_id:
+            escalated_alerts += 1
+
+    alerts_with_case_query = db.session.query(func.count(distinct(AlertCaseAssociation.alert_id))).join(
+        Alert, Alert.alert_id == AlertCaseAssociation.alert_id
+    ).filter(and_(Alert.alert_creation_time >= start_dt, Alert.alert_creation_time <= end_dt))
+
+    if client_id:
+        alerts_with_case_query = alerts_with_case_query.filter(Alert.alert_customer_id == client_id)
+    if severity_filter:
+        alerts_with_case_query = alerts_with_case_query.filter(Alert.alert_severity_id == severity_filter)
+
+    alerts_with_cases = alerts_with_case_query.scalar() or 0
+
+    mean_time_to_detect_seconds = _average_seconds(alert_mttd_deltas)
+    detection_coverage_percent = _percentage(alerts_with_cases, total_alerts)
+    incident_escalation_rate_percent = _percentage(escalated_alerts, total_alerts)
+
+    # Case metrics ----------------------------------------------------
+    case_filters = []
+    if client_id:
+        case_filters.append(Cases.client_id == client_id)
+    if severity_filter:
+        case_filters.append(Cases.severity_id == severity_filter)
+    if case_status_filter is not None:
+        case_filters.append(Cases.status_id == case_status_filter)
+
+    cases_detected_query = Cases.query.filter(and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt))
+    if case_filters:
+        cases_detected_query = cases_detected_query.filter(*case_filters)
+    incidents_detected = cases_detected_query.count()
+
+    cases_resolved_query = Cases.query.filter(Cases.close_date.isnot(None))
+    if case_filters:
+        cases_resolved_query = cases_resolved_query.filter(*case_filters)
+    cases_resolved_query = cases_resolved_query.filter(Cases.close_date >= start_dt.date(), Cases.close_date <= end_dt.date())
+    incidents_resolved = cases_resolved_query.count()
+
+    false_positive_cases_query = Cases.query.filter(
+        Cases.status_id == CaseStatus.false_positive.value,
+        Cases.initial_date >= start_dt,
+        Cases.initial_date <= end_dt
+    )
+    if case_filters:
+        false_positive_cases_query = false_positive_cases_query.filter(*case_filters)
+    false_positive_cases = false_positive_cases_query.count()
+
+    cases_for_mttr_query = Cases.query.with_entities(Cases.initial_date, Cases.close_date)
+    if case_filters:
+        cases_for_mttr_query = cases_for_mttr_query.filter(*case_filters)
+    cases_for_mttr_query = cases_for_mttr_query.filter(
+        Cases.close_date.isnot(None),
+        Cases.close_date >= start_dt.date(),
+        Cases.close_date <= end_dt.date()
+    )
+
+    mttr_deltas = []
+    for initial_date, close_date in cases_for_mttr_query:
+        start_time = _safe_datetime(initial_date)
+        if not start_time or not close_date:
+            continue
+        close_dt = datetime.combine(close_date, datetime.min.time())
+        close_time = _safe_datetime(close_dt)
+        if close_time and close_time >= start_time:
+            mttr_deltas.append(close_time - start_time)
+
+    cases_for_phase_query = Cases.query
+    if case_filters:
+        cases_for_phase_query = cases_for_phase_query.filter(*case_filters)
+    cases_for_phase_query = cases_for_phase_query.filter(and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt))
+    cases_for_phase = cases_for_phase_query.all()
+
+    mttc_deltas = []
+    mttrv_deltas = []
+
+    for case_obj in cases_for_phase:
+        start_time = _safe_datetime(case_obj.initial_date)
+        if not start_time:
+            continue
+
+        contain_time = _get_case_phase_timestamp(case_obj, ['contain'], ['containment_time', 'contained_at'])
+        if contain_time and contain_time >= start_time:
+            mttc_deltas.append(contain_time - start_time)
+
+        recover_time = _get_case_phase_timestamp(case_obj, ['recover'], ['recovery_time', 'recovered_at'])
+        if recover_time and recover_time >= start_time:
+            mttrv_deltas.append(recover_time - start_time)
+
+    mean_time_to_respond_seconds = _average_seconds(mttr_deltas)
+    mean_time_to_contain_seconds = _average_seconds(mttc_deltas)
+    mean_time_to_recover_seconds = _average_seconds(mttrv_deltas)
+
+    false_positive_rate_percent = _percentage(false_positive_cases, incidents_detected)
+
+    severity_query = db.session.query(Severity.severity_name, func.count(Cases.case_id)).join(
+        Cases, Cases.severity_id == Severity.severity_id
+    )
+    severity_query = severity_query.filter(and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt))
+    if case_filters:
+        severity_query = severity_query.filter(*case_filters)
+    severity_query = severity_query.group_by(Severity.severity_name)
+    severity_counts = severity_query.all()
+
+    unspecified_severity_count_query = Cases.query.filter(
+        Cases.severity_id.is_(None),
+        Cases.initial_date >= start_dt,
+        Cases.initial_date <= end_dt
+    )
+    if case_filters:
+        unspecified_severity_count_query = unspecified_severity_count_query.filter(*case_filters)
+    unspecified_severity_count = unspecified_severity_count_query.count()
+
+    severity_distribution = []
+    denominator = incidents_detected if incidents_detected else None
+
+    for severity_name, count in severity_counts:
+        percent = _percentage(count, denominator) if denominator else None
+        severity_distribution.append({
+            'severity': severity_name or 'Unspecified',
+            'count': count,
+            'percentage': percent
+        })
+
+    if unspecified_severity_count:
+        percent = _percentage(unspecified_severity_count, denominator) if denominator else None
+        severity_distribution.append({
+            'severity': 'Unspecified',
+            'count': unspecified_severity_count,
+            'percentage': percent
+        })
+
+    response_data = {
+        'timeframe': {
+            'start': start_dt.isoformat(),
+            'end': end_dt.isoformat()
+        },
+        'filters': {
+            'client_id': client_id,
+            'severity_id': severity_filter,
+            'case_status_id': case_status_filter
+        },
+        'alerts': {
+            'total': total_alerts,
+            'false_positive_count': false_positive_alerts,
+            'associated_with_cases': alerts_with_cases
+        },
+        'metrics': {
+            'mean_time_to_detect': _duration_payload(mean_time_to_detect_seconds),
+            'mean_time_to_respond': _duration_payload(mean_time_to_respond_seconds),
+            'incidents_detected': incidents_detected,
+            'incidents_resolved': incidents_resolved,
+            'false_positive_incidents': false_positive_cases,
+            'false_positive_rate_percent': false_positive_rate_percent,
+            'detection_coverage_percent': detection_coverage_percent,
+            'incident_escalation_rate_percent': incident_escalation_rate_percent,
+            'severity_distribution': severity_distribution
+        }
+    }
+
+    return response_success('', data=response_data)
 
 
 @dashboard_blueprint.route('/')

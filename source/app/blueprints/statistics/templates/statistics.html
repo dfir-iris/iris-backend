@@ -1,0 +1,477 @@
+{% extends "layouts/default.html" %}
+
+{% block title %} Statistics {% endblock title %}
+
+{% block stylesheets %}
+	<link rel="stylesheet" href="/static/assets/css/select2.css">
+	<style>
+		.stats-chart-wrapper {
+			min-height: 260px;
+			position: relative;
+		}
+
+		.stats-chart-wrapper canvas {
+			width: 100% !important;
+			height: 260px !important;
+		}
+
+		.stats-chart-legend {
+			max-height: 160px;
+			overflow-y: auto;
+			font-size: 0.85rem;
+			margin-top: 0.75rem;
+		}
+
+		.stats-chart-legend ul {
+			list-style: none;
+			padding-left: 0;
+			margin-bottom: 0;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 4px 12px;
+		}
+
+		.stats-chart-legend li {
+			display: flex;
+			align-items: center;
+			margin-bottom: 0;
+		}
+
+		.stats-chart-legend li span {
+			display: inline-block;
+			width: 12px;
+			height: 12px;
+			margin-right: 8px;
+			border-radius: 2px;
+			flex-shrink: 0;
+		}
+
+		.queue-metric-list {
+			list-style: none;
+			padding-left: 0;
+			margin-bottom: 0;
+		}
+
+		.queue-metric-list li {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 6px;
+			font-size: 0.85rem;
+		}
+
+		.queue-metric-label {
+			text-transform: uppercase;
+			color: #6c757d;
+			font-weight: 600;
+		}
+
+		.queue-metric-value {
+			font-weight: 600;
+		}
+
+		.critical-card {
+			border-left: 4px solid transparent;
+			transition: border-color 0.2s ease;
+		}
+
+		.critical-card .critical-value {
+			transition: color 0.2s ease;
+		}
+
+		.critical-card-ok {
+			border-color: #2dce89 !important;
+		}
+
+		.critical-card-ok .critical-value {
+			color: #2dce89 !important;
+		}
+
+		.critical-card-warn {
+			border-color: #fdaf4b !important;
+		}
+
+		.critical-card-warn .critical-value {
+			color: #fdaf4b !important;
+		}
+
+		.critical-card-bad {
+			border-color: #f3545d !important;
+		}
+
+		.critical-card-bad .critical-value {
+			color: #f3545d !important;
+		}
+	</style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+{{ form.hidden_tag() }}
+
+<div class="page-inner" id="statsPageRoot">
+	<div class="row">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<div class="card-title mb-0">Statistics filters</div>
+					<small class="text-muted" id="statsSummaryRange">--</small>
+				</div>
+				<div class="card-body">
+					<form id="statsFilterForm" autocomplete="off">
+						<div class="form-row">
+							<div class="form-group col-md-3">
+								<label for="statsStart">Start</label>
+								<input type="datetime-local" class="form-control" id="statsStart" name="start">
+							</div>
+							<div class="form-group col-md-3">
+								<label for="statsEnd">End</label>
+								<input type="datetime-local" class="form-control" id="statsEnd" name="end">
+							</div>
+							<div class="form-group col-md-2">
+								<label for="statsClient">Customer</label>
+								<select class="form-control" id="statsClient" name="client_id">
+									<option value="">All customers</option>
+								</select>
+							</div>
+							<div class="form-group col-md-2">
+								<label for="statsSeverity">Severity</label>
+								<select class="form-control" id="statsSeverity" name="severity_id">
+									<option value="">All severities</option>
+								</select>
+							</div>
+							<div class="form-group col-md-2">
+								<label for="statsCaseStatus">Case status</label>
+								<select class="form-control" id="statsCaseStatus" name="case_status_id">
+									<option value="">All statuses</option>
+								</select>
+							</div>
+						</div>
+						<div class="d-flex flex-wrap align-items-center mt-3">
+							<div class="btn-group btn-group-sm mr-3 mb-2" role="group" aria-label="Quick ranges">
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last15m" data-minutes="15">Last 15 minutes</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last1h" data-hours="1">Last hour</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last12h" data-hours="12">Last 12 hours</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last7d" data-days="7">Last 7 days</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last30d" data-days="30">Last 30 days</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last90d" data-days="90">Last 90 days</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last6m" data-months="6">Last 6 months</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last1y" data-years="1">Last 1 year</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last2y" data-years="2">Last 2 years</button>
+								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last5y" data-years="5">Last 5 years</button>
+							</div>
+							<div class="custom-control custom-switch ml-sm-3 mb-2">
+								<input type="checkbox" class="custom-control-input" id="statsAutoRefresh">
+								<label class="custom-control-label" for="statsAutoRefresh">Auto-refresh</label>
+							</div>
+							<div class="ml-sm-auto d-flex align-items-center mb-2">
+								<button type="submit" class="btn btn-primary btn-sm mr-2" id="statsApplyBtn">Apply filters</button>
+								<button type="button" class="btn btn-secondary btn-sm" id="statsResetBtn">Reset</button>
+							</div>
+						</div>
+					</form>
+					<div class="loader1 text-center d-none mt-3" id="statsLoadingIndicator">Loading…</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-12">
+			<div class="card mb-4" id="queueSection">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<div class="card-title mb-0">Queue Size</div>
+					<small class="text-muted" id="queueSummaryRange">--</small>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-xl-3 col-lg-6 mb-3">
+							<div class="card h-100 critical-card" id="queueUnassignedAlertsCard">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Unassigned alerts</h5>
+									<span class="display-4 critical-value" id="queueUnassignedAlerts">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-lg-6 mb-3">
+							<div class="card h-100 critical-card" id="queueNewAlertsTotalCard">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Alerts created</h5>
+									<span class="display-4 critical-value" id="queueNewAlertsTotal">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-lg-6 mb-3">
+							<div class="card h-100 critical-card" id="queueNewAlertsRecentCard">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">New alerts (2h/24h/48h)</h5>
+									<ul class="queue-metric-list mb-0">
+										<li><span class="queue-metric-label">Last 2h</span><span class="queue-metric-value" id="queueNewAlerts2h">--</span></li>
+										<li><span class="queue-metric-label">Last 24h</span><span class="queue-metric-value" id="queueNewAlerts24h">--</span></li>
+										<li><span class="queue-metric-label">Last 48h</span><span class="queue-metric-value" id="queueNewAlerts48h">--</span></li>
+									</ul>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-lg-6 mb-3">
+							<div class="card h-100 critical-card" id="queueNewUnassignedRecentCard">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Unassigned alerts (2h/24h/48h)</h5>
+									<ul class="queue-metric-list mb-0">
+										<li><span class="queue-metric-label">Last 2h</span><span class="queue-metric-value" id="queueNewUnassigned2h">--</span></li>
+										<li><span class="queue-metric-label">Last 24h</span><span class="queue-metric-value" id="queueNewUnassigned24h">--</span></li>
+										<li><span class="queue-metric-label">Last 48h</span><span class="queue-metric-value" id="queueNewUnassigned48h">--</span></li>
+									</ul>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-12">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Alert over time</div>
+								</div>
+								<div class="card-body">
+									<div id="queueAlertStatusEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="queueAlertStatusChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-12">
+			<div class="card mb-4" id="alertsSection">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<div class="card-title mb-0">Alerts</div>
+					<small class="text-muted" id="alertsSummaryTotal">--</small>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Mean time to detect</h5>
+									<span class="h2 font-weight-bold" id="alertsMttdPrimary">--</span>
+									<p class="text-muted mb-0"><small id="alertsMttdSecondary">--</small></p>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Detection coverage</h5>
+									<span class="h2" id="alertsDetectionCoverage">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Escalation rate</h5>
+									<span class="h2" id="alertsEscalationRate">--</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Total alerts</h5>
+									<span class="display-4" id="alertsTotal">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">False positives</h5>
+									<span class="display-4" id="alertsFalsePositive">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Linked to cases</h5>
+									<span class="display-4" id="alertsAssociated">--</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Alert severity</div>
+									<small class="text-muted" id="alertsSeverityTotal">--</small>
+								</div>
+								<div class="card-body">
+									<div id="alertsSeverityEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="alertsSeverityChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Alert status</div>
+									<small class="text-muted" id="alertsStatusTotal">--</small>
+								</div>
+								<div class="card-body">
+									<div id="alertsStatusEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="alertsStatusChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-12">
+			<div class="card" id="casesSection">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<div class="card-title mb-0">Cases</div>
+					<small class="text-muted" id="casesSummaryTotal">--</small>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-lg-6 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Mean time to respond</h5>
+									<span class="h2 font-weight-bold" id="casesMttrPrimary">--</span>
+									<p class="text-muted mb-0"><small id="casesMttrSecondary">--</small></p>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-6 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Incidents resolved</h5>
+									<span class="h2 font-weight-bold" id="casesIncidentsResolved">--</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Incidents open</h5>
+									<span class="display-4" id="casesIncidentsDetected">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">False positive incidents</h5>
+									<span class="display-4" id="casesFalsePositives">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-4 col-md-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">False positive rate</h5>
+									<span class="h2" id="casesFalsePositiveRate">--</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Case classifications</div>
+									<small class="text-muted" id="casesClassificationTotal">--</small>
+								</div>
+								<div class="card-body">
+									<div id="casesClassificationEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="casesClassificationChart" class="d-none"></canvas>
+									</div>
+									<div id="casesClassificationLegend" class="stats-chart-legend d-none"></div>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Case status</div>
+									<small class="text-muted" id="casesStatusTotal">--</small>
+								</div>
+								<div class="card-body">
+									<div id="casesStatusEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="casesStatusChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="row">
+						<div class="col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Case severity</div>
+									<small class="text-muted" id="casesSeverityTotal">--</small>
+								</div>
+								<div class="card-body">
+									<div id="casesSeverityEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="casesSeverityChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Evidence types</div>
+									<small class="text-muted" id="casesEvidenceSummary">--</small>
+								</div>
+								<div class="card-body">
+									<div id="casesEvidenceEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="casesEvidenceChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+{% endblock content %}
+
+{% block javascripts %}
+	<script src="/static/assets/js/plugin/select/select2.js"></script>
+	<script src="/static/assets/js/core/moments.min.js"></script>
+	<script src="/static/assets/js/core/charts.js"></script>
+	<script src="/static/assets/js/iris/statistics.js"></script>
+{% endblock javascripts %}

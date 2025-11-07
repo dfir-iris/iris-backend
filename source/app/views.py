@@ -65,6 +65,7 @@ from app.blueprints.overview.overview_routes import overview_blueprint
 from app.blueprints.profile.profile_routes import profile_blueprint
 from app.blueprints.reports.reports_route import reports_blueprint
 from app.blueprints.search.search_routes import search_blueprint
+from app.blueprints.statistics.statistics_routes import stats_blueprint
 from app.models.authorization import User
 from app.post_init import run_post_init
 
@@ -108,6 +109,7 @@ app.register_blueprint(activities_blueprint)
 app.register_blueprint(dim_tasks_blueprint)
 app.register_blueprint(datastore_blueprint)
 app.register_blueprint(alerts_blueprint)
+app.register_blueprint(stats_blueprint)
 
 app.register_blueprint(api_blueprint)
 app.register_blueprint(demo_blueprint)

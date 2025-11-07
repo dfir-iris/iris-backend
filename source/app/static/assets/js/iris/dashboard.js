@@ -1,9 +1,448 @@
 let UserReviewsTable;
 let UserCasesTable;
 let UserTaskTable;
+const KPI_DEFAULT_RANGE_DAYS = 30;
+const KPI_CASE_STATUS_OPTIONS = [
+  { id: '', label: 'All statuses' },
+  { id: 0, label: 'Unknown' },
+  { id: 1, label: 'False Positive' },
+  { id: 2, label: 'True Positive (Impact)' },
+  { id: 3, label: 'Not Applicable' },
+  { id: 4, label: 'True Positive (No Impact)' },
+  { id: 5, label: 'Legitimate' }
+];
+
+function formatDateForInput(date) {
+  if (!(date instanceof Date) || isNaN(date)) {
+    return '';
+  }
+
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseInputDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (isNaN(parsed)) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function toUtcIso(date) {
+  if (!(date instanceof Date) || isNaN(date)) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+function parseServerDate(value) {
+  if (!value) {
+    return null;
+  }
+
+  let normalized = value;
+  if (!/[zZ]|([+-]\d{2}:?\d{2})$/.test(value)) {
+    normalized = `${value}Z`;
+  }
+
+  const parsed = new Date(normalized);
+  if (isNaN(parsed)) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function setKpiLoading(isLoading) {
+  const loadingIndicator = $('#kpiLoadingIndicator');
+  if (!loadingIndicator.length) {
+    return;
+  }
+
+  if (isLoading) {
+    loadingIndicator.addClass('is-visible');
+  } else {
+    loadingIndicator.removeClass('is-visible');
+  }
+}
+
+function formatDurationMetric(metric) {
+  if (!metric || metric.seconds === null || metric.seconds === undefined) {
+    return { primary: 'N/A', secondary: '--' };
+  }
+
+  const totalSeconds = Number(metric.seconds);
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const hours = totalHours % 24;
+  const days = Math.floor(totalHours / 24);
+
+  const parts = [];
+  if (days) {
+    parts.push(`${days}d`);
+  }
+  if (hours) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes) {
+    parts.push(`${minutes}m`);
+  }
+  if (!parts.length && seconds) {
+    parts.push(`${seconds}s`);
+  }
+  if (!parts.length) {
+    parts.push('0m');
+  }
+
+  const secondary = metric.hours !== null && metric.hours !== undefined
+    ? `≈ ${Number(metric.hours).toFixed(2)} h`
+    : '--';
+
+  return {
+    primary: parts.join(' '),
+    secondary
+  };
+}
+
+function formatCountValue(value) {
+  if (value === null || value === undefined) {
+    return '--';
+  }
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return '--';
+  }
+
+  return numericValue.toLocaleString();
+}
+
+function formatPercentValue(value) {
+  if (value === null || value === undefined) {
+    return 'N/A';
+  }
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) {
+    return 'N/A';
+  }
+
+  return `${numericValue.toFixed(1)}%`;
+}
+
+function updateKpiSummary(timeframe) {
+  const summaryLabel = $('#kpiSummaryRange');
+  if (!summaryLabel.length) {
+    return;
+  }
+
+  if (!timeframe || !timeframe.start || !timeframe.end) {
+    summaryLabel.text('No timeframe selected');
+    return;
+  }
+
+  const start = parseServerDate(timeframe.start);
+  const end = parseServerDate(timeframe.end);
+
+  if (!start || !end) {
+    summaryLabel.text('No timeframe selected');
+    return;
+  }
+
+  summaryLabel.text(`${start.toLocaleString()} – ${end.toLocaleString()}`);
+}
+
+function updateKpiMetrics(metrics) {
+  if (!metrics) {
+    return;
+  }
+
+  const mttd = formatDurationMetric(metrics.mean_time_to_detect);
+  $('#kpiMttdPrimary').text(mttd.primary);
+  $('#kpiMttdSecondary').text(mttd.secondary);
+
+  const mttr = formatDurationMetric(metrics.mean_time_to_respond);
+  $('#kpiMttrPrimary').text(mttr.primary);
+  $('#kpiMttrSecondary').text(mttr.secondary);
+
+  const mttc = formatDurationMetric(metrics.mean_time_to_contain);
+  $('#kpiMttcPrimary').text(mttc.primary);
+  $('#kpiMttcSecondary').text(mttc.secondary);
+
+  const mttrv = formatDurationMetric(metrics.mean_time_to_recover);
+  $('#kpiMttrvPrimary').text(mttrv.primary);
+  $('#kpiMttrvSecondary').text(mttrv.secondary);
+
+  $('#kpiIncidentsDetected').text(formatCountValue(metrics.incidents_detected));
+  $('#kpiIncidentsResolved').text(formatCountValue(metrics.incidents_resolved));
+  $('#kpiFalsePositives').text(formatCountValue(metrics.false_positive_incidents));
+  $('#kpiFalsePositiveRate').text(formatPercentValue(metrics.false_positive_rate_percent));
+  $('#kpiDetectionCoverage').text(formatPercentValue(metrics.detection_coverage_percent));
+  $('#kpiEscalationRate').text(formatPercentValue(metrics.incident_escalation_rate_percent));
+}
+
+function updateSeverityDistribution(rows) {
+  const tbody = $('#kpiSeverityBody');
+  if (!tbody.length) {
+    return;
+  }
+
+  tbody.empty();
+
+  if (!rows || !rows.length) {
+    tbody.append('<tr><td colspan="3" class="text-center text-muted">No data available</td></tr>');
+    return;
+  }
+
+  rows.forEach((row) => {
+    const severity = sanitizeHTML(row.severity || 'Unspecified');
+    const count = formatCountValue(row.count);
+    const percent = formatPercentValue(row.percentage);
+    tbody.append(`<tr><td>${severity}</td><td class="text-right">${count}</td><td class="text-right">${percent}</td></tr>`);
+  });
+}
+
+function populateCaseStatusOptions() {
+  const select = $('#kpiCaseStatus');
+  if (!select.length) {
+    return;
+  }
+
+  select.empty();
+  KPI_CASE_STATUS_OPTIONS.forEach((option) => {
+    select.append(new Option(option.label, option.id, false, false));
+  });
+
+  if ($.fn.select2) {
+    select.select2({
+      allowClear: true,
+      placeholder: 'All statuses',
+      width: 'resolve'
+    });
+  }
+}
+
+function loadSeverityOptions() {
+  const select = $('#kpiSeverity');
+  if (!select.length) {
+    return $.Deferred().resolve().promise();
+  }
+
+  select.find('option:not([value=""])').remove();
+
+  return get_request_api('/manage/severities/list')
+    .done((data) => {
+      if (!notify_auto_api(data, true)) {
+        return;
+      }
+
+      const severities = data.data || [];
+      severities.sort((a, b) => a.severity_name.localeCompare(b.severity_name));
+      severities.forEach((severity) => {
+        select.append(new Option(severity.severity_name, severity.severity_id));
+      });
+    })
+    .fail((xhr) => {
+      ajax_notify_error(xhr, '/manage/severities/list');
+    })
+    .always(() => {
+      if ($.fn.select2) {
+        select.select2({
+          allowClear: true,
+          placeholder: 'All severities',
+          width: 'resolve'
+        });
+      }
+    });
+}
+
+function loadClientOptions() {
+  const select = $('#kpiClient');
+  if (!select.length) {
+    return $.Deferred().resolve().promise();
+  }
+
+  select.find('option:not([value=""])').remove();
+
+  return get_request_api('/manage/customers/list')
+    .done((data) => {
+      if (!notify_auto_api(data, true)) {
+        return;
+      }
+
+      const customers = data.data || [];
+      customers.sort((a, b) => a.customer_name.localeCompare(b.customer_name));
+      customers.forEach((customer) => {
+        select.append(new Option(customer.customer_name, customer.customer_id));
+      });
+    })
+    .fail((xhr) => {
+      if (xhr && xhr.status === 403) {
+        select.prop('disabled', true);
+        const label = select.closest('.form-group').find('label');
+        if (label.length && !/no access$/i.test(label.text().trim())) {
+          label.append(' (no access)');
+        }
+        return;
+      }
+
+      ajax_notify_error(xhr, '/manage/customers/list');
+    })
+    .always(() => {
+      if ($.fn.select2) {
+        select.select2({
+          allowClear: true,
+          placeholder: 'All customers',
+          width: 'resolve'
+        });
+      }
+    });
+}
+
+function resetKpiFilters() {
+  const now = new Date();
+  $('#kpiEnd').val(formatDateForInput(now));
+  const start = new Date(now.getTime() - KPI_DEFAULT_RANGE_DAYS * 24 * 60 * 60 * 1000);
+  $('#kpiStart').val(formatDateForInput(start));
+  $('#kpiClient').val('').trigger('change');
+  $('#kpiSeverity').val('').trigger('change');
+  $('#kpiCaseStatus').val('').trigger('change');
+}
+
+function applyQuickRange(days) {
+  const now = new Date();
+  $('#kpiEnd').val(formatDateForInput(now));
+  const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  $('#kpiStart').val(formatDateForInput(start));
+  fetchKpiMetrics();
+}
+
+function fetchKpiMetrics() {
+  if (!$('#dashboardKpiPanel').length) {
+    return;
+  }
+
+  setKpiLoading(true);
+
+  const startValue = $('#kpiStart').val();
+  const endValue = $('#kpiEnd').val();
+  const startDate = parseInputDate(startValue);
+  const endDate = parseInputDate(endValue);
+
+  if (startDate && endDate && startDate > endDate) {
+    setKpiLoading(false);
+    notify_error('Start date must be earlier than end date');
+    return;
+  }
+
+  const params = {};
+  const startIso = toUtcIso(startDate);
+  const endIso = toUtcIso(endDate);
+  if (startIso) {
+    params.start = startIso;
+  }
+  if (endIso) {
+    params.end = endIso;
+  }
+
+  const clientId = $('#kpiClient').val();
+  if (clientId) {
+    params.client_id = clientId;
+  }
+
+  const severityId = $('#kpiSeverity').val();
+  if (severityId) {
+    params.severity_id = severityId;
+  }
+
+  const caseStatusId = $('#kpiCaseStatus').val();
+  if (caseStatusId !== undefined && caseStatusId !== null && caseStatusId !== '') {
+    params.case_status_id = caseStatusId;
+  }
+
+  const url = '/dashboard/kpis' + case_param();
+
+  $.ajax({
+    url: url,
+    type: 'GET',
+    dataType: 'json',
+    data: params
+  })
+    .done((data) => {
+      if (!notify_auto_api(data, true)) {
+        return;
+      }
+
+      if (!data.data) {
+        return;
+      }
+
+      updateKpiSummary(data.data.timeframe);
+      updateKpiMetrics(data.data.metrics);
+      updateSeverityDistribution(data.data.metrics ? data.data.metrics.severity_distribution : []);
+    })
+    .fail((xhr) => {
+      if (xhr && xhr.status === 400 && xhr.responseJSON && xhr.responseJSON.message) {
+        notify_error(xhr.responseJSON.message);
+      } else {
+        ajax_notify_error(xhr, url);
+      }
+    })
+    .always(() => {
+      setKpiLoading(false);
+    });
+}
+
+function initKpiPanel() {
+  if (!$('#dashboardKpiPanel').length) {
+    return;
+  }
+
+  populateCaseStatusOptions();
+
+  $.when(loadSeverityOptions(), loadClientOptions()).always(() => {
+    if ($.fn.select2) {
+      $('#kpiSeverity').trigger('change');
+      $('#kpiClient').trigger('change');
+    }
+  });
+
+  resetKpiFilters();
+
+  $('#kpiFilterForm').on('submit', function (event) {
+    event.preventDefault();
+    fetchKpiMetrics();
+  });
+
+  $('.kpi-quick-range').on('click', function () {
+    const days = Number($(this).data('days'));
+    if (!Number.isNaN(days)) {
+      applyQuickRange(days);
+    }
+  });
+
+  $('#kpiResetBtn').on('click', function () {
+    resetKpiFilters();
+    fetchKpiMetrics();
+  });
+
+  fetchKpiMetrics();
+}
+
 function check_page_update(){
     update_gtasks_list();
-    update_utasks_list();
+  initKpiPanel();
+
+  update_utasks_list();
 }
 
 function task_status(id) {
