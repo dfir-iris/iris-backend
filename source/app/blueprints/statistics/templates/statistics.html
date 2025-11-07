@@ -227,6 +227,26 @@
 						</div>
 					</div>
 					<div class="row">
+						<div class="col-xl-6 col-lg-6 mb-3">
+							<div class="card h-100 critical-card" id="queueResolutionUnknownCard">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Resolution unknown/unset</h5>
+									<span class="display-4 critical-value" id="queueResolutionUnknownCount">--</span>
+									<p class="text-muted mb-0"><small id="queueResolutionUnknownRatio">N/A</small></p>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-6 col-lg-6 mb-3">
+							<div class="card h-100 critical-card" id="queueStatusNewCard">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">Status new</h5>
+									<span class="display-4 critical-value" id="queueStatusNewCount">--</span>
+									<p class="text-muted mb-0"><small id="queueStatusNewRatio">N/A</small></p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
 						<div class="col-12">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
@@ -255,7 +275,7 @@
 				</div>
 				<div class="card-body">
 					<div class="row">
-						<div class="col-lg-4 col-md-6 mb-3">
+						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
 									<h5 class="card-title text-uppercase text-muted mb-1">Mean time to detect</h5>
@@ -264,7 +284,7 @@
 								</div>
 							</div>
 						</div>
-						<div class="col-lg-4 col-md-6 mb-3">
+						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
 									<h5 class="card-title text-uppercase text-muted mb-1">Detection coverage</h5>
@@ -272,11 +292,19 @@
 								</div>
 							</div>
 						</div>
-						<div class="col-lg-4 col-md-6 mb-3">
+						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
 									<h5 class="card-title text-uppercase text-muted mb-1">Escalation rate</h5>
 									<span class="h2" id="alertsEscalationRate">--</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">False positive rate</h5>
+									<span class="h2" id="alertsFalsePositiveRate">--</span>
 								</div>
 							</div>
 						</div>
@@ -310,7 +338,7 @@
 					</div>
 
 					<div class="row">
-						<div class="col-lg-6 mb-3">
+						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
 									<div class="card-title mb-0">Alert severity</div>
@@ -324,7 +352,7 @@
 								</div>
 							</div>
 						</div>
-						<div class="col-lg-6 mb-3">
+						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
 									<div class="card-title mb-0">Alert status</div>
@@ -334,6 +362,20 @@
 									<div id="alertsStatusEmpty" class="text-center text-muted">No data available</div>
 									<div class="stats-chart-wrapper" style="min-height:260px;">
 										<canvas id="alertsStatusChart" class="d-none"></canvas>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-4 col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<div class="card-title mb-0">Alert resolution status</div>
+									<small class="text-muted" id="alertsResolutionTotal">--</small>
+								</div>
+								<div class="card-body">
+									<div id="alertsResolutionEmpty" class="text-center text-muted">No data available</div>
+									<div class="stats-chart-wrapper" style="min-height:260px;">
+										<canvas id="alertsResolutionChart" class="d-none"></canvas>
 									</div>
 								</div>
 							</div>
@@ -365,7 +407,7 @@
 						<div class="col-lg-6 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Incidents resolved</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">Cases resolved</h5>
 									<span class="h2 font-weight-bold" id="casesIncidentsResolved">--</span>
 								</div>
 							</div>
@@ -376,7 +418,7 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Incidents open</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">Cases opened</h5>
 									<span class="display-4" id="casesIncidentsDetected">--</span>
 								</div>
 							</div>
@@ -384,7 +426,7 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">False positive incidents</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">False positive cases</h5>
 									<span class="display-4" id="casesFalsePositives">--</span>
 								</div>
 							</div>

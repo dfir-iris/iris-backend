@@ -21,6 +21,7 @@ let statsIsRestoring = false;
 const statsCharts = {
   alertsSeverity: null,
   alertsStatus: null,
+  alertsResolution: null,
   caseClassifications: null,
   caseStatus: null,
   evidences: null,
@@ -209,6 +210,7 @@ function updateAlertsSection(payload) {
   updateDurationCard('alertsMttdPrimary', 'alertsMttdSecondary', metrics.mean_time_to_detect);
   $('#alertsDetectionCoverage').text(formatPercentValue(metrics.detection_coverage_percent));
   $('#alertsEscalationRate').text(formatPercentValue(metrics.incident_escalation_rate_percent));
+  $('#alertsFalsePositiveRate').text(formatPercentValue(alerts.false_positive_rate_percent));
 
   $('#alertsTotal').text(formatCountValue(alerts.total));
   $('#alertsFalsePositive').text(formatCountValue(alerts.false_positive_count));
@@ -220,6 +222,9 @@ function updateAlertsSection(payload) {
 
   $('#alertsStatusTotal').text(totalLabel);
   updateDistributionChart(alerts.status_distribution, '#alertsStatusChart', '#alertsStatusEmpty', 'alertsStatus', 'status');
+
+  $('#alertsResolutionTotal').text(totalLabel);
+  updateDistributionChart(alerts.resolution_distribution, '#alertsResolutionChart', '#alertsResolutionEmpty', 'alertsResolution', 'resolution');
 }
 
 function updateCasesMetrics(metrics) {
@@ -243,7 +248,7 @@ function updateCasesMetrics(metrics) {
 
   const summaryParts = [];
   if (metrics.incidents_detected !== null && metrics.incidents_detected !== undefined) {
-    summaryParts.push(`Detected: ${formatCountValue(metrics.incidents_detected)}`);
+    summaryParts.push(`Opened: ${formatCountValue(metrics.incidents_detected)}`);
   }
   if (metrics.incidents_resolved !== null && metrics.incidents_resolved !== undefined) {
     summaryParts.push(`Resolved: ${formatCountValue(metrics.incidents_resolved)}`);
@@ -722,6 +727,16 @@ function updateQueueSection(queue) {
 
   applyQueueCardState('#queueNewAlertsRecentCard', newAlertsMax, thresholds.new_alerts_windows);
   applyQueueCardState('#queueNewUnassignedRecentCard', newUnassignedMax, thresholds.new_unassigned_alerts_windows);
+
+  const resolutionUnknown = queue && queue.resolution_unknown ? queue.resolution_unknown : {};
+  setQueueCountText('#queueResolutionUnknownCount', resolutionUnknown.count);
+  $('#queueResolutionUnknownRatio').text(formatPercentValue(resolutionUnknown.ratio_percent));
+  applyQueueCardState('#queueResolutionUnknownCard', resolutionUnknown.count, thresholds.resolution_unknown);
+
+  const statusNew = queue && queue.status_new ? queue.status_new : {};
+  setQueueCountText('#queueStatusNewCount', statusNew.count);
+  $('#queueStatusNewRatio').text(formatPercentValue(statusNew.ratio_percent));
+  applyQueueCardState('#queueStatusNewCard', statusNew.count, thresholds.status_new);
 
   updateQueueTimeSeries(queue ? queue.time_series : null);
 }

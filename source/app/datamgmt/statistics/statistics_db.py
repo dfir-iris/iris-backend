@@ -379,14 +379,24 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     ).filter(func.lower(AlertResolutionStatus.resolution_status_name) == 'false positive').first()
     false_positive_resolution_id = false_positive_resolution.resolution_status_id if false_positive_resolution else None
 
+    unknown_resolution_rows = AlertResolutionStatus.query.with_entities(
+        AlertResolutionStatus.resolution_status_id
+    ).filter(func.lower(AlertResolutionStatus.resolution_status_name).in_(('unknown', 'unspecified'))).all()
+    unknown_resolution_status_ids = {row[0] for row in unknown_resolution_rows if row and row[0] is not None}
+
     escalated_status = AlertStatus.query.with_entities(AlertStatus.status_id).filter(
         func.lower(AlertStatus.status_name) == 'escalated'
     ).first()
     escalated_status_id = escalated_status.status_id if escalated_status else None
 
+    new_status_ids = _get_alert_status_ids_by_names(['New'])
+    new_status_id = new_status_ids[0] if new_status_ids else None
+
     alert_mttd_deltas = []
     false_positive_alerts = 0
     escalated_alerts = 0
+    resolution_unknown_alerts = 0
+    new_status_alerts = 0
 
     timeframe_delta = end_dt - start_dt
     time_series_bucket = 'hour' if timeframe_delta <= timedelta(days=2) else 'day'
@@ -407,6 +417,12 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
 
         if escalated_status_id and row.alert_status_id == escalated_status_id:
             escalated_alerts += 1
+
+        if row.alert_resolution_status_id is None or row.alert_resolution_status_id in unknown_resolution_status_ids:
+            resolution_unknown_alerts += 1
+
+        if new_status_id and row.alert_status_id == new_status_id:
+            new_status_alerts += 1
 
         if creation_time:
             creation_bucket = _floor_to_bucket(creation_time, time_series_bucket)
@@ -448,6 +464,9 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     mean_time_to_detect_seconds = _average_seconds(alert_mttd_deltas)
     detection_coverage_percent = _percentage(alerts_with_cases, total_alerts)
     incident_escalation_rate_percent = _percentage(escalated_alerts, total_alerts)
+    alert_false_positive_rate_percent = _percentage(false_positive_alerts, total_alerts)
+    resolution_unknown_ratio_percent = _percentage(resolution_unknown_alerts, total_alerts)
+    new_status_ratio_percent = _percentage(new_status_alerts, total_alerts)
 
     case_filters = _build_case_filters(client_id, severity_filter, case_status_filter)
 
@@ -555,6 +574,13 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         func.count(Alert.alert_id)
     ).group_by(AlertStatus.status_name).all()
 
+    alert_resolution_rows = alert_query.outerjoin(
+        AlertResolutionStatus, Alert.alert_resolution_status_id == AlertResolutionStatus.resolution_status_id
+    ).with_entities(
+        AlertResolutionStatus.resolution_status_name,
+        func.count(Alert.alert_id)
+    ).group_by(AlertResolutionStatus.resolution_status_name).all()
+
     queue_time_series_points = []
     current_bucket = _floor_to_bucket(start_dt, time_series_bucket)
     end_bucket = _floor_to_bucket(end_dt, time_series_bucket)
@@ -580,6 +606,14 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     for status_name, count in alert_status_rows:
         alert_status_distribution.append({
             'status': status_name or 'Unspecified',
+            'count': count,
+            'percentage': _percentage(count, total_alerts)
+        })
+
+    alert_resolution_distribution = []
+    for resolution_name, count in alert_resolution_rows:
+        alert_resolution_distribution.append({
+            'resolution': resolution_name or 'Unspecified',
             'count': count,
             'percentage': _percentage(count, total_alerts)
         })
@@ -613,6 +647,14 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         'new_alerts_total': total_alerts,
         'new_alerts_windows': {key: new_alerts_since.get(key, 0) for key in alert_window_keys},
         'new_unassigned_alerts_windows': {key: new_unassigned_alerts_since.get(key, 0) for key in alert_window_keys},
+        'resolution_unknown': {
+            'count': resolution_unknown_alerts,
+            'ratio_percent': resolution_unknown_ratio_percent
+        },
+        'status_new': {
+            'count': new_status_alerts,
+            'ratio_percent': new_status_ratio_percent
+        },
         'time_series': {
             'start': start_dt.isoformat(),
             'end': end_dt.isoformat(),
@@ -634,10 +676,12 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         'alerts': {
             'total': total_alerts,
             'false_positive_count': false_positive_alerts,
+            'false_positive_rate_percent': alert_false_positive_rate_percent,
             'associated_with_cases': alerts_with_cases,
             'escalated_count': escalated_alerts,
             'severity_distribution': alert_severity_distribution,
-            'status_distribution': alert_status_distribution
+            'status_distribution': alert_status_distribution,
+            'resolution_distribution': alert_resolution_distribution
         },
         'metrics': {
             'mean_time_to_detect': _duration_payload(mean_time_to_detect_seconds),
