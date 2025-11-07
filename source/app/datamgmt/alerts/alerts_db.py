@@ -36,7 +36,7 @@ from sqlalchemy.orm import make_transient
 from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.pagination import Pagination
 
-import app
+from app.logger import logger
 from app.datamgmt.case.case_db import case_db_save
 from app.db import db
 from app.datamgmt.filtering import combine_conditions
@@ -213,7 +213,7 @@ def get_filtered_alerts(
             try:
                 custom_conditions = json.loads(custom_conditions)
             except:
-                app.app.logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
+                logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
                 return
 
         query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
@@ -237,7 +237,7 @@ def get_filtered_alerts(
         return filtered_alerts
 
     except Exception as e:
-        app.app.logger.exception(f"Error getting alerts: {str(e)}")
+        logger.exception(f"Error getting alerts: {str(e)}")
         return None
 
 
@@ -1405,7 +1405,7 @@ def delete_alerts(alert_ids: List[int]) -> tuple[bool, str]:
 
     except Exception as e:
         db.session.rollback()
-        app.logger.exception(str(e))
+        logger.exception(str(e))
         return False, "Server side error"
 
     return True, ""
