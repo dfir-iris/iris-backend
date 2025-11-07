@@ -49,7 +49,7 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "Do not import API layer from the persistence layer (access_controls)"
 type = "forbidden"
-source_modules = "app.datamgmt.alerts.alerts_db"
+source_modules = "app.datamgmt"
 forbidden_modules = "app.blueprints.access_controls"
 allow_indirect_imports = true
 
