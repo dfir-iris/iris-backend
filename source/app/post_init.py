@@ -85,6 +85,7 @@ from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_organisation
 from app.datamgmt.manage.manage_groups_db import get_group_by_name
+from app.datamgmt.case.case_db import case_db_save
 
 
 _INITIAL_CLIENT_NAME = 'IrisInitialClient'
@@ -741,7 +742,7 @@ def create_safe_case(user, client, groups):
 
         # Validate the case and save it to the database
         case.validate_on_build()
-        case.save()
+        case_db_save(case)
 
         db.session.commit()
 

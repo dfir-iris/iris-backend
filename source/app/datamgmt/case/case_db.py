@@ -25,7 +25,6 @@ from sqlalchemy import exists
 from sqlalchemy import select
 
 from app.db import db
-from app.datamgmt.manage.manage_tags_db import add_db_tag
 from app.models.authorization import User
 from app.models.cases import CaseProtagonist
 from app.models.cases import Cases
@@ -34,6 +33,14 @@ from app.models.models import ReviewStatus
 from app.models.models import Client
 from app.models.models import Languages
 from app.models.models import ReportType
+from app.datamgmt.manage.manage_tags_db import add_db_tag
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.states import update_assets_state
+from app.datamgmt.states import update_evidences_state
+from app.datamgmt.states import update_ioc_state
+from app.datamgmt.states import update_notes_state
+from app.datamgmt.states import update_tasks_state
+from app.datamgmt.states import update_timeline_state
 
 
 def get_first_case() -> Optional[Cases]:
@@ -223,3 +230,20 @@ def get_review_id_from_name(review_name):
         return status.id
 
     return None
+
+
+def case_db_save(case: Cases):
+    db_create(case)
+
+    # Rename case with the ID
+    case.name = f'#{case.case_id} - {case.name}'
+
+    # Create the states
+    update_timeline_state(caseid=case.case_id, userid=case.user_id)
+    update_tasks_state(caseid=case.case_id, userid=case.user_id)
+    update_evidences_state(caseid=case.case_id, userid=case.user_id)
+    update_ioc_state(caseid=case.case_id, userid=case.user_id)
+    update_assets_state(caseid=case.case_id, userid=case.user_id)
+    update_notes_state(caseid=case.case_id, userid=case.user_id)
+
+    db.session.commit()

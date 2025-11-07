@@ -20,6 +20,7 @@ import string
 
 from app import app
 from app import bc
+from app.datamgmt.case.case_db import case_db_save
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
@@ -160,7 +161,7 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
         )
 
         case.validate_on_build()
-        case.save()
+        case_db_save(case)
 
         db.session.commit()
         cases_list.append(case.case_id)
@@ -197,7 +198,7 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
             client_id=random.choice(clients)
         )
         case.validate_on_build()
-        case.save()
+        case_db_save(case)
 
         db.session.commit()
         cases_list.append(case.case_id)

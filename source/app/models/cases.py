@@ -37,14 +37,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
 
 from app.db import db
-from app.datamgmt.db_operations import db_create
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.states import update_assets_state
-from app.datamgmt.states import update_evidences_state
-from app.datamgmt.states import update_ioc_state
-from app.datamgmt.states import update_notes_state
-from app.datamgmt.states import update_tasks_state
-from app.datamgmt.states import update_timeline_state
 from app.models.models import Client
 
 
@@ -117,26 +110,6 @@ class Cases(db.Model):
         self.classification_id = classification_id
         self.state_id = state_id,
         self.severity_id = severity_id
-
-    def save(self):
-        """
-        Save the current case in database
-        :return:
-        """
-        db_create(self)
-
-        # Rename case with the ID
-        self.name = f'#{self.case_id} - {self.name}'
-
-        # Create the states
-        update_timeline_state(caseid=self.case_id, userid=self.user_id)
-        update_tasks_state(caseid=self.case_id, userid=self.user_id)
-        update_evidences_state(caseid=self.case_id, userid=self.user_id)
-        update_ioc_state(caseid=self.case_id, userid=self.user_id)
-        update_assets_state(caseid=self.case_id, userid=self.user_id)
-        update_notes_state(caseid=self.case_id, userid=self.user_id)
-
-        db.session.commit()
 
     def validate_on_build(self):
         """

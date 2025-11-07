@@ -37,6 +37,7 @@ from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.pagination import Pagination
 
 import app
+from app.datamgmt.case.case_db import case_db_save
 from app.db import db
 from app.datamgmt.filtering import combine_conditions
 from app.datamgmt.filtering import apply_custom_conditions
@@ -349,7 +350,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
         state_id=get_case_state_by_name('Open').state_id
     )
 
-    case.save()
+    case_db_save(case)
 
     for tag in case_tags.split(','):
         tag = Tags(tag_title=tag)
@@ -474,7 +475,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         state_id=get_case_state_by_name('Open').state_id
     )
 
-    case.save()
+    case_db_save(case)
 
     for tag in case_tags.split(','):
         tag = Tags(tag_title=tag)

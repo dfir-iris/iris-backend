@@ -74,3 +74,10 @@ source_modules = "app.datamgmt.case"
 forbidden_modules = "app.iris_engine"
 allow_indirect_imports = true
 
+[[tool.importlinter.contracts]]
+name = "Do not import the persistence layer from the models"
+type = "forbidden"
+source_modules = "app.models.cases"
+forbidden_modules = "app.datamgmt"
+allow_indirect_imports = true
+
