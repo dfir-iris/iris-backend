@@ -37,6 +37,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
 
 from app.db import db
+from app.datamgmt.db_operations import db_create
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.states import update_assets_state
 from app.datamgmt.states import update_evidences_state
@@ -122,11 +123,7 @@ class Cases(db.Model):
         Save the current case in database
         :return:
         """
-        # Inject self into db
-        db.session.add(self)
-
-        # Commit the changes
-        db.session.commit()
+        db_create(self)
 
         # Rename case with the ID
         self.name = f'#{self.case_id} - {self.name}'
@@ -140,8 +137,6 @@ class Cases(db.Model):
         update_notes_state(caseid=self.case_id, userid=self.user_id)
 
         db.session.commit()
-
-        return self
 
     def validate_on_build(self):
         """
