@@ -335,6 +335,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
             case_template_title_prefix = case_template.title_prefix
 
     # Create the case
+    # FIXME I think there is a bug, if no template_id is provided
     case = Cases(
         name=f"[ALERT]{case_template_title_prefix} "
              f"Merge of alerts {', '.join([str(alert.alert_id) for alert in alerts])}" if not case_title else
