@@ -102,6 +102,51 @@
 		.critical-card-bad .critical-value {
 			color: #f3545d !important;
 		}
+
+		.stats-info-icon {
+			color: #6c757d;
+			margin-left: 4px;
+			cursor: pointer;
+			font-size: 0.75rem;
+			display: inline-flex;
+			align-items: center;
+			line-height: 1;
+		}
+
+		.stats-info-icon i {
+			font-family: "Font Awesome 5 Free", "FontAwesome";
+			font-weight: 400;
+		}
+
+		.stats-info-icon i::before {
+			content: "\f29c";
+		}
+
+		.stats-info-icon:hover,
+		.stats-info-icon:focus {
+			color: #177dff;
+			text-decoration: none;
+		}
+
+		.stats-link-icon {
+			color: #6c757d;
+			margin-left: 4px;
+			font-size: 0.75rem;
+			display: inline-flex;
+			align-items: center;
+		}
+
+		.stats-link-icon:hover,
+		.stats-link-icon:focus {
+			color: #177dff;
+			text-decoration: none;
+		}
+
+		.stats-link-disabled {
+			color: #adb5bd !important;
+			cursor: default;
+			pointer-events: none;
+		}
 	</style>
 {% endblock stylesheets %}
 
@@ -114,7 +159,12 @@
 		<div class="col-12">
 			<div class="card">
 				<div class="card-header d-flex justify-content-between align-items-center">
-					<div class="card-title mb-0">Statistics filters</div>
+					<div class="card-title mb-0">
+						Statistics filters
+								<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Adjust timeframe and filters applied to all statistics on this page." aria-label="Statistics filters help">
+									<i class="fa fa-question-circle-o"></i>
+						</span>
+					</div>
 					<small class="text-muted" id="statsSummaryRange">--</small>
 				</div>
 				<div class="card-body">
@@ -180,7 +230,12 @@
 		<div class="col-12">
 			<div class="card mb-4" id="queueSection">
 				<div class="card-header d-flex justify-content-between align-items-center">
-					<div class="card-title mb-0">Queue Size</div>
+					<div class="card-title mb-0">
+						Queue Size
+								<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Key indicators for current alert queue health." aria-label="Queue size help">
+									<i class="fa fa-question-circle-o"></i>
+						</span>
+					</div>
 					<small class="text-muted" id="queueSummaryRange">--</small>
 				</div>
 				<div class="card-body">
@@ -188,7 +243,15 @@
 						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100 critical-card" id="queueUnassignedAlertsCard">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Unassigned alerts</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Unassigned alerts
+									</h5>
+                                        <a class="stats-link-icon stats-link-disabled" id="queueUnassignedAlertsLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+											<i class="fa fa-external-link"></i>
+										</a>
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Open alerts that currently have no assigned owner." aria-label="Unassigned alerts help">
+											<i class="fa fa-question-circle-o"></i>
+										</span>
 									<span class="display-4 critical-value" id="queueUnassignedAlerts">--</span>
 								</div>
 							</div>
@@ -196,7 +259,15 @@
 						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100 critical-card" id="queueNewAlertsTotalCard">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Alerts created</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Alerts created
+										<a class="stats-link-icon stats-link-disabled" id="queueNewAlertsTotalLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+											<i class="fa fa-external-link"></i>
+										</a>
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Total alerts generated within the selected timeframe." aria-label="Alerts created help">
+											<i class="fa fa-question-circle-o"></i>
+										</span>
+									</h5>
 									<span class="display-4 critical-value" id="queueNewAlertsTotal">--</span>
 								</div>
 							</div>
@@ -204,11 +275,40 @@
 						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100 critical-card" id="queueNewAlertsRecentCard">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">New alerts (2h/24h/48h)</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										New alerts
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Alerts created during the last 2, 24, and 48 hours." aria-label="New alerts windows help">
+											<i class="fa fa-question-circle-o"></i>
+										</span>
+									</h5>
 									<ul class="queue-metric-list mb-0">
-										<li><span class="queue-metric-label">Last 2h</span><span class="queue-metric-value" id="queueNewAlerts2h">--</span></li>
-										<li><span class="queue-metric-label">Last 24h</span><span class="queue-metric-value" id="queueNewAlerts24h">--</span></li>
-										<li><span class="queue-metric-label">Last 48h</span><span class="queue-metric-value" id="queueNewAlerts48h">--</span></li>
+										<li>
+											<span class="queue-metric-label">
+												Last 2h
+												<a class="stats-link-icon stats-link-disabled" id="queueNewAlerts2hLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+													<i class="fa fa-external-link"></i>
+												</a>
+											</span>
+											<span class="queue-metric-value" id="queueNewAlerts2h">--</span>
+										</li>
+										<li>
+											<span class="queue-metric-label">
+												Last 24h
+												<a class="stats-link-icon stats-link-disabled" id="queueNewAlerts24hLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+													<i class="fa fa-external-link"></i>
+												</a>
+											</span>
+											<span class="queue-metric-value" id="queueNewAlerts24h">--</span>
+										</li>
+										<li>
+											<span class="queue-metric-label">
+												Last 48h
+												<a class="stats-link-icon stats-link-disabled" id="queueNewAlerts48hLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+													<i class="fa fa-external-link"></i>
+												</a>
+											</span>
+											<span class="queue-metric-value" id="queueNewAlerts48h">--</span>
+										</li>
 									</ul>
 								</div>
 							</div>
@@ -216,11 +316,40 @@
 						<div class="col-xl-3 col-lg-6 mb-3">
 							<div class="card h-100 critical-card" id="queueNewUnassignedRecentCard">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Unassigned alerts (2h/24h/48h)</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Unassigned alerts
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Alerts without an owner created during the last 2, 24, and 48 hours." aria-label="Recent unassigned alerts help">
+											<i class="fa fa-question-circle-o"></i>
+										</span>
+									</h5>
 									<ul class="queue-metric-list mb-0">
-										<li><span class="queue-metric-label">Last 2h</span><span class="queue-metric-value" id="queueNewUnassigned2h">--</span></li>
-										<li><span class="queue-metric-label">Last 24h</span><span class="queue-metric-value" id="queueNewUnassigned24h">--</span></li>
-										<li><span class="queue-metric-label">Last 48h</span><span class="queue-metric-value" id="queueNewUnassigned48h">--</span></li>
+										<li>
+											<span class="queue-metric-label">
+												Last 2h
+												<a class="stats-link-icon stats-link-disabled" id="queueNewUnassigned2hLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+													<i class="fa fa-external-link"></i>
+												</a>
+											</span>
+											<span class="queue-metric-value" id="queueNewUnassigned2h">--</span>
+										</li>
+										<li>
+											<span class="queue-metric-label">
+												Last 24h
+												<a class="stats-link-icon stats-link-disabled" id="queueNewUnassigned24hLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+													<i class="fa fa-external-link"></i>
+												</a>
+											</span>
+											<span class="queue-metric-value" id="queueNewUnassigned24h">--</span>
+										</li>
+										<li>
+											<span class="queue-metric-label">
+												Last 48h
+												<a class="stats-link-icon stats-link-disabled" id="queueNewUnassigned48hLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+													<i class="fa fa-external-link"></i>
+												</a>
+											</span>
+											<span class="queue-metric-value" id="queueNewUnassigned48h">--</span>
+										</li>
 									</ul>
 								</div>
 							</div>
@@ -230,7 +359,12 @@
 						<div class="col-xl-6 col-lg-6 mb-3">
 							<div class="card h-100 critical-card" id="queueResolutionUnknownCard">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Resolution unknown/unset</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Resolution unknown/unset
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Alerts whose resolution status is missing or marked as unknown." aria-label="Resolution unknown help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4 critical-value" id="queueResolutionUnknownCount">--</span>
 									<p class="text-muted mb-0"><small id="queueResolutionUnknownRatio">N/A</small></p>
 								</div>
@@ -239,7 +373,15 @@
 						<div class="col-xl-6 col-lg-6 mb-3">
 							<div class="card h-100 critical-card" id="queueStatusNewCard">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Status new</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Status new
+										<a class="stats-link-icon stats-link-disabled" id="queueStatusNewLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+											<i class="fa fa-external-link"></i>
+										</a>
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Alerts that remain in the initial 'New' status." aria-label="Status new help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4 critical-value" id="queueStatusNewCount">--</span>
 									<p class="text-muted mb-0"><small id="queueStatusNewRatio">N/A</small></p>
 								</div>
@@ -250,7 +392,12 @@
 						<div class="col-12">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Alert over time</div>
+									<div class="card-title mb-0">
+										Alert over time
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Timeline of alert creation counts for the selected window." aria-label="Alert over time help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 								</div>
 								<div class="card-body">
 									<div id="queueAlertStatusEmpty" class="text-center text-muted">No data available</div>
@@ -263,6 +410,25 @@
 					</div>
 				</div>
 			</div>
+			<div class="row">
+				<div class="col-xl-6 col-lg-6 mb-3 d-none" id="queueHighPriorityCol">
+					<div class="card h-100 critical-card critical-card-bad" id="queueHighPriorityCard">
+						<div class="card-body">
+							<h5 class="card-title text-uppercase text-muted mb-1">
+								High priority unattended
+								<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Critical and high severity alerts lacking ownership or still New." aria-label="High priority alerts help">
+									<i class="fa fa-question-circle"></i>
+								</span>
+							</h5>
+							<p class="text-muted mb-2"><small>Counts of critical/high alerts without an owner or remaining in status New.</small></p>
+							<ul class="queue-metric-list mb-0">
+								<li><span class="queue-metric-label">Last 2h</span><span class="queue-metric-value" id="queueHighPriority2h">--</span></li>
+								<li><span class="queue-metric-label">Last 24h</span><span class="queue-metric-value" id="queueHighPriority24h">--</span></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 
@@ -270,40 +436,84 @@
 		<div class="col-12">
 			<div class="card mb-4" id="alertsSection">
 				<div class="card-header d-flex justify-content-between align-items-center">
-					<div class="card-title mb-0">Alerts</div>
+					<div class="card-title mb-0">
+						Alerts
+						<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Performance indicators and distributions for alert handling." aria-label="Alerts section help">
+							<i class="fa fa-question-circle"></i>
+						</span>
+					</div>
 					<small class="text-muted" id="alertsSummaryTotal">--</small>
 				</div>
 				<div class="card-body">
 					<div class="row">
-						<div class="col-xl-3 col-lg-6 mb-3">
+						<div class="col-xl-6 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Mean time to detect</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Mean time to detect
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Average duration between source event time and alert creation." aria-label="Mean time to detect help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2 font-weight-bold" id="alertsMttdPrimary">--</span>
 									<p class="text-muted mb-0"><small id="alertsMttdSecondary">--</small></p>
 								</div>
 							</div>
 						</div>
-						<div class="col-xl-3 col-lg-6 mb-3">
+						<div class="col-xl-6 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Detection coverage</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Alert MTTR
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Average time from alert creation to the second recorded history entry." aria-label="Alert MTTR help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
+									<span class="h2 font-weight-bold" id="alertsMttrPrimary">--</span>
+									<p class="text-muted mb-0"><small id="alertsMttrSecondary">--</small></p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-xl-4 col-lg-6 mb-3">
+							<div class="card h-100">
+								<div class="card-body">
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Detection coverage
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Percentage of alerts linked to at least one case." aria-label="Detection coverage help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2" id="alertsDetectionCoverage">--</span>
 								</div>
 							</div>
 						</div>
-						<div class="col-xl-3 col-lg-6 mb-3">
+						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Escalation rate</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Escalation rate
+										<a class="stats-link-icon stats-link-disabled" id="alertsEscalationRateLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+											<i class="fa fa-external-link"></i>
+										</a>
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Percentage of alerts marked with an escalated status." aria-label="Escalation rate help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2" id="alertsEscalationRate">--</span>
 								</div>
 							</div>
 						</div>
-						<div class="col-xl-3 col-lg-6 mb-3">
+						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">False positive rate</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										False positive rate
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Percentage of alerts tagged as false positives." aria-label="False positive rate help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2" id="alertsFalsePositiveRate">--</span>
 								</div>
 							</div>
@@ -314,7 +524,15 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Total alerts</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Total alerts
+										<a class="stats-link-icon stats-link-disabled" id="alertsTotalLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+											<i class="fa fa-external-link"></i>
+										</a>
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Count of alerts created during the selected timeframe." aria-label="Total alerts help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4" id="alertsTotal">--</span>
 								</div>
 							</div>
@@ -322,7 +540,15 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">False positives</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										False positives
+										<a class="stats-link-icon stats-link-disabled" id="alertsFalsePositiveLink" href="#" target="_blank" rel="noopener noreferrer" title="Open matching alerts" aria-label="Open matching alerts">
+											<i class="fa fa-external-link"></i>
+										</a>
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Number of alerts resolved as false positive." aria-label="False positives count help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4" id="alertsFalsePositive">--</span>
 								</div>
 							</div>
@@ -330,7 +556,12 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Linked to cases</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Linked to cases
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Alerts associated with at least one case record." aria-label="Linked to cases help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4" id="alertsAssociated">--</span>
 								</div>
 							</div>
@@ -341,7 +572,12 @@
 						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Alert severity</div>
+									<div class="card-title mb-0">
+										Alert severity
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Distribution of alerts by severity classification." aria-label="Alert severity help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="alertsSeverityTotal">--</small>
 								</div>
 								<div class="card-body">
@@ -355,7 +591,12 @@
 						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Alert status</div>
+									<div class="card-title mb-0">
+										Alert status
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Distribution of alerts across workflow statuses." aria-label="Alert status help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="alertsStatusTotal">--</small>
 								</div>
 								<div class="card-body">
@@ -369,7 +610,12 @@
 						<div class="col-xl-4 col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Alert resolution status</div>
+									<div class="card-title mb-0">
+										Alert resolution status
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Breakdown of how alerts have been resolved." aria-label="Alert resolution help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="alertsResolutionTotal">--</small>
 								</div>
 								<div class="card-body">
@@ -390,7 +636,12 @@
 		<div class="col-12">
 			<div class="card" id="casesSection">
 				<div class="card-header d-flex justify-content-between align-items-center">
-					<div class="card-title mb-0">Cases</div>
+					<div class="card-title mb-0">
+						Cases
+						<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Response metrics and distributions for cases opened in the timeframe." aria-label="Cases section help">
+							<i class="fa fa-question-circle"></i>
+						</span>
+					</div>
 					<small class="text-muted" id="casesSummaryTotal">--</small>
 				</div>
 				<div class="card-body">
@@ -398,7 +649,12 @@
 						<div class="col-lg-6 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Mean time to respond</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Mean time to respond
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Average time from case creation to case closure." aria-label="Case MTTR help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2 font-weight-bold" id="casesMttrPrimary">--</span>
 									<p class="text-muted mb-0"><small id="casesMttrSecondary">--</small></p>
 								</div>
@@ -407,7 +663,12 @@
 						<div class="col-lg-6 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Cases resolved</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Cases resolved
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Number of cases closed during the timeframe." aria-label="Cases resolved help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2 font-weight-bold" id="casesIncidentsResolved">--</span>
 								</div>
 							</div>
@@ -418,7 +679,12 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">Cases opened</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										Cases opened
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Number of cases initiated during the timeframe." aria-label="Cases opened help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4" id="casesIncidentsDetected">--</span>
 								</div>
 							</div>
@@ -426,7 +692,12 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">False positive cases</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										False positive cases
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Cases resolved with a false-positive classification." aria-label="False positive cases help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="display-4" id="casesFalsePositives">--</span>
 								</div>
 							</div>
@@ -434,7 +705,12 @@
 						<div class="col-lg-4 col-md-6 mb-3">
 							<div class="card h-100">
 								<div class="card-body">
-									<h5 class="card-title text-uppercase text-muted mb-1">False positive rate</h5>
+									<h5 class="card-title text-uppercase text-muted mb-1">
+										False positive rate
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Percentage of detected cases resolved as false positives." aria-label="Case false positive rate help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</h5>
 									<span class="h2" id="casesFalsePositiveRate">--</span>
 								</div>
 							</div>
@@ -445,7 +721,12 @@
 						<div class="col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Case classifications</div>
+									<div class="card-title mb-0">
+										Case classification
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Distribution of detected cases by classification." aria-label="Case classification help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="casesClassificationTotal">--</small>
 								</div>
 								<div class="card-body">
@@ -460,7 +741,12 @@
 						<div class="col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Case status</div>
+									<div class="card-title mb-0">
+										Case status
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Distribution of detected cases by current status." aria-label="Case status help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="casesStatusTotal">--</small>
 								</div>
 								<div class="card-body">
@@ -477,7 +763,12 @@
 						<div class="col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Case severity</div>
+									<div class="card-title mb-0">
+										Case severity
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Distribution of detected cases by severity rating." aria-label="Case severity help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="casesSeverityTotal">--</small>
 								</div>
 								<div class="card-body">
@@ -491,7 +782,12 @@
 						<div class="col-lg-6 mb-3">
 							<div class="card h-100">
 								<div class="card-header d-flex justify-content-between align-items-center">
-									<div class="card-title mb-0">Evidence types</div>
+									<div class="card-title mb-0">
+										Evidence types
+										<span class="stats-info-icon" role="button" tabindex="0" data-toggle="tooltip" data-placement="top" title="Distribution of uploaded evidence by type and volume." aria-label="Evidence types help">
+											<i class="fa fa-question-circle"></i>
+										</span>
+									</div>
 									<small class="text-muted" id="casesEvidenceSummary">--</small>
 								</div>
 								<div class="card-body">

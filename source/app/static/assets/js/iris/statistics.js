@@ -13,10 +13,24 @@ const QUEUE_CARD_CLASSES = ['critical-card-ok', 'critical-card-warn', 'critical-
 const STATS_STATE_STORAGE_KEY = 'iris.statistics.state';
 const STATS_AUTO_REFRESH_INTERVAL_MS = 60000;
 
+const ALERTS_PAGE_PATH = '/alerts';
+const ALERTS_BASE_QUERY_PARAMS = { page: 1, per_page: 10, sort: 'desc' };
+const QUEUE_WINDOW_KEYS = ['2h', '24h', '48h'];
+const QUEUE_WINDOW_DEFAULTS = {
+  '2h': { hours: 2 },
+  '24h': { hours: 24 },
+  '48h': { hours: 48 }
+};
+
 let statsAutoRefreshTimer = null;
 let currentQuickRangeKey = null;
 let currentQuickRangeOptions = null;
 let statsIsRestoring = false;
+
+let lastStatsRequestContext = null;
+let lastAlertFilterMetadata = null;
+let lastQueueWindowThresholds = null;
+let lastFilterBoundaries = { start: null, end: null };
 
 const statsCharts = {
   alertsSeverity: null,
@@ -28,6 +42,23 @@ const statsCharts = {
   caseSeverity: null,
   queueAlertStatus: null
 };
+
+function refreshStatsTooltips() {
+  if (typeof $ === 'undefined' || !$.fn || !$.fn.tooltip) {
+    return;
+  }
+
+  const tooltipElements = $('#statsPageRoot [data-toggle="tooltip"]');
+  if (!tooltipElements.length) {
+    return;
+  }
+
+  tooltipElements.tooltip('dispose');
+  tooltipElements.tooltip({
+    container: 'body',
+    trigger: 'hover focus'
+  });
+}
 
 function formatDateForInput(date) {
   if (!(date instanceof Date) || Number.isNaN(date)) {
@@ -74,6 +105,312 @@ function parseServerDate(value) {
   }
 
   return parsed;
+}
+
+function resetAlertLinkContext() {
+  lastStatsRequestContext = null;
+  lastAlertFilterMetadata = null;
+  lastQueueWindowThresholds = null;
+}
+
+function toDateOnly(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) {
+      return isoMatch[1];
+    }
+
+    const parsedInput = parseInputDate(value);
+    if (parsedInput) {
+      return toDateOnly(parsedInput);
+    }
+
+    const parsedServer = parseServerDate(value);
+    if (parsedServer) {
+      return toDateOnly(parsedServer);
+    }
+
+    return null;
+  }
+
+  if (value instanceof Date) {
+    const timestamp = value.getTime();
+    if (Number.isNaN(timestamp)) {
+      return null;
+    }
+
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(value.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  return null;
+}
+
+function updateAlertLinkContext(payload) {
+  if (!payload) {
+    resetAlertLinkContext();
+    return;
+  }
+
+  const timeframeStart = payload.timeframe && payload.timeframe.start ? parseServerDate(payload.timeframe.start) : null;
+  const timeframeEnd = payload.timeframe && payload.timeframe.end ? parseServerDate(payload.timeframe.end) : null;
+
+  lastStatsRequestContext = {
+    start: timeframeStart ? timeframeStart.toISOString() : null,
+    end: timeframeEnd ? timeframeEnd.toISOString() : null,
+    clientId: payload.filters && payload.filters.client_id !== undefined && payload.filters.client_id !== null
+      ? String(payload.filters.client_id)
+      : null,
+    severityId: payload.filters && payload.filters.severity_id !== undefined && payload.filters.severity_id !== null
+      ? String(payload.filters.severity_id)
+      : null
+  };
+
+  lastAlertFilterMetadata = payload.alert_filter_metadata || null;
+
+  if (payload.queue && payload.queue.window_thresholds) {
+    const thresholds = {};
+    Object.keys(payload.queue.window_thresholds).forEach((key) => {
+      const parsed = parseServerDate(payload.queue.window_thresholds[key]);
+      thresholds[key] = parsed ? parsed.toISOString() : null;
+    });
+    lastQueueWindowThresholds = thresholds;
+  } else {
+    lastQueueWindowThresholds = null;
+  }
+}
+
+function disableAlertsLink(selector) {
+  const element = $(selector);
+  if (!element.length) {
+    return;
+  }
+  element.addClass('stats-link-disabled');
+  element.attr('href', '#');
+}
+
+function buildAlertsLink(overrides = {}, options = {}) {
+  const params = Object.assign({}, ALERTS_BASE_QUERY_PARAMS);
+  const context = lastStatsRequestContext || {};
+
+  if (!options.skipTimeframe) {
+    const timeframe = options.timeframe || {};
+    const startValue = timeframe.start
+      || lastFilterBoundaries.start
+      || context.start;
+    const endValue = timeframe.end
+      || lastFilterBoundaries.end
+      || context.end;
+
+    const normalizedStart = toDateOnly(startValue);
+    const normalizedEnd = toDateOnly(endValue);
+
+    if (normalizedStart) {
+      params.creation_start_date = normalizedStart;
+    }
+    if (normalizedEnd) {
+      params.creation_end_date = normalizedEnd;
+    }
+  }
+
+  if (context.clientId) {
+    params.alert_customer_id = context.clientId;
+  }
+  if (context.severityId) {
+    params.alert_severity_id = context.severityId;
+  }
+
+  Object.keys(overrides || {}).forEach((key) => {
+    const value = overrides[key];
+    if (value === null || value === undefined || value === '') {
+      delete params[key];
+    } else {
+      params[key] = value;
+    }
+  });
+
+  if (options.removeParams && Array.isArray(options.removeParams)) {
+    options.removeParams.forEach((name) => {
+      delete params[name];
+    });
+  }
+
+  const query = $.param(params);
+  if (!query) {
+    return ALERTS_PAGE_PATH;
+  }
+  return `${ALERTS_PAGE_PATH}?${query}`;
+}
+
+function setAlertsLinkHref(selector, overrides = {}, options = {}) {
+  const element = $(selector);
+  if (!element.length) {
+    return;
+  }
+
+  try {
+    const url = buildAlertsLink(overrides, options);
+    if (!url) {
+      disableAlertsLink(selector);
+      return;
+    }
+    element.attr('href', url);
+    element.removeClass('stats-link-disabled');
+  } catch (error) {
+    console.warn('Unable to build alerts link', selector, error);
+    disableAlertsLink(selector);
+  }
+}
+
+function computeQueueWindowTimeframe(queue, windowKey) {
+  if (!queue || !windowKey) {
+    return null;
+  }
+
+  const summaryStart = queue.summary && queue.summary.start ? parseServerDate(queue.summary.start) : null;
+  const summaryEnd = queue.summary && queue.summary.end ? parseServerDate(queue.summary.end) : null;
+  const contextEnd = lastStatsRequestContext && lastStatsRequestContext.end ? parseServerDate(lastStatsRequestContext.end) : null;
+
+  const effectiveEnd = summaryEnd || contextEnd;
+  if (!effectiveEnd) {
+    return null;
+  }
+
+  let windowStart = null;
+  if (lastQueueWindowThresholds && lastQueueWindowThresholds[windowKey]) {
+    windowStart = parseServerDate(lastQueueWindowThresholds[windowKey]);
+  }
+
+  if (!windowStart) {
+    const fallback = QUEUE_WINDOW_DEFAULTS[windowKey];
+    if (!fallback) {
+      return null;
+    }
+    windowStart = new Date(effectiveEnd);
+    if (fallback.years) {
+      windowStart.setFullYear(windowStart.getFullYear() - fallback.years);
+    }
+    if (fallback.months) {
+      windowStart.setMonth(windowStart.getMonth() - fallback.months);
+    }
+    if (fallback.days) {
+      windowStart.setDate(windowStart.getDate() - fallback.days);
+    }
+    if (fallback.hours) {
+      windowStart.setHours(windowStart.getHours() - fallback.hours);
+    }
+    if (fallback.minutes) {
+      windowStart.setMinutes(windowStart.getMinutes() - fallback.minutes);
+    }
+  }
+
+  if (!windowStart) {
+    return null;
+  }
+
+  if (summaryStart && windowStart < summaryStart) {
+    windowStart = summaryStart;
+  }
+
+  if (windowStart > effectiveEnd) {
+    return null;
+  }
+
+  return {
+    start: windowStart.toISOString(),
+    end: effectiveEnd.toISOString()
+  };
+}
+
+function applyQueueLinks(queue) {
+  const queueSelectors = [
+    '#queueUnassignedAlertsLink',
+    '#queueNewAlertsTotalLink',
+    '#queueStatusNewLink'
+  ];
+
+  const queueWindowKeys = queue && Array.isArray(queue.window_order) && queue.window_order.length
+    ? queue.window_order
+    : QUEUE_WINDOW_KEYS;
+
+  if (!queue) {
+    const allSelectors = queueSelectors.concat(
+      QUEUE_WINDOW_KEYS.reduce((accumulator, key) => {
+        accumulator.push(`#queueNewAlerts${key}Link`);
+        accumulator.push(`#queueNewUnassigned${key}Link`);
+        return accumulator;
+      }, [])
+    );
+
+    allSelectors.forEach((selector) => {
+      disableAlertsLink(selector);
+    });
+    return;
+  }
+
+  setAlertsLinkHref('#queueUnassignedAlertsLink', { alert_owner_id: -1 });
+  setAlertsLinkHref('#queueNewAlertsTotalLink');
+
+  queueWindowKeys.forEach((key) => {
+    const timeframe = computeQueueWindowTimeframe(queue, key);
+    if (timeframe) {
+      setAlertsLinkHref(`#queueNewAlerts${key}Link`, {}, { timeframe });
+      setAlertsLinkHref(`#queueNewUnassigned${key}Link`, { alert_owner_id: -1 }, { timeframe });
+    } else {
+      disableAlertsLink(`#queueNewAlerts${key}Link`);
+      disableAlertsLink(`#queueNewUnassigned${key}Link`);
+    }
+  });
+
+  QUEUE_WINDOW_KEYS.forEach((key) => {
+    if (queueWindowKeys.indexOf(key) === -1) {
+      disableAlertsLink(`#queueNewAlerts${key}Link`);
+      disableAlertsLink(`#queueNewUnassigned${key}Link`);
+    }
+  });
+
+  const newStatusId = lastAlertFilterMetadata && lastAlertFilterMetadata.new_status_id ? lastAlertFilterMetadata.new_status_id : null;
+  if (newStatusId !== null && newStatusId !== undefined) {
+    setAlertsLinkHref('#queueStatusNewLink', { alert_status_id: newStatusId });
+  } else {
+    disableAlertsLink('#queueStatusNewLink');
+  }
+}
+
+function applyAlertsLinks(alertsData) {
+  const selectors = ['#alertsTotalLink', '#alertsFalsePositiveLink', '#alertsEscalationRateLink'];
+  if (!alertsData) {
+    selectors.forEach((selector) => {
+      disableAlertsLink(selector);
+    });
+    return;
+  }
+
+  setAlertsLinkHref('#alertsTotalLink');
+
+  const falsePositiveId = lastAlertFilterMetadata && lastAlertFilterMetadata.false_positive_resolution_id
+    ? lastAlertFilterMetadata.false_positive_resolution_id
+    : null;
+  if (falsePositiveId !== null && falsePositiveId !== undefined) {
+    setAlertsLinkHref('#alertsFalsePositiveLink', { alert_resolution_id: falsePositiveId });
+  } else {
+    disableAlertsLink('#alertsFalsePositiveLink');
+  }
+
+  const escalatedStatusId = lastAlertFilterMetadata && lastAlertFilterMetadata.escalated_status_id
+    ? lastAlertFilterMetadata.escalated_status_id
+    : null;
+  if (escalatedStatusId !== null && escalatedStatusId !== undefined) {
+    setAlertsLinkHref('#alertsEscalationRateLink', { alert_status_id: escalatedStatusId });
+  } else {
+    disableAlertsLink('#alertsEscalationRateLink');
+  }
 }
 
 function setStatsLoading(isLoading) {
@@ -203,11 +540,13 @@ function updateTimeframeSummary(timeframe) {
 
 function updateAlertsSection(payload) {
   const metrics = payload && payload.metrics ? payload.metrics : {};
-  const alerts = payload && payload.alerts ? payload.alerts : {};
+  const alertsRaw = payload && payload.alerts ? payload.alerts : null;
+  const alerts = alertsRaw || {};
 
   $('#alertsSummaryTotal').text(alerts.total !== null && alerts.total !== undefined ? `Total alerts: ${formatCountValue(alerts.total)}` : '--');
 
   updateDurationCard('alertsMttdPrimary', 'alertsMttdSecondary', metrics.mean_time_to_detect);
+  updateDurationCard('alertsMttrPrimary', 'alertsMttrSecondary', metrics.mean_time_to_remediate_alerts);
   $('#alertsDetectionCoverage').text(formatPercentValue(metrics.detection_coverage_percent));
   $('#alertsEscalationRate').text(formatPercentValue(metrics.incident_escalation_rate_percent));
   $('#alertsFalsePositiveRate').text(formatPercentValue(alerts.false_positive_rate_percent));
@@ -225,6 +564,10 @@ function updateAlertsSection(payload) {
 
   $('#alertsResolutionTotal').text(totalLabel);
   updateDistributionChart(alerts.resolution_distribution, '#alertsResolutionChart', '#alertsResolutionEmpty', 'alertsResolution', 'resolution');
+
+  applyAlertsLinks(alertsRaw);
+
+  refreshStatsTooltips();
 }
 
 function updateCasesMetrics(metrics) {
@@ -256,6 +599,8 @@ function updateCasesMetrics(metrics) {
   $('#casesSummaryTotal').text(summaryParts.length ? summaryParts.join(' | ') : '--');
 
   updateCaseSeverityChart(metrics.case_severity_distribution, metrics.incidents_detected);
+
+  refreshStatsTooltips();
 }
 
 function updateCaseSeverityChart(rows, total) {
@@ -345,14 +690,29 @@ function renderDoughnutChart(canvas, existingChart, labels, values, percentages,
   const legendDisplay = Object.prototype.hasOwnProperty.call(options, 'legendDisplay') ? options.legendDisplay : true;
   const legendPosition = options.legendPosition || 'bottom';
 
+  const displayLabels = Array.isArray(labels)
+    ? labels.map((label, index) => {
+      const value = Array.isArray(values) ? values[index] : null;
+      const percentageValue = Array.isArray(percentages) ? percentages[index] : null;
+      const valueText = formatCountValue(value);
+      const percentText = percentageValue !== null && percentageValue !== undefined
+        ? `${Number(percentageValue).toFixed(1)}%`
+        : 'N/A';
+      const safeLabel = label || 'Unspecified';
+      return `${safeLabel} (${valueText} | ${percentText})`;
+    })
+    : labels;
+
   return new Chart(context, {
     type: 'doughnut',
     data: {
-      labels,
+      labels: displayLabels,
       datasets: [{
         data: values,
         backgroundColor: getChartColors(values.length),
-        borderWidth: 1
+        borderWidth: 1,
+        originalLabels: Array.isArray(labels) ? labels.slice() : labels,
+        originalPercentages: Array.isArray(percentages) ? percentages.slice() : percentages
       }]
     },
     options: {
@@ -367,9 +727,11 @@ function renderDoughnutChart(canvas, existingChart, labels, values, percentages,
           label: function (tooltipItem, data) {
             const dataset = data.datasets[tooltipItem.datasetIndex];
             const value = dataset.data[tooltipItem.index];
-            const label = data.labels[tooltipItem.index] || '';
-            const percentValue = percentages && percentages[tooltipItem.index] !== null && percentages[tooltipItem.index] !== undefined
-              ? `${Number(percentages[tooltipItem.index]).toFixed(1)}%`
+            const baseLabels = dataset.originalLabels || data.labels;
+            const label = baseLabels && baseLabels[tooltipItem.index] ? baseLabels[tooltipItem.index] : '';
+            const percentArray = dataset.originalPercentages || percentages;
+            const percentValue = percentArray && percentArray[tooltipItem.index] !== null && percentArray[tooltipItem.index] !== undefined
+              ? `${Number(percentArray[tooltipItem.index]).toFixed(1)}%`
               : null;
 
             if (percentValue) {
@@ -472,7 +834,8 @@ function renderLineTimeSeriesChart(canvas, existingChart, datasets, options = {}
         xAxes: [{
           type: 'time',
           time: {
-            unit: options.timeUnit || 'day'
+            unit: options.timeUnit || 'day',
+            stepSize: options.stepSize || undefined
           },
           distribution: 'series',
           ticks: {
@@ -539,7 +902,6 @@ function updateQueueTimeSeries(timeSeries) {
   }
 
   const createdData = [];
-  const handledData = [];
 
   timeSeries.points.forEach((point) => {
     if (!point || !point.date) {
@@ -552,23 +914,16 @@ function updateQueueTimeSeries(timeSeries) {
     }
 
     const createdCount = Number(point.created);
-    const handledCount = Number(point.handled);
 
     createdData.push({
       x: parsedDate,
       y: Number.isFinite(createdCount) ? createdCount : 0
     });
-
-    handledData.push({
-      x: parsedDate,
-      y: Number.isFinite(handledCount) ? handledCount : 0
-    });
   });
 
   createdData.sort((a, b) => a.x - b.x);
-  handledData.sort((a, b) => a.x - b.x);
 
-  if (!createdData.length && !handledData.length) {
+  if (!createdData.length) {
     summary.text(summaryText);
     emptyMessage.show();
     canvas.addClass('d-none');
@@ -580,7 +935,6 @@ function updateQueueTimeSeries(timeSeries) {
   }
 
   const createdColor = STATS_CHART_COLORS[0];
-  const handledColor = STATS_CHART_COLORS[3];
 
   const datasets = [
     {
@@ -588,18 +942,6 @@ function updateQueueTimeSeries(timeSeries) {
       data: createdData,
       borderColor: createdColor,
       backgroundColor: hexToRgba(createdColor, 0.2),
-      fill: false,
-      lineTension: 0,
-      pointRadius: 0,
-      pointHitRadius: 6,
-      pointHoverRadius: 4,
-      spanGaps: true
-    },
-    {
-      label: 'Handled alerts',
-      data: handledData,
-      borderColor: handledColor,
-      backgroundColor: hexToRgba(handledColor, 0.2),
       fill: false,
       lineTension: 0,
       pointRadius: 0,
@@ -614,12 +956,22 @@ function updateQueueTimeSeries(timeSeries) {
   canvas.removeClass('d-none');
 
   const timeUnit = timeSeries.time_unit || 'day';
+  const bucketKey = timeSeries.bucket || null;
+
+  let stepSize = null;
+  if (bucketKey === 'minute') {
+    stepSize = 1;
+  } else if (bucketKey === '5minute') {
+    stepSize = 5;
+  } else if (bucketKey === '15minute') {
+    stepSize = 15;
+  }
 
   statsCharts.queueAlertStatus = renderLineTimeSeriesChart(
     canvas[0],
     statsCharts.queueAlertStatus,
     datasets,
-    { timeUnit }
+    { timeUnit, stepSize }
   );
 }
 
@@ -674,6 +1026,34 @@ function applyQueueCardState(cardSelector, value, thresholds) {
   card.addClass('critical-card-bad');
 }
 
+function updateHighPriorityCard(counts) {
+  const card = $('#queueHighPriorityCard');
+  const column = $('#queueHighPriorityCol');
+  if (!card.length || !column.length) {
+    return;
+  }
+
+  const value2h = counts && counts['2h'] !== undefined && counts['2h'] !== null ? Number(counts['2h']) : 0;
+  const value24h = counts && counts['24h'] !== undefined && counts['24h'] !== null ? Number(counts['24h']) : 0;
+  const hasData = (Number.isFinite(value2h) && value2h > 0) || (Number.isFinite(value24h) && value24h > 0);
+
+  if (!hasData) {
+    $('#queueHighPriority2h').text('--');
+    $('#queueHighPriority24h').text('--');
+    column.addClass('d-none');
+    return;
+  }
+
+  column.removeClass('d-none');
+  $('#queueHighPriority2h').text(formatCountValue(value2h));
+  $('#queueHighPriority24h').text(formatCountValue(value24h));
+
+  if (!card.hasClass('critical-card-bad')) {
+    card.removeClass('critical-card-ok critical-card-warn');
+    card.addClass('critical-card-bad');
+  }
+}
+
 function updateQueueSection(queue) {
   const summaryElement = $('#queueSummaryRange');
   let summaryText = '--';
@@ -702,7 +1082,7 @@ function updateQueueSection(queue) {
 
   const windowOrder = queue && Array.isArray(queue.window_order) && queue.window_order.length
     ? queue.window_order
-    : ['2h', '24h', '48h'];
+    : QUEUE_WINDOW_KEYS;
 
   const newAlertsWindows = queue && queue.new_alerts_windows ? queue.new_alerts_windows : {};
   const newUnassignedWindows = queue && queue.new_unassigned_alerts_windows ? queue.new_unassigned_alerts_windows : {};
@@ -739,6 +1119,12 @@ function updateQueueSection(queue) {
   applyQueueCardState('#queueStatusNewCard', statusNew.count, thresholds.status_new);
 
   updateQueueTimeSeries(queue ? queue.time_series : null);
+
+  updateHighPriorityCard(queue && queue.high_priority_alerts ? queue.high_priority_alerts : null);
+
+  applyQueueLinks(queue);
+
+  refreshStatsTooltips();
 }
 
 function updateCaseCharts(payload) {
@@ -754,6 +1140,8 @@ function updateCaseCharts(payload) {
 
   $('#casesStatusTotal').text(totalLabel);
   updateDistributionChart(payload ? payload.status_distribution : [], '#casesStatusChart', '#casesStatusEmpty', 'caseStatus', 'status');
+
+  refreshStatsTooltips();
 }
 
 function updateCasesEvidenceChart(payload) {
@@ -789,6 +1177,8 @@ function updateCasesEvidenceChart(payload) {
   statsCharts.evidences = renderDoughnutChart(canvas[0], statsCharts.evidences, labels, values, percentages, {
     legendPosition: 'right'
   });
+
+  refreshStatsTooltips();
 }
 
 function populateCaseStatusOptions() {
@@ -1169,6 +1559,11 @@ function buildStatisticsParams() {
     params.case_status_id = caseStatusId;
   }
 
+  lastFilterBoundaries = {
+    start: toDateOnly(startValue) || toDateOnly(startDate),
+    end: toDateOnly(endValue) || toDateOnly(endDate)
+  };
+
   return {
     params,
     startDate,
@@ -1205,20 +1600,27 @@ function fetchStatisticsData() {
   })
     .done((data) => {
       if (!notify_auto_api(data, true)) {
+        resetAlertLinkContext();
         updateQueueSection(null);
+        applyAlertsLinks(null);
         return;
       }
       if (!data.data) {
+        resetAlertLinkContext();
         updateQueueSection(null);
+        applyAlertsLinks(null);
         return;
       }
+      updateAlertLinkContext(data.data);
       updateTimeframeSummary(data.data.timeframe);
       updateAlertsSection(data.data);
       updateCasesMetrics(data.data.metrics);
       updateQueueSection(data.data.queue || null);
     })
     .fail((xhr) => {
+      resetAlertLinkContext();
       updateQueueSection(null);
+      applyAlertsLinks(null);
       if (xhr && xhr.status === 400 && xhr.responseJSON && xhr.responseJSON.message) {
         notify_error(xhr.responseJSON.message);
       } else {
@@ -1337,5 +1739,6 @@ function initStatsPage() {
 }
 
 $(document).ready(() => {
+  refreshStatsTooltips();
   initStatsPage();
 });

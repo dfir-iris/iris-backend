@@ -165,10 +165,42 @@ def _floor_to_bucket(dt, bucket):
     if not dt:
         return None
 
+    if bucket == 'minute':
+        return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute)
+
+    if bucket == '5minute':
+        minute = (dt.minute // 5) * 5
+        return datetime(dt.year, dt.month, dt.day, dt.hour, minute)
+
+    if bucket == '15minute':
+        minute = (dt.minute // 15) * 15
+        return datetime(dt.year, dt.month, dt.day, dt.hour, minute)
+
     if bucket == 'hour':
         return datetime(dt.year, dt.month, dt.day, dt.hour)
 
+    if bucket == 'week':
+        start_of_day = datetime(dt.year, dt.month, dt.day)
+        return start_of_day - timedelta(days=start_of_day.weekday())
+
     return datetime(dt.year, dt.month, dt.day)
+
+
+def _determine_time_series_bucket(timeframe_delta):
+    total_seconds = timeframe_delta.total_seconds()
+
+    if total_seconds <= 3600:  # <= 1 hour
+        return 'minute', timedelta(minutes=1), 'minute'
+    if total_seconds <= 6 * 3600:  # <= 6 hours
+        return '5minute', timedelta(minutes=5), 'minute'
+    if total_seconds <= 24 * 3600:  # <= 1 day
+        return '15minute', timedelta(minutes=15), 'minute'
+    if total_seconds <= 7 * 24 * 3600:  # <= 1 week
+        return 'hour', timedelta(hours=1), 'hour'
+    if total_seconds <= 30 * 24 * 3600:  # <= 1 month
+        return 'day', timedelta(days=1), 'day'
+
+    return 'week', timedelta(days=7), 'week'
 
 
 def _alert_handled_timestamp(modification_history, open_status_ids, open_status_names):
@@ -213,6 +245,27 @@ def _alert_handled_timestamp(modification_history, open_status_ids, open_status_
                 return datetime.fromtimestamp(ts_float, tz=timezone.utc).replace(tzinfo=None)
 
     return None
+
+
+def _alert_second_history_timestamp(modification_history):
+    history = _normalize_history(modification_history)
+    if not history:
+        return None
+
+    entries = []
+    for key, value in history.items():
+        try:
+            timestamp = float(key)
+        except (TypeError, ValueError):
+            continue
+        entries.append((timestamp, value))
+
+    if len(entries) < 2:
+        return None
+
+    entries.sort(key=lambda item: item[0])
+    second_entry_ts = entries[1][0]
+    return datetime.fromtimestamp(second_entry_ts, tz=timezone.utc).replace(tzinfo=None)
 
 
 def _get_alert_status_ids_by_names(names):
@@ -357,14 +410,13 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         Alert.alert_resolution_status_id,
         Alert.alert_status_id,
         Alert.alert_owner_id,
-        Alert.modification_history
+        Alert.modification_history,
+        Alert.alert_severity_id
     ).all()
 
     total_alerts = len(alert_rows)
 
     open_alert_status_ids = set(_get_alert_status_ids_by_names(_OPEN_ALERT_STATUS_NAMES))
-    open_alert_status_names = {status_name.lower() for status_name in _OPEN_ALERT_STATUS_NAMES}
-
     alert_windows = {
         '2h': end_dt - timedelta(hours=2),
         '24h': end_dt - timedelta(hours=24),
@@ -373,6 +425,15 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     alert_window_keys = list(alert_windows.keys())
     new_alerts_since = {key: 0 for key in alert_windows}
     new_unassigned_alerts_since = {key: 0 for key in alert_windows}
+    high_priority_alerts = {
+        '2h': 0,
+        '24h': 0
+    }
+
+    high_critical_severity_rows = Severity.query.with_entities(Severity.severity_id).filter(
+        func.lower(Severity.severity_name).in_(('high', 'critical'))
+    ).all()
+    high_critical_severity_ids = {row[0] for row in high_critical_severity_rows if row and row[0] is not None}
 
     false_positive_resolution = AlertResolutionStatus.query.with_entities(
         AlertResolutionStatus.resolution_status_id
@@ -393,17 +454,16 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     new_status_id = new_status_ids[0] if new_status_ids else None
 
     alert_mttd_deltas = []
+    alert_mttr_deltas = []
     false_positive_alerts = 0
     escalated_alerts = 0
     resolution_unknown_alerts = 0
     new_status_alerts = 0
 
     timeframe_delta = end_dt - start_dt
-    time_series_bucket = 'hour' if timeframe_delta <= timedelta(days=2) else 'day'
-    bucket_step = timedelta(hours=1) if time_series_bucket == 'hour' else timedelta(days=1)
+    bucket_key, bucket_step, chart_time_unit = _determine_time_series_bucket(timeframe_delta)
 
     created_counts = defaultdict(int)
-    handled_counts = defaultdict(int)
 
     for row in alert_rows:
         source_time = _safe_datetime(row.alert_source_event_time)
@@ -425,7 +485,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             new_status_alerts += 1
 
         if creation_time:
-            creation_bucket = _floor_to_bucket(creation_time, time_series_bucket)
+            creation_bucket = _floor_to_bucket(creation_time, bucket_key)
             if creation_bucket:
                 created_counts[creation_bucket] += 1
             for window_key, threshold in alert_windows.items():
@@ -434,11 +494,20 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
                     if row.alert_owner_id is None and (not open_alert_status_ids or row.alert_status_id in open_alert_status_ids):
                         new_unassigned_alerts_since[window_key] += 1
 
-        handled_time = _alert_handled_timestamp(row.modification_history, open_alert_status_ids, open_alert_status_names)
-        if handled_time and start_dt <= handled_time <= end_dt:
-            handled_bucket = _floor_to_bucket(handled_time, time_series_bucket)
-            if handled_bucket:
-                handled_counts[handled_bucket] += 1
+            if high_critical_severity_ids and row.alert_severity_id in high_critical_severity_ids:
+                condition_matched = row.alert_owner_id is None
+                if not condition_matched and new_status_id and row.alert_status_id == new_status_id:
+                    condition_matched = True
+
+                if condition_matched:
+                    for window_key in ('2h', '24h'):
+                        threshold = alert_windows.get(window_key)
+                        if threshold and creation_time >= threshold:
+                            high_priority_alerts[window_key] += 1
+
+        second_history_timestamp = _alert_second_history_timestamp(row.modification_history)
+        if creation_time and second_history_timestamp and second_history_timestamp >= creation_time:
+            alert_mttr_deltas.append(second_history_timestamp - creation_time)
 
     unassigned_alerts_query = Alert.query.filter(Alert.alert_owner_id.is_(None))
     if open_alert_status_ids:
@@ -462,6 +531,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     alerts_with_cases = alerts_with_case_query.scalar() or 0
 
     mean_time_to_detect_seconds = _average_seconds(alert_mttd_deltas)
+    mean_time_to_remediate_alerts_seconds = _average_seconds(alert_mttr_deltas)
     detection_coverage_percent = _percentage(alerts_with_cases, total_alerts)
     incident_escalation_rate_percent = _percentage(escalated_alerts, total_alerts)
     alert_false_positive_rate_percent = _percentage(false_positive_alerts, total_alerts)
@@ -582,15 +652,14 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     ).group_by(AlertResolutionStatus.resolution_status_name).all()
 
     queue_time_series_points = []
-    current_bucket = _floor_to_bucket(start_dt, time_series_bucket)
-    end_bucket = _floor_to_bucket(end_dt, time_series_bucket)
+    current_bucket = _floor_to_bucket(start_dt, bucket_key)
+    end_bucket = _floor_to_bucket(end_dt, bucket_key)
 
     if current_bucket and end_bucket:
         while current_bucket <= end_bucket:
             queue_time_series_points.append({
                 'date': current_bucket.isoformat(),
-                'created': int(created_counts.get(current_bucket, 0)),
-                'handled': int(handled_counts.get(current_bucket, 0))
+                'created': int(created_counts.get(current_bucket, 0))
             })
             current_bucket += bucket_step
 
@@ -637,6 +706,8 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'percentage': percent
         })
 
+    window_thresholds = {key: alert_windows[key].isoformat() for key in alert_window_keys}
+
     queue_payload = {
         'summary': {
             'start': start_dt.isoformat(),
@@ -655,12 +726,24 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'count': new_status_alerts,
             'ratio_percent': new_status_ratio_percent
         },
+        'high_priority_alerts': high_priority_alerts,
         'time_series': {
             'start': start_dt.isoformat(),
             'end': end_dt.isoformat(),
-            'time_unit': time_series_bucket,
+            'time_unit': chart_time_unit,
+            'bucket': bucket_key,
             'points': queue_time_series_points
-        }
+        },
+        'window_thresholds': window_thresholds
+    }
+
+    alert_filter_metadata = {
+        'open_status_ids': sorted(open_alert_status_ids),
+        'new_status_id': new_status_id,
+        'unknown_resolution_status_ids': sorted(list(unknown_resolution_status_ids)),
+        'escalated_status_id': escalated_status_id,
+        'false_positive_resolution_id': false_positive_resolution_id,
+        'high_critical_severity_ids': sorted(list(high_critical_severity_ids))
     }
 
     return {
@@ -685,6 +768,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         },
         'metrics': {
             'mean_time_to_detect': _duration_payload(mean_time_to_detect_seconds),
+            'mean_time_to_remediate_alerts': _duration_payload(mean_time_to_remediate_alerts_seconds),
             'mean_time_to_respond': _duration_payload(mean_time_to_respond_seconds),
             'mean_time_to_contain': _duration_payload(mean_time_to_contain_seconds),
             'mean_time_to_recover': _duration_payload(mean_time_to_recover_seconds),
@@ -696,7 +780,8 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'incident_escalation_rate_percent': incident_escalation_rate_percent,
             'case_severity_distribution': case_severity_distribution
         },
-        'queue': queue_payload
+        'queue': queue_payload,
+        'alert_filter_metadata': alert_filter_metadata
     }
 
 
