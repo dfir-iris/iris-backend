@@ -400,6 +400,39 @@ class Tlp(db.Model):
     tlp_bscolor = Column(Text)
 
 
+class CustomDashboard(db.Model):
+    __tablename__ = 'custom_dashboard'
+
+    id = Column(Integer, primary_key=True)
+    dashboard_uuid = Column(UUID(as_uuid=True), server_default=text("gen_random_uuid()"), nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    owner_id = Column(ForeignKey('user.id'), nullable=False)
+    is_shared = Column(Boolean, nullable=False, server_default=text("false"))
+    definition = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    owner = relationship('User')
+    widgets = relationship('CustomDashboardWidget', back_populates='dashboard', cascade='all, delete-orphan')
+
+
+class CustomDashboardWidget(db.Model):
+    __tablename__ = 'custom_dashboard_widget'
+
+    id = Column(Integer, primary_key=True)
+    widget_uuid = Column(UUID(as_uuid=True), server_default=text("gen_random_uuid()"), nullable=False, unique=True)
+    dashboard_id = Column(ForeignKey('custom_dashboard.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    chart_type = Column(String(64), nullable=False)
+    definition = Column(JSONB, nullable=False)
+    position = Column(Integer, nullable=False, server_default=text("0"))
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    dashboard = relationship('CustomDashboard', back_populates='widgets')
+
+
 class Ioc(db.Model):
     __tablename__ = 'ioc'
 

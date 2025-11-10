@@ -1,0 +1,11 @@
+#customDashboardsRoot .custom-dashboard-chart {
+  position: relative;
+  height: 320px;
+  min-height: 320px;
+}
+
+#customDashboardsRoot .custom-dashboard-chart canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}

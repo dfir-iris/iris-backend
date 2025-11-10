@@ -1,0 +1,226 @@
+{% extends "layouts/default.html" %}
+{% block title %}Custom Dashboards{% endblock title %}
+
+{% block stylesheets %}
+  <link rel="stylesheet" href="/static/assets/css/select2.css">
+  <link rel="stylesheet" href="/static/assets/css/custom_dashboards.css">
+{% endblock stylesheets %}
+
+{% block content %}
+<div class="page-inner" id="customDashboardsRoot">
+  {{ form.hidden_tag() }}
+  <input type="hidden" id="currentCaseId" value="{{ case_id }}">
+  <input type="hidden" id="dashboardCanShare" value="{% if can_share %}1{% else %}0{% endif %}">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Custom Dashboards</h3>
+    <div class="btn-group">
+      <button class="btn btn-outline-secondary btn-sm" id="dashboardHelpBtn" type="button">Help</button>
+      <button class="btn btn-primary btn-sm" id="createDashboardBtn" type="button">New dashboard</button>
+    </div>
+  </div>
+
+  <div class="card mb-4" id="dashboardSelectorCard">
+    <div class="card-body">
+      <div class="form-row align-items-end">
+        <div class="form-group col-md-6 mb-2">
+          <label for="dashboardSelector">Saved dashboards</label>
+          <select class="custom-select" id="dashboardSelector">
+            <option value="">Select a dashboard</option>
+          </select>
+        </div>
+        <div class="form-group col-auto mb-2">
+          <button type="button" class="btn btn-outline-secondary" id="editDashboardBtn">Edit</button>
+        </div>
+        <div class="form-group col-auto mb-2">
+          <button type="button" class="btn btn-outline-danger" id="removeDashboardBtn">Delete</button>
+        </div>
+      </div>
+      <div class="text-muted small d-none" id="dashboardSelectorEmptyState">No custom dashboards yet. Create one to get started.</div>
+    </div>
+  </div>
+
+  <div class="card mb-4" id="dashboardFiltersCard">
+    <div class="card-header">
+      <h5 class="mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+      <form id="dashboardFilterForm" autocomplete="off">
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <label for="dashboardStart">Start</label>
+            <input type="datetime-local" class="form-control" id="dashboardStart" name="start">
+          </div>
+          <div class="form-group col-md-3">
+            <label for="dashboardEnd">End</label>
+            <input type="datetime-local" class="form-control" id="dashboardEnd" name="end">
+          </div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center mt-3">
+          <div class="btn-group btn-group-sm mr-3 mb-2" role="group" aria-label="Quick ranges">
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last15m" data-minutes="15">Last 15 minutes</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last1h" data-hours="1">Last hour</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last12h" data-hours="12">Last 12 hours</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last7d" data-days="7">Last 7 days</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last30d" data-days="30">Last 30 days</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last90d" data-days="90">Last 90 days</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last6m" data-months="6">Last 6 months</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last1y" data-years="1">Last 1 year</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last2y" data-years="2">Last 2 years</button>
+            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last5y" data-years="5">Last 5 years</button>
+          </div>
+          <div class="ml-sm-auto d-flex align-items-center mb-2">
+            <button type="submit" class="btn btn-primary btn-sm mr-2" id="dashboardApplyBtn">Apply filters</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="dashboardResetBtn">Reset</button>
+          </div>
+        </div>
+      </form>
+      <div class="text-danger small mt-2 d-none" id="dashboardFilterError"></div>
+    </div>
+  </div>
+
+  <div class="card mb-4" id="dashboardViewerCard">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <div class="d-flex align-items-center">
+          <h5 class="card-title mb-0" id="selectedDashboardName">Select a dashboard</h5>
+          <span class="badge badge-info ml-2 d-none" id="selectedDashboardSharedBadge">Shared</span>
+        </div>
+        <small class="text-muted" id="dashboardViewerRange">--</small>
+      </div>
+      <small class="text-muted" id="dashboardViewerStatus">Idle</small>
+    </div>
+    <div class="card-body">
+      <div class="text-center my-4 d-none" id="dashboardViewerLoading">Loading...</div>
+      <div class="text-center text-muted" id="dashboardViewerEmptyState">Choose a dashboard to display its widgets.</div>
+      <div class="row" id="dashboardWidgets"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="dashboardEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="dashboardEditorTitle">New dashboard</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="dashboardEditorForm">
+          <input type="hidden" id="dashboardId" value="">
+          <div class="form-group">
+            <label for="dashboardName">Name</label>
+            <input type="text" class="form-control" id="dashboardName" required>
+          </div>
+          <div class="form-group">
+            <label for="dashboardDescription">Description</label>
+            <textarea class="form-control" id="dashboardDescription" rows="2"></textarea>
+          </div>
+          <div class="form-group form-check" id="dashboardShareGroup">
+            <input type="checkbox" class="form-check-input" id="dashboardIsShared"{% if not can_share %} disabled{% endif %}>
+            <label class="form-check-label" for="dashboardIsShared">Share with team</label>
+            {% if not can_share %}
+              <small class="form-text text-muted">You do not have permission to share dashboards.</small>
+            {% endif %}
+          </div>
+          <div id="widgetList"></div>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="addWidgetBtn">Add widget</button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger" id="dashboardDeleteBtn" style="display:none;">Delete</button>
+        <button type="button" class="btn btn-primary" id="dashboardSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="dashboardHelpModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Custom Dashboard Reference</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">For each widget, paste JSON describing the <code>fields</code> array. Provide one object per field you want to display or aggregate.</p>
+        <h6>Field attributes</h6>
+        <ul>
+          <li><code>table</code> (required): one of the allowed tables below.</li>
+          <li><code>column</code> (required): column name from that table.</li>
+          <li><code>aggregation</code> (optional): <code>count</code>, <code>sum</code>, <code>avg</code>, <code>min</code>, or <code>max</code>.</li>
+          <li><code>alias</code> (optional): label used in the chart or value output.</li>
+        </ul>
+        <h6>Allowed tables and columns</h6>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-striped mb-0">
+            <thead>
+              <tr>
+                <th style="width: 180px;">Table</th>
+                <th>Columns</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>alerts</code></td>
+                <td><code>alert_id</code>, <code>alert_uuid</code>, <code>alert_title</code>, <code>alert_source</code>, <code>alert_source_ref</code>, <code>alert_description</code>, <code>alert_creation_time</code>, <code>alert_source_event_time</code>, <code>alert_customer_id</code>, <code>alert_resolution_status_id</code>, <code>alert_status_id</code>, <code>alert_severity_id</code>, <code>alert_classification_id</code></td>
+              </tr>
+              <tr>
+                <td><code>client</code></td>
+                <td><code>client_id</code>, <code>name</code></td>
+              </tr>
+              <tr>
+                <td><code>alert_resolution_status</code></td>
+                <td><code>resolution_status_id</code>, <code>resolution_status_name</code></td>
+              </tr>
+              <tr>
+                <td><code>alert_status</code></td>
+                <td><code>status_id</code>, <code>status_name</code></td>
+              </tr>
+              <tr>
+                <td><code>severities</code></td>
+                <td><code>severity_id</code>, <code>severity_name</code></td>
+              </tr>
+              <tr>
+                <td><code>case_classification</code></td>
+                <td><code>id</code>, <code>name</code>, <code>name_expanded</code></td>
+              </tr>
+              <tr>
+                <td><code>cases</code></td>
+                <td><code>case_id</code>, <code>name</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mb-3">You can optionally include <code>filters</code>, <code>group_by</code>, or <code>options</code> objects alongside <code>fields</code> if your widget requires them.</p>
+        <h6>Example fields payload</h6>
+        <pre class="bg-light p-2"><code>[
+  {
+    "table": "alerts",
+    "column": "alert_id",
+    "aggregation": "count",
+    "alias": "alert_count"
+  },
+  {
+    "table": "client",
+    "column": "name",
+    "alias": "client_name"
+  }
+]</code></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block javascripts %}
+  <script src="/static/assets/js/core/charts.js"></script>
+  <script src="/static/assets/js/iris/custom_dashboards/custom_dashboards.js"></script>
+{% endblock javascripts %}
