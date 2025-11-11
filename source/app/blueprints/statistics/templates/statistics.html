@@ -168,54 +168,61 @@
 				</div>
 				<div class="card-body">
 					<form id="statsFilterForm" autocomplete="off">
-						<div class="form-row">
-							<div class="form-group col-md-3">
+						<div class="form-row align-items-end">
+							<div class="form-group col-xl-2 col-lg-3 col-md-6">
 								<label for="statsStart">Start</label>
 								<input type="datetime-local" class="form-control" id="statsStart" name="start">
 							</div>
-							<div class="form-group col-md-3">
+							<div class="form-group col-xl-2 col-lg-3 col-md-6">
 								<label for="statsEnd">End</label>
 								<input type="datetime-local" class="form-control" id="statsEnd" name="end">
 							</div>
-							<div class="form-group col-md-2">
+							<div class="form-group col-xl-2 col-lg-3 col-md-6">
 								<label for="statsClient">Customer</label>
 								<select class="form-control" id="statsClient" name="client_id">
 									<option value="">All customers</option>
 								</select>
 							</div>
-							<div class="form-group col-md-2">
+							<div class="form-group col-xl-2 col-lg-3 col-md-6">
 								<label for="statsSeverity">Severity</label>
 								<select class="form-control" id="statsSeverity" name="severity_id">
 									<option value="">All severities</option>
 								</select>
 							</div>
-							<div class="form-group col-md-2">
+							<div class="form-group col-xl-2 col-lg-3 col-md-6">
 								<label for="statsCaseStatus">Case status</label>
 								<select class="form-control" id="statsCaseStatus" name="case_status_id">
 									<option value="">All statuses</option>
 								</select>
 							</div>
+							<div class="form-group col-lg-auto col-md-6 col-12 ml-lg-auto text-lg-right mt-3 mt-lg-0">
+								<div class="d-flex flex-wrap justify-content-lg-end align-items-center">
+									<div class="custom-control custom-checkbox mb-1 mr-lg-3 mr-2">
+										<input type="checkbox" class="custom-control-input" id="statsAutoRefresh">
+										<label class="custom-control-label" for="statsAutoRefresh">Auto-refresh</label>
+									</div>
+									<div class="btn-group btn-group-sm mb-2" role="group" aria-label="Filter actions">
+										<button type="submit" class="btn btn-primary" id="statsApplyBtn">Apply</button>
+										<button type="button" class="btn btn-outline-secondary" id="statsResetBtn">Reset</button>
+									</div>
+								</div>
+							</div>
 						</div>
-						<div class="d-flex flex-wrap align-items-center mt-3">
-							<div class="btn-group btn-group-sm mr-3 mb-2" role="group" aria-label="Quick ranges">
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last15m" data-minutes="15">Last 15 minutes</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last1h" data-hours="1">Last hour</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last12h" data-hours="12">Last 12 hours</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last7d" data-days="7">Last 7 days</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last30d" data-days="30">Last 30 days</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last90d" data-days="90">Last 90 days</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last6m" data-months="6">Last 6 months</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last1y" data-years="1">Last 1 year</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last2y" data-years="2">Last 2 years</button>
-								<button type="button" class="btn btn-outline-primary stats-quick-range" data-range-key="last5y" data-years="5">Last 5 years</button>
+						<div class="bg-light rounded px-2 py-2 mt-2">
+							<div class="d-flex align-items-center mb-3">
+								<h6 class="mb-0 text-uppercase text-muted small">Preset ranges</h6>
 							</div>
-							<div class="custom-control custom-switch ml-sm-3 mb-2">
-								<input type="checkbox" class="custom-control-input" id="statsAutoRefresh">
-								<label class="custom-control-label" for="statsAutoRefresh">Auto-refresh</label>
-							</div>
-							<div class="ml-sm-auto d-flex align-items-center mb-2">
-								<button type="submit" class="btn btn-primary btn-sm mr-2" id="statsApplyBtn">Apply filters</button>
-								<button type="button" class="btn btn-secondary btn-sm" id="statsResetBtn">Reset</button>
+							<div class="d-flex flex-wrap align-items-center">
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last15m" data-minutes="15">Last 15 minutes</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last1h" data-hours="1">Last hour</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last12h" data-hours="12">Last 12 hours</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last7d" data-days="7">Last 7 days</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last30d" data-days="30">Last 30 days</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last90d" data-days="90">Last 90 days</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last6m" data-months="6">Last 6 months</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last1y" data-years="1">Last 1 year</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last2y" data-years="2">Last 2 years</button>
+								<button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 stats-quick-range" data-range-key="last5y" data-years="5">Last 5 years</button>
 							</div>
 						</div>
 					</form>

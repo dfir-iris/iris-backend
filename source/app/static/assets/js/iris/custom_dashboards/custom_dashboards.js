@@ -134,9 +134,7 @@
 
     const controls = $('<div class="table-controls d-flex flex-wrap align-items-center mb-2"></div>');
     const searchInput = $('<input type="search" class="form-control form-control-sm table-search-input mr-2 mb-2" placeholder="Search table...">');
-    const clearSearchBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm mb-2">Clear</button>');
     controls.append(searchInput);
-    controls.append(clearSearchBtn);
     container.append(controls);
 
     const tableWrapper = $('<div class="custom-dashboard-table table-responsive"></div>');
@@ -458,13 +456,6 @@
       updateSortIndicators();
     });
 
-    clearSearchBtn.on('click', function () {
-      searchInput.val('');
-      state.searchQuery = '';
-      renderBody();
-      updateSortIndicators();
-    });
-
     sortableHeaders.forEach((header) => {
       header.on('click', function () {
         const sortKey = $(this).data('sortKey');
@@ -585,31 +576,49 @@
     return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
+  function normalizeWidgetSizeValue(rawValue) {
+    if (!rawValue || typeof rawValue !== 'string') {
+      return '';
+    }
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (trimmed.indexOf(' ') !== -1) {
+      return trimmed;
+    }
+    const lower = trimmed.toLowerCase();
+    if (lower.startsWith('col-')) {
+      return lower;
+    }
+    if (/^[a-z]{2,3}-\d{1,2}$/i.test(trimmed)) {
+      return `col-${lower}`;
+    }
+    if (/^\d{1,2}$/.test(trimmed)) {
+      return `col-md-${trimmed}`;
+    }
+    return '';
+  }
+
   function resolveWidgetColumnClass(chartType, widgetOptions) {
     const baseType = (chartType || '').toLowerCase();
     const defaultClass = baseType === 'table' ? 'col-12' : (baseType === 'number' || baseType === 'percentage' ? 'col-md-4' : 'col-md-6');
-    if (!widgetOptions || typeof widgetOptions.size !== 'string') {
+    const configuredSize = widgetOptions && typeof widgetOptions.widget_size === 'string'
+      ? widgetOptions.widget_size
+      : widgetOptions && typeof widgetOptions.size === 'string'
+        ? widgetOptions.size
+        : null;
+
+    if (!configuredSize) {
       return defaultClass;
     }
 
-    const raw = widgetOptions.size.trim();
-    if (!raw) {
+    const normalizedSize = normalizeWidgetSizeValue(configuredSize);
+    if (!normalizedSize) {
       return defaultClass;
     }
 
-    if (raw.indexOf(' ') !== -1) {
-      return raw;
-    }
-
-    if (raw.startsWith('col-')) {
-      return raw;
-    }
-
-    if (/^[a-z]{2,3}-\d{1,2}$/i.test(raw)) {
-      return `col-${raw}`;
-    }
-
-    return defaultClass;
+    return normalizedSize;
   }
 
   function setDefaultTimeframe() {
@@ -744,16 +753,51 @@
     return dashboardsCache.find((item) => Number(item.id) === Number(currentDashboardId)) || null;
   }
 
+  function migrateWidgetOptions(options) {
+    if (!options || typeof options !== 'object') {
+      return;
+    }
+    const candidateValue = Object.prototype.hasOwnProperty.call(options, 'widget_size')
+      ? options.widget_size
+      : options.size;
+    const normalized = normalizeWidgetSizeValue(candidateValue);
+    if (normalized) {
+      options.widget_size = normalized;
+    } else {
+      delete options.widget_size;
+    }
+    if (Object.prototype.hasOwnProperty.call(options, 'size')) {
+      delete options.size;
+    }
+  }
+
+  function normalizeWidgetForExport(widget) {
+    if (!widget || typeof widget !== 'object') {
+      return;
+    }
+    if (widget.options && typeof widget.options === 'object') {
+      migrateWidgetOptions(widget.options);
+    }
+    if (widget.definition && typeof widget.definition === 'object' && widget.definition.options && typeof widget.definition.options === 'object') {
+      migrateWidgetOptions(widget.definition.options);
+    }
+    if (Array.isArray(widget.widgets)) {
+      widget.widgets.forEach((nestedWidget) => normalizeWidgetForExport(nestedWidget));
+    }
+  }
+
   function cloneDashboardForJson(dashboard) {
     if (!dashboard) {
       return null;
     }
+    const widgets = Array.isArray(dashboard.widgets) ? JSON.parse(JSON.stringify(dashboard.widgets)) : [];
+    widgets.forEach((widget) => normalizeWidgetForExport(widget));
     return {
       id: dashboard.id,
       name: dashboard.name || '',
       description: dashboard.description || '',
       is_shared: !!dashboard.is_shared,
-      widgets: Array.isArray(dashboard.widgets) ? JSON.parse(JSON.stringify(dashboard.widgets)) : []
+      widgets: widgets
     };
   }
 
@@ -1011,11 +1055,6 @@
 
     container.append(valueElement);
     container.append(labelElement);
-
-    if (widget.data && Array.isArray(widget.data.rows) && widget.data.rows.length) {
-      const details = $('<pre class="mt-3 small text-muted"></pre>').text(JSON.stringify(widget.data.rows, null, 2));
-      container.append(details);
-    }
   }
 
   function renderChartWidget(widget, container) {
@@ -1503,8 +1542,13 @@
     } else if (widget && widget.definition && widget.definition.options && typeof widget.definition.options === 'object') {
       widgetOptions = widget.definition.options;
     }
-    if (typeof widgetOptions.size === 'string') {
-      row.find('.widget-size').val(widgetOptions.size);
+    const initialSize = typeof widgetOptions.widget_size === 'string'
+      ? widgetOptions.widget_size
+      : typeof widgetOptions.size === 'string'
+        ? widgetOptions.size
+        : '';
+    if (initialSize) {
+      row.find('.widget-size').val(initialSize);
     }
     row.find('.remove-widget').on('click', function () {
       row.remove();
@@ -1548,12 +1592,21 @@
         const definition = JSON.parse(definitionText || '{}');
         definition.name = row.find('.widget-name').val();
         definition.chart_type = row.find('.widget-chart').val();
-        const sizeValue = (row.find('.widget-size').val() || '').trim();
-        if (sizeValue) {
+        const sizeValueRaw = row.find('.widget-size').val();
+        const normalizedSizeValue = normalizeWidgetSizeValue(sizeValueRaw);
+        if (normalizedSizeValue) {
           definition.options = definition.options && typeof definition.options === 'object' ? definition.options : {};
-          definition.options.size = sizeValue;
-        } else if (definition.options && typeof definition.options === 'object' && Object.prototype.hasOwnProperty.call(definition.options, 'size')) {
-          delete definition.options.size;
+          definition.options.widget_size = normalizedSizeValue;
+          if (Object.prototype.hasOwnProperty.call(definition.options, 'size')) {
+            delete definition.options.size;
+          }
+        } else if (definition.options && typeof definition.options === 'object') {
+          if (Object.prototype.hasOwnProperty.call(definition.options, 'widget_size')) {
+            delete definition.options.widget_size;
+          }
+          if (Object.prototype.hasOwnProperty.call(definition.options, 'size')) {
+            delete definition.options.size;
+          }
           if (!Object.keys(definition.options).length) {
             delete definition.options;
           }
@@ -1720,17 +1773,6 @@
 
     $('#dashboardJsonImportBtn').on('click', function () {
       openDashboardJsonModal({ mode: 'import' });
-    });
-
-    $('#dashboardJsonLoadBtn').on('click', function () {
-      const dashboard = getSelectedDashboard();
-      if (!dashboard) {
-        notify_error('Select a dashboard to load.');
-        return;
-      }
-      $('#dashboardJsonTextarea').val(JSON.stringify(cloneDashboardForJson(dashboard), null, 2)).focus();
-      $('#dashboardJsonModal').data('dashboardId', dashboard.id);
-      $('#dashboardJsonUpdateBtn').prop('disabled', false);
     });
 
     $('#dashboardJsonDownloadBtn').on('click', function () {

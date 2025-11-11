@@ -14,8 +14,9 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">Custom Dashboards</h3>
     <div class="btn-group">
-      <button class="btn btn-outline-secondary btn-sm" id="dashboardHelpBtn" type="button">Help</button>
-      <button class="btn btn-primary btn-sm" id="createDashboardBtn" type="button">New dashboard</button>
+      <button class="btn btn-outline-secondary btn-sm" id="dashboardHelpBtn" type="button"><i class="fas fa-question-circle"></i> Help</button>
+      <button class="btn btn-primary btn-sm" id="createDashboardBtn" type="button"><i class="fas fa-plus"></i> New dashboard</button>
+      <button class="btn btn-primary btn-sm" id="dashboardJsonImportBtn" type="button"><i class="fas fa-file-import"></i> Import</button>
     </div>
   </div>
 
@@ -82,7 +83,7 @@
         <small class="text-muted" id="dashboardViewerRange">--</small>
       </div>
       <div class="d-flex align-items-center">
-        <div class="custom-control custom-switch mr-3 mb-0">
+        <div class="custom-control custom-checkbox mr-3 mb-0">
           <input type="checkbox" class="custom-control-input" id="dashboardAutoRefresh">
           <label class="custom-control-label" for="dashboardAutoRefresh">Auto-refresh</label>
         </div>
@@ -95,8 +96,6 @@
                 <button type="button" class="dropdown-item" id="editDashboardBtn">Edit</button>
                 <button type="button" class="dropdown-item" id="dashboardJsonEditBtn">Edit as JSON</button>
                 <button type="button" class="dropdown-item" id="dashboardJsonExportBtn">Export</button>
-                <div class="dropdown-divider"></div>
-                <button type="button" class="dropdown-item" id="dashboardJsonImportBtn">Import</button>
                 <div class="dropdown-divider"></div>
                 <button type="button" class="dropdown-item text-danger" id="removeDashboardBtn">Delete</button>
             </div>
@@ -226,7 +225,81 @@
   }
 ]</code></pre>
   <h6 class="mt-4">Widget options</h6>
-  <p class="mb-2">Use <code>chart_type</code> to choose the visualization: <code>line</code>, <code>bar</code>, <code>pie</code>, <code>number</code>, <code>percentage</code>, or <code>table</code>. Table widgets support <code>options.display</code> (or <code>options.display_mode</code>) set to <code>number</code>, <code>percentage</code>, or <code>number_percentage</code> to control how values are rendered. Use <code>options.size</code> to override the column width (e.g., <code>md-6</code>, <code>col-md-4</code>), and <code>options.total_label</code> to customize the summary row caption.</p>
+  <p class="mb-2">Set the keys below inside each widget's <code>options</code> object to control layout, data shaping, and styling.</p>
+  <div class="table-responsive mb-3">
+    <table class="table table-sm table-striped mb-0">
+      <thead>
+        <tr>
+          <th style="width: 180px;">Option</th>
+          <th>Description</th>
+          <th style="width: 200px;">Example values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>chart_type</code></td>
+          <td>Set on the widget root (outside <code>options</code>) to choose the visualization.</td>
+          <td><code>"line"</code>, <code>"bar"</code>, <code>"pie"</code>, <code>"number"</code>, <code>"percentage"</code>, <code>"table"</code></td>
+        </tr>
+        <tr>
+          <td><code>display</code> / <code>display_mode</code></td>
+          <td>Controls table value formatting.</td>
+          <td><code>"number"</code>, <code>"percentage"</code>, <code>"number_percentage"</code></td>
+        </tr>
+        <tr>
+          <td><code>widget_size</code></td>
+          <td>Overrides the widget column width. Provide Bootstrap grid classes (e.g., <code>col-md-6</code>) or short forms like <code>md-6</code> which auto-expand.</td>
+          <td><code>"col-md-6"</code>, <code>"col-lg-4"</code></td>
+        </tr>
+        <tr>
+          <td><code>total_label</code></td>
+          <td>Custom label for table summary rows and totals.</td>
+          <td><code>"Grand total"</code></td>
+        </tr>
+        <tr>
+          <td><code>time_column</code></td>
+          <td>Overrides the timestamp column used for range filtering (<code>table.column</code> format).</td>
+          <td><code>"cases.created_at"</code></td>
+        </tr>
+        <tr>
+          <td><code>sort</code></td>
+          <td>Sorts aggregated results by the first metric or group.</td>
+          <td><code>"asc"</code>, <code>"desc"</code></td>
+        </tr>
+        <tr>
+          <td><code>limit</code></td>
+          <td>Limits the number of grouped rows returned (must be a positive integer).</td>
+          <td><code>10</code></td>
+        </tr>
+        <tr>
+          <td><code>color</code></td>
+          <td>Single color applied to the series or number widgets.</td>
+          <td><code>"#4e73df"</code></td>
+        </tr>
+        <tr>
+          <td><code>colors</code></td>
+          <td>Palette for charts; accepts an array or comma-separated list.</td>
+          <td><code>["#4e73df", "#1cc88a"]</code></td>
+        </tr>
+        <tr>
+          <td><code>fill</code></td>
+          <td>Fills the area under line charts when <code>true</code>.</td>
+          <td><code>true</code></td>
+        </tr>
+        <tr>
+          <td><code>label_max_length</code></td>
+          <td>Truncates long axis labels to the given character count.</td>
+          <td><code>32</code></td>
+        </tr>
+        <tr>
+          <td><code>legend_position</code></td>
+          <td>Moves the chart legend.</td>
+          <td><code>"top"</code>, <code>"right"</code>, <code>"bottom"</code>, <code>"left"</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="mb-0">Dataset entries accept the same <code>color</code> and <code>colors</code> keys to override individual series, and you can provide <code>total</code> to lock in percentage calculations. Percentages are automatically calculated when totals are provided or inferred.</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -236,7 +309,7 @@
 </div>
 
 <div class="modal" id="dashboardJsonModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Dashboard JSON Tools</h5>
@@ -252,16 +325,17 @@
       </div>
       <div class="modal-footer flex-wrap">
         <div class="btn-group mr-auto mb-2" role="group" aria-label="JSON actions">
-          <button type="button" class="btn btn-outline-primary" id="dashboardJsonLoadBtn">Load selected</button>
-          <button type="button" class="btn btn-outline-secondary" id="dashboardJsonDownloadBtn">Download</button>
-          <button type="button" class="btn btn-outline-info" id="dashboardJsonImportFileBtn">Import file</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dashboardJsonDownloadBtn">Download</button>
         </div>
-        <div class="btn-group mb-2" role="group" aria-label="JSON apply">
-          <button type="button" class="btn btn-success" id="dashboardJsonCreateBtn">Import as new</button>
-          <button type="button" class="btn btn-primary" id="dashboardJsonUpdateBtn">Update selected</button>
-          <button type="button" class="btn btn-outline-danger" id="dashboardJsonClearBtn">Clear</button>
+        <div class="btn-group ml-2 mb-2" role="group" aria-label="JSON actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dashboardJsonImportFileBtn">Load from file</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="dashboardJsonCreateBtn">Import as new</button>
+            <button type="button" class="btn btn-sm btn-outline-success" id="dashboardJsonUpdateBtn">Update current dashboard</button>
         </div>
-        <button type="button" class="btn btn-secondary mb-2" data-dismiss="modal">Close</button>
+        <div class="btn-group ml-auto mb-2" role="group" aria-label="JSON actions">
+          <button type="button" class="btn btn-sm btn-outline-danger" id="dashboardJsonClearBtn">Clear</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" data-dismiss="modal">Close</button>
+        </div>
       </div>
     </div>
   </div>
