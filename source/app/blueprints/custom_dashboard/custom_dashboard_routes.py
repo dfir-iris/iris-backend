@@ -174,7 +174,7 @@ def api_get_dashboard_data(dashboard_id):
 
         try:
             result = execute_widget(definition, timeframe_tuple)
-            widget_payload['data'] = format_widget_payload(result)
+            widget_payload['data'] = format_widget_payload(result, definition)
         except QueryExecutionError as exc:
             widget_payload['error'] = str(exc)
         except Exception as exc:  # noqa: BLE001

@@ -17,7 +17,10 @@ class DashboardFilterSchema(Schema):
 
 class DashboardWidgetSchema(Schema):
     name = ma_fields.String(required=True)
-    chart_type = ma_fields.String(required=True, validate=validate.OneOf(['line', 'bar', 'pie', 'number', 'percentage']))
+    chart_type = ma_fields.String(
+        required=True,
+        validate=validate.OneOf(['line', 'bar', 'pie', 'number', 'percentage', 'table'])
+    )
     fields = ma_fields.List(ma_fields.Nested(DashboardWidgetFieldSchema), required=True, validate=validate.Length(min=1))
     filters = ma_fields.List(ma_fields.Nested(DashboardFilterSchema), required=False)
     group_by = ma_fields.List(ma_fields.String(), required=False)

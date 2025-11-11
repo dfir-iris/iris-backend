@@ -9,3 +9,22 @@
   width: 100% !important;
   height: 100% !important;
 }
+
+#customDashboardsRoot .custom-dashboard-table {
+  max-height: 420px;
+  overflow-x: auto;
+}
+
+#customDashboardsRoot .custom-dashboard-table table {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+#customDashboardsRoot .custom-dashboard-table th,
+#customDashboardsRoot .custom-dashboard-table td {
+  white-space: nowrap;
+}
+
+#customDashboardsRoot .custom-dashboard-table tbody tr:hover {
+  background-color: rgba(23, 125, 255, 0.08);
+}

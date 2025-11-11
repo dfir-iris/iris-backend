@@ -87,7 +87,13 @@
         </div>
         <small class="text-muted" id="dashboardViewerRange">--</small>
       </div>
-      <small class="text-muted" id="dashboardViewerStatus">Idle</small>
+      <div class="d-flex align-items-center">
+        <div class="custom-control custom-switch mr-3 mb-0">
+          <input type="checkbox" class="custom-control-input" id="dashboardAutoRefresh">
+          <label class="custom-control-label" for="dashboardAutoRefresh">Auto-refresh</label>
+        </div>
+        <small class="text-muted mb-0" id="dashboardViewerStatus">Idle</small>
+      </div>
     </div>
     <div class="card-body">
       <div class="text-center my-4 d-none" id="dashboardViewerLoading">Loading...</div>
@@ -211,6 +217,8 @@
     "alias": "client_name"
   }
 ]</code></pre>
+        <h6 class="mt-4">Widget options</h6>
+        <p class="mb-2">Use <code>chart_type</code> to choose the visualization: <code>line</code>, <code>bar</code>, <code>pie</code>, <code>number</code>, <code>percentage</code>, or <code>table</code>. Table widgets support <code>options.display</code> (or <code>options.display_mode</code>) set to <code>number</code>, <code>percentage</code>, or <code>number_percentage</code> to control how values are rendered. You can also set <code>options.total_label</code> to customize the summary row caption.</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

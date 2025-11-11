@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
+import math
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -24,6 +26,57 @@ class WidgetQueryResult:
     rows: List[Dict[str, Any]]
     group_labels: Sequence[str]
     value_labels: Sequence[str]
+    select_labels: Sequence[str]
+
+
+def _ensure_numeric(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return float(int(value))
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+        if math.isnan(numeric) or math.isinf(numeric):
+            return None
+        return numeric
+    if isinstance(value, Decimal):
+        numeric = float(value)
+        if math.isnan(numeric) or math.isinf(numeric):
+            return None
+        return numeric
+    return None
+
+
+def _format_number(value: Any) -> str:
+    numeric = _ensure_numeric(value)
+    if numeric is None:
+        if value is None or value == '':
+            return '--'
+        return str(value)
+    if numeric.is_integer():
+        return f"{int(numeric):,}"
+    return f"{numeric:,.2f}".rstrip('0').rstrip('.')
+
+
+def _format_percentage(value: Optional[float]) -> str:
+    if value is None:
+        return '--'
+    return f"{value:,.2f}%".rstrip('0').rstrip('.')
+
+
+def _format_group_value(value: Any) -> str:
+    if value is None or value == '':
+        return 'N/A'
+    return str(value)
+
+
+def _normalize_display_mode(value: Optional[str]) -> str:
+    if not value or not isinstance(value, str):
+        return 'number'
+    normalized = value.strip().lower()
+    if normalized in {'percentage', 'percent'}:
+        return 'percentage'
+    if normalized in {'number_percentage', 'number-and-percentage', 'number and percentage', 'both'}:
+        return 'number_percentage'
+    return 'number'
 
 
 _AGGREGATIONS = {
@@ -209,7 +262,8 @@ class WidgetQueryExecutor:
             chart_type=self.builder.chart_type,
             rows=mapped_rows,
             group_labels=self.builder.group_labels,
-            value_labels=self.builder.aggregated_labels or [label for label in self.builder.select_labels if label in self.builder.group_labels]
+            value_labels=self.builder.aggregated_labels or [label for label in self.builder.select_labels if label in self.builder.group_labels],
+            select_labels=self.builder.select_labels
         )
 
     def _get_table(self, table_name: str) -> Dict[str, Any]:
@@ -345,15 +399,20 @@ def execute_widget(definition: Dict[str, Any], timeframe: Tuple[Optional[datetim
     return executor.execute(timeframe)
 
 
-def format_widget_payload(result: WidgetQueryResult) -> Dict[str, Any]:
-    chart_type = result.chart_type
+def format_widget_payload(result: WidgetQueryResult, definition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    definition = definition or {}
+    options = definition.get('options') or {}
+    display_mode = _normalize_display_mode(options.get('display') or options.get('display_mode'))
+    chart_type = (result.chart_type or '').lower()
 
     if chart_type in {'bar', 'line', 'pie'}:
         labels: List[str] = []
         datasets: Dict[str, List[Any]] = {label: [] for label in result.value_labels}
+        totals: Dict[str, Optional[float]] = {label: 0.0 for label in result.value_labels}
+        counts: Dict[str, int] = {label: 0 for label in result.value_labels}
 
         for row in result.rows:
-            label_values = []
+            label_values: List[str] = []
             seen_components = set()
             for group_label in result.group_labels:
                 raw_value = row.get(group_label)
@@ -366,19 +425,35 @@ def format_widget_payload(result: WidgetQueryResult) -> Dict[str, Any]:
                 label_values.append(text_value)
             labels.append(' - '.join(label_values) or 'N/A')
             for value_label in result.value_labels:
-                datasets.setdefault(value_label, []).append(row.get(value_label))
+                value = row.get(value_label)
+                datasets.setdefault(value_label, []).append(value if value is not None else 0)
+                numeric_value = _ensure_numeric(value)
+                if numeric_value is not None:
+                    totals[value_label] = (totals.get(value_label) or 0.0) + numeric_value
+                    counts[value_label] = counts.get(value_label, 0) + 1
 
-        formatted_datasets = [
-            {
+        for value_label, count in counts.items():
+            if count == 0:
+                totals[value_label] = None
+
+        formatted_datasets = []
+        for value_label in result.value_labels:
+            values = datasets.get(value_label, [])
+            formatted_datasets.append({
                 'label': _capitalize_label(value_label),
-                'data': [value if value is not None else 0 for value in values]
-            }
-            for value_label, values in datasets.items()
-        ]
+                'value_key': value_label,
+                'data': [value if value is not None else 0 for value in values],
+                'total': totals.get(value_label),
+                'formatted_total': _format_number(totals.get(value_label))
+            })
 
         return {
             'labels': labels,
-            'datasets': formatted_datasets
+            'datasets': formatted_datasets,
+            'value_keys': list(result.value_labels),
+            'display_mode': display_mode,
+            'totals': {key: totals.get(key) for key in result.value_labels},
+            'formatted_totals': {key: _format_number(totals.get(key)) for key in result.value_labels}
         }
 
     if chart_type in {'number', 'percentage'}:
@@ -386,10 +461,124 @@ def format_widget_payload(result: WidgetQueryResult) -> Dict[str, Any]:
         value = None
         if result.rows:
             value = result.rows[0].get(value_label) if value_label else None
-        return {
+        numeric_value = _ensure_numeric(value)
+        formatted_value = _format_number(value)
+        formatted_percentage = _format_percentage(numeric_value if numeric_value is not None else None)
+
+        payload = {
             'value': value,
             'label': _capitalize_label(value_label) if value_label else '',
-            'rows': result.rows
+            'rows': result.rows,
+            'display_mode': display_mode,
+            'formatted_value': formatted_value,
+            'formatted_percentage': formatted_percentage
+        }
+
+        if chart_type == 'percentage':
+            payload['formatted_value'] = formatted_percentage
+
+        return payload
+
+    if chart_type == 'table':
+        select_labels = list(result.select_labels) if result.select_labels else []
+        group_keys: List[str] = []
+        value_keys: List[str] = []
+        group_label_set = set(result.group_labels)
+
+        for label in select_labels:
+            if label in group_label_set and label not in group_keys:
+                group_keys.append(label)
+            elif label not in value_keys:
+                value_keys.append(label)
+
+        for label in result.group_labels:
+            if label not in group_keys:
+                group_keys.append(label)
+
+        for label in result.value_labels:
+            if label not in group_label_set and label not in value_keys:
+                value_keys.append(label)
+
+        if not value_keys and result.rows:
+            for key in result.rows[0].keys():
+                if key not in group_keys and key not in value_keys:
+                    value_keys.append(key)
+
+        totals: Dict[str, Optional[float]] = {key: 0.0 for key in value_keys}
+        counts: Dict[str, int] = {key: 0 for key in value_keys}
+
+        for row in result.rows:
+            for key in value_keys:
+                numeric_value = _ensure_numeric(row.get(key))
+                if numeric_value is not None:
+                    totals[key] = (totals.get(key) or 0.0) + numeric_value
+                    counts[key] = counts.get(key, 0) + 1
+
+        for key, count in counts.items():
+            if count == 0:
+                totals[key] = None
+
+        table_rows: List[Dict[str, Any]] = []
+        for row in result.rows:
+            group_values = [row.get(key) for key in group_keys]
+            formatted_group_values = [_format_group_value(row.get(key)) for key in group_keys]
+            value_cells = []
+            for key in value_keys:
+                raw_value = row.get(key)
+                numeric_value = _ensure_numeric(raw_value)
+                total_value = totals.get(key)
+                percentage_value: Optional[float] = None
+                if numeric_value is not None and total_value not in (None, 0):
+                    percentage_value = (numeric_value / total_value) * 100
+                elif numeric_value is not None and total_value == 0:
+                    percentage_value = 0.0
+
+                value_cells.append({
+                    'key': key,
+                    'value': raw_value,
+                    'formatted_value': _format_number(raw_value),
+                    'percentage': percentage_value,
+                    'formatted_percentage': _format_percentage(percentage_value)
+                    if percentage_value is not None else '--'
+                })
+
+            table_rows.append({
+                'group_values': group_values,
+                'formatted_group_values': formatted_group_values,
+                'value_cells': value_cells
+            })
+
+        totals_entries = []
+        for key in value_keys:
+            total_value = totals.get(key)
+            if total_value is None and counts.get(key, 0) == 0:
+                formatted_percentage = '--'
+                percentage_value = None
+            elif total_value == 0:
+                percentage_value = 0.0
+                formatted_percentage = _format_percentage(0.0)
+            else:
+                percentage_value = 100.0 if total_value is not None else None
+                formatted_percentage = _format_percentage(percentage_value) if percentage_value is not None else '--'
+
+            totals_entries.append({
+                'key': key,
+                'value': total_value,
+                'formatted_value': _format_number(total_value),
+                'percentage': percentage_value,
+                'formatted_percentage': formatted_percentage
+            })
+
+        return {
+            'display_mode': display_mode,
+            'group_headers': [_capitalize_label(key) for key in group_keys],
+            'value_headers': [_capitalize_label(key) for key in value_keys],
+            'group_keys': group_keys,
+            'value_keys': value_keys,
+            'rows': table_rows,
+            'totals': totals_entries,
+            'total_label': options.get('total_label') or 'Total',
+            'source_rows': result.rows
         }
 
     return {
