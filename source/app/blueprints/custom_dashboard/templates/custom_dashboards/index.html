@@ -319,7 +319,8 @@
       </div>
       <div class="modal-body">
         <p class="small text-muted">Import, export, or edit dashboards directly via JSON. Load an existing dashboard, update it, or paste a new configuration below.</p>
-        <textarea class="form-control" id="dashboardJsonTextarea" rows="12" spellcheck="false"></textarea>
+  <div id="dashboardJsonEditor" class="border rounded d-none" style="min-height: 320px; height: 320px;"></div>
+  <textarea class="form-control" id="dashboardJsonTextarea" rows="12" spellcheck="false"></textarea>
         <small class="form-text text-muted">Expected keys: <code>name</code>, <code>description</code>, <code>is_shared</code>, and <code>widgets</code>. Widget definitions mirror the examples in the help modal.</small>
         <input type="file" id="dashboardJsonFileInput" accept="application/json" class="d-none">
       </div>
@@ -343,6 +344,8 @@
 {% endblock content %}
 
 {% block javascripts %}
+  <script src="/static/assets/js/plugin/ace/src-noconflict/ace.js" type="text/javascript" charset="utf-8"></script>
+  <script src="/static/assets/js/plugin/ace/src-noconflict/ext-language_tools.js" type="text/javascript" charset="utf-8"></script>
   <script src="/static/assets/js/core/charts.js"></script>
   <script src="/static/assets/js/iris/custom_dashboards/custom_dashboards.js"></script>
 {% endblock javascripts %}

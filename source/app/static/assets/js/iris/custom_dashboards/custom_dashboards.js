@@ -17,6 +17,7 @@
   let isFetchingDashboardData = false;
   let currentQuickRangeKey = null;
   let canShareDashboards = false;
+  let dashboardJsonEditor = null;
 
   function loadDashboardState() {
     try {
@@ -103,6 +104,89 @@
     const hours = pad(local.getHours());
     const minutes = pad(local.getMinutes());
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function getDashboardJsonEditor() {
+    if (typeof ace === 'undefined') {
+      return null;
+    }
+
+    if (dashboardJsonEditor) {
+      return dashboardJsonEditor;
+    }
+
+    const container = document.getElementById('dashboardJsonEditor');
+    if (!container) {
+      return null;
+    }
+
+    dashboardJsonEditor = ace.edit(container, {
+      autoScrollEditorIntoView: true,
+      highlightActiveLine: true,
+      minLines: 18,
+      maxLines: Infinity
+    });
+    dashboardJsonEditor.setTheme('ace/theme/tomorrow');
+    try {
+      dashboardJsonEditor.session.setMode('ace/mode/json');
+      dashboardJsonEditor.session.setUseWorker(false);
+    } catch (err) {
+      console.warn('Unable to set Ace editor mode', err);
+    }
+    dashboardJsonEditor.session.setUseWrapMode(true);
+    dashboardJsonEditor.setOption('showPrintMargin', false);
+    dashboardJsonEditor.setOption('showLineNumbers', true);
+    dashboardJsonEditor.setOption('tabSize', 2);
+    dashboardJsonEditor.setOption('useSoftTabs', true);
+    dashboardJsonEditor.renderer.setShowGutter(true);
+    dashboardJsonEditor.renderer.setScrollMargin(8, 8);
+
+    const textarea = $('#dashboardJsonTextarea');
+    if (textarea.length) {
+      dashboardJsonEditor.session.on('change', function () {
+        textarea.val(dashboardJsonEditor.getValue());
+      });
+      textarea.addClass('d-none');
+      const initialValue = textarea.val() || '';
+      dashboardJsonEditor.setValue(initialValue, -1);
+      dashboardJsonEditor.clearSelection();
+    }
+
+    $('#dashboardJsonEditor').removeClass('d-none');
+
+    return dashboardJsonEditor;
+  }
+
+  function setDashboardJsonContent(content) {
+    const normalized = content || '';
+    const textarea = $('#dashboardJsonTextarea');
+    textarea.val(normalized);
+    const editor = getDashboardJsonEditor();
+    if (editor) {
+      editor.setValue(normalized, -1);
+      editor.clearSelection();
+    }
+  }
+
+  function getDashboardJsonContent() {
+    const editor = getDashboardJsonEditor();
+    if (editor) {
+      return editor.getValue();
+    }
+    return $('#dashboardJsonTextarea').val() || '';
+  }
+
+  function focusDashboardJsonEditor() {
+    const editor = getDashboardJsonEditor();
+    if (editor) {
+      editor.resize(true);
+      editor.focus();
+      return;
+    }
+    const textarea = $('#dashboardJsonTextarea');
+    if (textarea.length) {
+      textarea.removeClass('d-none').focus();
+    }
   }
 
   function formatDateForDisplay(date) {
@@ -803,16 +887,14 @@
 
   function openDashboardJsonModal(options = {}) {
     const modal = $('#dashboardJsonModal');
-    const textarea = $('#dashboardJsonTextarea');
     const dashboard = options.dashboard || null;
     const content = dashboard ? JSON.stringify(cloneDashboardForJson(dashboard), null, 2) : '';
-    textarea.val(content);
+    setDashboardJsonContent(content);
     modal.data('dashboardId', dashboard ? dashboard.id : null);
     modal.data('mode', options.mode || (dashboard ? 'edit' : 'import'));
     $('#dashboardJsonUpdateBtn').prop('disabled', !dashboard);
     $('#dashboardJsonLoadBtn').prop('disabled', !dashboardsCache.length);
     modal.modal('show');
-    textarea.focus();
   }
 
   function downloadDashboardJson(dashboard) {
@@ -847,10 +929,9 @@
   }
 
   function submitDashboardJson(mode) {
-    const textarea = $('#dashboardJsonTextarea');
     let parsed;
     try {
-      parsed = JSON.parse(textarea.val() || '{}');
+      parsed = JSON.parse(getDashboardJsonContent() || '{}');
     } catch (err) {
       notify_error(`Dashboard JSON is invalid: ${err.message}`);
       return;
@@ -913,8 +994,7 @@
   }
 
   function downloadJsonTextareaContent() {
-    const textarea = $('#dashboardJsonTextarea');
-    const content = textarea.val();
+    const content = getDashboardJsonContent();
     if (!content || !content.trim()) {
       notify_error('There is no JSON content to download.');
       return;
@@ -1790,7 +1870,7 @@
       }
       const reader = new FileReader();
       reader.onload = function (loadEvent) {
-        $('#dashboardJsonTextarea').val(loadEvent.target.result || '').focus();
+        setDashboardJsonContent(loadEvent.target.result || '');
         $('#dashboardJsonModal').data('dashboardId', null);
         $('#dashboardJsonUpdateBtn').prop('disabled', true);
       };
@@ -1810,9 +1890,16 @@
     });
 
     $('#dashboardJsonClearBtn').on('click', function () {
-      $('#dashboardJsonTextarea').val('').focus();
+      setDashboardJsonContent('');
       $('#dashboardJsonModal').data('dashboardId', null);
       $('#dashboardJsonUpdateBtn').prop('disabled', true);
+      focusDashboardJsonEditor();
+    });
+
+    $('#dashboardJsonModal').on('shown.bs.modal', function () {
+      setTimeout(function () {
+        focusDashboardJsonEditor();
+      }, 0);
     });
 
     $('#dashboardFilterForm').on('submit', function (event) {
