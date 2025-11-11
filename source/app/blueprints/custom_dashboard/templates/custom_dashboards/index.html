@@ -19,58 +19,52 @@
     </div>
   </div>
 
-  <div class="card mb-4" id="dashboardSelectorCard">
-    <div class="card-body">
-      <div class="form-row align-items-end">
-        <div class="form-group col-md-6 mb-2">
-          <label for="dashboardSelector">Saved dashboards</label>
-          <select class="custom-select" id="dashboardSelector">
-            <option value="">Select a dashboard</option>
-          </select>
-        </div>
-        <div class="form-group col-auto mb-2">
-          <button type="button" class="btn btn-outline-secondary" id="editDashboardBtn">Edit</button>
-        </div>
-        <div class="form-group col-auto mb-2">
-          <button type="button" class="btn btn-outline-danger" id="removeDashboardBtn">Delete</button>
-        </div>
-      </div>
-      <div class="text-muted small d-none" id="dashboardSelectorEmptyState">No custom dashboards yet. Create one to get started.</div>
-    </div>
-  </div>
-
   <div class="card mb-4" id="dashboardFiltersCard">
     <div class="card-header">
       <h5 class="mb-0">Filters</h5>
     </div>
     <div class="card-body">
       <form id="dashboardFilterForm" autocomplete="off">
-        <div class="form-row">
-          <div class="form-group col-md-3">
-            <label for="dashboardStart">Start</label>
+        <div class="row">
+            <div class="form-group col-md-4 col-xl-3">
+                <label for="dashboardSelector" class="text-uppercase text-muted small font-weight-bold">Saved dashboards</label>
+                <select class="custom-select" id="dashboardSelector">
+                <option value="">Select a dashboard</option>
+                </select>
+            </div>
+            <div class="text-muted small d-none" id="dashboardSelectorEmptyState">No custom dashboards yet. Create one to get started.</div>
+          <div class="form-group col-md-4 col-xl-3">
+            <label for="dashboardStart" class="small text-muted text-uppercase">Start</label>
             <input type="datetime-local" class="form-control" id="dashboardStart" name="start">
           </div>
-          <div class="form-group col-md-3">
-            <label for="dashboardEnd">End</label>
+          <div class="form-group col-md-4 col-xl-3">
+            <label for="dashboardEnd" class="small text-muted text-uppercase">End</label>
             <input type="datetime-local" class="form-control" id="dashboardEnd" name="end">
           </div>
-        </div>
-        <div class="d-flex flex-wrap align-items-center mt-3">
-          <div class="btn-group btn-group-sm mr-3 mb-2" role="group" aria-label="Quick ranges">
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last15m" data-minutes="15">Last 15 minutes</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last1h" data-hours="1">Last hour</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last12h" data-hours="12">Last 12 hours</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last7d" data-days="7">Last 7 days</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last30d" data-days="30">Last 30 days</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last90d" data-days="90">Last 90 days</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last6m" data-months="6">Last 6 months</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last1y" data-years="1">Last 1 year</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last2y" data-years="2">Last 2 years</button>
-            <button type="button" class="btn btn-outline-primary dashboard-quick-range" data-range-key="last5y" data-years="5">Last 5 years</button>
+          <div class="form-group col-md-4 col-xl-3 d-flex align-items-end">
+            <div class="w-100 mb-1">
+              <div class="btn-group btn-group-sm w-100" role="group" aria-label="Filter actions">
+                <button type="submit" class="btn btn-primary" id="dashboardApplyBtn">Apply</button>
+                <button type="button" class="btn btn-outline-secondary" id="dashboardResetBtn">Reset</button>
+              </div>
+            </div>
           </div>
-          <div class="ml-sm-auto d-flex align-items-center mb-2">
-            <button type="submit" class="btn btn-primary btn-sm mr-2" id="dashboardApplyBtn">Apply filters</button>
-            <button type="button" class="btn btn-secondary btn-sm" id="dashboardResetBtn">Reset</button>
+        </div>
+        <div class="bg-light rounded px-2 py-2 mt-2">
+          <div class="d-flex align-items-center mb-3">
+            <h6 class="mb-0 text-uppercase text-muted small">Preset ranges</h6>
+          </div>
+          <div class="d-flex flex-wrap align-items-center">
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last15m" data-minutes="15">Last 15 minutes</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last1h" data-hours="1">Last hour</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last12h" data-hours="12">Last 12 hours</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last7d" data-days="7">Last 7 days</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last30d" data-days="30">Last 30 days</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last90d" data-days="90">Last 90 days</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last6m" data-months="6">Last 6 months</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last1y" data-years="1">Last 1 year</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last2y" data-years="2">Last 2 years</button>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill shadow-sm mr-2 mb-2 dashboard-quick-range" data-range-key="last5y" data-years="5">Last 5 years</button>
           </div>
         </div>
       </form>
@@ -78,12 +72,12 @@
     </div>
   </div>
 
-  <div class="card mb-4" id="dashboardViewerCard">
+  <div class="card card-transparent mb-4" id="dashboardViewerCard">
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
         <div class="d-flex align-items-center">
           <h5 class="card-title mb-0" id="selectedDashboardName">Select a dashboard</h5>
-          <span class="badge badge-info ml-2 d-none" id="selectedDashboardSharedBadge">Shared</span>
+          <span class="badge badge-primary ml-2 d-none" id="selectedDashboardSharedBadge">Shared</span>
         </div>
         <small class="text-muted" id="dashboardViewerRange">--</small>
       </div>
@@ -93,6 +87,20 @@
           <label class="custom-control-label" for="dashboardAutoRefresh">Auto-refresh</label>
         </div>
         <small class="text-muted mb-0" id="dashboardViewerStatus">Idle</small>
+            <div class="dropdown mb-2 ml-2">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="dashboardToolsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Edit
+            </button>
+            <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="dashboardToolsDropdown">
+                <button type="button" class="dropdown-item" id="editDashboardBtn">Edit</button>
+                <button type="button" class="dropdown-item" id="dashboardJsonEditBtn">Edit as JSON</button>
+                <button type="button" class="dropdown-item" id="dashboardJsonExportBtn">Export</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" id="dashboardJsonImportBtn">Import</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item text-danger" id="removeDashboardBtn">Delete</button>
+            </div>
+            </div>
       </div>
     </div>
     <div class="card-body">
@@ -103,7 +111,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="dashboardEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal" id="dashboardEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -143,7 +151,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="dashboardHelpModal" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal" id="dashboardHelpModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -217,11 +225,43 @@
     "alias": "client_name"
   }
 ]</code></pre>
-        <h6 class="mt-4">Widget options</h6>
-        <p class="mb-2">Use <code>chart_type</code> to choose the visualization: <code>line</code>, <code>bar</code>, <code>pie</code>, <code>number</code>, <code>percentage</code>, or <code>table</code>. Table widgets support <code>options.display</code> (or <code>options.display_mode</code>) set to <code>number</code>, <code>percentage</code>, or <code>number_percentage</code> to control how values are rendered. You can also set <code>options.total_label</code> to customize the summary row caption.</p>
+  <h6 class="mt-4">Widget options</h6>
+  <p class="mb-2">Use <code>chart_type</code> to choose the visualization: <code>line</code>, <code>bar</code>, <code>pie</code>, <code>number</code>, <code>percentage</code>, or <code>table</code>. Table widgets support <code>options.display</code> (or <code>options.display_mode</code>) set to <code>number</code>, <code>percentage</code>, or <code>number_percentage</code> to control how values are rendered. Use <code>options.size</code> to override the column width (e.g., <code>md-6</code>, <code>col-md-4</code>), and <code>options.total_label</code> to customize the summary row caption.</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="dashboardJsonModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Dashboard JSON Tools</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">Import, export, or edit dashboards directly via JSON. Load an existing dashboard, update it, or paste a new configuration below.</p>
+        <textarea class="form-control" id="dashboardJsonTextarea" rows="12" spellcheck="false"></textarea>
+        <small class="form-text text-muted">Expected keys: <code>name</code>, <code>description</code>, <code>is_shared</code>, and <code>widgets</code>. Widget definitions mirror the examples in the help modal.</small>
+        <input type="file" id="dashboardJsonFileInput" accept="application/json" class="d-none">
+      </div>
+      <div class="modal-footer flex-wrap">
+        <div class="btn-group mr-auto mb-2" role="group" aria-label="JSON actions">
+          <button type="button" class="btn btn-outline-primary" id="dashboardJsonLoadBtn">Load selected</button>
+          <button type="button" class="btn btn-outline-secondary" id="dashboardJsonDownloadBtn">Download</button>
+          <button type="button" class="btn btn-outline-info" id="dashboardJsonImportFileBtn">Import file</button>
+        </div>
+        <div class="btn-group mb-2" role="group" aria-label="JSON apply">
+          <button type="button" class="btn btn-success" id="dashboardJsonCreateBtn">Import as new</button>
+          <button type="button" class="btn btn-primary" id="dashboardJsonUpdateBtn">Update selected</button>
+          <button type="button" class="btn btn-outline-danger" id="dashboardJsonClearBtn">Clear</button>
+        </div>
+        <button type="button" class="btn btn-secondary mb-2" data-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
