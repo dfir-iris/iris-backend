@@ -7,6 +7,69 @@
 <link rel="stylesheet" href="/static/assets/css/suggestags.css">
 <link href="/static/assets/css/dataTables.contextualActions.min.css" rel="stylesheet">
 <link href="/static/assets/css/dataTables.select.min.css" rel="stylesheet">
+<style>
+  #assignedAlertsCard {
+    cursor: pointer;
+  }
+
+  #assignedAlertsCard:focus,
+  #assignedAlertsCard:focus-visible {
+    outline: none;
+  }
+
+  #assignedAlertsCard .assigned-alerts-body {
+    transition: box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    border-radius: inherit;
+  }
+
+  #assignedAlertsCard .assigned-alerts-label,
+  #assignedAlertsCard .assigned-alerts-subtext,
+  #assignedAlertsCard #assignedAlertsCount,
+  #assignedAlertsCard .assigned-alerts-icon,
+  #assignedAlertsCard .assigned-alerts-launch-icon {
+    color: #28a745;
+    transition: color 0.2s ease-in-out;
+  }
+
+  #assignedAlertsCard.has-alerts .assigned-alerts-body {
+    animation: assignedAlertPulse 3s ease-in-out infinite;
+  }
+
+  #assignedAlertsCard.has-alerts .assigned-alerts-label,
+  #assignedAlertsCard.has-alerts .assigned-alerts-subtext,
+  #assignedAlertsCard.has-alerts #assignedAlertsCount,
+  #assignedAlertsCard.has-alerts .assigned-alerts-icon,
+  #assignedAlertsCard.has-alerts .assigned-alerts-launch-icon {
+    color: #dc3545;
+  }
+
+  #assignedAlertsCard.has-alerts #assignedAlertsCount {
+    font-weight: 600;
+  }
+
+  #assignedAlertsCard:focus .assigned-alerts-body,
+  #assignedAlertsCard:focus-visible .assigned-alerts-body,
+  #assignedAlertsCard:hover .assigned-alerts-body {
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.15);
+  }
+
+  #assignedAlertsCard.has-alerts:focus .assigned-alerts-body,
+  #assignedAlertsCard.has-alerts:focus-visible .assigned-alerts-body,
+  #assignedAlertsCard.has-alerts:hover .assigned-alerts-body {
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.2);
+  }
+
+  @keyframes assignedAlertPulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.2);
+    }
+
+    50% {
+      box-shadow: 0 0 0 12px rgba(220, 53, 69, 0);
+    }
+  }
+</style>
 {% endblock stylesheets %}
 
 {% block content %}
@@ -33,62 +96,88 @@
     </div>
     <div class="page-inner mt--5">
       <div class="row row-card-no-pd">
-          <div class="col-sm-6 col-md-4">
-            <div class="card card-stats card-round">
-                <div class="card-body ">
-                    <div class="row">
-                        <div class="col-5">
-                            <div class="icon-big text-center">
-                                <i class="flaticon-file-1 text-success"></i>
-                            </div>
-                        </div>
-                        <div class="col-7 col-stats">
-                            <div class="numbers">
-                                <p class="card-category">Cases (open / all)</p>
-                                <h4 class="card-title">{{ data.cases_open_count }} / {{ data.cases_count }}</h4>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="card card-stats card-round">
+            <div class="card-body ">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="flaticon-file-1 text-success"></i>
+                  </div>
                 </div>
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">Cases (open / all)</p>
+                    <h4 class="card-title">{{ data.cases_open_count }} / {{ data.cases_count }}</h4>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
-        <div class="col-sm-6 col-md-4">
-            <div class="card card-stats card-round">
-                <div class="card-body ">
-                    <div class="row">
-                        <div class="col-5">
-                            <div class="icon-big text-center">
-                                <i class="flaticon-suitcase text-warning"></i>
-                            </div>
-                        </div>
-                        <div class="col-7 col-stats">
-                            <div class="numbers">
-                                <p class="card-category">Attributed open cases</p>
-                                <h4 class="card-title">{{ data.user_open_count }}</h4>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="card card-stats card-round">
+            <div class="card-body ">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="flaticon-suitcase text-warning"></i>
+                  </div>
                 </div>
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">Attributed open cases</p>
+                    <h4 class="card-title">{{ data.user_open_count }}</h4>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
-        <div class="col-sm-6 col-md-4">
-            <div class="card card-stats card-round">
-                <div class="card-body ">
-                    <div class="row">
-                        <div class="col-5">
-                            <div class="icon-big text-center">
-                                <i id='icon_user_task' class=""></i>
-                            </div>
-                        </div>
-                        <div class="col-7 col-stats">
-                            <div class="numbers">
-                                <p class="card-category">Attributed open tasks</p>
-                                <h4 class="card-title" id="user_attr_count"></h4>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="card card-stats card-round">
+            <div class="card-body ">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i id="icon_user_task" class="fa fa-clipboard-check text-secondary"></i>
+                  </div>
                 </div>
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">Attributed open tasks</p>
+                    <h4 class="card-title" id="user_attr_count"></h4>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+    <div class="card card-stats card-round" id="assignedAlertsCard"
+      data-assigned-alerts-count="{{ data.assigned_alerts_count }}"
+      data-assigned-alerts-url="{{ data.assigned_alerts_link }}"
+      role="link" tabindex="0"
+      aria-label="Open assigned alerts list">
+            <div class="card-body assigned-alerts-body">
+              <div class="row">
+                <div class="col-5">
+                  <div class="icon-big text-center">
+                    <i class="fa fa-bell assigned-alerts-icon" aria-hidden="true"></i>
+                  </div>
+                </div>
+                <div class="col-7 col-stats">
+                  <div class="numbers">
+                    <p class="card-category">
+                      <span class="assigned-alerts-label">Assigned alerts</span>
+                      <i class="fa fa-arrow-up-right-from-square assigned-alerts-launch-icon ml-2" aria-hidden="true"></i>
+                    </p>
+                    <h4 class="card-title" id="assignedAlertsCount">{{ data.assigned_alerts_count }}</h4>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="row" id="rowPendingCasesReview" style="display: none;">

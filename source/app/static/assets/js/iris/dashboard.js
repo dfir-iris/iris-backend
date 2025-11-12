@@ -497,12 +497,12 @@ async function update_utasks_list() {
             UserTaskTable.MakeCellsEditable("destroy");
             tasks_list = data.data.tasks;
 
-            $('#user_attr_count').text(tasks_list.length);
-            if (tasks_list.length != 0){
-                $('#icon_user_task').removeClass().addClass('flaticon-alarm text-danger');
-            } else {
-                $('#icon_user_task').removeClass().addClass('flaticon-success text-success');
-            }
+      $('#user_attr_count').text(tasks_list.length);
+      if (tasks_list.length !== 0) {
+        $('#icon_user_task').removeClass().addClass('fa fa-clipboard-list text-danger');
+      } else {
+        $('#icon_user_task').removeClass().addClass('fa fa-clipboard-check text-success');
+      }
             options_l = data.data.tasks_status;
             options = [];
             for (index in options_l) {
@@ -541,6 +541,37 @@ async function update_utasks_list() {
         }
 
     });
+}
+
+function initAssignedAlertsCard() {
+  const card = $('#assignedAlertsCard');
+  if (!card.length) {
+    return;
+  }
+
+  const count = Number(card.data('assigned-alerts-count')) || 0;
+  card.toggleClass('has-alerts', count > 0);
+
+  const targetUrl = card.data('assigned-alerts-url');
+  if (!targetUrl) {
+    return;
+  }
+
+  const navigateToAlerts = () => {
+    window.location.href = targetUrl;
+  };
+
+  card.on('click', (event) => {
+    event.preventDefault();
+    navigateToAlerts();
+  });
+
+  card.on('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      navigateToAlerts();
+    }
+  });
 }
 
 function callBackEditUserTaskStatus(updatedCell, updatedRow, oldValue) {
@@ -972,5 +1003,6 @@ $(document).ready(function() {
     update_ucases_list();
     update_ureviews_list();
     update_gtasks_list();
+  initAssignedAlertsCard();
     setInterval(check_page_update,30000);
 });

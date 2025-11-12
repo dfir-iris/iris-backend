@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import json
+from urllib.parse import urlencode
 
 import marshmallow
 from datetime import datetime
@@ -579,10 +580,41 @@ def index(caseid, url_redir):
 
     acgucc = ac_get_user_case_counts(current_user.id)
 
+    status_names = ['New', 'Pending', 'In progress']
+    status_rows = AlertStatus.query.with_entities(AlertStatus.status_id).filter(
+        AlertStatus.status_name.in_(status_names)
+    ).all()
+    status_ids = [row.status_id for row in status_rows]
+
+    assigned_alerts_count = 0
+    if status_ids:
+        assigned_alerts_count = Alert.query.filter(
+            Alert.alert_owner_id == current_user.id,
+            Alert.alert_status_id.in_(status_ids)
+        ).count()
+
+    alerts_filter_params = {'alert_owner_id': current_user.id}
+    if caseid is not None:
+        alerts_filter_params['cid'] = caseid
+    if status_ids:
+        alerts_filter_params['custom_conditions'] = json.dumps([
+            {
+                'field': 'alert_status_id',
+                'operator': 'in',
+                'value': status_ids
+            }
+        ], separators=(',', ':'))
+
+    assigned_alerts_link = url_for('alerts.alerts_list_view_route')
+    if alerts_filter_params:
+        assigned_alerts_link = f"{assigned_alerts_link}?{urlencode(alerts_filter_params)}"
+
     data = {
         "user_open_count": acgucc[2],
         "cases_open_count": acgucc[1],
         "cases_count": acgucc[0],
+        "assigned_alerts_count": assigned_alerts_count,
+        "assigned_alerts_link": assigned_alerts_link,
     }
 
     # Create the customer form to be able to quickly add a customer
