@@ -26,7 +26,11 @@ from app.schema.marshables import GlobalTasksSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
+from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_not_found
 from app.business.global_tasks import global_tasks_create
+from app.business.global_tasks import global_tasks_get
+from app.models.errors import ObjectNotFoundError
 
 
 class GlobalTasksOperations:
@@ -44,6 +48,14 @@ class GlobalTasksOperations:
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
 
+    def read(self, identifier):
+        try:
+            customer = global_tasks_get(identifier)
+            result = self._schema.dump(customer)
+            return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 global_tasks_blueprint = Blueprint('global_tasks_rest_v2', __name__, url_prefix='/global-tasks')
 
@@ -54,3 +66,9 @@ global_tasks_operations = GlobalTasksOperations()
 @ac_api_requires()
 def create_customer():
     return global_tasks_operations.create()
+
+
+@global_tasks_blueprint.get('/<int:identifier>')
+@ac_api_requires()
+def get_customer(identifier):
+    return global_tasks_operations.read(identifier)

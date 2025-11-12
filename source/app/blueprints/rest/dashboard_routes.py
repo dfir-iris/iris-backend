@@ -155,11 +155,11 @@ def get_gtasks():
 @dashboard_rest_blueprint.route('/global/tasks/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def view_gtask(cur_id):
-    task = get_global_task(task_id=cur_id)
+    task = get_global_task(cur_id)
     if not task:
         return response_error(f'Global task ID {cur_id} not found')
 
-    return response_success("", data=task._asdict())
+    return response_success('', data=task._asdict())
 
 
 @dashboard_rest_blueprint.route('/user/tasks/status/update', methods=['POST'])
