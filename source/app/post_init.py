@@ -1382,7 +1382,7 @@ class PostInit:
         if ganalysts.group_permissions != ac_get_mask_analyst():
             ganalysts.group_permissions = ac_get_mask_analyst()
 
-        if ganalysts.group_auto_follow is not False:
+        if ganalysts.group_auto_follow:
             ganalysts.group_auto_follow = False
 
         if ganalysts.group_auto_follow_access_level != CaseAccessLevel.full_access.value:
