@@ -1,19 +1,27 @@
+from dataclasses import dataclass
+from typing import Set
+
+from flask_login import current_user
+from sqlalchemy import and_
+from sqlalchemy import distinct
+from sqlalchemy import func
+from sqlalchemy import or_
+from sqlalchemy import select
+
 from app import db
+from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
+from app.iris_engine.access_control.utils import ac_current_user_has_permission, ac_get_fast_user_cases_access
 from app.models.alerts import Alert
 from app.models.alerts import AlertCaseAssociation
 from app.models.alerts import AlertResolutionStatus
 from app.models.alerts import AlertStatus
 from app.models.alerts import Severity
+from app.models.authorization import Permissions
 from app.models.cases import Cases
 from app.models.models import CaseClassification
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseStatus
 from app.models.models import EvidenceTypes
-
-
-from sqlalchemy import and_
-from sqlalchemy import distinct
-from sqlalchemy import func
 import re
 from datetime import datetime, timedelta
 from datetime import timezone
@@ -39,6 +47,82 @@ _CASE_STATUS_LABELS = {
     CaseStatus.true_positive_without_impact.value: 'True Positive (No Impact)',
     CaseStatus.legitimate.value: 'Legitimate'
 }
+
+
+@dataclass(frozen=True)
+class _AccessScope:
+    allow_all: bool
+    client_ids: Set[int]
+    case_ids: Set[int]
+
+    @property
+    def has_scope(self) -> bool:
+        return bool(self.client_ids or self.case_ids)
+
+
+def _get_access_scope() -> _AccessScope:
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        return _AccessScope(True, set(), set())
+
+    user_id = getattr(current_user, 'id', None)
+    if not user_id:
+        return _AccessScope(False, set(), set())
+
+    client_ids = {int(client_id) for client_id in (get_user_clients_id(user_id) or []) if client_id is not None}
+    case_ids = {int(case_id) for case_id in (ac_get_fast_user_cases_access(user_id) or []) if case_id is not None}
+
+    return _AccessScope(False, client_ids, case_ids)
+
+
+def _apply_alert_access(query, scope: _AccessScope):
+    if scope.allow_all:
+        return query
+
+    if not scope.has_scope:
+        return query.filter(Alert.alert_id == -1)
+
+    conditions = []
+
+    if scope.client_ids:
+        conditions.append(Alert.alert_customer_id.in_(list(scope.client_ids)))
+
+    if scope.case_ids:
+        case_alerts_subquery = select(AlertCaseAssociation.alert_id).where(
+            AlertCaseAssociation.case_id.in_(list(scope.case_ids))
+        )
+        conditions.append(Alert.alert_id.in_(case_alerts_subquery))
+
+    if not conditions:
+        return query.filter(Alert.alert_id == -1)
+
+    if len(conditions) == 1:
+        return query.filter(conditions[0])
+
+    return query.filter(or_(*conditions))
+
+
+def _apply_case_access(query, scope: _AccessScope):
+    if scope.allow_all:
+        return query
+
+    if not scope.has_scope:
+        return query.filter(Cases.case_id == -1)
+
+    conditions = []
+
+    if scope.client_ids:
+        conditions.append(Cases.client_id.in_(list(scope.client_ids)))
+
+    if scope.case_ids:
+        conditions.append(Cases.case_id.in_(list(scope.case_ids)))
+
+    if not conditions:
+        return query.filter(Cases.case_id == -1)
+
+    if len(conditions) == 1:
+        return query.filter(conditions[0])
+
+    return query.filter(or_(*conditions))
 
 
 def _case_status_label(status_id):
@@ -393,6 +477,7 @@ def _build_case_filters(client_id, severity_filter, case_status_filter):
 
 
 def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status_filter):
+    access_scope = _get_access_scope()
     alert_filters = []
     if client_id:
         alert_filters.append(Alert.alert_customer_id == client_id)
@@ -402,6 +487,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     alert_query = Alert.query.filter(and_(Alert.alert_creation_time >= start_dt, Alert.alert_creation_time <= end_dt))
     if alert_filters:
         alert_query = alert_query.filter(*alert_filters)
+    alert_query = _apply_alert_access(alert_query, access_scope)
 
     alert_rows = alert_query.with_entities(
         Alert.alert_id,
@@ -517,6 +603,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     if severity_filter:
         unassigned_alerts_query = unassigned_alerts_query.filter(Alert.alert_severity_id == severity_filter)
     unassigned_alerts_query = unassigned_alerts_query.filter(Alert.alert_creation_time <= end_dt)
+    unassigned_alerts_query = _apply_alert_access(unassigned_alerts_query, access_scope)
     unassigned_alerts_total = unassigned_alerts_query.count()
 
     alerts_with_case_query = db.session.query(func.count(distinct(AlertCaseAssociation.alert_id))).join(
@@ -527,6 +614,8 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         alerts_with_case_query = alerts_with_case_query.filter(Alert.alert_customer_id == client_id)
     if severity_filter:
         alerts_with_case_query = alerts_with_case_query.filter(Alert.alert_severity_id == severity_filter)
+
+    alerts_with_case_query = _apply_alert_access(alerts_with_case_query, access_scope)
 
     alerts_with_cases = alerts_with_case_query.scalar() or 0
 
@@ -543,6 +632,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     cases_detected_query = Cases.query.filter(and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt))
     if case_filters:
         cases_detected_query = cases_detected_query.filter(*case_filters)
+    cases_detected_query = _apply_case_access(cases_detected_query, access_scope)
     incidents_detected = cases_detected_query.count()
 
     cases_resolved_query = Cases.query.filter(Cases.close_date.isnot(None))
@@ -552,6 +642,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         Cases.close_date >= start_dt.date(),
         Cases.close_date <= end_dt.date()
     )
+    cases_resolved_query = _apply_case_access(cases_resolved_query, access_scope)
     incidents_resolved = cases_resolved_query.count()
 
     false_positive_cases_query = Cases.query.filter(
@@ -561,6 +652,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     )
     if case_filters:
         false_positive_cases_query = false_positive_cases_query.filter(*case_filters)
+    false_positive_cases_query = _apply_case_access(false_positive_cases_query, access_scope)
     false_positive_cases = false_positive_cases_query.count()
 
     cases_for_mttr_query = Cases.query.with_entities(Cases.initial_date, Cases.close_date)
@@ -571,6 +663,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
         Cases.close_date >= start_dt.date(),
         Cases.close_date <= end_dt.date()
     )
+    cases_for_mttr_query = _apply_case_access(cases_for_mttr_query, access_scope)
 
     mttr_deltas = []
     for initial_date, close_date in cases_for_mttr_query:
@@ -588,6 +681,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     cases_for_phase_query = cases_for_phase_query.filter(
         and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt)
     )
+    cases_for_phase_query = _apply_case_access(cases_for_phase_query, access_scope)
     cases_for_phase = cases_for_phase_query.all()
 
     mttc_deltas = []
@@ -618,6 +712,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     severity_query = severity_query.filter(and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt))
     if case_filters:
         severity_query = severity_query.filter(*case_filters)
+    severity_query = _apply_case_access(severity_query, access_scope)
     severity_query = severity_query.group_by(Severity.severity_name)
     severity_counts = severity_query.all()
 
@@ -628,6 +723,7 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
     )
     if case_filters:
         unspecified_severity_count_query = unspecified_severity_count_query.filter(*case_filters)
+    unspecified_severity_count_query = _apply_case_access(unspecified_severity_count_query, access_scope)
     unspecified_severity_count = unspecified_severity_count_query.count()
 
     alert_severity_rows = alert_query.outerjoin(
@@ -786,11 +882,13 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
 
 
 def _build_classification_payload(start_dt, end_dt, client_id, severity_filter, case_status_filter):
+    access_scope = _get_access_scope()
     case_filters = _build_case_filters(client_id, severity_filter, case_status_filter)
 
     base_case_query = Cases.query.filter(and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt))
     if case_filters:
         base_case_query = base_case_query.filter(*case_filters)
+    base_case_query = _apply_case_access(base_case_query, access_scope)
     total_cases = base_case_query.count()
 
     classification_query = db.session.query(
@@ -803,6 +901,7 @@ def _build_classification_payload(start_dt, end_dt, client_id, severity_filter, 
     if case_filters:
         classification_query = classification_query.filter(*case_filters)
 
+    classification_query = _apply_case_access(classification_query, access_scope)
     classification_query = classification_query.group_by(CaseClassification.name)
     rows = classification_query.all()
 
@@ -824,6 +923,7 @@ def _build_classification_payload(start_dt, end_dt, client_id, severity_filter, 
     if case_filters:
         status_query = status_query.filter(*case_filters)
 
+    status_query = _apply_case_access(status_query, access_scope)
     status_query = status_query.group_by(Cases.status_id)
     status_rows = status_query.all()
 
@@ -855,6 +955,7 @@ def _build_classification_payload(start_dt, end_dt, client_id, severity_filter, 
 
 
 def _build_evidence_payload(start_dt, end_dt, client_id, severity_filter, case_status_filter):
+    access_scope = _get_access_scope()
     case_filters = _build_case_filters(client_id, severity_filter, case_status_filter)
 
     conditions = [
@@ -869,6 +970,8 @@ def _build_evidence_payload(start_dt, end_dt, client_id, severity_filter, case_s
     if case_filters:
         base_evidence_query = base_evidence_query.filter(*case_filters)
 
+    base_evidence_query = _apply_case_access(base_evidence_query, access_scope)
+
     total_evidences = base_evidence_query.count()
 
     total_size_query = db.session.query(func.coalesce(func.sum(CaseReceivedFile.file_size), 0)).join(
@@ -877,6 +980,8 @@ def _build_evidence_payload(start_dt, end_dt, client_id, severity_filter, case_s
 
     if case_filters:
         total_size_query = total_size_query.filter(*case_filters)
+
+    total_size_query = _apply_case_access(total_size_query, access_scope)
 
     total_size = total_size_query.scalar() or 0
 
@@ -893,6 +998,7 @@ def _build_evidence_payload(start_dt, end_dt, client_id, severity_filter, case_s
     if case_filters:
         distribution_query = distribution_query.filter(*case_filters)
 
+    distribution_query = _apply_case_access(distribution_query, access_scope)
     distribution_query = distribution_query.group_by(EvidenceTypes.name)
     rows = distribution_query.all()
 

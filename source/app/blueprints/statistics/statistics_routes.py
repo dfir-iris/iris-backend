@@ -10,6 +10,7 @@ from app.util import ac_requires
 from app.util import response_error
 from app.util import response_success
 from datetime import datetime, timedelta
+from app.models.authorization import Permissions
 from app.datamgmt.statistics.statistics_db import _build_kpi_payload, _parse_datetime_param
 from app.datamgmt.statistics.statistics_db import _build_classification_payload, _build_evidence_payload
 
@@ -47,7 +48,7 @@ def _resolve_timeframe(args):
 
 
 @stats_blueprint.route('/statistics')
-@ac_requires()
+@ac_requires(Permissions.statistics_read, no_cid_required=True)
 def statistics(caseid, url_redir):
     if url_redir:
         return redirect(url_for('index.index', cid=caseid if caseid is not None else 1, redirect=True))
@@ -57,7 +58,7 @@ def statistics(caseid, url_redir):
 
 
 @stats_blueprint.route('/statistics/api/kpis', methods=['GET'])
-@ac_api_requires()
+@ac_api_requires(Permissions.statistics_read)
 def get_statistics_kpis():
     try:
         start_dt, end_dt = _resolve_timeframe(request.args)
@@ -73,7 +74,7 @@ def get_statistics_kpis():
 
 
 @stats_blueprint.route('/statistics/api/classifications', methods=['GET'])
-@ac_api_requires()
+@ac_api_requires(Permissions.statistics_read)
 def get_statistics_classifications():
     try:
         start_dt, end_dt = _resolve_timeframe(request.args)
@@ -89,7 +90,7 @@ def get_statistics_classifications():
 
 
 @stats_blueprint.route('/statistics/api/evidence', methods=['GET'])
-@ac_api_requires()
+@ac_api_requires(Permissions.statistics_read)
 def get_statistics_evidence():
     try:
         start_dt, end_dt = _resolve_timeframe(request.args)

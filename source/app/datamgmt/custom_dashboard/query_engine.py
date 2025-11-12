@@ -6,13 +6,17 @@ import math
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from sqlalchemy import func
+from flask_login import current_user
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Query
 
 from app import db
+from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
+from app.iris_engine.access_control.utils import ac_current_user_has_permission, ac_get_fast_user_cases_access
 from app.models.alerts import Alert, AlertResolutionStatus, AlertStatus, Severity
 from app.models.alerts import AlertCaseAssociation
 from app.models.cases import Cases
+from app.models.authorization import Permissions
 from app.models.models import CaseClassification, Client
 
 
@@ -250,6 +254,7 @@ class WidgetQueryExecutor:
 
         start, end = timeframe
         self._apply_timeframe(start, end)
+        self._apply_access_filters()
 
         query = self._build_query()
         query = self._apply_sorting(query)
@@ -335,6 +340,40 @@ class WidgetQueryExecutor:
 
         for expression in _between_dates(column, start, end):
             self.builder.filters.append(expression)
+
+    def _apply_access_filters(self):
+        if ac_current_user_has_permission(Permissions.server_administrator):
+            return
+
+        user_id = getattr(current_user, 'id', None)
+        if not user_id:
+            # Without a logged-in user we cannot determine scope; deny by default.
+            self.builder.filters.append(Alert.alert_id == -1)
+            return
+
+        client_ids = get_user_clients_id(user_id) or []
+        case_ids = ac_get_fast_user_cases_access(user_id) or []
+
+        access_conditions = []
+
+        if client_ids:
+            access_conditions.append(Alert.alert_customer_id.in_(client_ids))
+
+        if case_ids:
+            case_alerts_subquery = select(AlertCaseAssociation.alert_id).where(
+                AlertCaseAssociation.case_id.in_(case_ids)
+            )
+            access_conditions.append(Alert.alert_id.in_(case_alerts_subquery))
+
+        if not access_conditions:
+            # User has no accessible scope -> no data should be returned.
+            self.builder.filters.append(Alert.alert_id == -1)
+            return
+
+        if len(access_conditions) == 1:
+            self.builder.filters.append(access_conditions[0])
+        else:
+            self.builder.filters.append(or_(*access_conditions))
 
     def _build_query(self) -> Query:
         if not any(label in self.builder.select_labels for label in self.builder.aggregated_labels):
