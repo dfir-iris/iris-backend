@@ -16,9 +16,10 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import enum
 import uuid
-
 from datetime import datetime
+
 from sqlalchemy import BigInteger
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Boolean
@@ -183,3 +184,12 @@ class CaseProtagonist(db.Model):
 
     case = relationship('Cases')
     user = relationship('User')
+
+
+class CaseStatus(enum.Enum):
+    unknown = 0x0
+    false_positive = 0x1
+    true_positive_with_impact = 0x2
+    not_applicable = 0x3
+    true_positive_without_impact = 0x4
+    legitimate = 0x5

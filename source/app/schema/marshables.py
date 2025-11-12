@@ -60,14 +60,13 @@ from app.models.models import IrisModuleHook
 from app.models.models import Tags
 from app.models.models import ReviewStatus
 from app.models.models import EvidenceTypes
-from app.models.models import CaseStatus
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
 from app.models.models import AssetsType
 from app.models.models import CaseAssets
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
-from app.models.cases import Cases
+from app.models.cases import Cases, CaseStatus
 from app.models.cases import CasesEvent
 from app.models.models import Client
 from app.models.comments import Comments
