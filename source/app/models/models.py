@@ -88,21 +88,6 @@ def create_safe_limited(session, model, keywords_list, **kwargs):
         return True
 
 
-class Client(db.Model):
-    __tablename__ = 'client'
-
-    client_id = Column(BigInteger, primary_key=True)
-    client_uuid = Column(UUID(as_uuid=True), server_default=text("gen_random_uuid()"), nullable=False)
-    name = Column(Text, unique=True)
-    description = Column(Text)
-    sla = Column(Text)
-    creation_date = Column(DateTime, server_default=func.now(), nullable=True)
-    created_by = Column(ForeignKey('user.id'), nullable=True)
-    last_update_date = Column(DateTime, server_default=func.now(), nullable=True)
-
-    custom_attributes = Column(JSON)
-
-
 class AssetsType(db.Model):
     __tablename__ = 'assets_type'
 

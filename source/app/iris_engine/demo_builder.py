@@ -32,7 +32,7 @@ from app.datamgmt.manage.manage_users_db import user_exists
 from app.iris_engine.access_control.utils import ac_add_users_multi_effective_access
 from app.models.cases import Cases
 from app.models.errors import ObjectNotFoundError
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import User
 

@@ -55,7 +55,7 @@ from app.datamgmt.dashboard.dashboard_db import list_user_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_reviews
 from app.datamgmt.case.case_db import get_first_case_with_customer
 from app.models.cases import Cases, ReviewStatusList
-from app.models.models import Client
+from app.models.customers import Client
 
 
 def cases_filter(current_user, pagination_parameters, name, case_identifiers, customer_identifier,

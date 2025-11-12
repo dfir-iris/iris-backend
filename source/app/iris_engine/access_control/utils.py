@@ -6,7 +6,7 @@ from app.datamgmt.manage.manage_access_control_db import add_several_user_effect
 from app.logger import logger
 from app.blueprints.iris_user import iris_current_user
 from app.models.cases import Cases
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import ac_flag_match_mask
 from app.models.authorization import UserClient

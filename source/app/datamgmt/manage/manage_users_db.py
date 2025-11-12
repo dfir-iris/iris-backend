@@ -36,7 +36,7 @@ from app.iris_engine.access_control.utils import ac_auto_update_user_effective_a
 from app.iris_engine.access_control.utils import ac_get_detailed_effective_permissions_from_groups
 from app.iris_engine.access_control.utils import ac_remove_case_access_from_user
 from app.models.cases import Cases
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.models import UserActivity
 from app.models.authorization import CaseAccessLevel, ac_access_level_mask_from_val_list
 from app.models.authorization import UserClient
