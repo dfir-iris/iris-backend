@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from flask_login import current_user
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Query
+from sqlalchemy.orm import Query, aliased
 
 from app import db
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
@@ -16,7 +16,7 @@ from app.iris_engine.access_control.utils import ac_current_user_has_permission,
 from app.models.alerts import Alert, AlertResolutionStatus, AlertStatus, Severity
 from app.models.alerts import AlertCaseAssociation
 from app.models.cases import Cases
-from app.models.authorization import Permissions
+from app.models.authorization import Permissions, User
 from app.models.models import CaseClassification, Client
 
 
@@ -81,6 +81,27 @@ def _normalize_display_mode(value: Optional[str]) -> str:
     if normalized in {'number_percentage', 'number-and-percentage', 'number and percentage', 'both'}:
         return 'number_percentage'
     return 'number'
+
+
+CaseOwnerUser = aliased(User, name='case_owner_user')
+CaseCreatorUser = aliased(User, name='case_creator_user')
+AlertOwnerUser = aliased(User, name='alert_owner_user')
+
+
+def _join_cases(query):
+    return query.outerjoin(Cases, Alert.cases)
+
+
+def _join_case_owner(query):
+    return query.outerjoin(CaseOwnerUser, Cases.owner)
+
+
+def _join_case_creator(query):
+    return query.outerjoin(CaseCreatorUser, Cases.user)
+
+
+def _join_alert_owner(query):
+    return query.outerjoin(AlertOwnerUser, Alert.owner)
 
 
 _AGGREGATIONS = {
@@ -174,6 +195,7 @@ class WidgetQueryExecutor:
                 'alert_resolution_status_id': Alert.alert_resolution_status_id,
                 'alert_status_id': Alert.alert_status_id,
                 'alert_severity_id': Alert.alert_severity_id,
+                'alert_owner_id': Alert.alert_owner_id,
                 'alert_classification_id': Alert.alert_classification_id
             },
             'default_time_column': Alert.alert_creation_time
@@ -223,10 +245,38 @@ class WidgetQueryExecutor:
             'model': Cases,
             'columns': {
                 'case_id': Cases.case_id,
-                'name': Cases.name
+                'name': Cases.name,
+                'owner_id': Cases.owner_id,
+                'creator_id': Cases.user_id
             },
-            'join': lambda query: query.outerjoin(AlertCaseAssociation, AlertCaseAssociation.alert_id == Alert.alert_id)
-                                   .outerjoin(Cases, AlertCaseAssociation.case_id == Cases.case_id)
+            'join': _join_cases
+        },
+        'alert_owner': {
+            'model': User,
+            'columns': {
+                'id': AlertOwnerUser.id,
+                'username': AlertOwnerUser.user,
+                'name': AlertOwnerUser.name
+            },
+            'join': _join_alert_owner
+        },
+        'case_owner': {
+            'model': User,
+            'columns': {
+                'id': CaseOwnerUser.id,
+                'username': CaseOwnerUser.user,
+                'name': CaseOwnerUser.name
+            },
+            'join': _join_case_owner
+        },
+        'case_creator': {
+            'model': User,
+            'columns': {
+                'id': CaseCreatorUser.id,
+                'username': CaseCreatorUser.user,
+                'name': CaseCreatorUser.name
+            },
+            'join': _join_case_creator
         }
     }
 
@@ -283,6 +333,8 @@ class WidgetQueryExecutor:
         column = columns.get(column_name)
         if column is None:
             raise QueryExecutionError(f"Column '{column_name}' is not allowed for table '{table_name}'.")
+        if table_name in {'case_owner', 'case_creator'}:
+            self.builder.add_join('cases')
         if table_name != self._BASE_TABLE:
             self.builder.add_join(table_name)
         return column

@@ -7,6 +7,7 @@ from sqlalchemy import distinct
 from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy.orm import aliased
 
 from app import db
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
@@ -16,7 +17,7 @@ from app.models.alerts import AlertCaseAssociation
 from app.models.alerts import AlertResolutionStatus
 from app.models.alerts import AlertStatus
 from app.models.alerts import Severity
-from app.models.authorization import Permissions
+from app.models.authorization import Permissions, User
 from app.models.cases import Cases
 from app.models.models import CaseClassification
 from app.models.models import CaseReceivedFile
@@ -47,6 +48,11 @@ _CASE_STATUS_LABELS = {
     CaseStatus.true_positive_without_impact.value: 'True Positive (No Impact)',
     CaseStatus.legitimate.value: 'Legitimate'
 }
+
+
+AlertOwnerUser = aliased(User, name='stats_alert_owner_user')
+CaseOwnerUser = aliased(User, name='stats_case_owner_user')
+CaseCreatorUser = aliased(User, name='stats_case_creator_user')
 
 
 @dataclass(frozen=True)
@@ -783,6 +789,36 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'percentage': _percentage(count, total_alerts)
         })
 
+    alert_owner_rows = alert_query.outerjoin(
+        AlertOwnerUser, Alert.owner
+    ).with_entities(
+        Alert.alert_owner_id,
+        AlertOwnerUser.user,
+        AlertOwnerUser.name,
+        func.count(Alert.alert_id)
+    ).group_by(
+        Alert.alert_owner_id,
+        AlertOwnerUser.user,
+        AlertOwnerUser.name
+    ).all()
+
+    alert_owner_distribution = []
+    for owner_id, owner_username, owner_name, count in alert_owner_rows:
+        if owner_id is None:
+            display_name = 'Unassigned'
+        else:
+            display_name = owner_name or owner_username or f'User {owner_id}'
+        alert_owner_distribution.append({
+            'id': owner_id,
+            'username': owner_username,
+            'name': owner_name,
+            'display_name': display_name,
+            'count': count,
+            'percentage': _percentage(count, total_alerts)
+        })
+
+    alert_owner_distribution.sort(key=lambda item: item['count'], reverse=True)
+
     case_severity_distribution = []
     denominator = incidents_detected if incidents_detected else None
 
@@ -801,6 +837,74 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'count': unspecified_severity_count,
             'percentage': percent
         })
+
+    case_owner_rows = Cases.query.filter(
+        and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt)
+    )
+    if case_filters:
+        case_owner_rows = case_owner_rows.filter(*case_filters)
+    case_owner_rows = _apply_case_access(case_owner_rows, access_scope)
+    case_owner_rows = case_owner_rows.outerjoin(CaseOwnerUser, Cases.owner).with_entities(
+        Cases.owner_id,
+        CaseOwnerUser.user,
+        CaseOwnerUser.name,
+        func.count(Cases.case_id)
+    ).group_by(
+        Cases.owner_id,
+        CaseOwnerUser.user,
+        CaseOwnerUser.name
+    ).all()
+
+    case_owner_distribution = []
+    for owner_id, owner_username, owner_name, count in case_owner_rows:
+        if owner_id is None:
+            display_name = 'Unassigned'
+        else:
+            display_name = owner_name or owner_username or f'User {owner_id}'
+        case_owner_distribution.append({
+            'id': owner_id,
+            'username': owner_username,
+            'name': owner_name,
+            'display_name': display_name,
+            'count': count,
+            'percentage': _percentage(count, incidents_detected)
+        })
+
+    case_owner_distribution.sort(key=lambda item: item['count'], reverse=True)
+
+    case_creator_rows = Cases.query.filter(
+        and_(Cases.initial_date >= start_dt, Cases.initial_date <= end_dt)
+    )
+    if case_filters:
+        case_creator_rows = case_creator_rows.filter(*case_filters)
+    case_creator_rows = _apply_case_access(case_creator_rows, access_scope)
+    case_creator_rows = case_creator_rows.outerjoin(CaseCreatorUser, Cases.user).with_entities(
+        Cases.user_id,
+        CaseCreatorUser.user,
+        CaseCreatorUser.name,
+        func.count(Cases.case_id)
+    ).group_by(
+        Cases.user_id,
+        CaseCreatorUser.user,
+        CaseCreatorUser.name
+    ).all()
+
+    case_creator_distribution = []
+    for creator_id, creator_username, creator_name, count in case_creator_rows:
+        if creator_id is None:
+            display_name = 'Unknown'
+        else:
+            display_name = creator_name or creator_username or f'User {creator_id}'
+        case_creator_distribution.append({
+            'id': creator_id,
+            'username': creator_username,
+            'name': creator_name,
+            'display_name': display_name,
+            'count': count,
+            'percentage': _percentage(count, incidents_detected)
+        })
+
+    case_creator_distribution.sort(key=lambda item: item['count'], reverse=True)
 
     window_thresholds = {key: alert_windows[key].isoformat() for key in alert_window_keys}
 
@@ -860,7 +964,8 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'escalated_count': escalated_alerts,
             'severity_distribution': alert_severity_distribution,
             'status_distribution': alert_status_distribution,
-            'resolution_distribution': alert_resolution_distribution
+            'resolution_distribution': alert_resolution_distribution,
+            'owner_distribution': alert_owner_distribution
         },
         'metrics': {
             'mean_time_to_detect': _duration_payload(mean_time_to_detect_seconds),
@@ -874,7 +979,9 @@ def _build_kpi_payload(start_dt, end_dt, client_id, severity_filter, case_status
             'false_positive_rate_percent': false_positive_rate_percent,
             'detection_coverage_percent': detection_coverage_percent,
             'incident_escalation_rate_percent': incident_escalation_rate_percent,
-            'case_severity_distribution': case_severity_distribution
+            'case_severity_distribution': case_severity_distribution,
+            'case_owner_distribution': case_owner_distribution,
+            'case_creator_distribution': case_creator_distribution
         },
         'queue': queue_payload,
         'alert_filter_metadata': alert_filter_metadata

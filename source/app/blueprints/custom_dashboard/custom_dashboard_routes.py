@@ -172,6 +172,9 @@ def api_get_dashboard_data(dashboard_id):
             'definition': definition
         }
 
+        layout = definition.get('layout') if isinstance(definition.get('layout'), dict) else {}
+        widget_payload['layout'] = layout
+
         try:
             result = execute_widget(definition, timeframe_tuple)
             widget_payload['data'] = format_widget_payload(result, definition)
@@ -182,6 +185,29 @@ def api_get_dashboard_data(dashboard_id):
             app.logger.exception('Failed to execute custom dashboard widget %s', widget.widget_uuid)
 
         widgets_payload.append(widget_payload)
+
+    sections_payload = []
+    section_map = {}
+
+    for widget_payload in widgets_payload:
+        layout = widget_payload.get('layout') or {}
+        section_id = layout.get('section_id') or 'section-default'
+        if section_id not in section_map:
+            section_map[section_id] = {
+                'id': section_id,
+                'title': layout.get('section_title') or '',
+                'description': layout.get('section_description'),
+                'show_divider': bool(layout.get('show_divider')),
+                'section_index': layout.get('section_index') if layout.get('section_index') is not None else len(section_map),
+                'widgets': []
+            }
+        section_entry = section_map[section_id]
+        section_entry['widgets'].append(widget_payload)
+
+    if section_map:
+        sections_payload = sorted(section_map.values(), key=lambda item: item.get('section_index', 0))
+        for section in sections_payload:
+            section['widgets'].sort(key=lambda item: item.get('layout', {}).get('widget_index', 0))
 
     response_payload = {
         'dashboard': {
@@ -195,7 +221,17 @@ def api_get_dashboard_data(dashboard_id):
             'start': start_dt.isoformat(),
             'end': end_dt.isoformat()
         },
-        'widgets': widgets_payload
+        'widgets': widgets_payload,
+        'sections': [
+            {
+                'id': section['id'],
+                'title': section.get('title'),
+                'description': section.get('description'),
+                'show_divider': section.get('show_divider', False),
+                'widgets': section['widgets']
+            }
+            for section in sections_payload
+        ]
     }
 
     return jsonify({'status': 'success', 'data': response_payload})

@@ -94,7 +94,6 @@
             </button>
             <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="dashboardToolsDropdown">
                 <button type="button" class="dropdown-item" id="editDashboardBtn">Edit</button>
-                <button type="button" class="dropdown-item" id="dashboardJsonEditBtn">Edit as JSON</button>
                 <button type="button" class="dropdown-item" id="dashboardJsonExportBtn">Export</button>
                 <div class="dropdown-divider"></div>
                 <button type="button" class="dropdown-item text-danger" id="removeDashboardBtn">Delete</button>
@@ -111,7 +110,7 @@
 </div>
 
 <div class="modal" id="dashboardEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-xl" role="document">
+  <div class="modal-dialog modal-xxl" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="dashboardEditorTitle">New dashboard</h5>
@@ -137,8 +136,64 @@
               <small class="form-text text-muted">You do not have permission to share dashboards.</small>
             {% endif %}
           </div>
-          <div id="widgetList"></div>
-          <button type="button" class="btn btn-outline-primary btn-sm" id="addWidgetBtn">Add widget</button>
+          <div class="d-flex justify-content-between align-items-center border rounded px-3 py-2 mb-3" id="dashboardEditorModeControls">
+            <div>
+              <h6 class="mb-0 text-uppercase text-muted small">Editor Mode</h6>
+              <small class="text-muted">Switch between the visual builder and raw JSON at any time.</small>
+            </div>
+            <div class="btn-group btn-group-sm" id="dashboardEditorModeToggle" role="group" aria-label="Dashboard editor mode">
+              <button type="button" class="btn btn-primary" data-mode="builder" id="dashboardModeBuilderBtn"><i class="fas fa-sliders-h mr-1"></i> Visual Builder</button>
+              <button type="button" class="btn btn-outline-secondary" data-mode="json" id="dashboardModeJsonBtn"><i class="fas fa-code mr-1"></i> Raw JSON</button>
+            </div>
+          </div>
+
+          <div id="dashboardBuilderPanel" class="dashboard-builder-panel">
+            <p class="text-muted small mb-3" id="dashboardBuilderEmptyHint">Add sections to organise widgets. Sections can display a title and optional divider bar to visually separate groups of widgets.</p>
+            <div id="dashboardSectionsContainer" class="dashboard-builder-sections"></div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div>
+                <small class="text-muted">Sections help recreate analytic layouts.</small>
+              </div>
+              <div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="addSectionBtn"><i class="fas fa-layer-group mr-1"></i>Add section</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="dashboardJsonPanel" class="dashboard-json-panel d-none">
+            <div class="border rounded" id="dashboardEditorJson" style="min-height: 320px; height: 320px;"></div>
+            <textarea class="form-control d-none" id="dashboardEditorJsonTextarea" rows="12" spellcheck="false"></textarea>
+            <small class="form-text text-muted">Edit the full dashboard payload. Switch back to the visual builder to continue using the guided UI.</small>
+          </div>
+
+          <datalist id="dashboardBuilderColumnOptions">
+            <option value="alerts.alert_id">
+            <option value="alerts.alert_uuid">
+            <option value="alerts.alert_title">
+            <option value="alerts.alert_source">
+            <option value="alerts.alert_source_ref">
+            <option value="alerts.alert_description">
+            <option value="alerts.alert_creation_time">
+            <option value="alerts.alert_source_event_time">
+            <option value="alerts.alert_customer_id">
+            <option value="alerts.alert_resolution_status_id">
+            <option value="alerts.alert_status_id">
+            <option value="alerts.alert_severity_id">
+            <option value="alerts.alert_classification_id">
+            <option value="client.client_id">
+            <option value="client.name">
+            <option value="alert_resolution_status.resolution_status_id">
+            <option value="alert_resolution_status.resolution_status_name">
+            <option value="alert_status.status_id">
+            <option value="alert_status.status_name">
+            <option value="severities.severity_id">
+            <option value="severities.severity_name">
+            <option value="case_classification.id">
+            <option value="case_classification.name">
+            <option value="case_classification.name_expanded">
+            <option value="cases.case_id">
+            <option value="cases.name">
+          </datalist>
         </form>
       </div>
       <div class="modal-footer">

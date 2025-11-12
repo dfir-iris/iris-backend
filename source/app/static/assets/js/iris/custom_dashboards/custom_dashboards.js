@@ -7,6 +7,163 @@
     '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#fd7e14', '#20c997', '#6f42c1', '#17a2b8'
   ];
 
+  const TABLE_DEFINITIONS = {
+    alerts: {
+      label: 'Alerts',
+      columns: {
+        alert_id: 'Alert ID',
+        alert_uuid: 'Alert UUID',
+        alert_title: 'Title',
+        alert_source: 'Source',
+        alert_source_ref: 'Source Reference',
+        alert_description: 'Description',
+        alert_creation_time: 'Creation Time',
+        alert_source_event_time: 'Source Event Time',
+        alert_customer_id: 'Customer ID',
+        alert_resolution_status_id: 'Resolution Status ID',
+        alert_status_id: 'Status ID',
+        alert_severity_id: 'Severity ID',
+        alert_owner_id: 'Owner ID',
+        alert_classification_id: 'Classification ID'
+      }
+    },
+    client: {
+      label: 'Client',
+      columns: {
+        client_id: 'Client ID',
+        name: 'Client Name'
+      }
+    },
+    alert_resolution_status: {
+      label: 'Resolution Status',
+      columns: {
+        resolution_status_id: 'Resolution Status ID',
+        resolution_status_name: 'Resolution Status Name'
+      }
+    },
+    alert_status: {
+      label: 'Alert Status',
+      columns: {
+        status_id: 'Status ID',
+        status_name: 'Status Name'
+      }
+    },
+    severities: {
+      label: 'Severities',
+      columns: {
+        severity_id: 'Severity ID',
+        severity_name: 'Severity Name'
+      }
+    },
+    case_classification: {
+      label: 'Case Classification',
+      columns: {
+        id: 'Classification ID',
+        name: 'Classification Name',
+        name_expanded: 'Classification Name (Expanded)'
+      }
+    },
+    cases: {
+      label: 'Cases',
+      columns: {
+        case_id: 'Case ID',
+        name: 'Case Name',
+        owner_id: 'Owner ID',
+        creator_id: 'Creator ID'
+      }
+    },
+    alert_owner: {
+      label: 'Alert Owner',
+      columns: {
+        id: 'Owner ID',
+        username: 'Owner Username',
+        name: 'Owner Name'
+      }
+    },
+    case_owner: {
+      label: 'Case Owner',
+      columns: {
+        id: 'Owner ID',
+        username: 'Owner Username',
+        name: 'Owner Name'
+      }
+    },
+    case_creator: {
+      label: 'Case Creator',
+      columns: {
+        id: 'Creator ID',
+        username: 'Creator Username',
+        name: 'Creator Name'
+      }
+    }
+  };
+
+  const AGGREGATION_OPTIONS = [
+    { value: '', label: 'None' },
+    { value: 'count', label: 'Count' },
+    { value: 'sum', label: 'Sum' },
+    { value: 'avg', label: 'Average' },
+    { value: 'min', label: 'Minimum' },
+    { value: 'max', label: 'Maximum' }
+  ];
+
+  const OPERATOR_OPTIONS = [
+    { value: 'eq', label: 'Equals' },
+    { value: 'neq', label: 'Not equals' },
+    { value: 'gt', label: 'Greater than' },
+    { value: 'gte', label: 'Greater or equal' },
+    { value: 'lt', label: 'Less than' },
+    { value: 'lte', label: 'Less or equal' },
+    { value: 'in', label: 'In list' },
+    { value: 'nin', label: 'Not in list' },
+    { value: 'between', label: 'Between' },
+    { value: 'contains', label: 'Contains (case-insensitive)' }
+  ];
+
+  const TIME_BUCKET_OPTIONS = [
+    { value: '', label: 'Auto' },
+    { value: 'minute', label: 'Minute' },
+    { value: '5minute', label: '5 minutes' },
+    { value: '15minute', label: '15 minutes' },
+    { value: 'hour', label: 'Hour' },
+    { value: 'day', label: 'Day' },
+    { value: 'week', label: 'Week' }
+  ];
+
+  const SORT_DIRECTION_OPTIONS = [
+    { value: '', label: 'Default' },
+    { value: 'asc', label: 'Ascending' },
+    { value: 'desc', label: 'Descending' }
+  ];
+
+  const DISPLAY_MODE_OPTIONS = [
+    { value: '', label: 'Automatic' },
+    { value: 'number', label: 'Number' },
+    { value: 'percentage', label: 'Percentage' },
+    { value: 'number_percentage', label: 'Number & percentage' }
+  ];
+
+  const WIDGET_SIZE_PRESETS = [
+    { value: '', label: 'Auto' },
+    { value: 'col-12', label: 'Full width' },
+    { value: 'col-lg-8', label: 'Two-thirds' },
+    { value: 'col-lg-6', label: 'Half width' },
+    { value: 'col-lg-4', label: 'One third' },
+    { value: 'col-md-3', label: 'Quarter width' }
+  ];
+
+  const LEGEND_POSITION_OPTIONS = [
+    { value: '', label: 'Auto' },
+    { value: 'top', label: 'Top' },
+    { value: 'bottom', label: 'Bottom' },
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' }
+  ];
+
+  let builderState = null;
+  let builderMode = 'builder';
+  let dashboardEditorJsonEditor = null;
+
   let dashboardState = loadDashboardState();
   let currentDashboardId = dashboardState && dashboardState.lastDashboardId !== undefined && dashboardState.lastDashboardId !== null
     ? Number(dashboardState.lastDashboardId)
@@ -104,6 +261,2012 @@
     const hours = pad(local.getHours());
     const minutes = pad(local.getMinutes());
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function generateBuilderId(prefix) {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 10);
+    return `${prefix}-${timestamp}-${random}`;
+  }
+
+  function getTableColumns(tableName) {
+    const table = TABLE_DEFINITIONS[tableName];
+    if (!table || !table.columns) {
+      return [];
+    }
+    return Object.entries(table.columns).map(([column, label]) => ({ value: column, label }));
+  }
+
+  function getColumnLabel(tableName, columnName) {
+    if (!tableName || !columnName) {
+      return columnName;
+    }
+    const table = TABLE_DEFINITIONS[tableName];
+    if (!table || !table.columns) {
+      return columnName;
+    }
+    return table.columns[columnName] || columnName;
+  }
+
+  function buildTableColumnOptions(selectedTable, selectedColumn) {
+    const columns = getTableColumns(selectedTable);
+    if (!columns.length && selectedColumn) {
+      columns.push({ value: selectedColumn, label: selectedColumn });
+    }
+    return columns.map((column) => {
+      const option = document.createElement('option');
+      option.value = column.value;
+      option.textContent = column.label;
+      if (column.value === selectedColumn) {
+        option.selected = true;
+      }
+      return option;
+    });
+  }
+
+  function formatTableColumn(tableName, columnName) {
+    if (!tableName || !columnName) {
+      return '';
+    }
+    return `${tableName}.${columnName}`;
+  }
+
+  function parseTableColumn(value) {
+    if (!value || typeof value !== 'string') {
+      return { table: '', column: '' };
+    }
+    const trimmed = value.trim();
+    const [table, column] = trimmed.split('.', 2);
+    if (!column) {
+      return { table: trimmed, column: '' };
+    }
+    return { table, column };
+  }
+
+  function createEmptyField(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('field'),
+      table: 'alerts',
+      column: 'alert_id',
+      aggregation: 'count',
+      alias: 'alert_count'
+    };
+    return Object.assign(defaults, overrides);
+  }
+
+  function createEmptyGroupBy(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('group'),
+      table: 'client',
+      column: 'name'
+    };
+    return Object.assign(defaults, overrides);
+  }
+
+  function createEmptyFilter(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('filter'),
+      table: 'alerts',
+      column: 'alert_status_id',
+      operator: 'eq',
+      value: ''
+    };
+    return Object.assign(defaults, overrides);
+  }
+
+  function createEmptyCustomOption(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('option'),
+      key: '',
+      value: ''
+    };
+    return Object.assign(defaults, overrides);
+  }
+
+  function createEmptyWidget(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('widget'),
+      name: 'New widget',
+      chartType: 'number',
+      widgetSize: '',
+      timeBucket: '',
+      timeColumn: '',
+      fields: [createEmptyField()],
+      groupBy: [],
+      filters: [],
+      options: {
+        displayMode: '',
+        sortDirection: '',
+        limit: '',
+        color: '',
+        colors: [],
+        totalLabel: '',
+        legendPosition: '',
+        fill: false,
+        labelMaxLength: '',
+        includeAdvanced: []
+      },
+      customOptions: [],
+      layoutMeta: {},
+      collapsed: false
+    };
+
+    const widget = Object.assign({}, defaults, overrides);
+    if (!Array.isArray(widget.fields) || !widget.fields.length) {
+      widget.fields = [createEmptyField()];
+    } else {
+      widget.fields = widget.fields.map((field) => createEmptyField(field));
+    }
+    widget.groupBy = Array.isArray(widget.groupBy) ? widget.groupBy.map((group) => createEmptyGroupBy(group)) : [];
+    widget.filters = Array.isArray(widget.filters) ? widget.filters.map((filter) => createEmptyFilter(filter)) : [];
+    widget.customOptions = Array.isArray(widget.customOptions) ? widget.customOptions.map((option) => createEmptyCustomOption(option)) : [];
+    widget.layoutMeta = Object.assign({}, overrides.layoutMeta || defaults.layoutMeta);
+    return widget;
+  }
+
+  function createEmptySection(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('section'),
+      title: '',
+      description: '',
+      showDivider: false,
+      widgets: []
+    };
+
+    const section = Object.assign({}, defaults, overrides);
+    section.widgets = Array.isArray(section.widgets) ? section.widgets.map((widget) => createEmptyWidget(widget)) : [];
+    return section;
+  }
+
+  function parseColorsOption(value) {
+    if (Array.isArray(value)) {
+      return value.map((entry) => String(entry)).filter((entry) => entry.trim());
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value.split(',').map((entry) => entry.trim()).filter((entry) => entry);
+    }
+    return [];
+  }
+
+  function normalizeLimitOption(value) {
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    if (Number.isFinite(value)) {
+      return String(value);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    return '';
+  }
+
+  function convertWidgetDefinitionToState(definition) {
+    const fields = Array.isArray(definition.fields) && definition.fields.length
+      ? definition.fields.map((field) => createEmptyField({
+        table: field.table,
+        column: field.column,
+        aggregation: field.aggregation || '',
+        alias: field.alias || ''
+      }))
+      : [createEmptyField()];
+
+    const groupBy = Array.isArray(definition.group_by)
+      ? definition.group_by.map((entry) => {
+        const { table, column } = parseTableColumn(entry);
+        return createEmptyGroupBy({ table, column });
+      })
+      : [];
+
+    const filters = Array.isArray(definition.filters)
+      ? definition.filters.map((filter) => createEmptyFilter({
+        table: filter.table,
+        column: filter.column,
+        operator: filter.operator,
+        value: filter.value
+      }))
+      : [];
+
+    const options = (definition.options && typeof definition.options === 'object') ? definition.options : {};
+    const handledOptionKeys = new Set(['widget_size', 'size', 'display_mode', 'display', 'sort', 'limit', 'time_column', 'color', 'colors', 'total_label', 'legend_position', 'fill', 'label_max_length']);
+
+    const customOptions = Object.entries(options)
+      .filter(([key]) => !handledOptionKeys.has(key))
+      .map(([key, value]) => createEmptyCustomOption({
+        key,
+        value: value === undefined || value === null ? '' : (typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
+      }));
+
+    const layoutMeta = (definition.layout && typeof definition.layout === 'object') ? definition.layout : {};
+
+    return createEmptyWidget({
+      id: definition.id || layoutMeta.widget_id || generateBuilderId('widget'),
+      name: definition.name || 'Widget',
+      chartType: definition.chart_type || 'number',
+      widgetSize: options.widget_size || options.size || '',
+      timeBucket: definition.time_bucket || '',
+      timeColumn: options.time_column || '',
+      fields,
+      groupBy,
+      filters,
+      options: {
+        displayMode: normalizeDisplayMode(options.display_mode || options.display || ''),
+        sortDirection: options.sort || '',
+        limit: normalizeLimitOption(options.limit),
+        color: options.color || '',
+        colors: parseColorsOption(options.colors),
+        totalLabel: options.total_label || '',
+        legendPosition: options.legend_position || '',
+        fill: options.fill === true || options.fill === 'true',
+        labelMaxLength: options.label_max_length !== undefined && options.label_max_length !== null ? String(options.label_max_length) : ''
+      },
+      customOptions,
+      layoutMeta
+    });
+  }
+
+  function normalizeScalarOption(value) {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed === '' ? undefined : trimmed;
+    }
+    return value;
+  }
+
+  function coerceFilterValue(rawValue) {
+    if (rawValue === undefined || rawValue === null) {
+      return null;
+    }
+    if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+      return rawValue;
+    }
+    const value = String(rawValue).trim();
+    if (!value) {
+      return '';
+    }
+    if (value === 'true' || value === 'false') {
+      return value === 'true';
+    }
+    if (!Number.isNaN(Number(value))) {
+      return Number(value);
+    }
+    if ((value.startsWith('[') && value.endsWith(']')) || (value.startsWith('{') && value.endsWith('}'))) {
+      try {
+        return JSON.parse(value);
+      } catch (err) {
+        return value;
+      }
+    }
+    return value;
+  }
+
+  function coerceCustomOptionValue(rawValue) {
+    if (rawValue === undefined || rawValue === null) {
+      return null;
+    }
+    const value = String(rawValue).trim();
+    if (!value) {
+      return '';
+    }
+    if ((value.startsWith('[') && value.endsWith(']')) || (value.startsWith('{') && value.endsWith('}'))) {
+      try {
+        return JSON.parse(value);
+      } catch (err) {
+        return value;
+      }
+    }
+    if (value === 'true' || value === 'false') {
+      return value === 'true';
+    }
+    if (!Number.isNaN(Number(value))) {
+      return Number(value);
+    }
+    return value;
+  }
+
+  function buildWidgetDefinitionFromState(section, widget, sectionIndex, widgetIndex) {
+    const definition = {
+      name: widget.name || `Widget ${widgetIndex + 1}`,
+      chart_type: widget.chartType || 'number',
+      fields: widget.fields.map((field) => ({
+        table: field.table,
+        column: field.column,
+        aggregation: field.aggregation || undefined,
+        alias: field.alias || undefined
+      })).map((field) => {
+        if (!field.aggregation) {
+          delete field.aggregation;
+        }
+        if (!field.alias) {
+          delete field.alias;
+        }
+        return field;
+      }),
+      filters: widget.filters.map((filter) => ({
+        table: filter.table,
+        column: filter.column,
+        operator: filter.operator,
+        value: coerceFilterValue(filter.value)
+      })),
+      group_by: widget.groupBy.map((group) => formatTableColumn(group.table, group.column)).filter((value) => value && value.indexOf('.') !== -1),
+      time_bucket: widget.timeBucket ? widget.timeBucket : undefined,
+      options: {}
+    };
+
+    const options = {};
+    if (widget.widgetSize) {
+      options.widget_size = widget.widgetSize;
+    }
+    if (widget.options.displayMode) {
+      options.display_mode = widget.options.displayMode;
+    }
+    if (widget.options.sortDirection) {
+      options.sort = widget.options.sortDirection;
+    }
+    if (widget.options.limit) {
+      const numericLimit = Number(widget.options.limit);
+      options.limit = Number.isFinite(numericLimit) ? numericLimit : widget.options.limit;
+    }
+    if (widget.timeColumn) {
+      options.time_column = widget.timeColumn;
+    }
+    if (widget.options.color) {
+      options.color = widget.options.color;
+    }
+    if (Array.isArray(widget.options.colors) && widget.options.colors.length) {
+      options.colors = widget.options.colors;
+    }
+    if (widget.options.totalLabel) {
+      options.total_label = widget.options.totalLabel;
+    }
+    if (widget.options.legendPosition) {
+      options.legend_position = widget.options.legendPosition;
+    }
+    if (widget.options.fill) {
+      options.fill = true;
+    }
+    if (widget.options.labelMaxLength) {
+      const numericLabelMax = Number(widget.options.labelMaxLength);
+      options.label_max_length = Number.isFinite(numericLabelMax) ? numericLabelMax : widget.options.labelMaxLength;
+    }
+
+    widget.customOptions.forEach((option) => {
+      if (!option.key) {
+        return;
+      }
+      options[option.key] = coerceCustomOptionValue(option.value);
+    });
+
+    definition.options = options;
+
+    const layoutMeta = Object.assign({}, widget.layoutMeta || {}, {
+      section_id: section.id,
+      section_title: section.title,
+      section_description: section.description,
+      section_index: sectionIndex,
+      widget_index: widgetIndex,
+      show_divider: !!section.showDivider
+    });
+
+    layoutMeta.widget_id = widget.id;
+
+    if (options.widget_size && !layoutMeta.widget_size) {
+      layoutMeta.widget_size = options.widget_size;
+    }
+
+    definition.layout = layoutMeta;
+
+    return definition;
+  }
+
+  function initializeEmptyBuilderState() {
+    builderState = {
+      sections: [createEmptySection({
+        title: 'Main Section',
+        showDivider: false,
+        widgets: [createEmptyWidget({ name: 'New widget' })]
+      })]
+    };
+  }
+
+  function ensureBuilderState() {
+    if (!builderState || !Array.isArray(builderState.sections)) {
+      initializeEmptyBuilderState();
+    }
+  }
+
+  function loadBuilderStateFromPayload(payload) {
+    ensureBuilderState();
+
+    const sectionsPayload = Array.isArray(payload.sections) ? payload.sections : [];
+    const widgetsPayload = Array.isArray(payload.widgets) ? payload.widgets : [];
+
+    if (sectionsPayload.length) {
+      builderState.sections = sectionsPayload.map((sectionPayload) => {
+        const widgets = Array.isArray(sectionPayload.widgets) ? sectionPayload.widgets : [];
+        return createEmptySection({
+          id: sectionPayload.id || generateBuilderId('section'),
+          title: sectionPayload.title || '',
+          description: sectionPayload.description || '',
+          showDivider: !!sectionPayload.show_divider,
+          widgets: widgets.map((widgetPayload) => convertWidgetDefinitionToState(widgetPayload))
+        });
+      }).filter((section) => section);
+    } else if (widgetsPayload.length) {
+      const sectionId = generateBuilderId('section');
+      builderState.sections = [createEmptySection({
+        id: sectionId,
+        title: payload.name ? `${payload.name} widgets` : 'Main Section',
+        description: payload.description || '',
+        showDivider: false,
+        widgets: widgetsPayload.map((widgetPayload) => convertWidgetDefinitionToState(widgetPayload))
+      })];
+    } else {
+      initializeEmptyBuilderState();
+    }
+
+    const hasPersistedWidgets = sectionsPayload.length > 0 || widgetsPayload.length > 0;
+    if (hasPersistedWidgets) {
+      builderState.sections.forEach((section) => {
+        if (!section || !Array.isArray(section.widgets)) {
+          return;
+        }
+        section.widgets.forEach((widget) => {
+          if (widget) {
+            widget.collapsed = true;
+          }
+        });
+      });
+    }
+
+    if (!builderState.sections.length) {
+      initializeEmptyBuilderState();
+    }
+  }
+
+  function buildSectionsPayloadFromState() {
+    ensureBuilderState();
+    return builderState.sections.map((section, sectionIndex) => ({
+      id: section.id || generateBuilderId('section'),
+      title: section.title,
+      description: section.description,
+      show_divider: !!section.showDivider,
+      widgets: section.widgets.map((widget, widgetIndex) => buildWidgetDefinitionFromState(section, widget, sectionIndex, widgetIndex))
+    }));
+  }
+
+  function buildWidgetsPayloadFromSections(sections) {
+    const widgets = [];
+    sections.forEach((section) => {
+      (section.widgets || []).forEach((widget) => {
+        widgets.push(widget);
+      });
+    });
+    return widgets;
+  }
+
+  function buildDashboardPayloadFromState() {
+    const name = $('#dashboardName').val();
+    const description = $('#dashboardDescription').val();
+    const isShared = canShareDashboards ? $('#dashboardIsShared').is(':checked') : false;
+
+    const sections = buildSectionsPayloadFromState();
+    const widgets = buildWidgetsPayloadFromSections(sections);
+
+    return {
+      name,
+      description,
+      is_shared: isShared,
+      sections,
+      widgets
+    };
+  }
+
+  function ensureDashboardEditorJsonEditor() {
+    if (dashboardEditorJsonEditor) {
+      return dashboardEditorJsonEditor;
+    }
+
+    const container = document.getElementById('dashboardEditorJson');
+    if (!container || typeof ace === 'undefined') {
+      return null;
+    }
+
+    dashboardEditorJsonEditor = ace.edit(container, {
+      autoScrollEditorIntoView: true,
+      highlightActiveLine: true,
+      minLines: 14,
+      maxLines: Infinity
+    });
+    dashboardEditorJsonEditor.setTheme('ace/theme/tomorrow');
+    try {
+      dashboardEditorJsonEditor.session.setMode('ace/mode/json');
+      dashboardEditorJsonEditor.session.setUseWorker(false);
+    } catch (err) {
+      console.warn('Unable to configure Ace JSON mode for dashboard editor', err);
+    }
+    dashboardEditorJsonEditor.session.setUseWrapMode(true);
+    dashboardEditorJsonEditor.setOption('showPrintMargin', false);
+    dashboardEditorJsonEditor.setOption('showLineNumbers', true);
+    dashboardEditorJsonEditor.setOption('tabSize', 2);
+    dashboardEditorJsonEditor.setOption('useSoftTabs', true);
+    dashboardEditorJsonEditor.renderer.setShowGutter(true);
+    dashboardEditorJsonEditor.renderer.setScrollMargin(8, 8);
+
+    const textarea = $('#dashboardEditorJsonTextarea');
+    if (textarea.length) {
+      dashboardEditorJsonEditor.session.on('change', function () {
+        textarea.val(dashboardEditorJsonEditor.getValue());
+      });
+      textarea.addClass('d-none');
+      const initialValue = textarea.val() || '';
+      dashboardEditorJsonEditor.setValue(initialValue, -1);
+      dashboardEditorJsonEditor.clearSelection();
+    }
+
+    return dashboardEditorJsonEditor;
+  }
+
+  function setDashboardEditorJsonContent(content) {
+    const normalized = typeof content === 'string' ? content : JSON.stringify(content || {}, null, 2);
+    $('#dashboardEditorJsonTextarea').val(normalized);
+    const editor = ensureDashboardEditorJsonEditor();
+    if (editor) {
+      editor.setValue(normalized, -1);
+      editor.clearSelection();
+    }
+  }
+
+  function getDashboardEditorJsonContent() {
+    const editor = ensureDashboardEditorJsonEditor();
+    if (editor) {
+      return editor.getValue();
+    }
+    return $('#dashboardEditorJsonTextarea').val() || '';
+  }
+
+  function syncBuilderJsonFromState() {
+    const payload = buildDashboardPayloadFromState();
+    setDashboardEditorJsonContent(JSON.stringify(payload, null, 2));
+  }
+
+  function applyPayloadToEditorForm(payload) {
+    if (!payload || typeof payload !== 'object') {
+      return;
+    }
+    if (typeof payload.name === 'string') {
+      $('#dashboardName').val(payload.name);
+    }
+    if (typeof payload.description === 'string') {
+      $('#dashboardDescription').val(payload.description);
+    }
+    $('#dashboardIsShared').prop('disabled', !canShareDashboards);
+    if (canShareDashboards) {
+      $('#dashboardIsShared').prop('checked', !!payload.is_shared);
+    } else {
+      $('#dashboardIsShared').prop('checked', false);
+    }
+  }
+
+  function parseDashboardPayloadFromJsonEditor() {
+    const content = getDashboardEditorJsonContent();
+    const trimmed = (content || '').trim();
+    if (!trimmed) {
+      notify_error('Dashboard JSON cannot be empty.');
+      return null;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (err) {
+      notify_error(`Dashboard JSON is invalid: ${err.message}`);
+      return null;
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+      notify_error('Dashboard JSON must be an object.');
+      return null;
+    }
+
+    if (parsed.sections === undefined) {
+      parsed.sections = [];
+    }
+    if (!Array.isArray(parsed.sections)) {
+      notify_error('Dashboard JSON "sections" must be an array when provided.');
+      return null;
+    }
+
+    if (parsed.widgets === undefined) {
+      parsed.widgets = [];
+    }
+    if (!Array.isArray(parsed.widgets)) {
+      notify_error('Dashboard JSON "widgets" must be an array when provided.');
+      return null;
+    }
+
+    if (!canShareDashboards) {
+      parsed.is_shared = false;
+    } else {
+      parsed.is_shared = parsed.is_shared === true;
+    }
+
+    if (typeof parsed.name !== 'string') {
+      parsed.name = $('#dashboardName').val() || '';
+    }
+    if (typeof parsed.description !== 'string') {
+      parsed.description = $('#dashboardDescription').val() || '';
+    }
+
+    return parsed;
+  }
+
+  function updateEditorModeControls() {
+    const isBuilderMode = builderMode === 'builder';
+    $('#dashboardBuilderPanel').toggleClass('d-none', !isBuilderMode);
+    $('#dashboardJsonPanel').toggleClass('d-none', isBuilderMode);
+
+    $('#dashboardModeBuilderBtn')
+      .toggleClass('btn-primary', isBuilderMode)
+      .toggleClass('btn-outline-secondary', !isBuilderMode);
+    $('#dashboardModeJsonBtn')
+      .toggleClass('btn-primary', !isBuilderMode)
+      .toggleClass('btn-outline-secondary', isBuilderMode);
+  }
+
+  function switchEditorMode(mode, options = {}) {
+    const normalized = mode === 'json' ? 'json' : 'builder';
+    const skipSync = options.skipSync === true;
+
+    if (!options.force && normalized === builderMode) {
+      updateEditorModeControls();
+      return true;
+    }
+
+    if (normalized === 'json') {
+      if (!skipSync) {
+        syncBuilderJsonFromState();
+      }
+      const editor = ensureDashboardEditorJsonEditor();
+      if (!editor) {
+        $('#dashboardEditorJsonTextarea').removeClass('d-none');
+      }
+    }
+
+    if (normalized === 'builder' && builderMode === 'json' && !skipSync) {
+      const parsed = parseDashboardPayloadFromJsonEditor();
+      if (!parsed) {
+        return false;
+      }
+      applyPayloadToEditorForm(parsed);
+      loadBuilderStateFromPayload(parsed);
+      renderBuilder();
+      syncBuilderJsonFromState();
+    }
+
+    builderMode = normalized;
+    updateEditorModeControls();
+    return true;
+  }
+
+  function renderFieldRow(sectionId, widgetId, field) {
+    const row = $('<div class="form-row align-items-end dashboard-builder-field-row"></div>');
+
+    const tableGroup = $('<div class="form-group col-md-3"></div>');
+    tableGroup.append('<label class="small text-muted text-uppercase">Table</label>');
+    const tableSelect = $('<select class="form-control form-control-sm builder-field-table"></select>');
+    tableSelect.attr('data-section-id', sectionId);
+    tableSelect.attr('data-widget-id', widgetId);
+    tableSelect.attr('data-field-id', field.id);
+    Object.entries(TABLE_DEFINITIONS).forEach(([tableName, tableDef]) => {
+      const option = document.createElement('option');
+      option.value = tableName;
+      option.textContent = tableDef.label;
+      if (tableName === field.table) {
+        option.selected = true;
+      }
+      tableSelect.append(option);
+    });
+    tableGroup.append(tableSelect);
+
+    const columnGroup = $('<div class="form-group col-md-3"></div>');
+    columnGroup.append('<label class="small text-muted text-uppercase">Column</label>');
+    const columnSelect = $('<select class="form-control form-control-sm builder-field-column"></select>');
+    columnSelect.attr('data-section-id', sectionId);
+    columnSelect.attr('data-widget-id', widgetId);
+    columnSelect.attr('data-field-id', field.id);
+    const columnOptions = buildTableColumnOptions(field.table, field.column);
+    if (!columnOptions.length && field.column) {
+      const fallbackOption = document.createElement('option');
+      fallbackOption.value = field.column;
+      fallbackOption.textContent = field.column;
+      fallbackOption.selected = true;
+      columnSelect.append(fallbackOption);
+    } else {
+      columnOptions.forEach((option) => columnSelect.append(option));
+    }
+    columnGroup.append(columnSelect);
+
+    const aggregationGroup = $('<div class="form-group col-md-3"></div>');
+    aggregationGroup.append('<label class="small text-muted text-uppercase">Aggregation</label>');
+    const aggregationSelect = $('<select class="form-control form-control-sm builder-field-aggregation"></select>');
+    aggregationSelect.attr('data-section-id', sectionId);
+    aggregationSelect.attr('data-widget-id', widgetId);
+    aggregationSelect.attr('data-field-id', field.id);
+    AGGREGATION_OPTIONS.forEach((aggregation) => {
+      const option = document.createElement('option');
+      option.value = aggregation.value;
+      option.textContent = aggregation.label;
+      if ((aggregation.value || '') === (field.aggregation || '')) {
+        option.selected = true;
+      }
+      aggregationSelect.append(option);
+    });
+    aggregationGroup.append(aggregationSelect);
+
+    const aliasGroup = $('<div class="form-group col-md-2"></div>');
+    aliasGroup.append('<label class="small text-muted text-uppercase">Alias</label>');
+    const aliasInput = $('<input type="text" class="form-control form-control-sm builder-field-alias">');
+    aliasInput.attr('data-section-id', sectionId);
+    aliasInput.attr('data-widget-id', widgetId);
+    aliasInput.attr('data-field-id', field.id);
+    aliasInput.val(field.alias || '');
+    aliasGroup.append(aliasInput);
+
+    const removeGroup = $('<div class="form-group col-md-1 text-right"></div>');
+    const removeButton = $('<button type="button" class="btn btn-link text-danger builder-remove-field" title="Remove field"><i class="fas fa-times"></i></button>');
+    removeButton.attr('data-section-id', sectionId);
+    removeButton.attr('data-widget-id', widgetId);
+    removeButton.attr('data-field-id', field.id);
+    removeGroup.append(removeButton);
+
+    row.append(tableGroup, columnGroup, aggregationGroup, aliasGroup, removeGroup);
+    return row;
+  }
+
+  function renderGroupingRow(sectionId, widgetId, group) {
+    const row = $('<div class="form-row align-items-end dashboard-builder-group-row"></div>');
+
+    const tableGroup = $('<div class="form-group col-md-4"></div>');
+    tableGroup.append('<label class="small text-muted text-uppercase">Table</label>');
+    const tableSelect = $('<select class="form-control form-control-sm builder-group-table"></select>');
+    tableSelect.attr('data-section-id', sectionId);
+    tableSelect.attr('data-widget-id', widgetId);
+    tableSelect.attr('data-group-id', group.id);
+    Object.entries(TABLE_DEFINITIONS).forEach(([tableName, tableDef]) => {
+      const option = document.createElement('option');
+      option.value = tableName;
+      option.textContent = tableDef.label;
+      if (tableName === group.table) {
+        option.selected = true;
+      }
+      tableSelect.append(option);
+    });
+    tableGroup.append(tableSelect);
+
+    const columnGroup = $('<div class="form-group col-md-6"></div>');
+    columnGroup.append('<label class="small text-muted text-uppercase">Column</label>');
+    const columnSelect = $('<select class="form-control form-control-sm builder-group-column"></select>');
+    columnSelect.attr('data-section-id', sectionId);
+    columnSelect.attr('data-widget-id', widgetId);
+    columnSelect.attr('data-group-id', group.id);
+    const columnOptions = buildTableColumnOptions(group.table, group.column);
+    if (!columnOptions.length && group.column) {
+      const fallbackOption = document.createElement('option');
+      fallbackOption.value = group.column;
+      fallbackOption.textContent = group.column;
+      fallbackOption.selected = true;
+      columnSelect.append(fallbackOption);
+    } else {
+      columnOptions.forEach((option) => columnSelect.append(option));
+    }
+    columnGroup.append(columnSelect);
+
+    const removeGroup = $('<div class="form-group col-md-2 text-right"></div>');
+    const removeButton = $('<button type="button" class="btn btn-link text-danger builder-remove-group" title="Remove grouping"><i class="fas fa-times"></i></button>');
+    removeButton.attr('data-section-id', sectionId);
+    removeButton.attr('data-widget-id', widgetId);
+    removeButton.attr('data-group-id', group.id);
+    removeGroup.append(removeButton);
+
+    row.append(tableGroup, columnGroup, removeGroup);
+    return row;
+  }
+
+  function renderFilterRow(sectionId, widgetId, filter) {
+    const row = $('<div class="form-row align-items-end dashboard-builder-filter-row"></div>');
+
+    const tableGroup = $('<div class="form-group col-lg-3"></div>');
+    tableGroup.append('<label class="small text-muted text-uppercase">Table</label>');
+    const tableSelect = $('<select class="form-control form-control-sm builder-filter-table"></select>');
+    tableSelect.attr('data-section-id', sectionId);
+    tableSelect.attr('data-widget-id', widgetId);
+    tableSelect.attr('data-filter-id', filter.id);
+    Object.entries(TABLE_DEFINITIONS).forEach(([tableName, tableDef]) => {
+      const option = document.createElement('option');
+      option.value = tableName;
+      option.textContent = tableDef.label;
+      if (tableName === filter.table) {
+        option.selected = true;
+      }
+      tableSelect.append(option);
+    });
+    tableGroup.append(tableSelect);
+
+    const columnGroup = $('<div class="form-group col-lg-3"></div>');
+    columnGroup.append('<label class="small text-muted text-uppercase">Column</label>');
+    const columnSelect = $('<select class="form-control form-control-sm builder-filter-column"></select>');
+    columnSelect.attr('data-section-id', sectionId);
+    columnSelect.attr('data-widget-id', widgetId);
+    columnSelect.attr('data-filter-id', filter.id);
+    const columnOptions = buildTableColumnOptions(filter.table, filter.column);
+    if (!columnOptions.length && filter.column) {
+      const fallbackOption = document.createElement('option');
+      fallbackOption.value = filter.column;
+      fallbackOption.textContent = filter.column;
+      fallbackOption.selected = true;
+      columnSelect.append(fallbackOption);
+    } else {
+      columnOptions.forEach((option) => columnSelect.append(option));
+    }
+    columnGroup.append(columnSelect);
+
+    const operatorGroup = $('<div class="form-group col-lg-2"></div>');
+    operatorGroup.append('<label class="small text-muted text-uppercase">Operator</label>');
+    const operatorSelect = $('<select class="form-control form-control-sm builder-filter-operator"></select>');
+    operatorSelect.attr('data-section-id', sectionId);
+    operatorSelect.attr('data-widget-id', widgetId);
+    operatorSelect.attr('data-filter-id', filter.id);
+    OPERATOR_OPTIONS.forEach((operator) => {
+      const option = document.createElement('option');
+      option.value = operator.value;
+      option.textContent = operator.label;
+      if (operator.value === filter.operator) {
+        option.selected = true;
+      }
+      operatorSelect.append(option);
+    });
+    operatorGroup.append(operatorSelect);
+
+    const valueGroup = $('<div class="form-group col-lg-3"></div>');
+    valueGroup.append('<label class="small text-muted text-uppercase">Value</label>');
+    const valueInput = $('<input type="text" class="form-control form-control-sm builder-filter-value" placeholder="Value or JSON list">');
+    valueInput.attr('data-section-id', sectionId);
+    valueInput.attr('data-widget-id', widgetId);
+    valueInput.attr('data-filter-id', filter.id);
+    valueInput.val(filter.value !== undefined && filter.value !== null ? filter.value : '');
+    valueGroup.append(valueInput);
+
+    const removeGroup = $('<div class="form-group col-lg-1 text-right"></div>');
+    const removeButton = $('<button type="button" class="btn btn-link text-danger builder-remove-filter" title="Remove filter"><i class="fas fa-times"></i></button>');
+    removeButton.attr('data-section-id', sectionId);
+    removeButton.attr('data-widget-id', widgetId);
+    removeButton.attr('data-filter-id', filter.id);
+    removeGroup.append(removeButton);
+
+    row.append(tableGroup, columnGroup, operatorGroup, valueGroup, removeGroup);
+    return row;
+  }
+
+  function renderCustomOptionRow(sectionId, widgetId, option) {
+    const row = $('<div class="form-row align-items-end dashboard-builder-custom-option-row"></div>');
+
+    const keyGroup = $('<div class="form-group col-md-5"></div>');
+    keyGroup.append('<label class="small text-muted text-uppercase">Key</label>');
+    const keyInput = $('<input type="text" class="form-control form-control-sm builder-custom-option-key" placeholder="option_key">');
+    keyInput.attr('data-section-id', sectionId);
+    keyInput.attr('data-widget-id', widgetId);
+    keyInput.attr('data-option-id', option.id);
+    keyInput.val(option.key || '');
+    keyGroup.append(keyInput);
+
+    const valueGroup = $('<div class="form-group col-md-6"></div>');
+    valueGroup.append('<label class="small text-muted text-uppercase">Value</label>');
+    const valueInput = $('<input type="text" class="form-control form-control-sm builder-custom-option-value" placeholder="Value (supports JSON)">');
+    valueInput.attr('data-section-id', sectionId);
+    valueInput.attr('data-widget-id', widgetId);
+    valueInput.attr('data-option-id', option.id);
+    valueInput.val(option.value !== undefined && option.value !== null ? option.value : '');
+    valueGroup.append(valueInput);
+
+    const removeGroup = $('<div class="form-group col-md-1 text-right"></div>');
+    const removeButton = $('<button type="button" class="btn btn-link text-danger builder-remove-custom-option" title="Remove custom option"><i class="fas fa-times"></i></button>');
+    removeButton.attr('data-section-id', sectionId);
+    removeButton.attr('data-widget-id', widgetId);
+    removeButton.attr('data-option-id', option.id);
+    removeGroup.append(removeButton);
+
+    row.append(keyGroup, valueGroup, removeGroup);
+    return row;
+  }
+
+  function renderWidgetCard(section, widget, sectionIndex, widgetIndex) {
+    const card = $('<div class="dashboard-builder-widget" draggable="false"></div>');
+    card.attr('data-section-id', section.id);
+    card.attr('data-widget-id', widget.id);
+
+    if (widget.collapsed) {
+      card.addClass('collapsed');
+    }
+
+    const header = $('<div class="dashboard-builder-widget-header d-flex justify-content-between align-items-center"></div>');
+    const titleContainer = $('<div class="d-flex align-items-center"></div>');
+    const chartBadge = $('<span class="badge badge-primary mr-2"></span>').text(widget.chartType ? widget.chartType.toUpperCase() : 'WIDGET');
+    const titleText = $('<strong class="builder-widget-title"></strong>').text(widget.name || 'Widget');
+    titleContainer.append(chartBadge, titleText);
+
+    const actionsContainer = $('<div class="dashboard-builder-inline-actions"></div>');
+    const collapseBtn = $('<button type="button" class="btn btn-link btn-sm builder-toggle-widget" title="Collapse widget"><i class="fas fa-chevron-up"></i></button>');
+    collapseBtn.attr('data-section-id', section.id);
+    collapseBtn.attr('data-widget-id', widget.id);
+    if (widget.collapsed) {
+      collapseBtn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    }
+    const moveUpBtn = $('<button type="button" class="btn btn-link btn-sm builder-move-widget-up" title="Move up"><i class="fas fa-arrow-up"></i></button>');
+    moveUpBtn.attr('data-section-id', section.id);
+    moveUpBtn.attr('data-widget-id', widget.id);
+    const moveDownBtn = $('<button type="button" class="btn btn-link btn-sm builder-move-widget-down" title="Move down"><i class="fas fa-arrow-down"></i></button>');
+    moveDownBtn.attr('data-section-id', section.id);
+    moveDownBtn.attr('data-widget-id', widget.id);
+    const duplicateBtn = $('<button type="button" class="btn btn-link btn-sm builder-duplicate-widget" title="Duplicate widget"><i class="fas fa-clone"></i></button>');
+    duplicateBtn.attr('data-section-id', section.id);
+    duplicateBtn.attr('data-widget-id', widget.id);
+    const removeBtn = $('<button type="button" class="btn btn-link text-danger btn-sm builder-remove-widget" title="Remove widget"><i class="fas fa-trash"></i></button>');
+    removeBtn.attr('data-section-id', section.id);
+    removeBtn.attr('data-widget-id', widget.id);
+    actionsContainer.append(collapseBtn, moveUpBtn, moveDownBtn, duplicateBtn, removeBtn);
+
+    header.append(titleContainer, actionsContainer);
+
+    const body = $('<div class="dashboard-builder-widget-body"></div>');
+
+    const basicRow = $('<div class="form-row"></div>');
+
+    const nameGroup = $('<div class="form-group col-lg-4"></div>');
+    nameGroup.append('<label class="small text-muted text-uppercase">Widget name</label>');
+    const nameInput = $('<input type="text" class="form-control form-control-sm builder-widget-name" placeholder="Widget name">');
+    nameInput.attr('data-section-id', section.id);
+    nameInput.attr('data-widget-id', widget.id);
+    nameInput.val(widget.name || '');
+    nameGroup.append(nameInput);
+
+    const chartGroup = $('<div class="form-group col-lg-3"></div>');
+    chartGroup.append('<label class="small text-muted text-uppercase">Visualization</label>');
+    const chartSelect = $('<select class="form-control form-control-sm builder-widget-chart"></select>');
+    chartSelect.attr('data-section-id', section.id);
+    chartSelect.attr('data-widget-id', widget.id);
+    ['line', 'bar', 'pie', 'number', 'percentage', 'table'].forEach((type) => {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+      if (type === widget.chartType) {
+        option.selected = true;
+      }
+      chartSelect.append(option);
+    });
+    chartGroup.append(chartSelect);
+
+    const sizeGroup = $('<div class="form-group col-lg-3"></div>');
+    sizeGroup.append('<label class="small text-muted text-uppercase">Widget width</label>');
+    const sizeSelect = $('<select class="form-control form-control-sm builder-widget-size"></select>');
+    sizeSelect.attr('data-section-id', section.id);
+    sizeSelect.attr('data-widget-id', widget.id);
+    WIDGET_SIZE_PRESETS.forEach((preset) => {
+      const option = document.createElement('option');
+      option.value = preset.value;
+      option.textContent = preset.label;
+      if (preset.value === (widget.widgetSize || '')) {
+        option.selected = true;
+      }
+      sizeSelect.append(option);
+    });
+    sizeGroup.append(sizeSelect);
+
+    const bucketGroup = $('<div class="form-group col-lg-2"></div>');
+    bucketGroup.append('<label class="small text-muted text-uppercase">Time bucket</label>');
+    const bucketSelect = $('<select class="form-control form-control-sm builder-widget-time-bucket"></select>');
+    bucketSelect.attr('data-section-id', section.id);
+    bucketSelect.attr('data-widget-id', widget.id);
+    TIME_BUCKET_OPTIONS.forEach((bucket) => {
+      const option = document.createElement('option');
+      option.value = bucket.value;
+      option.textContent = bucket.label;
+      if (bucket.value === (widget.timeBucket || '')) {
+        option.selected = true;
+      }
+      bucketSelect.append(option);
+    });
+    bucketGroup.append(bucketSelect);
+
+    basicRow.append(nameGroup, chartGroup, sizeGroup, bucketGroup);
+    body.append(basicRow);
+
+    const timeColumnGroup = $('<div class="form-group"></div>');
+    timeColumnGroup.append('<label class="small text-muted text-uppercase">Time column override</label>');
+    const timeColumnInput = $('<input type="text" class="form-control form-control-sm builder-widget-time-column" list="dashboardBuilderColumnOptions" placeholder="alerts.alert_creation_time">');
+    timeColumnInput.attr('data-section-id', section.id);
+    timeColumnInput.attr('data-widget-id', widget.id);
+    timeColumnInput.val(widget.timeColumn || '');
+    timeColumnGroup.append(timeColumnInput);
+    body.append(timeColumnGroup);
+
+    const fieldsBlock = $('<div class="mb-3"></div>');
+    fieldsBlock.append('<h6 class="text-uppercase text-muted small mb-2">Fields</h6>');
+    const fieldsContainer = $('<div class="dashboard-builder-fields"></div>');
+    widget.fields.forEach((field) => {
+      fieldsContainer.append(renderFieldRow(section.id, widget.id, field));
+    });
+    fieldsBlock.append(fieldsContainer);
+    const addFieldBtn = $('<button type="button" class="btn btn-outline-primary btn-sm builder-add-field"><i class="fas fa-plus mr-1"></i>Add field</button>');
+    addFieldBtn.attr('data-section-id', section.id);
+    addFieldBtn.attr('data-widget-id', widget.id);
+    fieldsBlock.append(addFieldBtn);
+    body.append(fieldsBlock);
+
+    const groupBlock = $('<div class="mb-3"></div>');
+    groupBlock.append('<h6 class="text-uppercase text-muted small mb-2">Grouping</h6>');
+    const groupContainer = $('<div class="dashboard-builder-groups"></div>');
+    widget.groupBy.forEach((group) => {
+      groupContainer.append(renderGroupingRow(section.id, widget.id, group));
+    });
+    if (!widget.groupBy.length) {
+      groupContainer.append('<div class="text-muted small">No grouping columns configured.</div>');
+    }
+    groupBlock.append(groupContainer);
+    const addGroupBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm builder-add-group"><i class="fas fa-plus mr-1"></i>Add grouping</button>');
+    addGroupBtn.attr('data-section-id', section.id);
+    addGroupBtn.attr('data-widget-id', widget.id);
+    groupBlock.append(addGroupBtn);
+    body.append(groupBlock);
+
+    const filterBlock = $('<div class="mb-3"></div>');
+    filterBlock.append('<h6 class="text-uppercase text-muted small mb-2">Filters</h6>');
+    const filterContainer = $('<div class="dashboard-builder-filters"></div>');
+    widget.filters.forEach((filter) => {
+      filterContainer.append(renderFilterRow(section.id, widget.id, filter));
+    });
+    if (!widget.filters.length) {
+      filterContainer.append('<div class="text-muted small">No filters applied.</div>');
+    }
+    filterBlock.append(filterContainer);
+    const addFilterBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm builder-add-filter"><i class="fas fa-plus mr-1"></i>Add filter</button>');
+    addFilterBtn.attr('data-section-id', section.id);
+    addFilterBtn.attr('data-widget-id', widget.id);
+    filterBlock.append(addFilterBtn);
+    body.append(filterBlock);
+
+    const optionsBlock = $('<div class="mb-3"></div>');
+    optionsBlock.append('<h6 class="text-uppercase text-muted small mb-2">Visualization options</h6>');
+    const optionsRowOne = $('<div class="form-row"></div>');
+
+    const displayGroup = $('<div class="form-group col-lg-3"></div>');
+    displayGroup.append('<label class="small text-muted text-uppercase">Display mode</label>');
+    const displaySelect = $('<select class="form-control form-control-sm builder-option-display"></select>');
+    displaySelect.attr('data-section-id', section.id);
+    displaySelect.attr('data-widget-id', widget.id);
+    DISPLAY_MODE_OPTIONS.forEach((mode) => {
+      const option = document.createElement('option');
+      option.value = mode.value;
+      option.textContent = mode.label;
+      if (mode.value === (widget.options.displayMode || '')) {
+        option.selected = true;
+      }
+      displaySelect.append(option);
+    });
+    displayGroup.append(displaySelect);
+
+    const sortGroup = $('<div class="form-group col-lg-3"></div>');
+    sortGroup.append('<label class="small text-muted text-uppercase">Sort</label>');
+    const sortSelect = $('<select class="form-control form-control-sm builder-option-sort"></select>');
+    sortSelect.attr('data-section-id', section.id);
+    sortSelect.attr('data-widget-id', widget.id);
+    SORT_DIRECTION_OPTIONS.forEach((direction) => {
+      const option = document.createElement('option');
+      option.value = direction.value;
+      option.textContent = direction.label;
+      if (direction.value === (widget.options.sortDirection || '')) {
+        option.selected = true;
+      }
+      sortSelect.append(option);
+    });
+    sortGroup.append(sortSelect);
+
+    const limitGroup = $('<div class="form-group col-lg-2"></div>');
+    limitGroup.append('<label class="small text-muted text-uppercase">Limit</label>');
+    const limitInput = $('<input type="text" class="form-control form-control-sm builder-option-limit" placeholder="Rows limit">');
+    limitInput.attr('data-section-id', section.id);
+    limitInput.attr('data-widget-id', widget.id);
+    limitInput.val(widget.options.limit || '');
+    limitGroup.append(limitInput);
+
+    const legendGroup = $('<div class="form-group col-lg-2"></div>');
+    legendGroup.append('<label class="small text-muted text-uppercase">Legend</label>');
+    const legendSelect = $('<select class="form-control form-control-sm builder-option-legend"></select>');
+    legendSelect.attr('data-section-id', section.id);
+    legendSelect.attr('data-widget-id', widget.id);
+    LEGEND_POSITION_OPTIONS.forEach((position) => {
+      const option = document.createElement('option');
+      option.value = position.value;
+      option.textContent = position.label;
+      if (position.value === (widget.options.legendPosition || '')) {
+        option.selected = true;
+      }
+      legendSelect.append(option);
+    });
+    legendGroup.append(legendSelect);
+
+    const fillGroup = $('<div class="form-group col-lg-2"></div>');
+    fillGroup.append('<label class="small text-muted text-uppercase">Fill</label>');
+    const fillSwitchWrapper = $('<div class="custom-control custom-switch"></div>');
+    const fillId = `builderFill-${section.id}-${widget.id}`;
+    const fillInput = $('<input type="checkbox" class="custom-control-input builder-option-fill">');
+    fillInput.attr('data-section-id', section.id);
+    fillInput.attr('data-widget-id', widget.id);
+    fillInput.attr('id', fillId);
+    fillInput.prop('checked', !!widget.options.fill);
+    const fillLabel = $('<label class="custom-control-label"></label>').attr('for', fillId).text('Area');
+    fillSwitchWrapper.append(fillInput, fillLabel);
+    fillGroup.append(fillSwitchWrapper);
+
+    optionsRowOne.append(displayGroup, sortGroup, limitGroup, legendGroup, fillGroup);
+
+    const optionsRowTwo = $('<div class="form-row"></div>');
+
+    const colorGroup = $('<div class="form-group col-lg-3"></div>');
+    colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
+    const colorInput = $('<input type="text" class="form-control form-control-sm builder-option-color" placeholder="#4e73df">');
+    colorInput.attr('data-section-id', section.id);
+    colorInput.attr('data-widget-id', widget.id);
+    colorInput.val(widget.options.color || '');
+    colorGroup.append(colorInput);
+
+    const colorsGroup = $('<div class="form-group col-lg-3"></div>');
+    colorsGroup.append('<label class="small text-muted text-uppercase">Palette (comma separated)</label>');
+    const colorsInput = $('<input type="text" class="form-control form-control-sm builder-option-colors" placeholder="#4e73df,#1cc88a">');
+    colorsInput.attr('data-section-id', section.id);
+    colorsInput.attr('data-widget-id', widget.id);
+    colorsInput.val(Array.isArray(widget.options.colors) && widget.options.colors.length ? widget.options.colors.join(', ') : '');
+    colorsGroup.append(colorsInput);
+
+    const totalLabelGroup = $('<div class="form-group col-lg-3"></div>');
+    totalLabelGroup.append('<label class="small text-muted text-uppercase">Total label</label>');
+    const totalLabelInput = $('<input type="text" class="form-control form-control-sm builder-option-total-label" placeholder="Grand total">');
+    totalLabelInput.attr('data-section-id', section.id);
+    totalLabelInput.attr('data-widget-id', widget.id);
+    totalLabelInput.val(widget.options.totalLabel || '');
+    totalLabelGroup.append(totalLabelInput);
+
+    const labelMaxGroup = $('<div class="form-group col-lg-3"></div>');
+    labelMaxGroup.append('<label class="small text-muted text-uppercase">Label max length</label>');
+    const labelMaxInput = $('<input type="text" class="form-control form-control-sm builder-option-label-max" placeholder="32">');
+    labelMaxInput.attr('data-section-id', section.id);
+    labelMaxInput.attr('data-widget-id', widget.id);
+    labelMaxInput.val(widget.options.labelMaxLength || '');
+    labelMaxGroup.append(labelMaxInput);
+
+    optionsRowTwo.append(colorGroup, colorsGroup, totalLabelGroup, labelMaxGroup);
+
+    optionsBlock.append(optionsRowOne, optionsRowTwo);
+
+    const customOptionsContainer = $('<div class="dashboard-builder-custom-options"></div>');
+    widget.customOptions.forEach((option) => {
+      customOptionsContainer.append(renderCustomOptionRow(section.id, widget.id, option));
+    });
+    if (!widget.customOptions.length) {
+      customOptionsContainer.append('<div class="text-muted small">No custom options. Use this area for advanced settings.</div>');
+    }
+    const addCustomOptionBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm builder-add-custom-option mt-2"><i class="fas fa-plus mr-1"></i>Add custom option</button>');
+    addCustomOptionBtn.attr('data-section-id', section.id);
+    addCustomOptionBtn.attr('data-widget-id', widget.id);
+
+    optionsBlock.append('<h6 class="text-uppercase text-muted small mt-3 mb-2">Custom options</h6>');
+    optionsBlock.append(customOptionsContainer, addCustomOptionBtn);
+
+    body.append(optionsBlock);
+
+    const footer = $('<div class="dashboard-builder-widget-footer"></div>');
+    footer.append('<span class="text-muted small">Changes are saved when you click “Save” in the modal footer.</span>');
+
+    card.append(header, body, footer);
+    return card;
+  }
+
+  function renderSectionCard(section, index, totalSections) {
+    const card = $('<div class="dashboard-builder-section"></div>');
+    card.attr('data-section-id', section.id);
+
+    const header = $('<div class="dashboard-builder-section-header d-flex justify-content-between align-items-center"></div>');
+    const title = $('<div class="d-flex align-items-center"></div>');
+    title.append('<span class="badge badge-info mr-2">Section</span>');
+    const titleText = $('<strong class="builder-section-title"></strong>').text(section.title || 'Untitled section');
+    title.append(titleText);
+
+    const actions = $('<div class="dashboard-builder-inline-actions"></div>');
+    const moveUpBtn = $('<button type="button" class="btn btn-link btn-sm builder-move-section-up" title="Move up"><i class="fas fa-arrow-up"></i></button>');
+    moveUpBtn.attr('data-section-id', section.id);
+    const moveDownBtn = $('<button type="button" class="btn btn-link btn-sm builder-move-section-down" title="Move down"><i class="fas fa-arrow-down"></i></button>');
+    moveDownBtn.attr('data-section-id', section.id);
+    const removeBtn = $('<button type="button" class="btn btn-link text-danger btn-sm builder-remove-section" title="Remove section"><i class="fas fa-trash"></i></button>');
+    removeBtn.attr('data-section-id', section.id);
+    actions.append(moveUpBtn, moveDownBtn, removeBtn);
+
+    header.append(title, actions);
+
+    const body = $('<div class="dashboard-builder-section-body"></div>');
+
+    const detailsRow = $('<div class="form-row"></div>');
+    const titleGroup = $('<div class="form-group col-lg-6"></div>');
+    titleGroup.append('<label class="small text-muted text-uppercase">Section title</label>');
+    const titleInput = $('<input type="text" class="form-control form-control-sm builder-section-title" placeholder="Section title">');
+    titleInput.attr('data-section-id', section.id);
+    titleInput.val(section.title || '');
+    titleGroup.append(titleInput);
+
+    const descriptionGroup = $('<div class="form-group col-lg-6"></div>');
+    descriptionGroup.append('<label class="small text-muted text-uppercase">Section description</label>');
+    const descriptionInput = $('<input type="text" class="form-control form-control-sm builder-section-description" placeholder="Optional description">');
+    descriptionInput.attr('data-section-id', section.id);
+    descriptionInput.val(section.description || '');
+    descriptionGroup.append(descriptionInput);
+
+    detailsRow.append(titleGroup, descriptionGroup);
+    body.append(detailsRow);
+
+    const dividerId = `builder-section-divider-${section.id}`;
+    const dividerSwitch = $('<div class="custom-control custom-switch mb-3"></div>');
+    const dividerInput = $('<input type="checkbox" class="custom-control-input builder-section-divider">');
+    dividerInput.attr('id', dividerId);
+    dividerInput.attr('data-section-id', section.id);
+    dividerInput.prop('checked', !!section.showDivider);
+    const dividerLabel = $('<label class="custom-control-label"></label>').attr('for', dividerId).text('Show horizontal divider after this section');
+    dividerSwitch.append(dividerInput, dividerLabel);
+    body.append(dividerSwitch);
+
+    const dividerPreview = $('<div class="dashboard-builder-section-divider-preview"></div>');
+    if (!section.showDivider) {
+      dividerPreview.addClass('d-none');
+    }
+    body.append(dividerPreview);
+
+    const widgetsContainer = $('<div class="dashboard-builder-widgets"></div>');
+    if (section.widgets.length) {
+      section.widgets.forEach((widget, widgetIndex) => {
+        widgetsContainer.append(renderWidgetCard(section, widget, index, widgetIndex));
+      });
+    } else {
+      widgetsContainer.append('<div class="dashboard-builder-empty-state">This section has no widgets yet. Add one to get started.</div>');
+    }
+    body.append(widgetsContainer);
+
+    const footer = $('<div class="dashboard-builder-section-footer"></div>');
+    const addWidgetBtn = $('<button type="button" class="btn btn-outline-primary btn-sm builder-add-widget"><i class="fas fa-plus mr-1"></i>Add widget</button>');
+    addWidgetBtn.attr('data-section-id', section.id);
+    footer.append(addWidgetBtn);
+
+    card.append(header, body, footer);
+
+    if (index === 0) {
+      moveUpBtn.prop('disabled', true);
+    }
+    if (index === totalSections - 1) {
+      moveDownBtn.prop('disabled', true);
+    }
+
+    return card;
+  }
+
+  function renderBuilder() {
+    ensureBuilderState();
+    const container = $('#dashboardSectionsContainer');
+    const hint = $('#dashboardBuilderEmptyHint');
+    container.empty();
+
+    if (!builderState.sections.length) {
+      hint.removeClass('d-none');
+      container.append('<div class="dashboard-builder-empty-state">No sections configured yet. Add a section to begin building your dashboard.</div>');
+      return;
+    }
+
+    hint.addClass('d-none');
+    builderState.sections.forEach((section, index) => {
+      container.append(renderSectionCard(section, index, builderState.sections.length));
+    });
+  }
+
+  function findSection(sectionId) {
+    ensureBuilderState();
+    const index = builderState.sections.findIndex((section) => section.id === sectionId);
+    if (index === -1) {
+      return { section: null, index: -1 };
+    }
+    return { section: builderState.sections[index], index };
+  }
+
+  function findWidget(sectionId, widgetId) {
+    const { section, index: sectionIndex } = findSection(sectionId);
+    if (!section) {
+      return { section: null, sectionIndex: -1, widget: null, widgetIndex: -1 };
+    }
+    const widgetIndex = section.widgets.findIndex((widget) => widget.id === widgetId);
+    if (widgetIndex === -1) {
+      return { section, sectionIndex, widget: null, widgetIndex: -1 };
+    }
+    return { section, sectionIndex, widget: section.widgets[widgetIndex], widgetIndex };
+  }
+
+  function findField(sectionId, widgetId, fieldId) {
+    const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
+    if (!widget) {
+      return { section, sectionIndex, widget, widgetIndex, field: null, fieldIndex: -1 };
+    }
+    const fieldIndex = widget.fields.findIndex((field) => field.id === fieldId);
+    if (fieldIndex === -1) {
+      return { section, sectionIndex, widget, widgetIndex, field: null, fieldIndex: -1 };
+    }
+    return { section, sectionIndex, widget, widgetIndex, field: widget.fields[fieldIndex], fieldIndex };
+  }
+
+  function findGroup(sectionId, widgetId, groupId) {
+    const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
+    if (!widget) {
+      return { section, sectionIndex, widget, widgetIndex, group: null, groupIndex: -1 };
+    }
+    const groupIndex = widget.groupBy.findIndex((group) => group.id === groupId);
+    if (groupIndex === -1) {
+      return { section, sectionIndex, widget, widgetIndex, group: null, groupIndex: -1 };
+    }
+    return { section, sectionIndex, widget, widgetIndex, group: widget.groupBy[groupIndex], groupIndex };
+  }
+
+  function findFilter(sectionId, widgetId, filterId) {
+    const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
+    if (!widget) {
+      return { section, sectionIndex, widget, widgetIndex, filter: null, filterIndex: -1 };
+    }
+    const filterIndex = widget.filters.findIndex((filter) => filter.id === filterId);
+    if (filterIndex === -1) {
+      return { section, sectionIndex, widget, widgetIndex, filter: null, filterIndex: -1 };
+    }
+    return { section, sectionIndex, widget, widgetIndex, filter: widget.filters[filterIndex], filterIndex };
+  }
+
+  function findCustomOption(sectionId, widgetId, optionId) {
+    const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
+    if (!widget) {
+      return { section, sectionIndex, widget, widgetIndex, option: null, optionIndex: -1 };
+    }
+    const optionIndex = widget.customOptions.findIndex((option) => option.id === optionId);
+    if (optionIndex === -1) {
+      return { section, sectionIndex, widget, widgetIndex, option: null, optionIndex: -1 };
+    }
+    return { section, sectionIndex, widget, widgetIndex, option: widget.customOptions[optionIndex], optionIndex };
+  }
+
+  function rerenderSection(sectionId) {
+    const sectionElement = $(`.dashboard-builder-section[data-section-id="${sectionId}"]`);
+    const { section, index } = findSection(sectionId);
+    if (!section || index === -1) {
+      renderBuilder();
+      return;
+    }
+    const replacement = renderSectionCard(section, index, builderState.sections.length);
+    if (sectionElement.length) {
+      sectionElement.replaceWith(replacement);
+    } else {
+      renderBuilder();
+    }
+  }
+
+  function rerenderWidget(sectionId, widgetId) {
+    const widgetElement = $(`.dashboard-builder-widget[data-section-id="${sectionId}"][data-widget-id="${widgetId}"]`);
+    const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
+    if (!section || widgetIndex === -1) {
+      renderBuilder();
+      return;
+    }
+    const replacement = renderWidgetCard(section, widget, sectionIndex, widgetIndex);
+    if (widgetElement.length) {
+      widgetElement.replaceWith(replacement);
+    } else {
+      rerenderSection(sectionId);
+    }
+  }
+
+  function cloneWidget(widget) {
+    const clonedFields = widget.fields.map((field) => createEmptyField({
+      table: field.table,
+      column: field.column,
+      aggregation: field.aggregation,
+      alias: field.alias
+    }));
+
+    const clonedGroupBy = widget.groupBy.map((group) => createEmptyGroupBy({
+      table: group.table,
+      column: group.column
+    }));
+
+    const clonedFilters = widget.filters.map((filter) => createEmptyFilter({
+      table: filter.table,
+      column: filter.column,
+      operator: filter.operator,
+      value: filter.value
+    }));
+
+    const clonedCustomOptions = widget.customOptions.map((option) => createEmptyCustomOption({
+      key: option.key,
+      value: option.value
+    }));
+
+    return createEmptyWidget({
+      name: widget.name ? `${widget.name} (copy)` : 'Widget copy',
+      chartType: widget.chartType,
+      widgetSize: widget.widgetSize,
+      timeBucket: widget.timeBucket,
+      timeColumn: widget.timeColumn,
+      fields: clonedFields,
+      groupBy: clonedGroupBy,
+      filters: clonedFilters,
+      options: {
+        displayMode: widget.options.displayMode,
+        sortDirection: widget.options.sortDirection,
+        limit: widget.options.limit,
+        color: widget.options.color,
+        colors: Array.isArray(widget.options.colors) ? widget.options.colors.slice() : [],
+        totalLabel: widget.options.totalLabel,
+        legendPosition: widget.options.legendPosition,
+        fill: !!widget.options.fill,
+        labelMaxLength: widget.options.labelMaxLength
+      },
+      customOptions: clonedCustomOptions,
+      layoutMeta: Object.assign({}, widget.layoutMeta || {})
+    });
+  }
+
+  function bindBuilderEvents() {
+    $(document).on('click', '#dashboardModeBuilderBtn', function () {
+      switchEditorMode('builder');
+    });
+
+    $(document).on('click', '#dashboardModeJsonBtn', function () {
+      switchEditorMode('json');
+    });
+
+    $(document).on('click', '#addSectionBtn', function () {
+      ensureBuilderState();
+      builderState.sections.push(createEmptySection({
+        title: `Section ${builderState.sections.length + 1}`,
+        showDivider: false,
+        widgets: [createEmptyWidget({ name: 'New widget' })]
+      }));
+      renderBuilder();
+    });
+
+    $(document).on('click', '.builder-remove-section', function () {
+      const sectionId = $(this).data('section-id');
+      if (!sectionId) {
+        return;
+      }
+      if (!confirm('Remove this section and all widgets inside it?')) {
+        return;
+      }
+      const { index } = findSection(sectionId);
+      if (index === -1) {
+        return;
+      }
+      builderState.sections.splice(index, 1);
+      renderBuilder();
+    });
+
+    $(document).on('click', '.builder-move-section-up', function () {
+      const sectionId = $(this).data('section-id');
+      const { index } = findSection(sectionId);
+      if (index <= 0) {
+        return;
+      }
+      const [section] = builderState.sections.splice(index, 1);
+      builderState.sections.splice(index - 1, 0, section);
+      renderBuilder();
+    });
+
+    $(document).on('click', '.builder-move-section-down', function () {
+      const sectionId = $(this).data('section-id');
+      const { index } = findSection(sectionId);
+      if (index === -1 || index >= builderState.sections.length - 1) {
+        return;
+      }
+      const [section] = builderState.sections.splice(index, 1);
+      builderState.sections.splice(index + 1, 0, section);
+      renderBuilder();
+    });
+
+    $(document).on('input', '.builder-section-title', function () {
+      const sectionId = $(this).data('section-id');
+      const { section } = findSection(sectionId);
+      if (!section) {
+        return;
+      }
+      section.title = $(this).val();
+      $(this).closest('.dashboard-builder-section').find('strong.builder-section-title').text(section.title || 'Untitled section');
+    });
+
+    $(document).on('input', '.builder-section-description', function () {
+      const sectionId = $(this).data('section-id');
+      const { section } = findSection(sectionId);
+      if (!section) {
+        return;
+      }
+      section.description = $(this).val();
+    });
+
+    $(document).on('change', '.builder-section-divider', function () {
+      const sectionId = $(this).data('section-id');
+      const { section } = findSection(sectionId);
+      if (!section) {
+        return;
+      }
+      section.showDivider = $(this).is(':checked');
+      const preview = $(this).closest('.dashboard-builder-section').find('.dashboard-builder-section-divider-preview');
+      if (section.showDivider) {
+        preview.removeClass('d-none');
+      } else {
+        preview.addClass('d-none');
+      }
+    });
+
+    $(document).on('click', '.builder-add-widget', function () {
+      const sectionId = $(this).data('section-id');
+      const { section } = findSection(sectionId);
+      if (!section) {
+        return;
+      }
+      section.widgets.push(createEmptyWidget({ name: `Widget ${section.widgets.length + 1}` }));
+      rerenderSection(sectionId);
+    });
+
+    $(document).on('click', '.builder-remove-widget', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { section, widgetIndex } = findWidget(sectionId, widgetId);
+      if (!section || widgetIndex === -1) {
+        return;
+      }
+      if (!confirm('Remove this widget?')) {
+        return;
+      }
+      section.widgets.splice(widgetIndex, 1);
+      rerenderSection(sectionId);
+    });
+
+    $(document).on('click', '.builder-move-widget-up', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { section, widgetIndex } = findWidget(sectionId, widgetId);
+      if (!section || widgetIndex <= 0) {
+        return;
+      }
+      const [widget] = section.widgets.splice(widgetIndex, 1);
+      section.widgets.splice(widgetIndex - 1, 0, widget);
+      rerenderSection(sectionId);
+    });
+
+    $(document).on('click', '.builder-move-widget-down', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { section, widgetIndex } = findWidget(sectionId, widgetId);
+      if (!section || widgetIndex === -1 || widgetIndex >= section.widgets.length - 1) {
+        return;
+      }
+      const [widget] = section.widgets.splice(widgetIndex, 1);
+      section.widgets.splice(widgetIndex + 1, 0, widget);
+      rerenderSection(sectionId);
+    });
+
+    $(document).on('click', '.builder-duplicate-widget', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { section, widget, widgetIndex } = findWidget(sectionId, widgetId);
+      if (!section || !widget) {
+        return;
+      }
+      const cloned = cloneWidget(widget);
+      section.widgets.splice(widgetIndex + 1, 0, cloned);
+      rerenderSection(sectionId);
+    });
+
+    $(document).on('click', '.builder-toggle-widget', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.collapsed = !widget.collapsed;
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('input', '.builder-widget-name', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.name = $(this).val();
+      $(this).closest('.dashboard-builder-widget').find('.builder-widget-title').text(widget.name || 'Widget');
+    });
+
+    $(document).on('change', '.builder-widget-chart', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.chartType = $(this).val();
+      $(this).closest('.dashboard-builder-widget').find('.badge').first().text(widget.chartType ? widget.chartType.toUpperCase() : 'WIDGET');
+    });
+
+    $(document).on('change', '.builder-widget-size', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.widgetSize = $(this).val();
+    });
+
+    $(document).on('change', '.builder-widget-time-bucket', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.timeBucket = $(this).val();
+    });
+
+    $(document).on('input', '.builder-widget-time-column', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.timeColumn = $(this).val();
+    });
+
+    $(document).on('click', '.builder-add-field', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { section, widget } = findWidget(sectionId, widgetId);
+      if (!section || !widget) {
+        return;
+      }
+      widget.fields.push(createEmptyField());
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('click', '.builder-remove-field', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const fieldId = $(this).data('field-id');
+      const { widget, fieldIndex } = findField(sectionId, widgetId, fieldId);
+      if (!widget || fieldIndex === -1) {
+        return;
+      }
+      if (widget.fields.length <= 1) {
+        notify_error('A widget must include at least one field.');
+        return;
+      }
+      widget.fields.splice(fieldIndex, 1);
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-field-table', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const fieldId = $(this).data('field-id');
+      const { field } = findField(sectionId, widgetId, fieldId);
+      if (!field) {
+        return;
+      }
+      field.table = $(this).val();
+      const columns = getTableColumns(field.table);
+      field.column = columns.length ? columns[0].value : '';
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-field-column', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const fieldId = $(this).data('field-id');
+      const { field } = findField(sectionId, widgetId, fieldId);
+      if (!field) {
+        return;
+      }
+      field.column = $(this).val();
+    });
+
+    $(document).on('change', '.builder-field-aggregation', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const fieldId = $(this).data('field-id');
+      const { field } = findField(sectionId, widgetId, fieldId);
+      if (!field) {
+        return;
+      }
+      const value = $(this).val();
+      field.aggregation = value || '';
+    });
+
+    $(document).on('input', '.builder-field-alias', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const fieldId = $(this).data('field-id');
+      const { field } = findField(sectionId, widgetId, fieldId);
+      if (!field) {
+        return;
+      }
+      field.alias = $(this).val();
+    });
+
+    $(document).on('click', '.builder-add-group', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.groupBy.push(createEmptyGroupBy());
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('click', '.builder-remove-group', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const groupId = $(this).data('group-id');
+      const { widget, groupIndex } = findGroup(sectionId, widgetId, groupId);
+      if (!widget || groupIndex === -1) {
+        return;
+      }
+      widget.groupBy.splice(groupIndex, 1);
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-group-table', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const groupId = $(this).data('group-id');
+      const { group } = findGroup(sectionId, widgetId, groupId);
+      if (!group) {
+        return;
+      }
+      group.table = $(this).val();
+      const columns = getTableColumns(group.table);
+      group.column = columns.length ? columns[0].value : '';
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-group-column', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const groupId = $(this).data('group-id');
+      const { group } = findGroup(sectionId, widgetId, groupId);
+      if (!group) {
+        return;
+      }
+      group.column = $(this).val();
+    });
+
+    $(document).on('click', '.builder-add-filter', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.filters.push(createEmptyFilter());
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('click', '.builder-remove-filter', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const filterId = $(this).data('filter-id');
+      const { widget, filterIndex } = findFilter(sectionId, widgetId, filterId);
+      if (!widget || filterIndex === -1) {
+        return;
+      }
+      widget.filters.splice(filterIndex, 1);
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-filter-table', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const filterId = $(this).data('filter-id');
+      const { filter } = findFilter(sectionId, widgetId, filterId);
+      if (!filter) {
+        return;
+      }
+      filter.table = $(this).val();
+      const columns = getTableColumns(filter.table);
+      filter.column = columns.length ? columns[0].value : '';
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-filter-column', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const filterId = $(this).data('filter-id');
+      const { filter } = findFilter(sectionId, widgetId, filterId);
+      if (!filter) {
+        return;
+      }
+      filter.column = $(this).val();
+    });
+
+    $(document).on('change', '.builder-filter-operator', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const filterId = $(this).data('filter-id');
+      const { filter } = findFilter(sectionId, widgetId, filterId);
+      if (!filter) {
+        return;
+      }
+      filter.operator = $(this).val();
+    });
+
+    $(document).on('input', '.builder-filter-value', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const filterId = $(this).data('filter-id');
+      const { filter } = findFilter(sectionId, widgetId, filterId);
+      if (!filter) {
+        return;
+      }
+      filter.value = $(this).val();
+    });
+
+    $(document).on('change', '.builder-option-display', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.displayMode = $(this).val();
+    });
+
+    $(document).on('change', '.builder-option-sort', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.sortDirection = $(this).val();
+    });
+
+    $(document).on('input', '.builder-option-limit', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.limit = $(this).val();
+    });
+
+    $(document).on('change', '.builder-option-legend', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.legendPosition = $(this).val();
+    });
+
+    $(document).on('change', '.builder-option-fill', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.fill = $(this).is(':checked');
+    });
+
+    $(document).on('input', '.builder-option-color', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.color = $(this).val();
+    });
+
+    $(document).on('input', '.builder-option-colors', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      const raw = $(this).val();
+      widget.options.colors = raw.split(',').map((entry) => entry.trim()).filter((entry) => entry);
+    });
+
+    $(document).on('input', '.builder-option-total-label', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.totalLabel = $(this).val();
+    });
+
+    $(document).on('input', '.builder-option-label-max', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.labelMaxLength = $(this).val();
+    });
+
+    $(document).on('click', '.builder-add-custom-option', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.customOptions.push(createEmptyCustomOption());
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('click', '.builder-remove-custom-option', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const optionId = $(this).data('option-id');
+      const { widget, optionIndex } = findCustomOption(sectionId, widgetId, optionId);
+      if (!widget || optionIndex === -1) {
+        return;
+      }
+      widget.customOptions.splice(optionIndex, 1);
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('input', '.builder-custom-option-key', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const optionId = $(this).data('option-id');
+      const { option } = findCustomOption(sectionId, widgetId, optionId);
+      if (!option) {
+        return;
+      }
+      option.key = $(this).val();
+    });
+
+    $(document).on('input', '.builder-custom-option-value', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const optionId = $(this).data('option-id');
+      const { option } = findCustomOption(sectionId, widgetId, optionId);
+      if (!option) {
+        return;
+      }
+      option.value = $(this).val();
+    });
   }
 
   function getDashboardJsonEditor() {
@@ -1341,15 +3504,65 @@
     const container = $('#dashboardWidgets');
     container.empty();
 
-    const widgets = payload.widgets || [];
-    if (!widgets.length) {
+    const widgets = Array.isArray(payload.widgets) ? payload.widgets : [];
+    const sectionsPayload = Array.isArray(payload.sections) ? payload.sections : [];
+
+    const normalizedSections = sectionsPayload
+      .map((section, index) => {
+        const sectionWidgets = Array.isArray(section.widgets) ? section.widgets : [];
+        if (!sectionWidgets.length) {
+          return null;
+        }
+        return {
+          id: section.id || `section-${index}`,
+          title: section.title || '',
+          description: section.description || '',
+          showDivider: !!section.show_divider,
+          widgets: sectionWidgets
+        };
+      })
+      .filter(Boolean);
+
+    if (!normalizedSections.length && widgets.length) {
+      normalizedSections.push({
+        id: 'section-default',
+        title: '',
+        description: '',
+        showDivider: false,
+        widgets: widgets
+      });
+    }
+
+    if (!normalizedSections.length) {
       $('#dashboardViewerEmptyState').removeClass('d-none').text('No widgets configured for this dashboard.');
       container.addClass('d-none');
       return;
     }
 
-    widgets.forEach((widget) => {
-      container.append(renderWidget(widget));
+    normalizedSections.forEach((section, index) => {
+      const sectionColumn = $('<div class="col-12 dashboard-view-section"></div>');
+
+      if (section.title || section.description) {
+        const header = $('<div class="dashboard-view-section-header"></div>');
+        if (section.title) {
+          header.append($('<h5 class="dashboard-view-section-title mb-1"></h5>').text(section.title));
+        }
+        if (section.description) {
+          header.append($('<p class="dashboard-view-section-description mb-0"></p>').text(section.description));
+        }
+        sectionColumn.append(header);
+      }
+
+      const widgetsRow = $('<div class="row dashboard-view-section-widgets"></div>');
+      section.widgets.forEach((widget) => {
+        widgetsRow.append(renderWidget(widget));
+      });
+      sectionColumn.append(widgetsRow);
+      container.append(sectionColumn);
+
+      if (section.showDivider && index < normalizedSections.length - 1) {
+        container.append('<div class="col-12"><div class="dashboard-view-section-divider"></div></div>');
+      }
     });
 
     $('#dashboardViewerEmptyState').addClass('d-none');
@@ -1568,147 +3781,116 @@
   }
 
   function resetEditor() {
-    $('#dashboardEditorForm')[0].reset();
+    const form = $('#dashboardEditorForm')[0];
+    if (form) {
+      form.reset();
+    }
     $('#dashboardId').val('');
-    $('#widgetList').empty();
+    builderMode = 'builder';
+    initializeEmptyBuilderState();
+    renderBuilder();
+    if (dashboardEditorJsonEditor) {
+      setDashboardEditorJsonContent('');
+    } else {
+      $('#dashboardEditorJsonTextarea').val('');
+    }
+    updateEditorModeControls();
     $('#dashboardIsShared').prop('disabled', !canShareDashboards);
     if (!canShareDashboards) {
       $('#dashboardIsShared').prop('checked', false);
     }
-  }
-
-  function addWidgetRow(widget) {
-    const widgetId = `widget-${Date.now()}-${Math.random()}`;
-    const row = $(
-      `<div class="card mb-2 widget-row" data-widget-id="${widgetId}">
-        <div class="card-body">
-          <div class="form-row">
-            <div class="form-group col-md-5">
-              <label>Name</label>
-              <input type="text" class="form-control widget-name" value="${widget && widget.name ? widget.name : ''}" required>
-            </div>
-            <div class="form-group col-md-3">
-              <label>Visualization</label>
-              <select class="form-control widget-chart" required>
-                <option value="line">Line</option>
-                <option value="bar">Bar</option>
-                <option value="pie">Pie</option>
-                <option value="number">Number</option>
-                <option value="percentage">Percentage</option>
-                <option value="table">Table</option>
-              </select>
-            </div>
-            <div class="form-group col-md-2">
-              <label>Column class</label>
-              <input type="text" class="form-control widget-size" placeholder="col-md-6">
-            </div>
-            <div class="form-group col-md-2">
-              <label>&nbsp;</label>
-              <button type="button" class="btn btn-outline-danger btn-block remove-widget">Remove</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Configuration (JSON)</label>
-            <textarea class="form-control widget-definition" rows="4" placeholder='{"fields": [...]}'>${widget ? JSON.stringify(widget, null, 2) : ''}</textarea>
-          </div>
-        </div>
-      </div>`
-    );
-
-    row.find('.widget-chart').val(widget && widget.chart_type ? widget.chart_type : 'line');
-    let widgetOptions = {};
-    if (widget && widget.options && typeof widget.options === 'object') {
-      widgetOptions = widget.options;
-    } else if (widget && widget.definition && widget.definition.options && typeof widget.definition.options === 'object') {
-      widgetOptions = widget.definition.options;
-    }
-    const initialSize = typeof widgetOptions.widget_size === 'string'
-      ? widgetOptions.widget_size
-      : typeof widgetOptions.size === 'string'
-        ? widgetOptions.size
-        : '';
-    if (initialSize) {
-      row.find('.widget-size').val(initialSize);
-    }
-    row.find('.remove-widget').on('click', function () {
-      row.remove();
-    });
-
-    $('#widgetList').append(row);
+    $('#dashboardDeleteBtn').hide();
   }
 
   function openEditor(dashboard) {
     resetEditor();
+
+    let payload = {
+      name: '',
+      description: '',
+      is_shared: false,
+      sections: [],
+      widgets: []
+    };
+
     if (dashboard) {
       $('#dashboardId').val(dashboard.id);
-      $('#dashboardName').val(dashboard.name);
-      $('#dashboardDescription').val(dashboard.description || '');
-      $('#dashboardIsShared').prop('disabled', !canShareDashboards);
-      $('#dashboardIsShared').prop('checked', canShareDashboards ? !!dashboard.is_shared : false);
       $('#dashboardEditorTitle').text('Edit dashboard');
       $('#dashboardDeleteBtn').show();
-      (dashboard.widgets || []).forEach((widget) => {
-        addWidgetRow(widget);
-      });
+
+      const candidatePayload = dashboard.definition && typeof dashboard.definition === 'object'
+        ? Object.assign({}, dashboard.definition)
+        : {
+            name: dashboard.name || '',
+            description: dashboard.description || '',
+            is_shared: dashboard.is_shared,
+            sections: Array.isArray(dashboard.sections) ? dashboard.sections : [],
+            widgets: Array.isArray(dashboard.widgets) ? dashboard.widgets : []
+          };
+
+      payload = Object.assign(payload, candidatePayload);
     } else {
       $('#dashboardEditorTitle').text('New dashboard');
       $('#dashboardDeleteBtn').hide();
-      $('#dashboardIsShared').prop('disabled', !canShareDashboards);
     }
+
+    payload.name = typeof payload.name === 'string' ? payload.name : '';
+    payload.description = typeof payload.description === 'string' ? payload.description : '';
+    payload.sections = Array.isArray(payload.sections) ? payload.sections : [];
+    payload.widgets = Array.isArray(payload.widgets) ? payload.widgets : [];
+    payload.is_shared = canShareDashboards ? !!payload.is_shared : false;
+
+    applyPayloadToEditorForm(payload);
+    loadBuilderStateFromPayload(payload);
+    renderBuilder();
+    syncBuilderJsonFromState();
+    switchEditorMode('builder', { force: true, skipSync: true });
 
     $('#dashboardEditorModal').modal('show');
   }
 
   function collectDashboardPayload() {
-    const widgets = [];
-    let hasError = false;
-
-    $('.widget-row').each(function () {
-      const row = $(this);
-      const definitionText = row.find('.widget-definition').val();
-      row.find('.widget-definition').removeClass('is-invalid');
-
-      try {
-        const definition = JSON.parse(definitionText || '{}');
-        definition.name = row.find('.widget-name').val();
-        definition.chart_type = row.find('.widget-chart').val();
-        const sizeValueRaw = row.find('.widget-size').val();
-        const normalizedSizeValue = normalizeWidgetSizeValue(sizeValueRaw);
-        if (normalizedSizeValue) {
-          definition.options = definition.options && typeof definition.options === 'object' ? definition.options : {};
-          definition.options.widget_size = normalizedSizeValue;
-          if (Object.prototype.hasOwnProperty.call(definition.options, 'size')) {
-            delete definition.options.size;
-          }
-        } else if (definition.options && typeof definition.options === 'object') {
-          if (Object.prototype.hasOwnProperty.call(definition.options, 'widget_size')) {
-            delete definition.options.widget_size;
-          }
-          if (Object.prototype.hasOwnProperty.call(definition.options, 'size')) {
-            delete definition.options.size;
-          }
-          if (!Object.keys(definition.options).length) {
-            delete definition.options;
-          }
-        }
-        widgets.push(definition);
-      } catch (e) {
-        hasError = true;
-        row.find('.widget-definition').addClass('is-invalid');
-        notify_error(`Widget configuration is not valid JSON: ${e.message}`);
+    if (builderMode === 'json') {
+      const parsed = parseDashboardPayloadFromJsonEditor();
+      if (!parsed) {
+        return null;
       }
-    });
-
-    if (hasError) {
-      return null;
+      applyPayloadToEditorForm(parsed);
+      loadBuilderStateFromPayload(parsed);
+      renderBuilder();
+      syncBuilderJsonFromState();
     }
 
-    return {
-      name: $('#dashboardName').val(),
-      description: $('#dashboardDescription').val(),
-      is_shared: canShareDashboards ? $('#dashboardIsShared').is(':checked') : false,
-      widgets: widgets
-    };
+    const payload = buildDashboardPayloadFromState();
+    if (!payload.widgets.length) {
+      notify_error('Add at least one widget before saving the dashboard.');
+      return null;
+    }
+    return payload;
+  }
+
+  function flattenValidationErrors(errors, prefix) {
+    const messages = [];
+    if (Array.isArray(errors)) {
+      errors.forEach((entry) => {
+        messages.push(...flattenValidationErrors(entry, prefix));
+      });
+      return messages;
+    }
+    if (errors && typeof errors === 'object') {
+      Object.entries(errors).forEach(([key, value]) => {
+        const nextPrefix = prefix ? `${prefix}.${key}` : key;
+        messages.push(...flattenValidationErrors(value, nextPrefix));
+      });
+      return messages;
+    }
+    if (errors !== undefined && errors !== null) {
+      const text = String(errors).trim();
+      if (text) {
+        messages.push(prefix ? `${prefix}: ${text}` : text);
+      }
+    }
+    return messages;
   }
 
   function saveDashboard() {
@@ -1742,7 +3924,11 @@
       loadDashboards();
     }).fail(function (jqXHR) {
       if (jqXHR.responseJSON && jqXHR.responseJSON.errors) {
-        notify_error('Validation failed while saving the dashboard.');
+        const details = flattenValidationErrors(jqXHR.responseJSON.errors);
+        const message = details.length
+          ? `Validation failed while saving the dashboard: ${details.join(' | ')}`
+          : 'Validation failed while saving the dashboard.';
+        notify_error(message);
       } else if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
         notify_error(jqXHR.responseJSON.message);
       } else {
@@ -1782,6 +3968,8 @@
   }
 
   function bindEvents() {
+    bindBuilderEvents();
+
     $('#createDashboardBtn').on('click', function () {
       openEditor();
     });
@@ -1802,10 +3990,6 @@
     $('#dashboardAutoRefresh').on('change', function () {
       const enabled = $(this).is(':checked');
       setAutoRefresh(enabled);
-    });
-
-    $('#addWidgetBtn').on('click', function () {
-      addWidgetRow();
     });
 
     $('#dashboardSaveBtn').on('click', function () {
@@ -1831,15 +4015,6 @@
         return;
       }
       deleteDashboard(currentDashboardId);
-    });
-
-    $('#dashboardJsonEditBtn').on('click', function () {
-      const dashboard = getSelectedDashboard();
-      if (!dashboard) {
-        notify_error('Select a dashboard to edit as JSON.');
-        return;
-      }
-      openDashboardJsonModal({ mode: 'edit', dashboard });
     });
 
     $('#dashboardJsonExportBtn').on('click', function () {
