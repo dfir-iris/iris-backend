@@ -53,7 +53,6 @@ from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Group
-from app.models.authorization import Organisation
 from app.models.authorization import User
 from app.models.cases import Cases
 from app.models.cases import CaseState
