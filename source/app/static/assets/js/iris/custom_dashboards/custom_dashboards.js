@@ -543,6 +543,26 @@
     return value;
   }
 
+  function formatValueForInput(rawValue) {
+    if (rawValue === undefined || rawValue === null) {
+      return '';
+    }
+    if (typeof rawValue === 'string') {
+      return rawValue;
+    }
+    if (rawValue instanceof Date) {
+      return rawValue.toISOString();
+    }
+    if (Array.isArray(rawValue) || (typeof rawValue === 'object' && rawValue !== null)) {
+      try {
+        return JSON.stringify(rawValue);
+      } catch (err) {
+        return String(rawValue);
+      }
+    }
+    return String(rawValue);
+  }
+
   function coerceCustomOptionValue(rawValue) {
     if (rawValue === undefined || rawValue === null) {
       return null;
@@ -1137,7 +1157,7 @@
     valueInput.attr('data-section-id', sectionId);
     valueInput.attr('data-widget-id', widgetId);
     valueInput.attr('data-filter-id', filter.id);
-    valueInput.val(filter.value !== undefined && filter.value !== null ? filter.value : '');
+  valueInput.val(formatValueForInput(filter.value));
     valueGroup.append(valueInput);
 
     const removeGroup = $('<div class="form-group col-lg-1 text-right"></div>');
@@ -1169,7 +1189,7 @@
     valueInput.attr('data-section-id', sectionId);
     valueInput.attr('data-widget-id', widgetId);
     valueInput.attr('data-option-id', option.id);
-    valueInput.val(option.value !== undefined && option.value !== null ? option.value : '');
+  valueInput.val(formatValueForInput(option.value));
     valueGroup.append(valueInput);
 
     const removeGroup = $('<div class="form-group col-md-1 text-right"></div>');
