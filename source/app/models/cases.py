@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import uuid
 
 from datetime import datetime
@@ -110,20 +111,6 @@ class Cases(db.Model):
         self.classification_id = classification_id
         self.state_id = state_id,
         self.severity_id = severity_id
-
-    def validate_on_build(self):
-        """
-        Execute an autocheck of the case metadata and validate it
-        :return: True if valid else false; Tuple with errors
-        """
-        # TODO : Check if case name already exists
-
-        res = Client.query\
-            .with_entities(Client.client_id)\
-            .filter(Client.client_id == self.client_id)\
-            .first()
-
-        self.client_id = res[0]
 
 
 class CaseTags(db.Model):

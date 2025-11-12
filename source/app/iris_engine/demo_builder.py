@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import random
 import string
 
@@ -160,7 +161,6 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
             client_id=random.choice(clients)
         )
 
-        case.validate_on_build()
         case_db_save(case)
 
         db.session.commit()
@@ -197,7 +197,6 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
             user=random.choice(users_data['admins']),
             client_id=random.choice(clients)
         )
-        case.validate_on_build()
         case_db_save(case)
 
         db.session.commit()

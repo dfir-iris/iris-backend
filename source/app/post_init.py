@@ -740,8 +740,6 @@ def create_safe_case(user, client, groups):
             client_id=client.client_id
         )
 
-        # Validate the case and save it to the database
-        case.validate_on_build()
         case_db_save(case)
 
         db.session.commit()
