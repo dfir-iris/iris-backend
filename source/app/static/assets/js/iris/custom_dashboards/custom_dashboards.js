@@ -351,7 +351,17 @@
       operator: 'eq',
       value: ''
     };
-    return Object.assign(defaults, overrides);
+    const filter = Object.assign({}, defaults, overrides);
+    if (Array.isArray(filter.value)) {
+      filter.value = filter.value.slice();
+    } else if (filter.value && typeof filter.value === 'object' && !(filter.value instanceof Date)) {
+      try {
+        filter.value = JSON.parse(JSON.stringify(filter.value));
+      } catch (err) {
+        filter.value = Object.assign({}, filter.value);
+      }
+    }
+    return filter;
   }
 
   function createEmptyCustomOption(overrides = {}) {
@@ -360,7 +370,17 @@
       key: '',
       value: ''
     };
-    return Object.assign(defaults, overrides);
+    const option = Object.assign({}, defaults, overrides);
+    if (Array.isArray(option.value)) {
+      option.value = option.value.slice();
+    } else if (option.value && typeof option.value === 'object' && !(option.value instanceof Date)) {
+      try {
+        option.value = JSON.parse(JSON.stringify(option.value));
+      } catch (err) {
+        option.value = Object.assign({}, option.value);
+      }
+    }
+    return option;
   }
 
   function createEmptyWidget(overrides = {}) {
@@ -463,7 +483,7 @@
         table: filter.table,
         column: filter.column,
         operator: filter.operator,
-        value: filter.value
+        value: coerceFilterValue(filter.value, filter.operator)
       }))
       : [];
 
@@ -516,12 +536,25 @@
     return value;
   }
 
-  function coerceFilterValue(rawValue) {
+  function coerceFilterValue(rawValue, operator) {
     if (rawValue === undefined || rawValue === null) {
       return null;
     }
     if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
       return rawValue;
+    }
+    if (Array.isArray(rawValue)) {
+      return rawValue.slice();
+    }
+    if (rawValue instanceof Date) {
+      return new Date(rawValue.getTime());
+    }
+    if (typeof rawValue === 'object') {
+      try {
+        return JSON.parse(JSON.stringify(rawValue));
+      } catch (err) {
+        return Object.assign({}, rawValue);
+      }
     }
     const value = String(rawValue).trim();
     if (!value) {
@@ -530,8 +563,9 @@
     if (value === 'true' || value === 'false') {
       return value === 'true';
     }
-    if (!Number.isNaN(Number(value))) {
-      return Number(value);
+    const numericValue = Number(value);
+    if (!Number.isNaN(numericValue) && String(numericValue) === value) {
+      return numericValue;
     }
     if ((value.startsWith('[') && value.endsWith(']')) || (value.startsWith('{') && value.endsWith('}'))) {
       try {
@@ -540,27 +574,34 @@
         return value;
       }
     }
+    if ((operator === 'in' || operator === 'nin') && value.indexOf(',') !== -1) {
+      const parts = value.split(',').map((item) => item.trim()).filter((item) => item !== '');
+      if (parts.length > 1) {
+        return parts;
+      }
+    }
     return value;
   }
 
-  function formatValueForInput(rawValue) {
-    if (rawValue === undefined || rawValue === null) {
+  function formatValueForInput(rawValue, operator) {
+    const normalized = coerceFilterValue(rawValue, operator);
+    if (normalized === undefined || normalized === null) {
       return '';
     }
-    if (typeof rawValue === 'string') {
-      return rawValue;
+    if (typeof normalized === 'string') {
+      return normalized;
     }
-    if (rawValue instanceof Date) {
-      return rawValue.toISOString();
+    if (normalized instanceof Date) {
+      return normalized.toISOString();
     }
-    if (Array.isArray(rawValue) || (typeof rawValue === 'object' && rawValue !== null)) {
+    if (Array.isArray(normalized) || (typeof normalized === 'object' && normalized !== null)) {
       try {
-        return JSON.stringify(rawValue);
+        return JSON.stringify(normalized);
       } catch (err) {
-        return String(rawValue);
+        return String(normalized);
       }
     }
-    return String(rawValue);
+    return String(normalized);
   }
 
   function coerceCustomOptionValue(rawValue) {
@@ -609,7 +650,7 @@
         table: filter.table,
         column: filter.column,
         operator: filter.operator,
-        value: coerceFilterValue(filter.value)
+        value: coerceFilterValue(filter.value, filter.operator)
       })),
       group_by: widget.groupBy.map((group) => formatTableColumn(group.table, group.column)).filter((value) => value && value.indexOf('.') !== -1),
       time_bucket: widget.timeBucket ? widget.timeBucket : undefined,
@@ -1157,7 +1198,7 @@
     valueInput.attr('data-section-id', sectionId);
     valueInput.attr('data-widget-id', widgetId);
     valueInput.attr('data-filter-id', filter.id);
-  valueInput.val(formatValueForInput(filter.value));
+  valueInput.val(formatValueForInput(filter.value, filter.operator));
     valueGroup.append(valueInput);
 
     const removeGroup = $('<div class="form-group col-lg-1 text-right"></div>');
@@ -2139,6 +2180,8 @@
         return;
       }
       filter.operator = $(this).val();
+      filter.value = coerceFilterValue(filter.value, filter.operator);
+      rerenderWidget(sectionId, widgetId);
     });
 
     $(document).on('input', '.builder-filter-value', function () {
@@ -2149,7 +2192,13 @@
       if (!filter) {
         return;
       }
-      filter.value = $(this).val();
+      filter.value = coerceFilterValue($(this).val(), filter.operator);
+    });
+
+    $(document).on('blur', '.builder-filter-value', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      rerenderWidget(sectionId, widgetId);
     });
 
     $(document).on('change', '.builder-option-display', function () {
