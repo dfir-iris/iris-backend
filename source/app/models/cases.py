@@ -125,8 +125,6 @@ class Cases(db.Model):
 
         self.client_id = res[0]
 
-        return True, []
-
 
 class CaseTags(db.Model):
     __tablename__ = 'case_tags'
