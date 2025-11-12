@@ -36,6 +36,7 @@ from sqlalchemy_utils import database_exists
 
 from app import bc
 from app import celery
+from app.business.organisations import organisations_get, organisations_create
 from app.db import db
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
@@ -129,6 +130,7 @@ _ASSET_TYPES = [
     {'asset_name': 'Windows Account - AD - Service', 'asset_description': 'Windows Account - AD - krbtgt',
      'asset_icon_not_compromised': 'user.png', 'asset_icon_compromised': 'ioc_user.png'}
 ]
+_DEFAULT_ORGANISATION_NAME = 'Default Org'
 
 
 def connect_to_database(host: str, port: int) -> bool:
@@ -1290,6 +1292,13 @@ def create_safe_server_settings(is_mfa_enabled):
                     password_policy_special_chars="", enforce_mfa=is_mfa_enabled)
 
 
+def create_safe_default_organisation():
+    try:
+        return organisations_get(_DEFAULT_ORGANISATION_NAME)
+    except ObjectNotFoundError:
+        return organisations_create(_DEFAULT_ORGANISATION_NAME, 'Default Organisation')
+
+
 class PostInit:
 
     def __init__(self, app):
@@ -1330,9 +1339,7 @@ class PostInit:
         It also updates the attributes of the existing Group objects if they have changed.
 
         """
-        # Create new Organisation object
-        def_org = get_or_create(db.session, Organisation, org_name='Default Org',
-                                org_description='Default Organisation')
+        def_org = create_safe_default_organisation()
 
         # Create new Administrator Group object
         try:
