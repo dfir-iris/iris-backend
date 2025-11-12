@@ -105,18 +105,6 @@ def create_safe_limited(session, model, keywords_list, **kwargs):
         return True
 
 
-# TODO try to remove this method: too generic
-def get_or_create(session, model, **kwargs):
-    instance = session.query(model).filter_by(**kwargs).first()
-    if instance:
-        return instance
-
-    instance = model(**kwargs)
-    session.add(instance)
-    session.commit()
-    return instance
-
-
 class Client(db.Model):
     __tablename__ = 'client'
 
