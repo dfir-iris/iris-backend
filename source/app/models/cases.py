@@ -39,7 +39,6 @@ from sqlalchemy.orm import backref
 
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
-from app.models.models import Client
 
 
 class Cases(db.Model):
