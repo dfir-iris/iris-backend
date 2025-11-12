@@ -33,7 +33,6 @@ from app.datamgmt.conversions import convert_sort_direction
 from app.datamgmt.authorization import has_deny_all_access_level
 from app.datamgmt.states import delete_case_states
 from app.models.models import NoteRevisions
-from app.models.models import CaseClassification
 from app.models.assets import alert_assets_association, CaseAssets
 from app.models.models import TaskAssignee
 from app.models.models import NoteDirectory
@@ -43,7 +42,7 @@ from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
-from app.models.cases import Cases, CaseStatus
+from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent
 from app.models.customers import Client
 from app.models.models import DataStoreFile

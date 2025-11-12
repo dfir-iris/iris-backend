@@ -56,10 +56,9 @@ from app.models.alerts import AlertResolutionStatus
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Group
 from app.models.authorization import User
-from app.models.cases import Cases, ReviewStatusList
+from app.models.cases import Cases, ReviewStatusList, CaseClassification
 from app.models.cases import CaseState
 from app.models.customers import Client
-from app.models.models import CaseClassification
 from app.models.models import ReviewStatus
 from app.models.models import EvidenceTypes
 from app.models.models import EventCategory

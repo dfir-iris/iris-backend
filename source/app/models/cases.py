@@ -20,7 +20,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger
+from sqlalchemy import BigInteger, Column, Integer, Text, DateTime, func, ForeignKey
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -38,6 +38,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
 
+from app import db
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 
@@ -201,3 +202,16 @@ class ReviewStatusList:
     pending_review = "Pending review"
     review_in_progress = "Review in progress"
     reviewed = "Reviewed"
+
+
+class CaseClassification(db.Model):
+    __tablename__ = 'case_classification'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(Text)
+    name_expanded = Column(Text)
+    description = Column(Text)
+    creation_date = Column(DateTime, server_default=func.now(), nullable=True)
+    created_by_id = Column(ForeignKey('user.id'), nullable=True)
+
+    created_by = relationship('User')
