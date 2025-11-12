@@ -22,7 +22,6 @@ import traceback
 from app.db import db
 from app.logger import logger
 from app.util import add_obj_history_entry
-from app.models.models import ReviewStatusList
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.business.iocs import iocs_exports_to_json
@@ -55,7 +54,7 @@ from app.datamgmt.manage.manage_cases_db import get_filtered_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_reviews
 from app.datamgmt.case.case_db import get_first_case_with_customer
-from app.models.cases import Cases
+from app.models.cases import Cases, ReviewStatusList
 from app.models.models import Client
 
 

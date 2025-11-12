@@ -193,3 +193,11 @@ class CaseStatus(enum.Enum):
     not_applicable = 0x3
     true_positive_without_impact = 0x4
     legitimate = 0x5
+
+
+class ReviewStatusList:
+    no_review_required = "No review required"
+    not_reviewed = "Not reviewed"
+    pending_review = "Pending review"
+    review_in_progress = "Review in progress"
+    reviewed = "Reviewed"
