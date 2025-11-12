@@ -20,7 +20,8 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Column, Integer, Text, DateTime, func, ForeignKey
+from sqlalchemy import BigInteger
+from sqlalchemy import func
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -38,7 +39,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import backref
 
-from app import db
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 

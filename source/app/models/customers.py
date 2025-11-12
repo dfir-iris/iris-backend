@@ -26,7 +26,7 @@ from sqlalchemy import func
 from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import JSON
 
-from app import db
+from app.db import db
 
 
 class Client(db.Model):
