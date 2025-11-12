@@ -153,6 +153,7 @@ def get_gtasks():
 
 
 @dashboard_rest_blueprint.route('/global/tasks/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/global-tasks/{identifier}')
 @ac_api_requires()
 def view_gtask(cur_id):
     task = get_global_task(cur_id)
