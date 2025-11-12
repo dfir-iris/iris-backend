@@ -18,7 +18,7 @@
 from app.datamgmt.db_operations import db_create
 from app.models.authorization import Group
 from app.iris_engine.utils.tracker import track_activity
-from app.datamgmt.manage.manage_groups_db import get_group_details
+from app.datamgmt.manage.manage_groups_db import get_group_details, get_group_by_name
 from app.datamgmt.manage.manage_groups_db import update_group
 from app.datamgmt.manage.manage_groups_db import delete_group
 from app.models.errors import BusinessProcessingError
@@ -35,6 +35,13 @@ def groups_create(group: Group) -> Group:
 
 def groups_get(identifier) -> Group:
     group = get_group_details(identifier)
+    if not group:
+        raise ObjectNotFoundError()
+    return group
+
+
+def groups_get_by_name(name) -> Group:
+    group = get_group_by_name(name)
     if not group:
         raise ObjectNotFoundError()
     return group
