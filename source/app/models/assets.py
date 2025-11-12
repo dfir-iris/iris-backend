@@ -65,3 +65,10 @@ class CaseAssets(db.Model):
 
     alerts = relationship('Alert', secondary=alert_assets_association, back_populates='assets')
     iocs = relationship('IocAssetLink', back_populates='asset')
+
+
+class AnalysisStatus(db.Model):
+    __tablename__ = 'analysis_status'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(Text)

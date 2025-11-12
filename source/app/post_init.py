@@ -49,7 +49,7 @@ from app.iris_engine.module_handler.module_handler import instantiate_module_fro
 from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.demo_builder import create_demo_users
 from app.models.models import create_safe_limited
-from app.models.assets import AssetsType
+from app.models.assets import AssetsType, AnalysisStatus
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus
@@ -59,7 +59,6 @@ from app.models.authorization import User
 from app.models.cases import Cases, ReviewStatusList
 from app.models.cases import CaseState
 from app.models.customers import Client
-from app.models.models import AnalysisStatus
 from app.models.models import CaseClassification
 from app.models.models import ReviewStatus
 from app.models.models import EvidenceTypes

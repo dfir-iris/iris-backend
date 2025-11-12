@@ -74,13 +74,6 @@ def create_safe_limited(session, model, keywords_list, **kwargs):
         return True
 
 
-class AnalysisStatus(db.Model):
-    __tablename__ = 'analysis_status'
-
-    id = Column(Integer, primary_key=True)
-    name = Column(Text)
-
-
 class CaseClassification(db.Model):
     __tablename__ = 'case_classification'
 

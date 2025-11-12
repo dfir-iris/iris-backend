@@ -29,12 +29,11 @@ from app.logger import logger
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
-from app.models.models import AnalysisStatus
 from app.models.models import CaseEventsAssets
 from app.models.cases import Cases, CaseStatus
 from app.models.comments import Comments
 from app.models.comments import AssetComments
-from app.models.assets import CompromiseStatus, AssetsType, CaseAssets
+from app.models.assets import CompromiseStatus, AssetsType, CaseAssets, AnalysisStatus
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
