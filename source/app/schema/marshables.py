@@ -62,8 +62,7 @@ from app.models.models import ReviewStatus
 from app.models.models import EvidenceTypes
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
-from app.models.models import AssetsType
-from app.models.models import CaseAssets
+from app.models.assets import AssetsType, CaseAssets
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases, CaseStatus

@@ -22,8 +22,7 @@ from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.states import update_timeline_state
-from app.models.models import AssetsType
-from app.models.models import CaseAssets
+from app.models.assets import AssetsType, CaseAssets
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc

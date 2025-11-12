@@ -57,10 +57,8 @@ from app.iris_engine.utils.common import parse_bf_date_format
 from app.models.cases import Cases
 from app.models.models import EventCategory
 from app.models.models import Tags
-from app.models.models import AssetsType
+from app.models.assets import AssetsType, alert_assets_association, CaseAssets
 from app.models.comments import Comments
-from app.models.models import CaseAssets
-from app.models.models import alert_assets_association
 from app.models.iocs import alert_iocs_association
 from app.models.iocs import Ioc
 from app.models.customers import Client

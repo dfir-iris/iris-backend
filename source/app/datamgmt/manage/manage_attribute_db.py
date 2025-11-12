@@ -22,7 +22,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.db import db
 from app import app
-from app.models.models import CaseAssets
+from app.models.assets import CaseAssets
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases

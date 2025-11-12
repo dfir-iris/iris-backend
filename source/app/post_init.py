@@ -49,7 +49,7 @@ from app.iris_engine.module_handler.module_handler import instantiate_module_fro
 from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.demo_builder import create_demo_users
 from app.models.models import create_safe_limited
-from app.models.models import AssetsType
+from app.models.assets import AssetsType
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus

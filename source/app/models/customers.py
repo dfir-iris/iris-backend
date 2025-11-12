@@ -15,7 +15,15 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from sqlalchemy import Column, BigInteger, UUID, text, Text, DateTime, func, ForeignKey
+
+from sqlalchemy import Column
+from sqlalchemy import BigInteger
+from sqlalchemy import UUID
+from sqlalchemy import text
+from sqlalchemy import Text
+from sqlalchemy import DateTime
+from sqlalchemy import func
+from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import JSON
 
 from app import db
