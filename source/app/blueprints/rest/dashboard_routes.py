@@ -272,6 +272,7 @@ def edit_gtask(cur_id, caseid):
 
 
 @dashboard_rest_blueprint.route('/global/tasks/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/global-tasks/{identifier}')
 @ac_api_requires()
 @ac_requires_case_identifier()
 def gtask_delete(cur_id, caseid):
