@@ -22,8 +22,7 @@ from datetime import datetime
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.db_operations import db_create
-from app.datamgmt.dashboard.dashboard_db import get_global_task_by_identifier
-from app.datamgmt.global_tasks import delete_global_task
+from app.datamgmt.global_tasks import delete_global_task, get_global_task_by_identifier
 
 
 def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:

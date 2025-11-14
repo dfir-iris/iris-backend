@@ -24,65 +24,7 @@ from app.models.models import CaseTasks
 from app.models.models import TaskAssignee
 from app.models.models import ReviewStatus
 from app.models.cases import Cases
-from app.models.models import GlobalTasks
 from app.models.models import TaskStatus
-from app.models.authorization import User
-
-
-def list_global_tasks():
-    ct = GlobalTasks.query.with_entities(
-        GlobalTasks.id.label("task_id"),
-        GlobalTasks.task_uuid,
-        GlobalTasks.task_title,
-        GlobalTasks.task_description,
-        GlobalTasks.task_last_update,
-        GlobalTasks.task_tags,
-        User.name.label('user_name'),
-        GlobalTasks.task_assignee_id,
-        GlobalTasks.task_status_id,
-        TaskStatus.status_name,
-        TaskStatus.status_bscolor
-    ).join(
-        GlobalTasks.user_assigned
-    ).order_by(
-        desc(TaskStatus.status_name)
-    ).join(
-        GlobalTasks.status
-    ).all()
-
-    return ct
-
-
-def get_global_task(task_id):
-    ct = GlobalTasks.query.with_entities(
-        GlobalTasks.id.label("task_id"),
-        GlobalTasks.task_uuid,
-        GlobalTasks.task_title,
-        GlobalTasks.task_description,
-        GlobalTasks.task_last_update,
-        GlobalTasks.task_tags,
-        User.name.label('user_name'),
-        GlobalTasks.task_assignee_id,
-        GlobalTasks.task_status_id,
-        TaskStatus.status_name,
-        TaskStatus.status_bscolor
-    ).filter(
-        GlobalTasks.id == task_id
-    ).join(
-        GlobalTasks.user_assigned
-    ).join(
-        GlobalTasks.status
-    ).order_by(
-        desc(TaskStatus.status_name)
-    ).first()
-
-    return ct
-
-
-def get_global_task_by_identifier(identifier):
-    return GlobalTasks.query.filter(
-        GlobalTasks.id == identifier
-    ).first()
 
 
 def get_tasks_status():
@@ -133,22 +75,6 @@ def list_user_tasks(user_identifier):
     )).all()
 
     return ct
-
-
-def update_gtask_status(task_id, status):
-    if task_id != 0:
-        task = GlobalTasks.query.filter(
-                GlobalTasks.id == task_id
-        ).first()
-
-        try:
-            task.task_status_id = status
-            db.session.commit()
-            return task
-        except:
-            pass
-
-    return None
 
 
 def update_utask_status(task_id, status, case_id):
