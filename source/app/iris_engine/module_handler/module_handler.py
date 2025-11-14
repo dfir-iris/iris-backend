@@ -416,6 +416,11 @@ def task_hook_wrapper(self, module_name, hook_name, hook_ui_name, data, init_use
     """
     Wrap a hook call into a Celery task to run asynchronously
 
+    note: even if the caseid parameter does not seem very useful, it is used when tasks are retrieved to display the
+          table of "DFIR-IRIS Module Tasks".
+          see endpoint /dim/tasks/list
+          see tests_rest_module_tasks.TestsRestModuleTasks.test_get_module_tasks_should_return_case_identifier
+
     :param self: Task instance
     :param module_name: Module name to instanciate and call
     :param hook_name: Name of the hook which was triggered

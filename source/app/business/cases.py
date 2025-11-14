@@ -131,7 +131,6 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
 
     ac_set_new_case_access(user, case.case_id, case.client_id)
 
-    # TODO remove caseid doesn't seems to be useful for call_modules_hook => remove argument
     case = call_modules_hook('on_postload_case_create', case)
 
     add_obj_history_entry(case, 'created')
