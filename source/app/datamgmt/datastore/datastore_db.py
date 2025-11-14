@@ -343,7 +343,7 @@ def datastore_delete_file(cur_id, cid):
     return False, f'File {cur_id} deleted'
 
 
-def datastore_add_file_as_ioc(dsf, caseid):
+def datastore_add_file_as_ioc(dsf):
     ioc = Ioc.query.filter(
         Ioc.ioc_value == dsf.file_sha256
     ).first()
