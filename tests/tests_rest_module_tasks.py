@@ -30,8 +30,15 @@ class TestsRestModuleTasks(TestCase):
 
     def test_get_module_tasks_should_return_case_identifier(self):
         case_identifier = self._subject.create_dummy_case()
+
+        module_identifier = self._subject.get_module_identifier_by_name('IrisCheck')
+        self._subject.create(f'/manage/modules/enable/{module_identifier}', {})
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
         self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body)
+        self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
+
         response = self._subject.get('/dim/tasks/list/1').json()
-        print(response['data'][0]['case'])
+        print('--------------------------------------------------------------------------------------------')
+        print(response['data'][0])
+        print('--------------------------------------------------------------------------------------------')
         self.assertEqual(f'Case #{case_identifier}', response['data'][0]['case'])
