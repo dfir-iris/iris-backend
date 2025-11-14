@@ -17,8 +17,8 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-import traceback
 
+import traceback
 import base64
 import importlib
 from packaging import version
@@ -32,6 +32,7 @@ from app.logger import logger
 from app import celery
 from app.db import db
 from app.datamgmt.iris_engine.modules_db import get_module_config_from_hname
+from app.datamgmt.iris_engine.modules_db import deregister_module_from_hook
 from app.datamgmt.iris_engine.modules_db import iris_module_add
 from app.datamgmt.iris_engine.modules_db import iris_module_exists
 from app.datamgmt.iris_engine.modules_db import modules_list_pipelines
@@ -398,15 +399,8 @@ def deregister_from_hook(module_id: int, iris_hook_name: str):
     :return: IrisInterfaceStatus object
     """
     logger.info(f'Deregistering module #{module_id} from {iris_hook_name}')
-    hooks = IrisModuleHook.query.filter(
-        IrisModuleHook.module_id == module_id,
-        IrisHook.hook_name == iris_hook_name,
-        IrisModuleHook.hook_id == IrisHook.id
-    ).all()
-    if hooks:
-        for hook in hooks:
-            logger.info(f'Deregistered module #{module_id} from {iris_hook_name}')
-            db.session.delete(hook)
+    deregister_module_from_hook(module_id, iris_hook_name)
+    logger.info(f'Deregistered module #{module_id} from {iris_hook_name}')
 
     return True, ['Hook deregistered']
 

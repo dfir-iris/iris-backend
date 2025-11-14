@@ -257,3 +257,13 @@ def parse_module_parameter(module_parameter):
         return None, None, None, None
 
     return mod_config, mod_id, mod_name, mod_iname, parameter
+
+
+def deregister_module_from_hook(module_id: int, iris_hook_name: str):
+    hooks = IrisModuleHook.query.filter(
+        IrisModuleHook.module_id == module_id,
+        IrisHook.hook_name == iris_hook_name,
+        IrisModuleHook.hook_id == IrisHook.id
+    ).all()
+    for hook in hooks:
+        db.session.delete(hook)
