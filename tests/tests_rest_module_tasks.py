@@ -38,7 +38,4 @@ class TestsRestModuleTasks(TestCase):
         self._subject.create(f'/manage/modules/disable/{module_identifier}', {})
 
         response = self._subject.get('/dim/tasks/list/1').json()
-        print('--------------------------------------------------------------------------------------------')
-        print(response['data'][0])
-        print('--------------------------------------------------------------------------------------------')
         self.assertEqual(f'Case #{case_identifier}', response['data'][0]['case'])
