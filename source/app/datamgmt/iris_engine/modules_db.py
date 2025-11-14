@@ -20,14 +20,12 @@ import datetime
 
 from app.datamgmt.db_operations import db_create
 from app.db import db
-from app import app
+from app.logger import logger
 from app.blueprints.iris_user import iris_current_user
 from app.models.models import IrisHook
 from app.models.models import IrisModule
 from app.models.models import IrisModuleHook
 from app.models.authorization import User
-
-log = app.logger
 
 
 def iris_module_exists(module_name):
@@ -244,7 +242,7 @@ def parse_module_parameter(module_parameter):
         param_name = param.split('##')[1]
 
     except Exception as e:
-        log.exception(e)
+        logger.exception(e)
         return None, None, None, None
 
     mod_config, mod_name, mod_iname = get_module_config_from_id(mod_id)
