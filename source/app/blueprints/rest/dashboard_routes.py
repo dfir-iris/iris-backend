@@ -37,7 +37,7 @@ from app.datamgmt.dashboard.dashboard_db import list_user_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_reviews
 from app.datamgmt.dashboard.dashboard_db import get_tasks_status
 from app.datamgmt.global_tasks import list_global_tasks, get_global_task
-from app.datamgmt.dashboard.dashboard_db import list_user_tasks
+from app.datamgmt.case.case_tasks_db import list_user_tasks
 from app.forms import CaseGlobalTaskForm
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity

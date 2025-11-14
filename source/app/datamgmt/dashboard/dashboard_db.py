@@ -16,12 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from sqlalchemy import and_
-from sqlalchemy import desc
-
-from app.db import db
-from app.models.models import CaseTasks
-from app.models.models import TaskAssignee
 from app.models.models import ReviewStatus
 from app.models.cases import Cases
 from app.models.models import TaskStatus
@@ -46,54 +40,6 @@ def list_user_reviews(user_identifier):
     ).all()
 
     return ct
-
-
-def list_user_tasks(user_identifier):
-    ct = CaseTasks.query.with_entities(
-        CaseTasks.id.label("task_id"),
-        CaseTasks.task_title,
-        CaseTasks.task_description,
-        CaseTasks.task_last_update,
-        CaseTasks.task_tags,
-        Cases.name.label('task_case'),
-        CaseTasks.task_case_id.label('case_id'),
-        CaseTasks.task_status_id,
-        TaskStatus.status_name,
-        TaskStatus.status_bscolor
-    ).join(
-        CaseTasks.case
-    ).order_by(
-        desc(TaskStatus.status_name)
-    ).filter(and_(
-        TaskStatus.status_name != 'Done',
-        TaskStatus.status_name != 'Canceled'
-    )).join(
-        CaseTasks.status,
-    ).filter(and_(
-        TaskAssignee.task_id == CaseTasks.id,
-        TaskAssignee.user_id == user_identifier
-    )).all()
-
-    return ct
-
-
-def update_utask_status(task_id, status, case_id):
-    if task_id != 0:
-        task = CaseTasks.query.filter(
-                CaseTasks.id == task_id,
-                CaseTasks.task_case_id == case_id
-        ).first()
-        if task:
-            try:
-                task.task_status_id = status
-
-                db.session.commit()
-                return True
-
-            except:
-                pass
-
-    return False
 
 
 def get_task_status(task_status_id):
