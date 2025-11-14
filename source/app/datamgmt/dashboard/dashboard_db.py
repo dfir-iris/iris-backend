@@ -16,16 +16,4 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.models.cases import Cases
 
-
-def list_user_cases(user_identifier, show_all=False):
-    if show_all:
-        return Cases.query.filter(
-            Cases.owner_id == user_identifier
-        ).all()
-
-    return Cases.query.filter(
-        Cases.owner_id == user_identifier,
-        Cases.close_date == None
-    ).all()

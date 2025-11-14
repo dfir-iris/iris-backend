@@ -264,3 +264,15 @@ def list_user_reviews(user_identifier):
     ).all()
 
     return ct
+
+
+def list_user_cases(user_identifier, show_all=False):
+    if show_all:
+        return Cases.query.filter(
+            Cases.owner_id == user_identifier
+        ).all()
+
+    return Cases.query.filter(
+        Cases.owner_id == user_identifier,
+        Cases.close_date == None
+    ).all()

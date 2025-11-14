@@ -29,6 +29,7 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.access_control.utils import ac_set_new_case_access
 from app.datamgmt.case.case_db import case_db_exists
+from app.datamgmt.case.case_db import list_user_cases
 from app.datamgmt.case.case_db import case_db_save
 from app.datamgmt.case.case_db import list_user_reviews
 from app.datamgmt.case.case_db import save_case_tags
@@ -53,9 +54,9 @@ from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
-from app.datamgmt.dashboard.dashboard_db import list_user_cases
 from app.datamgmt.case.case_db import get_first_case_with_customer
-from app.models.cases import Cases, ReviewStatusList
+from app.models.cases import Cases
+from app.models.cases import ReviewStatusList
 from app.models.customers import Client
 
 
