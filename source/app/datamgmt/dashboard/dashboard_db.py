@@ -17,15 +17,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app.models.cases import Cases
-from app.models.models import TaskStatus
-
-
-def get_task_status(task_status_id):
-    ret = TaskStatus.query.filter(
-        TaskStatus.id == task_status_id
-    ).first()
-
-    return ret
 
 
 def list_user_cases(user_identifier, show_all=False):

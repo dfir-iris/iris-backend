@@ -269,7 +269,6 @@ get_case_client  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/
 ctx_get_user_cases  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/context/context_db.py:31)
 update_gtask_status  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/dashboard/dashboard_db.py:131)
 update_utask_status  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/dashboard/dashboard_db.py:147)
-get_task_status  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/dashboard/dashboard_db.py:166)
 _.is_evidence_registered  # unused method (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/iris_engine/evidence_storage.py:24)
 _.add_evidence  # unused method (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/iris_engine/evidence_storage.py:32)
 _.added_by_id  # unused attribute (/home/ubuntu/code/dfir-iris/iris-web/source/app/datamgmt/iris_engine/modules_db.py:54)
