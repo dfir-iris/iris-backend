@@ -28,8 +28,10 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.business.global_tasks import global_tasks_create
 from app.business.global_tasks import global_tasks_get
+from app.business.global_tasks import global_tasks_delete
 from app.models.errors import ObjectNotFoundError
 
 
@@ -50,9 +52,18 @@ class GlobalTasksOperations:
 
     def read(self, identifier):
         try:
-            customer = global_tasks_get(identifier)
-            result = self._schema.dump(customer)
+            global_task = global_tasks_get(identifier)
+            result = self._schema.dump(global_task)
             return response_api_success(result)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+    def delete(self, identifier):
+        try:
+            global_task = global_tasks_get(identifier)
+            global_tasks_delete(global_task)
+            return response_api_deleted()
+
         except ObjectNotFoundError:
             return response_api_not_found()
 
@@ -64,11 +75,17 @@ global_tasks_operations = GlobalTasksOperations()
 
 @global_tasks_blueprint.post('')
 @ac_api_requires()
-def create_customer():
+def create_global_task():
     return global_tasks_operations.create()
 
 
 @global_tasks_blueprint.get('/<int:identifier>')
 @ac_api_requires()
-def get_customer(identifier):
+def get_global_task(identifier):
     return global_tasks_operations.read(identifier)
+
+
+@global_tasks_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_global_task(identifier):
+    return global_tasks_operations.delete(identifier)
