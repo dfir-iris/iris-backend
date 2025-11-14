@@ -62,7 +62,7 @@ def notes_create(note: Notes, case_identifier):
         db.session.add(note_revision)
 
         add_obj_history_entry(note, 'created note', commit=True)
-        note = call_modules_hook('on_postload_note_create', data=note, caseid=case_identifier)
+        note = call_modules_hook('on_postload_note_create', note, caseid=case_identifier)
 
         track_activity(f'created note "{note.note_title}"', caseid=case_identifier)
 
@@ -89,7 +89,7 @@ def notes_update(note: Notes):
         note.user_id = iris_current_user.id
 
         add_obj_history_entry(note, 'updated note', commit=True)
-        note = call_modules_hook('on_postload_note_update', data=note, caseid=note.note_case_id)
+        note = call_modules_hook('on_postload_note_update', note, caseid=note.note_case_id)
 
         track_activity(f'updated note "{note.note_title}"', caseid=note.note_case_id)
 
@@ -104,9 +104,9 @@ def notes_update(note: Notes):
 
 
 def notes_delete(note: Notes):
-    call_modules_hook('on_preload_note_delete', data=note.note_id, caseid=note.note_case_id)
+    call_modules_hook('on_preload_note_delete', note.note_id, caseid=note.note_case_id)
     delete_note(note.note_id, note.note_case_id)
-    call_modules_hook('on_postload_note_delete', data=note.note_id, caseid=note.note_case_id)
+    call_modules_hook('on_postload_note_delete', note.note_id, caseid=note.note_case_id)
 
     track_activity(f'deleted note "{note.note_title}"', caseid=note.note_case_id)
 

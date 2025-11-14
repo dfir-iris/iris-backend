@@ -115,7 +115,7 @@ def comments_update_for_case(current_user, comment_text, comment_id, object_type
     if hook.endswith('s'):
         hook = hook[:-1]
 
-    call_modules_hook(f'on_postload_{hook}_comment_update', data=comment, caseid=caseid)
+    call_modules_hook(f'on_postload_{hook}_comment_update', comment, caseid=caseid)
 
     track_activity(f'comment {comment.comment_id} on {object_type} edited', caseid=caseid)
     return comment
@@ -152,7 +152,7 @@ def comments_create_for_asset(current_user, asset: CaseAssets, comment: Comments
         'comment': comment,
         'asset': asset
     }
-    call_modules_hook('on_postload_asset_commented', data=hook_data, caseid=asset.case_id)
+    call_modules_hook('on_postload_asset_commented', hook_data, caseid=asset.case_id)
 
     track_activity(f'asset "{asset.asset_name}" commented', caseid=asset.case_id)
 
@@ -168,7 +168,7 @@ def comments_create_for_evidence(current_user, evidence: CaseReceivedFile, comme
         'comment': comment,
         'evidence': evidence
     }
-    call_modules_hook('on_postload_evidence_commented', data=hook_data, caseid=evidence.case_id)
+    call_modules_hook('on_postload_evidence_commented', hook_data, caseid=evidence.case_id)
     track_activity(f'evidence "{evidence.filename}" commented', caseid=evidence.case_id)
 
 
@@ -183,7 +183,7 @@ def comments_create_for_ioc(current_user, ioc: Ioc, comment: Comments):
         'comment': comment,
         'ioc': ioc
     }
-    call_modules_hook('on_postload_ioc_commented', data=hook_data, caseid=ioc.case_id)
+    call_modules_hook('on_postload_ioc_commented', hook_data, caseid=ioc.case_id)
     track_activity(f'ioc "{ioc.ioc_value}" commented', caseid=ioc.case_id)
 
 
@@ -198,7 +198,7 @@ def comments_create_for_note(current_user, note: Notes, comment: Comments):
         'comment': comment,
         'note': note
     }
-    call_modules_hook('on_postload_note_commented', data=hook_data, caseid=note.note_case_id)
+    call_modules_hook('on_postload_note_commented', hook_data, caseid=note.note_case_id)
 
     track_activity(f'note "{note.note_title}" commented', caseid=note.note_case_id)
 
@@ -214,7 +214,7 @@ def comments_create_for_task(current_user, task: CaseTasks, comment: Comments):
         'comment': comment,
         'task': task
     }
-    call_modules_hook('on_postload_task_commented', data=hook_data, caseid=task.task_case_id)
+    call_modules_hook('on_postload_task_commented', hook_data, caseid=task.task_case_id)
 
     track_activity(f'task "{task.task_title}" commented', caseid=task.task_case_id)
 
@@ -232,7 +232,7 @@ def comments_create_for_event(current_user, event: CasesEvent, comment: Comments
         'comment': comment,
         'event': event
     }
-    call_modules_hook('on_postload_event_commented', data=hook_data, caseid=event.case_id)
+    call_modules_hook('on_postload_event_commented', hook_data, caseid=event.case_id)
 
     track_activity(f'event "{event.event_title}" commented', caseid=event.case_id)
 

@@ -34,7 +34,7 @@ def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:
 
     db_create(global_task)
 
-    global_task = call_modules_hook('on_postload_global_task_create', data=global_task)
+    global_task = call_modules_hook('on_postload_global_task_create', global_task)
     track_activity(f'created new global task "{global_task.task_title}"')
 
     return global_task

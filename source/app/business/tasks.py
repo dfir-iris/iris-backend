@@ -38,11 +38,11 @@ from app.models.errors import ObjectNotFoundError
 
 
 def tasks_delete(task: CaseTasks):
-    call_modules_hook('on_preload_task_delete', data=task.id)
+    call_modules_hook('on_preload_task_delete', task.id)
 
     delete_task(task.id)
     update_tasks_state(caseid=task.task_case_id)
-    call_modules_hook('on_postload_task_delete', data=task.id, caseid=task.task_case_id)
+    call_modules_hook('on_postload_task_delete', task.id, caseid=task.task_case_id)
     track_activity(f'deleted task "{task.task_title}"')
 
 
@@ -54,7 +54,7 @@ def tasks_create(task: CaseTasks, task_assignee_list) -> CaseTasks:
                      caseid=task.task_case_id
                      )
 
-    ctask = call_modules_hook('on_postload_task_create', data=ctask, caseid=task.task_case_id)
+    ctask = call_modules_hook('on_postload_task_create', ctask, caseid=task.task_case_id)
     if not ctask:
         raise BusinessProcessingError('Unable to create task for internal reasons')
 
@@ -86,7 +86,7 @@ def tasks_update(task: CaseTasks, task_assignee_list):
 
     db.session.commit()
 
-    task = call_modules_hook('on_postload_task_update', data=task, caseid=task.task_case_id)
+    task = call_modules_hook('on_postload_task_update', task, caseid=task.task_case_id)
     if not task:
         raise BusinessProcessingError('Unable to update task for internal reasons')
 

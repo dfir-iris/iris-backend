@@ -132,7 +132,7 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
     ac_set_new_case_access(user, case.case_id, case.client_id)
 
     # TODO remove caseid doesn't seems to be useful for call_modules_hook => remove argument
-    case = call_modules_hook('on_postload_case_create', case, None)
+    case = call_modules_hook('on_postload_case_create', case)
 
     add_obj_history_entry(case, 'created')
     track_activity(f'new case "{case.name}" created', caseid=case.case_id, ctx_less=False)
@@ -148,12 +148,12 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete a primary case to keep consistency')
 
     try:
-        call_modules_hook('on_preload_case_delete', data=case_identifier, caseid=case_identifier)
+        call_modules_hook('on_preload_case_delete', case_identifier, caseid=case_identifier)
         if not delete_case(case_identifier):
             track_activity(f'tried to delete case {case_identifier}, but it doesn\'t exist',
                            caseid=case_identifier, ctx_less=True)
             raise BusinessProcessingError('Tried to delete a non-existing case')
-        call_modules_hook('on_postload_case_delete', data=case_identifier, caseid=case_identifier)
+        call_modules_hook('on_postload_case_delete', case_identifier, caseid=case_identifier)
         track_activity(f'case {case_identifier} deleted successfully', ctx_less=True)
     except Exception as e:
         logger.exception(e)
@@ -182,11 +182,11 @@ def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
                     for alert in updated_case.alerts:
                         if alert.alert_status_id != close_status.status_id:
                             alert.alert_status_id = close_status.status_id
-                            alert = call_modules_hook('on_postload_alert_update', data=alert, caseid=case.case_id)
+                            alert = call_modules_hook('on_postload_alert_update', alert, caseid=case.case_id)
 
                         if alert.alert_resolution_status_id != case_status_id_mapped:
                             alert.alert_resolution_status_id = case_status_id_mapped
-                            alert = call_modules_hook('on_postload_alert_resolution_update', data=alert,
+                            alert = call_modules_hook('on_postload_alert_resolution_update', alert,
                                                       caseid=case.case_id)
 
                             track_activity(
