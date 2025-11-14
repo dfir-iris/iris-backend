@@ -58,7 +58,8 @@ class GlobalTasksOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
-    def delete(self, identifier):
+    @staticmethod
+    def delete(identifier):
         try:
             global_task = global_tasks_get(identifier)
             global_tasks_delete(global_task)

@@ -84,7 +84,8 @@ class CustomersOperations:
         except ObjectNotFoundError:
             return response_api_not_found()
 
-    def delete(self, identifier):
+    @staticmethod
+    def delete(identifier):
         try:
             customer = customers_get(identifier)
             customers_delete(customer)
