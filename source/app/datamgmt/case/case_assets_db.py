@@ -23,13 +23,15 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from flask_sqlalchemy.pagination import Pagination
 
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
 from app.logger import logger
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
 from app.models.models import CaseEventsAssets
-from app.models.cases import Cases, CaseStatus
+from app.models.cases import Cases
+from app.models.cases import CaseStatus
 from app.models.comments import Comments
 from app.models.comments import AssetComments
 from app.models.assets import CompromiseStatus
