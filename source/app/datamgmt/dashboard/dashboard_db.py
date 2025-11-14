@@ -20,10 +20,6 @@ from app.models.cases import Cases
 from app.models.models import TaskStatus
 
 
-def get_tasks_status():
-    return TaskStatus.query.all()
-
-
 def get_task_status(task_status_id):
     ret = TaskStatus.query.filter(
         TaskStatus.id == task_status_id
