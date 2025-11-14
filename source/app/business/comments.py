@@ -303,7 +303,7 @@ def comments_delete_for_alert(comment: Comments):
 
 
 def comments_delete_for_asset(asset: CaseAssets, comment: Comments):
-    delete_asset_comment(asset.asset_id, comment.comment_id)
+    delete_asset_comment(asset.asset_id, comment)
 
     call_modules_hook('on_postload_asset_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on asset {asset.asset_id} deleted', caseid=comment.comment_case_id)

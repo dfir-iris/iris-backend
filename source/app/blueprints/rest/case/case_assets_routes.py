@@ -44,6 +44,7 @@ from app.datamgmt.case.case_assets_db import get_case_asset_comment
 from app.datamgmt.case.case_assets_db import get_case_asset_comments
 from app.datamgmt.case.case_assets_db import get_similar_assets
 from app.datamgmt.case.case_db import get_case_client_id
+from app.datamgmt.comments import get_comment
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.manage.manage_users_db import get_user_cases_fast
 from app.datamgmt.states import get_assets_state
@@ -407,11 +408,13 @@ def case_comment_asset_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_delete(cur_id, com_id, caseid):
-    success, msg = delete_asset_comment(cur_id, com_id)
-    if not success:
-        return response_error(msg)
+    comment = get_comment(iris_current_user, com_id)
+    if not comment:
+        return response_error('You are not allowed to delete this comment')
+
+    delete_asset_comment(cur_id, comment)
 
     call_modules_hook('on_postload_asset_comment_delete', com_id, caseid=caseid)
 
     track_activity(f'comment {com_id} on asset {cur_id} deleted', caseid=caseid)
-    return response_success(msg)
+    return response_success('Comment deleted')

@@ -26,14 +26,16 @@ from flask_sqlalchemy.pagination import Pagination
 from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.logger import logger
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
 from app.models.models import CaseEventsAssets
 from app.models.cases import Cases, CaseStatus
 from app.models.comments import Comments
 from app.models.comments import AssetComments
-from app.models.assets import CompromiseStatus, AssetsType, CaseAssets, AnalysisStatus
+from app.models.assets import CompromiseStatus
+from app.models.assets import AssetsType
+from app.models.assets import CaseAssets
+from app.models.assets import AnalysisStatus
 from app.models.iocs import Ioc
 from app.models.models import IocAssetLink
 from app.models.models import IocType
@@ -369,23 +371,14 @@ def get_case_asset_comment(asset_id, comment_id) -> Optional[Comments]:
     ).first()
 
 
-def delete_asset_comment(asset_id, comment_id):
-    comment = Comments.query.filter(
-        Comments.comment_id == comment_id,
-        Comments.comment_user_id == iris_current_user.id
-    ).first()
-    if not comment:
-        return False, "You are not allowed to delete this comment"
-
+def delete_asset_comment(asset_id, comment: Comments):
     AssetComments.query.filter(
         AssetComments.comment_asset_id == asset_id,
-        AssetComments.comment_id == comment_id
+        AssetComments.comment_id == comment.comment_alert_id
     ).delete()
 
     db.session.delete(comment)
     db.session.commit()
-
-    return True, "Comment deleted"
 
 
 def get_asset_by_name(asset_name, caseid):
