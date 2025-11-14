@@ -230,7 +230,7 @@ def case_comment_task_add(cur_id: int, caseid: int):
             "comment": comment_schema.dump(comment),
             "task": CaseTaskSchema().dump(task)
         }
-        call_modules_hook('on_postload_task_commented', data=hook_data, caseid=caseid)
+        call_modules_hook('on_postload_task_commented', hook_data, caseid=caseid)
 
         track_activity(f"task \"{task.task_title}\" commented", caseid=caseid)
         return response_success("Task commented", data=comment_schema.dump(comment))
@@ -270,7 +270,7 @@ def case_comment_task_delete(cur_id: int, com_id: int, caseid: int):
     if not success:
         return response_error(msg)
 
-    call_modules_hook('on_postload_task_comment_delete', data=com_id, caseid=caseid)
+    call_modules_hook('on_postload_task_comment_delete', com_id, caseid=caseid)
 
     track_activity(f"comment {com_id} on task {cur_id} deleted", caseid=caseid)
     return response_success(msg)

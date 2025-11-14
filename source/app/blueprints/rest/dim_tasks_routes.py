@@ -139,8 +139,7 @@ def dim_hooks_call(caseid):
         index += 1
 
     if len(obj_targets) > 0:
-        call_modules_hook(hook_name=hook_name, hook_ui_name=hook_ui_name, data=obj_targets,
-                          caseid=caseid, module_name=module_name)
+        call_modules_hook(hook_name, obj_targets, caseid=caseid, hook_ui_name=hook_ui_name, module_name=module_name)
 
     if len(logs) > 0:
         return response_error(f"Errors encountered during processing of data. Queued task with {index} objects",

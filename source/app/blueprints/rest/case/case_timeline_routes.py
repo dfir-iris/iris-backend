@@ -100,7 +100,7 @@ def case_comment_delete(cur_id, com_id, caseid):
     if not success:
         return response_error(msg)
 
-    call_modules_hook('on_postload_event_comment_delete', data=com_id, caseid=caseid)
+    call_modules_hook('on_postload_event_comment_delete', com_id, caseid=caseid)
 
     track_activity(f"comment {com_id} on event {cur_id} deleted", caseid=caseid)
     return response_success(msg)
@@ -155,7 +155,7 @@ def case_comment_add(cur_id, caseid):
             "comment": comment_schema.dump(comment),
             "event": EventSchema().dump(event)
         }
-        call_modules_hook('on_postload_event_commented', data=hook_data, caseid=caseid)
+        call_modules_hook('on_postload_event_commented', hook_data, caseid=caseid)
 
         track_activity(f"event \"{event.event_title}\" commented", caseid=caseid)
         return response_success("Event commented", data=comment_schema.dump(comment))
@@ -625,7 +625,7 @@ def _extract_timeline(assets: str | None, assets_id: str | None, caseid, categor
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_delete_event(cur_id, caseid):
-    call_modules_hook('on_preload_event_delete', data=cur_id, caseid=caseid)
+    call_modules_hook('on_preload_event_delete', cur_id, caseid=caseid)
 
     event = get_case_event(cur_id)
     if not event:
@@ -748,7 +748,7 @@ def case_add_event(caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_duplicate_event(cur_id, caseid):
-    call_modules_hook('on_preload_event_duplicate', data=cur_id, caseid=caseid)
+    call_modules_hook('on_preload_event_duplicate', cur_id, caseid=caseid)
 
     try:
         event_schema = EventSchema()
@@ -793,7 +793,7 @@ def case_duplicate_event(cur_id, caseid):
         if not success:
             return response_error('Error while saving linked iocs', data=log)
 
-        event = call_modules_hook('on_postload_event_create', data=event, caseid=caseid)
+        event = call_modules_hook('on_postload_event_create', event, caseid=caseid)
 
         track_activity(f"added event \"{event.event_title}\"", caseid=caseid)
         return response_success("Event duplicated", data=event_schema.dump(event))
@@ -948,7 +948,7 @@ def case_events_upload_csv(caseid):
                 continue
             line += 1
 
-            request_data = call_modules_hook('on_preload_event_create', data=row, caseid=caseid)
+            request_data = call_modules_hook('on_preload_event_create', row, caseid=caseid)
             event = event_schema.load(request_data)
             event.event_date, event.event_date_wtz = event_schema.validate_date(request_data.get(u'event_date'),
                                                                                 request_data.get(u'event_tz'))
@@ -976,7 +976,7 @@ def case_events_upload_csv(caseid):
 
             setattr(event, 'event_category_id', request_data.get('event_category_id'))
 
-            event = call_modules_hook('on_postload_event_create', data=event, caseid=caseid)
+            event = call_modules_hook('on_postload_event_create', event, caseid=caseid)
 
             track_activity(f"added event {event.event_id}", caseid=caseid)
 

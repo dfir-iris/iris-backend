@@ -138,7 +138,7 @@ def case_note_save(cur_id, caseid):
 
     try:
         note = notes_get(cur_id)
-        request_data = call_modules_hook('on_preload_note_update', data=request.get_json(), caseid=note.note_case_id)
+        request_data = call_modules_hook('on_preload_note_update', request.get_json(), caseid=note.note_case_id)
 
         request_data['note_id'] = note.note_id
         addnote_schema.load(request_data, partial=True, instance=note)
@@ -207,7 +207,7 @@ def case_note_add(caseid):
 
     try:
 
-        request_data = call_modules_hook('on_preload_note_create', data=request.get_json(), caseid=caseid)
+        request_data = call_modules_hook('on_preload_note_create', request.get_json(), caseid=caseid)
         note_schema = CaseNoteSchema()
         note_schema.verify_directory_id(request_data, caseid=caseid)
 
@@ -426,7 +426,7 @@ def case_comment_note_add(cur_id, caseid):
             "comment": comment_schema.dump(comment),
             "note": CaseNoteSchema().dump(note)
         }
-        call_modules_hook('on_postload_note_commented', data=hook_data, caseid=caseid)
+        call_modules_hook('on_postload_note_commented', hook_data, caseid=caseid)
 
         track_activity(f"note \"{note.note_title}\" commented", caseid=caseid)
         return response_success("Note commented", data=comment_schema.dump(comment))
@@ -462,7 +462,7 @@ def case_comment_note_delete(cur_id, com_id, caseid):
     if not success:
         return response_error(msg)
 
-    call_modules_hook('on_postload_note_comment_delete', data=com_id, caseid=caseid)
+    call_modules_hook('on_postload_note_comment_delete', com_id, caseid=caseid)
 
     track_activity(f"comment {com_id} on note {cur_id} deleted", caseid=caseid)
     return response_success(msg)

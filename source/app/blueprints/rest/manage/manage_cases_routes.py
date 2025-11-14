@@ -188,7 +188,7 @@ def api_reopen_case(identifier):
 
                 db.session.add(alert)
 
-    case = call_modules_hook('on_postload_case_update', data=case, caseid=identifier)
+    case = call_modules_hook('on_postload_case_update', case, caseid=identifier)
 
     add_obj_history_entry(case, 'case reopen')
     track_activity(f"reopen case ID {identifier}", caseid=identifier)
@@ -222,18 +222,18 @@ def api_case_close(identifier):
         for alert in case.alerts:
             if alert.alert_status_id != close_status.status_id:
                 alert.alert_status_id = close_status.status_id
-                alert = call_modules_hook('on_postload_alert_update', data=alert, caseid=identifier)
+                alert = call_modules_hook('on_postload_alert_update', alert, caseid=identifier)
 
             if alert.alert_resolution_status_id != case_status_id_mapped:
                 alert.alert_resolution_status_id = case_status_id_mapped
-                alert = call_modules_hook('on_postload_alert_resolution_update', data=alert, caseid=identifier)
+                alert = call_modules_hook('on_postload_alert_resolution_update', alert, caseid=identifier)
 
                 track_activity(f'closing alert ID {alert.alert_id} due to case #{identifier} being closed',
                                caseid=identifier, ctx_less=False)
 
                 db.session.add(alert)
 
-    case = call_modules_hook('on_postload_case_update', data=case, caseid=identifier)
+    case = call_modules_hook('on_postload_case_update', case, caseid=identifier)
 
     add_obj_history_entry(case, 'case closed')
     track_activity(f'closed case ID {identifier}', caseid=identifier, ctx_less=False)
