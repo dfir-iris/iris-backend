@@ -16,6 +16,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 from sqlalchemy import and_
 
+from app.datamgmt.db_operations import db_delete
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_db import get_case
@@ -205,8 +206,7 @@ def delete_group(group):
     UserGroup.query.filter(UserGroup.group_id == group.group_id).delete()
     GroupCaseAccess.query.filter(GroupCaseAccess.group_id == group.group_id).delete()
 
-    db.session.delete(group)
-    db.session.commit()
+    db_delete(group)
 
 
 def add_case_access_to_group(group, cases_list, access_level):

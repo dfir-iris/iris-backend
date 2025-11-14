@@ -20,6 +20,7 @@ from typing import Optional
 from flask_sqlalchemy.pagination import Pagination
 from sqlalchemy import and_
 
+from app.datamgmt.db_operations import db_delete
 from app.db import db
 from app.models.cases import Cases
 from app.models.comments import Comments
@@ -107,8 +108,7 @@ def get_filtered_event_comments(event_identifier, pagination_parameters: Paginat
 
 
 def delete_comment(comment: Comments):
-    db.session.delete(comment)
-    db.session.commit()
+    db_delete(comment)
 
 
 def user_has_comments(user: User):

@@ -23,7 +23,7 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from flask_sqlalchemy.pagination import Pagination
 
-from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_create, db_delete
 from app.db import db
 from app.logger import logger
 from app.datamgmt.filtering import get_filtered_data
@@ -377,8 +377,7 @@ def delete_asset_comment(asset_id, comment: Comments):
         AssetComments.comment_id == comment.comment_alert_id
     ).delete()
 
-    db.session.delete(comment)
-    db.session.commit()
+    db_delete(comment)
 
 
 def get_asset_by_name(asset_name, caseid):

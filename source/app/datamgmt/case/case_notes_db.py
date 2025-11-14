@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from flask_sqlalchemy.pagination import Pagination
 
-from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_create, db_delete
 from app.db import db
 from app.datamgmt.persistence_error import PersistenceError
 from app.blueprints.iris_user import iris_current_user
@@ -67,9 +67,7 @@ def delete_directory(directory: NoteDirectory):
         for subdirectory in directory.subdirectories:
             delete_directory(subdirectory)
 
-        # Delete the directory
-        db.session.delete(directory)
-        db.session.commit()
+        db_delete(directory)
 
         return True
 
@@ -430,8 +428,7 @@ def delete_note_comment(note_id, comment_id):
         NotesComments.comment_id == comment_id
     ).delete()
 
-    db.session.delete(comment)
-    db.session.commit()
+    db_delete(comment)
 
     return True, 'Comment deleted'
 

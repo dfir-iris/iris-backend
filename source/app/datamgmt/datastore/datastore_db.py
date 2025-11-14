@@ -25,7 +25,7 @@ from sqlalchemy import and_
 from sqlalchemy import func
 
 from app import app
-from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_create, db_delete
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.models.models import CaseReceivedFile
@@ -249,8 +249,7 @@ def datastore_iter_deletion(dsp, cid):
 
     datastore_delete_files_of_path(dsp.path_id, cid)
 
-    db.session.delete(dsp)
-    db.session.commit()
+    db_delete(dsp)
 
     return None
 
@@ -268,8 +267,7 @@ def datastore_delete_files_of_path(node_id, cid):
         if fln.is_file():
             fln.unlink(missing_ok=True)
 
-        db.session.delete(dsf_list_item)
-        db.session.commit()
+        db_delete(dsf_list_item)
 
     return
 
@@ -340,8 +338,7 @@ def datastore_delete_file(cur_id, cid):
     if fln.is_file():
         fln.unlink(missing_ok=True)
 
-    db.session.delete(dsf)
-    db.session.commit()
+    db_delete(dsf)
 
     return False, f'File {cur_id} deleted'
 

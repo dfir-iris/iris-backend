@@ -22,3 +22,8 @@ from app.db import db
 def db_create(element):
     db.session.add(element)
     db.session.commit()
+
+
+def db_delete(element):
+    db.session.delete(element)
+    db.session.commit()
