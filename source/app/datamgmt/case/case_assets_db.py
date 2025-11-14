@@ -351,30 +351,16 @@ def get_case_assets_comments_count(asset_id):
 
 
 def get_case_asset_comment(asset_id, comment_id) -> Optional[Comments]:
-    return AssetComments.query.filter(
+    return Comments.query.join(AssetComments.comment).filter(
         AssetComments.comment_asset_id == asset_id,
-        AssetComments.comment_id == comment_id
-    ).with_entities(
-        Comments.comment_id,
-        Comments.comment_text,
-        Comments.comment_date,
-        Comments.comment_update_date,
-        Comments.comment_uuid,
-        Comments.comment_user_id,
-        Comments.comment_case_id,
-        User.name,
-        User.user
-    ).join(
-        AssetComments.comment
-    ).join(
-        Comments.user
+        Comments.comment_id == comment_id
     ).first()
 
 
 def delete_asset_comment(asset_id, comment: Comments):
     AssetComments.query.filter(
         AssetComments.comment_asset_id == asset_id,
-        AssetComments.comment_id == comment.comment_alert_id
+        AssetComments.comment_id == comment.comment_id
     ).delete()
 
     db_delete(comment)
