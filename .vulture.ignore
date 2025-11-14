@@ -1,4 +1,8 @@
-EvidenceStorage  # Do not remove: this is used by package iris-module-interface (see https://github.com/dfir-iris/iris-module-interface, iris_interface/IrisModuleInterface.py)
+########## Do not remove: used by package iris-module-interface (see https://github.com/dfir-iris/iris-module-interface, iris_interface/IrisModuleInterface.py)
+EvidenceStorage
+deregister_from_hook
+get_mod_config_by_name
+register_hook
 ######### Alembic variables
 revision  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/alembic/versions/00b43bc4e8ac_add_prevent_post_init_to_register_case_.py:14)
 down_revision  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/alembic/versions/00b43bc4e8ac_add_prevent_post_init_to_register_case_.py:15)
@@ -318,11 +322,8 @@ case_organisations  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/sour
 CaseNoteForm  # unused class (/home/ubuntu/code/dfir-iris/iris-web/source/app/forms.py:223)
 ac_get_effective_permissions_from_groups  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/access_control/utils.py:138)
 check_module_compatibility  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:46)
-get_mod_config_by_name  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:234)
-register_hook  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:323)
 _.wait_till_return  # unused attribute (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:372)
 _.max_retry  # unused attribute (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:374)
-deregister_from_hook  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:391)
 on_task_init  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/tasker/tasks.py:33)
 chunks  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/tasker/tasks.py:92)
 notify_server_ready_to_reboot  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/updater/updater.py:70)
