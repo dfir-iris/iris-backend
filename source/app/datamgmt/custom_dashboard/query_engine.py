@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 import math
-from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from datetime import datetime, timedelta
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Set
 
 from flask_login import current_user
 from sqlalchemy import func, or_, select, cast, Integer, case, literal
@@ -15,9 +15,20 @@ from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
 from app.iris_engine.access_control.utils import ac_current_user_has_permission, ac_get_fast_user_cases_access
 from app.models.alerts import Alert, AlertResolutionStatus, AlertStatus, Severity
 from app.models.alerts import AlertCaseAssociation
-from app.models.cases import Cases, CaseTags
+from app.models.cases import Cases, CaseTags, CasesEvent
 from app.models.authorization import Permissions, User
-from app.models.models import CaseClassification, Client, Tags
+from app.models.models import (
+    CaseClassification,
+    Client,
+    Tags,
+    CaseAssets,
+    AssetsType,
+    Ioc,
+    IocType,
+    IocLink,
+    Notes,
+    CaseTasks
+)
 
 
 class QueryExecutionError(Exception):
@@ -31,6 +42,9 @@ class WidgetQueryResult:
     group_labels: Sequence[str]
     value_labels: Sequence[str]
     select_labels: Sequence[str]
+
+
+_MAX_TIME_BUCKET_POINTS = 2000
 
 
 def _ensure_numeric(value: Any) -> Optional[float]:
@@ -72,6 +86,128 @@ def _format_group_value(value: Any) -> str:
     return str(value)
 
 
+def _format_time_group_value(value: Any, bucket: Optional[str]) -> str:
+    if not isinstance(value, datetime):
+        return _format_group_value(value)
+    normalized_bucket = (bucket or '').lower()
+    if normalized_bucket in {'minute', '5minute', '5m', '15minute', '15m', 'hour'}:
+        return value.strftime('%Y-%m-%d %H:%M')
+    if normalized_bucket == 'week':
+        return value.strftime('Week %W %Y')
+    if normalized_bucket == 'month':
+        return value.strftime('%Y-%m')
+    if normalized_bucket == 'year':
+        return value.strftime('%Y')
+    return value.strftime('%Y-%m-%d')
+
+
+def _canonical_label_key(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if value is None or value == '':
+        return 'N/A'
+    return str(value)
+
+
+def _compute_time_alias(time_column: Optional[str], time_bucket: Optional[str]) -> Optional[str]:
+    if not isinstance(time_column, str) or '.' not in time_column:
+        if isinstance(time_column, str):
+            candidate = time_column.replace('.', '_').strip()
+            return candidate or None
+        return None
+    table, column = time_column.split('.', 1)
+    base = f"{table.strip()}_{column.strip()}"
+    bucket = (time_bucket or '').strip().lower()
+    return f"{base}_{bucket}" if bucket else base
+
+
+def _floor_datetime_to_bucket(value: datetime, bucket: str) -> datetime:
+    normalized = (bucket or '').lower()
+    if normalized == 'minute':
+        return value.replace(second=0, microsecond=0)
+    if normalized in {'5minute', '5m'}:
+        minute = value.minute - (value.minute % 5)
+        return value.replace(minute=minute, second=0, microsecond=0)
+    if normalized in {'15minute', '15m'}:
+        minute = value.minute - (value.minute % 15)
+        return value.replace(minute=minute, second=0, microsecond=0)
+    if normalized == 'hour':
+        return value.replace(minute=0, second=0, microsecond=0)
+    if normalized == 'day':
+        return value.replace(hour=0, minute=0, second=0, microsecond=0)
+    if normalized == 'week':
+        start_of_week = value - timedelta(days=value.weekday())
+        return start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    if normalized == 'month':
+        return value.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if normalized == 'year':
+        return value.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    return value.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _advance_datetime_by_bucket(value: datetime, bucket: str) -> datetime:
+    normalized = (bucket or '').lower()
+    if normalized == 'minute':
+        return value + timedelta(minutes=1)
+    if normalized in {'5minute', '5m'}:
+        return value + timedelta(minutes=5)
+    if normalized in {'15minute', '15m'}:
+        return value + timedelta(minutes=15)
+    if normalized == 'hour':
+        return value + timedelta(hours=1)
+    if normalized == 'day':
+        return value + timedelta(days=1)
+    if normalized == 'week':
+        return value + timedelta(weeks=1)
+    if normalized == 'month':
+        if value.month == 12:
+            return value.replace(year=value.year + 1, month=1, day=1)
+        return value.replace(month=value.month + 1, day=1)
+    if normalized == 'year':
+        return value.replace(year=value.year + 1, month=1, day=1)
+    return value + timedelta(days=1)
+
+
+def _generate_time_bucket_range(
+    start: Optional[datetime],
+    end: Optional[datetime],
+    bucket: Optional[str],
+    max_points: int = _MAX_TIME_BUCKET_POINTS
+) -> List[datetime]:
+    if not isinstance(start, datetime) or not isinstance(end, datetime):
+        return []
+    normalized = (bucket or '').lower()
+    if not normalized:
+        return []
+
+    if start > end:
+        start, end = end, start
+
+    current = _floor_datetime_to_bucket(start, normalized)
+    end_floor = _floor_datetime_to_bucket(end, normalized)
+    buckets: List[datetime] = []
+
+    while current <= end_floor:
+        buckets.append(current)
+        if len(buckets) > max_points:
+            return []
+        next_value = _advance_datetime_by_bucket(current, normalized)
+        if next_value <= current:
+            break
+        current = next_value
+
+    return buckets
+
+
+def _time_sort_key(value: Any) -> float:
+    if isinstance(value, datetime):
+        try:
+            return float(value.timestamp())
+        except (OverflowError, OSError):
+            return float('-inf')
+    return float('-inf')
+
+
 def _normalize_display_mode(value: Optional[str]) -> str:
     if not value or not isinstance(value, str):
         return 'number'
@@ -86,6 +222,18 @@ def _normalize_display_mode(value: Optional[str]) -> str:
 CaseOwnerUser = aliased(User, name='case_owner_user')
 CaseCreatorUser = aliased(User, name='case_creator_user')
 AlertOwnerUser = aliased(User, name='alert_owner_user')
+AlertAsset = aliased(CaseAssets, name='alert_asset')
+CaseAsset = aliased(CaseAssets, name='case_asset')
+AlertAssetType = aliased(AssetsType, name='alert_asset_type')
+CaseAssetType = aliased(AssetsType, name='case_asset_type')
+AlertIoc = aliased(Ioc, name='alert_ioc')
+CaseIoc = aliased(Ioc, name='case_ioc')
+AlertIocType = aliased(IocType, name='alert_ioc_type')
+CaseIocType = aliased(IocType, name='case_ioc_type')
+CaseIocLink = aliased(IocLink, name='case_ioc_link')
+CaseEventAlias = aliased(CasesEvent, name='case_event')
+CaseNoteAlias = aliased(Notes, name='case_note')
+CaseTaskAlias = aliased(CaseTasks, name='case_task')
 
 
 def _join_cases(query):
@@ -111,6 +259,51 @@ def _join_case_tags_table(query):
 def _join_tags_table(query):
     # Case tags join is registered before reaching this point, so reuse its alias when linking tags.
     return query.outerjoin(Tags, Tags.id == CaseTags.tag_id)
+
+
+def _join_alert_assets(query):
+    return query.outerjoin(AlertAsset, Alert.assets)
+
+
+def _join_case_assets(query):
+    return query.outerjoin(CaseAsset, CaseAsset.case_id == Cases.case_id)
+
+
+def _join_alert_asset_types(query):
+    return query.outerjoin(AlertAssetType, AlertAsset.asset_type)
+
+
+def _join_case_asset_types(query):
+    return query.outerjoin(CaseAssetType, CaseAsset.asset_type)
+
+
+def _join_alert_iocs(query):
+    return query.outerjoin(AlertIoc, Alert.iocs)
+
+
+def _join_case_iocs(query):
+    query = query.outerjoin(CaseIocLink, CaseIocLink.case_id == Cases.case_id)
+    return query.outerjoin(CaseIoc, CaseIoc.ioc_id == CaseIocLink.ioc_id)
+
+
+def _join_alert_ioc_types(query):
+    return query.outerjoin(AlertIocType, AlertIoc.ioc_type)
+
+
+def _join_case_ioc_types(query):
+    return query.outerjoin(CaseIocType, CaseIoc.ioc_type)
+
+
+def _join_case_events(query):
+    return query.outerjoin(CaseEventAlias, CaseEventAlias.case_id == Cases.case_id)
+
+
+def _join_case_notes(query):
+    return query.outerjoin(CaseNoteAlias, CaseNoteAlias.note_case_id == Cases.case_id)
+
+
+def _join_case_tasks(query):
+    return query.outerjoin(CaseTaskAlias, CaseTaskAlias.task_case_id == Cases.case_id)
 
 
 _AGGREGATIONS = {
@@ -305,6 +498,179 @@ class WidgetQueryExecutor:
                 'tag_creation_date': Tags.tag_creation_date
             },
             'join': _join_tags_table
+        },
+        'alert_assets': {
+            'model': AlertAsset,
+            'columns': {
+                'asset_id': AlertAsset.asset_id,
+                'asset_uuid': AlertAsset.asset_uuid,
+                'asset_name': AlertAsset.asset_name,
+                'asset_description': AlertAsset.asset_description,
+                'asset_domain': AlertAsset.asset_domain,
+                'asset_ip': AlertAsset.asset_ip,
+                'asset_info': AlertAsset.asset_info,
+                'asset_compromise_status_id': AlertAsset.asset_compromise_status_id,
+                'asset_type_id': AlertAsset.asset_type_id,
+                'asset_tags': AlertAsset.asset_tags,
+                'case_id': AlertAsset.case_id,
+                'date_added': AlertAsset.date_added,
+                'date_update': AlertAsset.date_update,
+                'user_id': AlertAsset.user_id
+            },
+            'join': _join_alert_assets
+        },
+        'alert_asset_types': {
+            'model': AlertAssetType,
+            'columns': {
+                'asset_id': AlertAssetType.asset_id,
+                'asset_name': AlertAssetType.asset_name,
+                'asset_description': AlertAssetType.asset_description,
+                'asset_icon_not_compromised': AlertAssetType.asset_icon_not_compromised,
+                'asset_icon_compromised': AlertAssetType.asset_icon_compromised
+            },
+            'join': _join_alert_asset_types
+        },
+        'alert_iocs': {
+            'model': AlertIoc,
+            'columns': {
+                'ioc_id': AlertIoc.ioc_id,
+                'ioc_uuid': AlertIoc.ioc_uuid,
+                'ioc_value': AlertIoc.ioc_value,
+                'ioc_type_id': AlertIoc.ioc_type_id,
+                'ioc_description': AlertIoc.ioc_description,
+                'ioc_tags': AlertIoc.ioc_tags,
+                'user_id': AlertIoc.user_id,
+                'ioc_misp': AlertIoc.ioc_misp,
+                'ioc_tlp_id': AlertIoc.ioc_tlp_id
+            },
+            'join': _join_alert_iocs
+        },
+        'alert_ioc_types': {
+            'model': AlertIocType,
+            'columns': {
+                'type_id': AlertIocType.type_id,
+                'type_name': AlertIocType.type_name,
+                'type_description': AlertIocType.type_description,
+                'type_taxonomy': AlertIocType.type_taxonomy,
+                'type_validation_regex': AlertIocType.type_validation_regex,
+                'type_validation_expect': AlertIocType.type_validation_expect
+            },
+            'join': _join_alert_ioc_types
+        },
+        'case_assets': {
+            'model': CaseAsset,
+            'columns': {
+                'asset_id': CaseAsset.asset_id,
+                'asset_uuid': CaseAsset.asset_uuid,
+                'asset_name': CaseAsset.asset_name,
+                'asset_description': CaseAsset.asset_description,
+                'asset_domain': CaseAsset.asset_domain,
+                'asset_ip': CaseAsset.asset_ip,
+                'asset_info': CaseAsset.asset_info,
+                'asset_compromise_status_id': CaseAsset.asset_compromise_status_id,
+                'asset_type_id': CaseAsset.asset_type_id,
+                'asset_tags': CaseAsset.asset_tags,
+                'case_id': CaseAsset.case_id,
+                'date_added': CaseAsset.date_added,
+                'date_update': CaseAsset.date_update,
+                'user_id': CaseAsset.user_id
+            },
+            'join': _join_case_assets
+        },
+        'case_asset_types': {
+            'model': CaseAssetType,
+            'columns': {
+                'asset_id': CaseAssetType.asset_id,
+                'asset_name': CaseAssetType.asset_name,
+                'asset_description': CaseAssetType.asset_description,
+                'asset_icon_not_compromised': CaseAssetType.asset_icon_not_compromised,
+                'asset_icon_compromised': CaseAssetType.asset_icon_compromised
+            },
+            'join': _join_case_asset_types
+        },
+        'case_iocs': {
+            'model': CaseIoc,
+            'columns': {
+                'ioc_id': CaseIoc.ioc_id,
+                'ioc_uuid': CaseIoc.ioc_uuid,
+                'ioc_value': CaseIoc.ioc_value,
+                'ioc_type_id': CaseIoc.ioc_type_id,
+                'ioc_description': CaseIoc.ioc_description,
+                'ioc_tags': CaseIoc.ioc_tags,
+                'user_id': CaseIoc.user_id,
+                'ioc_misp': CaseIoc.ioc_misp,
+                'ioc_tlp_id': CaseIoc.ioc_tlp_id
+            },
+            'join': _join_case_iocs
+        },
+        'case_ioc_types': {
+            'model': CaseIocType,
+            'columns': {
+                'type_id': CaseIocType.type_id,
+                'type_name': CaseIocType.type_name,
+                'type_description': CaseIocType.type_description,
+                'type_taxonomy': CaseIocType.type_taxonomy,
+                'type_validation_regex': CaseIocType.type_validation_regex,
+                'type_validation_expect': CaseIocType.type_validation_expect
+            },
+            'join': _join_case_ioc_types
+        },
+        'case_events': {
+            'model': CaseEventAlias,
+            'columns': {
+                'event_id': CaseEventAlias.event_id,
+                'parent_event_id': CaseEventAlias.parent_event_id,
+                'case_id': CaseEventAlias.case_id,
+                'event_title': CaseEventAlias.event_title,
+                'event_source': CaseEventAlias.event_source,
+                'event_content': CaseEventAlias.event_content,
+                'event_raw': CaseEventAlias.event_raw,
+                'event_date': CaseEventAlias.event_date,
+                'event_added': CaseEventAlias.event_added,
+                'event_in_graph': CaseEventAlias.event_in_graph,
+                'event_in_summary': CaseEventAlias.event_in_summary,
+                'user_id': CaseEventAlias.user_id,
+                'event_color': CaseEventAlias.event_color,
+                'event_tags': CaseEventAlias.event_tags,
+                'event_tz': CaseEventAlias.event_tz,
+                'event_date_wtz': CaseEventAlias.event_date_wtz,
+                'event_is_flagged': CaseEventAlias.event_is_flagged
+            },
+            'join': _join_case_events
+        },
+        'case_notes': {
+            'model': CaseNoteAlias,
+            'columns': {
+                'note_id': CaseNoteAlias.note_id,
+                'note_uuid': CaseNoteAlias.note_uuid,
+                'note_title': CaseNoteAlias.note_title,
+                'note_content': CaseNoteAlias.note_content,
+                'note_user': CaseNoteAlias.note_user,
+                'note_creationdate': CaseNoteAlias.note_creationdate,
+                'note_lastupdate': CaseNoteAlias.note_lastupdate,
+                'note_case_id': CaseNoteAlias.note_case_id,
+                'directory_id': CaseNoteAlias.directory_id
+            },
+            'join': _join_case_notes
+        },
+        'case_tasks': {
+            'model': CaseTaskAlias,
+            'columns': {
+                'id': CaseTaskAlias.id,
+                'task_uuid': CaseTaskAlias.task_uuid,
+                'task_title': CaseTaskAlias.task_title,
+                'task_description': CaseTaskAlias.task_description,
+                'task_tags': CaseTaskAlias.task_tags,
+                'task_open_date': CaseTaskAlias.task_open_date,
+                'task_close_date': CaseTaskAlias.task_close_date,
+                'task_last_update': CaseTaskAlias.task_last_update,
+                'task_userid_open': CaseTaskAlias.task_userid_open,
+                'task_userid_close': CaseTaskAlias.task_userid_close,
+                'task_userid_update': CaseTaskAlias.task_userid_update,
+                'task_status_id': CaseTaskAlias.task_status_id,
+                'task_case_id': CaseTaskAlias.task_case_id
+            },
+            'join': _join_case_tasks
         }
     }
 
@@ -369,10 +735,18 @@ class WidgetQueryExecutor:
         column = columns.get(column_name)
         if column is None:
             raise QueryExecutionError(f"Column '{column_name}' is not allowed for table '{table_name}'.")
-        if table_name in {'case_owner', 'case_creator', 'case_tags', 'tags'}:
+        if table_name in {'case_owner', 'case_creator', 'case_tags', 'tags', 'case_assets', 'case_asset_types', 'case_iocs', 'case_ioc_types', 'case_events', 'case_notes', 'case_tasks'}:
             self.builder.add_join('cases')
         if table_name == 'tags':
             self.builder.add_join('case_tags')
+        if table_name == 'case_asset_types':
+            self.builder.add_join('case_assets')
+        if table_name == 'case_ioc_types':
+            self.builder.add_join('case_iocs')
+        if table_name == 'alert_asset_types':
+            self.builder.add_join('alert_assets')
+        if table_name == 'alert_ioc_types':
+            self.builder.add_join('alert_iocs')
         if table_name != self._BASE_TABLE:
             self.builder.add_join(table_name)
         return column
@@ -410,6 +784,7 @@ class WidgetQueryExecutor:
             alias = self._resolve_time_bucket_label(table_name, column_name)
             self.builder.add_select(truncated_column, alias, aggregated=False)
             self._time_bucket_label = alias
+            self._promote_time_group()
         else:
             self.builder.add_select(column, alias, aggregated=False)
 
@@ -437,6 +812,7 @@ class WidgetQueryExecutor:
         truncated_column = self._apply_time_bucket(column)
         self.builder.add_select(truncated_column, alias, aggregated=False)
         self._time_bucket_label = alias
+        self._promote_time_group()
 
     def _apply_access_filters(self):
         if ac_current_user_has_permission(Permissions.server_administrator):
@@ -498,6 +874,20 @@ class WidgetQueryExecutor:
         options = self.definition.get('options') or {}
         sort_direction = (options.get('sort') or '').lower()
         if not sort_direction:
+            if self._time_bucket_label:
+                try:
+                    time_index = self.builder.group_labels.index(self._time_bucket_label)
+                    time_expression = self.builder.group_by_exprs[time_index]
+                except (ValueError, IndexError):
+                    time_expression = None
+                    time_index = -1
+                if time_expression is not None:
+                    order_clauses = [time_expression.asc()]
+                    for idx, expr in enumerate(self.builder.group_by_exprs):
+                        if idx == time_index:
+                            continue
+                        order_clauses.append(expr.asc())
+                    return query.order_by(*order_clauses)
             return query
 
         order_expression = None
@@ -582,6 +972,20 @@ class WidgetQueryExecutor:
             raise QueryExecutionError(f"Aggregation '{aggregation}' is not supported.")
         return agg_fn(column)
 
+    def _promote_time_group(self):
+        if not self._time_bucket_label:
+            return
+        try:
+            label_index = self.builder.group_labels.index(self._time_bucket_label)
+        except ValueError:
+            return
+        if label_index == 0:
+            return
+        if label_index < len(self.builder.group_labels):
+            self.builder.group_labels.insert(0, self.builder.group_labels.pop(label_index))
+        if label_index < len(self.builder.group_by_exprs):
+            self.builder.group_by_exprs.insert(0, self.builder.group_by_exprs.pop(label_index))
+
     def _normalize_table_column_value(self, value: Optional[str]) -> str:
         if not isinstance(value, str):
             return ''
@@ -621,62 +1025,234 @@ def execute_widget(definition: Dict[str, Any], timeframe: Tuple[Optional[datetim
     return executor.execute(timeframe)
 
 
-def format_widget_payload(result: WidgetQueryResult, definition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def format_widget_payload(
+    result: WidgetQueryResult,
+    definition: Optional[Dict[str, Any]] = None,
+    timeframe: Optional[Tuple[Optional[datetime], Optional[datetime]]] = None
+) -> Dict[str, Any]:
     definition = definition or {}
     options = definition.get('options') or {}
     display_mode = _normalize_display_mode(options.get('display') or options.get('display_mode'))
-    chart_type = (result.chart_type or '').lower()
+    chart_type_raw = (result.chart_type or '').lower()
+    chart_type = 'line' if chart_type_raw == 'timechart' else chart_type_raw
+    time_bucket = (definition.get('time_bucket') or '').strip().lower()
+    time_column_spec = options.get('time_column') or 'alerts.alert_creation_time'
+    expected_time_alias = _compute_time_alias(time_column_spec, time_bucket)
+
+    timeframe_start: Optional[datetime] = None
+    timeframe_end: Optional[datetime] = None
+    if isinstance(timeframe, tuple) and len(timeframe) == 2:
+        timeframe_start, timeframe_end = timeframe
 
     if chart_type in {'bar', 'line', 'pie'}:
-        labels: List[str] = []
-        datasets: Dict[str, List[Any]] = {label: [] for label in result.value_labels}
-        totals: Dict[str, Optional[float]] = {label: 0.0 for label in result.value_labels}
-        counts: Dict[str, int] = {label: 0 for label in result.value_labels}
+        group_labels = list(result.group_labels)
+        value_labels = list(result.value_labels)
+
+        effective_group_labels = group_labels[:]
+        time_axis_enabled = False
+        if expected_time_alias and expected_time_alias in effective_group_labels:
+            time_axis_enabled = True
+            effective_group_labels = [expected_time_alias] + [label for label in effective_group_labels if label != expected_time_alias]
+
+        primary_group_label = effective_group_labels[0] if effective_group_labels else None
+        secondary_group_labels = effective_group_labels[1:] if len(effective_group_labels) > 1 else []
+
+        label_entries: List[Dict[str, Any]] = []
+        label_index: Dict[str, int] = {}
+
+        def remember_label(raw_value: Any) -> str:
+            key = _canonical_label_key(raw_value)
+            display_value = _format_time_group_value(raw_value, time_bucket) if time_axis_enabled else _format_group_value(raw_value)
+            if key not in label_index:
+                label_index[key] = len(label_entries)
+                label_entries.append({'key': key, 'raw': raw_value, 'display': display_value})
+            return key
+
+        axis_metadata: Optional[Dict[str, Any]] = None
+
+        if (
+            time_axis_enabled
+            and time_bucket
+            and timeframe_start is not None
+            and timeframe_end is not None
+        ):
+            prefilled_buckets = _generate_time_bucket_range(timeframe_start, timeframe_end, time_bucket)
+            for bucket_value in prefilled_buckets:
+                remember_label(bucket_value)
+
+        if chart_type != 'pie' and len(effective_group_labels) > 1 and primary_group_label is not None:
+            dataset_map: Dict[Tuple[str, Tuple[str, ...]], Dict[str, Any]] = {}
+            totals: Dict[str, Optional[float]] = {label: 0.0 for label in value_labels}
+            counts: Dict[str, int] = {label: 0 for label in value_labels}
+
+            for row in result.rows:
+                primary_raw = row.get(primary_group_label)
+                label_key = remember_label(primary_raw)
+                series_values = tuple(
+                    _format_group_value(row.get(series_label))
+                    for series_label in secondary_group_labels
+                )
+
+                for value_label in value_labels:
+                    dataset_key = (value_label, series_values)
+                    entry = dataset_map.setdefault(dataset_key, {
+                        'value_label': value_label,
+                        'series_values': series_values,
+                        'data': {},
+                        'has_values': False
+                    })
+
+                    value = row.get(value_label)
+                    numeric_value = _ensure_numeric(value)
+                    if numeric_value is not None:
+                        entry['has_values'] = True
+                        entry['data'][label_key] = numeric_value
+                        totals[value_label] = (totals.get(value_label) or 0.0) + numeric_value
+                        counts[value_label] = counts.get(value_label, 0) + 1
+                    else:
+                        entry['data'].setdefault(label_key, 0)
+
+            if not dataset_map:
+                for value_label in value_labels:
+                    dataset_map[(value_label, tuple())] = {
+                        'value_label': value_label,
+                        'series_values': tuple(),
+                        'data': {},
+                        'has_values': False
+                    }
+
+            for value_label, count in counts.items():
+                if count == 0:
+                    totals[value_label] = None
+
+            if time_axis_enabled:
+                label_entries.sort(key=lambda item: (_time_sort_key(item['raw']), item['display']))
+                axis_metadata = {
+                    'type': 'time',
+                    'bucket': time_bucket,
+                    'display_labels': [entry['display'] for entry in label_entries]
+                }
+                if timeframe_start is not None and timeframe_end is not None:
+                    range_start = timeframe_start
+                    range_end = timeframe_end
+                    if time_bucket:
+                        range_start = _floor_datetime_to_bucket(timeframe_start, time_bucket)
+                        end_floor = _floor_datetime_to_bucket(timeframe_end, time_bucket)
+                        next_end = _advance_datetime_by_bucket(end_floor, time_bucket)
+                        range_end = next_end if next_end > end_floor else end_floor
+                    axis_metadata['range'] = {
+                        'start': range_start.isoformat(),
+                        'end': range_end.isoformat()
+                    }
+
+            label_order_keys = [entry['key'] for entry in label_entries]
+            display_labels = [entry['display'] for entry in label_entries]
+            chart_labels = label_order_keys if time_axis_enabled else display_labels
+
+            formatted_datasets: List[Dict[str, Any]] = []
+            for dataset_key, entry in dataset_map.items():
+                data_points = [entry['data'].get(label_key, 0) for label_key in label_order_keys]
+                dataset_total = sum(entry['data'].values()) if entry.get('has_values') else None
+                series_components = [component for component in entry['series_values'] if component]
+                base_label = _capitalize_label(entry['value_label'])
+                if series_components:
+                    dataset_label = f"{base_label} – {' / '.join(series_components)}"
+                else:
+                    dataset_label = base_label
+                series_key_str = '::'.join(entry['series_values'])
+                value_key = entry['value_label'] if not series_key_str else f"{entry['value_label']}::{series_key_str}"
+                formatted_datasets.append({
+                    'label': dataset_label,
+                    'value_key': value_key,
+                    'data': data_points,
+                    'total': dataset_total,
+                    'formatted_total': _format_number(dataset_total)
+                })
+
+            payload = {
+                'labels': chart_labels,
+                'datasets': formatted_datasets,
+                'value_keys': list(result.value_labels),
+                'display_mode': display_mode,
+                'totals': {key: totals.get(key) for key in value_labels},
+                'formatted_totals': {key: _format_number(totals.get(key)) for key in value_labels}
+            }
+            if axis_metadata:
+                payload['axis'] = axis_metadata
+            if time_axis_enabled:
+                payload['display_labels'] = display_labels
+            return payload
+
+        totals: Dict[str, Optional[float]] = {label: 0.0 for label in value_labels}
+        counts: Dict[str, int] = {label: 0 for label in value_labels}
+        dataset_values: Dict[str, Dict[str, float]] = {label: {} for label in value_labels}
 
         for row in result.rows:
-            label_values: List[str] = []
-            seen_components = set()
-            for group_label in result.group_labels:
-                raw_value = row.get(group_label)
-                if raw_value is None:
-                    continue
-                text_value = str(raw_value)
-                if text_value in seen_components:
-                    continue
-                seen_components.add(text_value)
-                label_values.append(text_value)
-            labels.append(' - '.join(label_values) or 'N/A')
-            for value_label in result.value_labels:
+            primary_raw = row.get(primary_group_label) if primary_group_label else None
+            label_key = remember_label(primary_raw)
+            for value_label in value_labels:
                 value = row.get(value_label)
-                datasets.setdefault(value_label, []).append(value if value is not None else 0)
                 numeric_value = _ensure_numeric(value)
                 if numeric_value is not None:
+                    dataset_values.setdefault(value_label, {})[label_key] = numeric_value
                     totals[value_label] = (totals.get(value_label) or 0.0) + numeric_value
                     counts[value_label] = counts.get(value_label, 0) + 1
+                else:
+                    dataset_values.setdefault(value_label, {}).setdefault(label_key, 0)
 
         for value_label, count in counts.items():
             if count == 0:
                 totals[value_label] = None
 
-        formatted_datasets = []
-        for value_label in result.value_labels:
-            values = datasets.get(value_label, [])
+        if time_axis_enabled:
+            label_entries.sort(key=lambda item: (_time_sort_key(item['raw']), item['display']))
+            axis_metadata = {
+                'type': 'time',
+                'bucket': time_bucket,
+                'display_labels': [entry['display'] for entry in label_entries]
+            }
+            if timeframe_start is not None and timeframe_end is not None:
+                range_start = timeframe_start
+                range_end = timeframe_end
+                if time_bucket:
+                    range_start = _floor_datetime_to_bucket(timeframe_start, time_bucket)
+                    end_floor = _floor_datetime_to_bucket(timeframe_end, time_bucket)
+                    next_end = _advance_datetime_by_bucket(end_floor, time_bucket)
+                    range_end = next_end if next_end > end_floor else end_floor
+                axis_metadata['range'] = {
+                    'start': range_start.isoformat(),
+                    'end': range_end.isoformat()
+                }
+
+        label_order_keys = [entry['key'] for entry in label_entries]
+        display_labels = [entry['display'] for entry in label_entries]
+        chart_labels = label_order_keys if time_axis_enabled else display_labels
+
+        formatted_datasets: List[Dict[str, Any]] = []
+        for value_label in value_labels:
+            values_dict = dataset_values.get(value_label, {})
+            values = [values_dict.get(label_key, 0) for label_key in label_order_keys]
             formatted_datasets.append({
                 'label': _capitalize_label(value_label),
                 'value_key': value_label,
-                'data': [value if value is not None else 0 for value in values],
+                'data': values,
                 'total': totals.get(value_label),
                 'formatted_total': _format_number(totals.get(value_label))
             })
 
-        return {
-            'labels': labels,
+        payload = {
+            'labels': chart_labels,
             'datasets': formatted_datasets,
             'value_keys': list(result.value_labels),
             'display_mode': display_mode,
-            'totals': {key: totals.get(key) for key in result.value_labels},
-            'formatted_totals': {key: _format_number(totals.get(key)) for key in result.value_labels}
+            'totals': {key: totals.get(key) for key in value_labels},
+            'formatted_totals': {key: _format_number(totals.get(key)) for key in value_labels}
         }
+        if axis_metadata:
+            payload['axis'] = axis_metadata
+        if time_axis_enabled:
+            payload['display_labels'] = display_labels
+        return payload
 
     if chart_type in {'number', 'percentage'}:
         numerator_key = options.get('percentage_numerator') or options.get('percentageNumerator')

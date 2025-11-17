@@ -52,6 +52,22 @@
   margin: 1.5rem 0;
 }
 
+#customDashboardsRoot .dashboard-tools-trigger {
+  font-size: 0.95rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  min-width: 11.5rem;
+}
+
+#customDashboardsRoot .dashboard-tools-menu {
+  min-width: 13rem;
+}
+
+#customDashboardsRoot .dashboard-tools-menu .dropdown-item {
+  padding: 0.6rem 1.1rem;
+  font-size: 0.95rem;
+}
+
 #dashboardEditorModal .dashboard-builder-panel {
   background-color: #f8f9fc;
   border: 1px solid #e9ecef;
@@ -130,6 +146,26 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+#dashboardEditorModal .dashboard-builder-section-body .form-check,
+#dashboardEditorModal .dashboard-builder-widget-body .form-check {
+  padding-left: 1.5rem;
+  min-height: 1.5rem;
+}
+
+#dashboardEditorModal .dashboard-builder-section-body .form-check-input,
+#dashboardEditorModal .dashboard-builder-widget-body .form-check-input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.25rem;
+  margin-left: -1.5rem;
+}
+
+#dashboardEditorModal .dashboard-builder-section-body .form-check-label,
+#dashboardEditorModal .dashboard-builder-widget-body .form-check-label {
+  font-size: 0.875rem;
+  color: #364152;
 }
 
 #dashboardEditorModal .dashboard-builder-field-grid {

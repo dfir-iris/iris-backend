@@ -159,6 +159,54 @@
           "total_label": "Total cases"
         }
       }
+    },
+    {
+      "key": "alertsFpTpTimeSeries",
+      "label": "False vs True Positives Over Time",
+      "description": "Time series comparing false-positive and true-positive alerts over the selected date range.",
+      "definition": {
+        "name": "False vs True Positives Over Time",
+        "chart_type": "timechart",
+        "time_bucket": "day",
+        "fields": [
+          {
+            "table": "alerts",
+            "column": "alert_id",
+            "aggregation": "count",
+            "alias": "false_positive_alerts",
+            "filter": {
+              "table": "alert_resolution_status",
+              "column": "resolution_status_name",
+              "operator": "eq",
+              "value": "False Positive"
+            }
+          },
+          {
+            "table": "alerts",
+            "column": "alert_id",
+            "aggregation": "count",
+            "alias": "true_positive_alerts",
+            "filter": {
+              "table": "alert_resolution_status",
+              "column": "resolution_status_name",
+              "operator": "eq",
+              "value": "True Positive"
+            }
+          }
+        ],
+        "group_by": [
+          "alerts.alert_creation_time"
+        ],
+        "options": {
+          "time_column": "alerts.alert_creation_time",
+          "widget_size": "col-lg-8",
+          "legend_position": "top",
+          "colors": [
+            "#e74a3b",
+            "#1cc88a"
+          ]
+        }
+      }
     }
   ]
 }

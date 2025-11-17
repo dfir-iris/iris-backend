@@ -118,6 +118,168 @@
         tag_namespace: 'Tag Namespace',
         tag_creation_date: 'Tag Creation Date'
       }
+    },
+    alert_assets: {
+      label: 'Alert Assets',
+      columns: {
+        asset_id: 'Asset ID',
+        asset_uuid: 'Asset UUID',
+        asset_name: 'Asset Name',
+        asset_description: 'Asset Description',
+        asset_domain: 'Asset Domain',
+        asset_ip: 'Asset IP',
+        asset_info: 'Asset Info',
+        asset_compromise_status_id: 'Compromise Status ID',
+        asset_type_id: 'Asset Type ID',
+        asset_tags: 'Asset Tags',
+        case_id: 'Case ID',
+        date_added: 'Date Added',
+        date_update: 'Date Updated',
+        user_id: 'User ID'
+      }
+    },
+    alert_asset_types: {
+      label: 'Alert Asset Types',
+      columns: {
+        asset_id: 'Asset Type ID',
+        asset_name: 'Asset Type Name',
+        asset_description: 'Asset Type Description',
+        asset_icon_not_compromised: 'Icon (Not Compromised)',
+        asset_icon_compromised: 'Icon (Compromised)'
+      }
+    },
+    alert_iocs: {
+      label: 'Alert Indicators',
+      columns: {
+        ioc_id: 'IOC ID',
+        ioc_uuid: 'IOC UUID',
+        ioc_value: 'Indicator Value',
+        ioc_type_id: 'Indicator Type ID',
+        ioc_description: 'Indicator Description',
+        ioc_tags: 'Indicator Tags',
+        user_id: 'User ID',
+        ioc_misp: 'MISP Reference',
+        ioc_tlp_id: 'TLP ID'
+      }
+    },
+    alert_ioc_types: {
+      label: 'Alert Indicator Types',
+      columns: {
+        type_id: 'Type ID',
+        type_name: 'Type Name',
+        type_description: 'Type Description',
+        type_taxonomy: 'Type Taxonomy',
+        type_validation_regex: 'Validation Regex',
+        type_validation_expect: 'Validation Expectation'
+      }
+    },
+    case_assets: {
+      label: 'Case Assets',
+      columns: {
+        asset_id: 'Asset ID',
+        asset_uuid: 'Asset UUID',
+        asset_name: 'Asset Name',
+        asset_description: 'Asset Description',
+        asset_domain: 'Asset Domain',
+        asset_ip: 'Asset IP',
+        asset_info: 'Asset Info',
+        asset_compromise_status_id: 'Compromise Status ID',
+        asset_type_id: 'Asset Type ID',
+        asset_tags: 'Asset Tags',
+        case_id: 'Case ID',
+        date_added: 'Date Added',
+        date_update: 'Date Updated',
+        user_id: 'User ID'
+      }
+    },
+    case_asset_types: {
+      label: 'Case Asset Types',
+      columns: {
+        asset_id: 'Asset Type ID',
+        asset_name: 'Asset Type Name',
+        asset_description: 'Asset Type Description',
+        asset_icon_not_compromised: 'Icon (Not Compromised)',
+        asset_icon_compromised: 'Icon (Compromised)'
+      }
+    },
+    case_iocs: {
+      label: 'Case Indicators',
+      columns: {
+        ioc_id: 'IOC ID',
+        ioc_uuid: 'IOC UUID',
+        ioc_value: 'Indicator Value',
+        ioc_type_id: 'Indicator Type ID',
+        ioc_description: 'Indicator Description',
+        ioc_tags: 'Indicator Tags',
+        user_id: 'User ID',
+        ioc_misp: 'MISP Reference',
+        ioc_tlp_id: 'TLP ID'
+      }
+    },
+    case_ioc_types: {
+      label: 'Case Indicator Types',
+      columns: {
+        type_id: 'Type ID',
+        type_name: 'Type Name',
+        type_description: 'Type Description',
+        type_taxonomy: 'Type Taxonomy',
+        type_validation_regex: 'Validation Regex',
+        type_validation_expect: 'Validation Expectation'
+      }
+    },
+    case_events: {
+      label: 'Case Events',
+      columns: {
+        event_id: 'Event ID',
+        parent_event_id: 'Parent Event ID',
+        case_id: 'Case ID',
+        event_title: 'Event Title',
+        event_source: 'Event Source',
+        event_content: 'Event Content',
+        event_raw: 'Event Raw',
+        event_date: 'Event Date',
+        event_added: 'Event Added',
+        event_in_graph: 'In Graph',
+        event_in_summary: 'In Summary',
+        user_id: 'User ID',
+        event_color: 'Event Color',
+        event_tags: 'Event Tags',
+        event_tz: 'Event Timezone',
+        event_date_wtz: 'Event Date (With TZ)',
+        event_is_flagged: 'Is Flagged'
+      }
+    },
+    case_notes: {
+      label: 'Case Notes',
+      columns: {
+        note_id: 'Note ID',
+        note_uuid: 'Note UUID',
+        note_title: 'Note Title',
+        note_content: 'Note Content',
+        note_user: 'User ID',
+        note_creationdate: 'Created At',
+        note_lastupdate: 'Updated At',
+        note_case_id: 'Case ID',
+        directory_id: 'Directory ID'
+      }
+    },
+    case_tasks: {
+      label: 'Case Tasks',
+      columns: {
+        id: 'Task ID',
+        task_uuid: 'Task UUID',
+        task_title: 'Task Title',
+        task_description: 'Task Description',
+        task_tags: 'Task Tags',
+        task_open_date: 'Open Date',
+        task_close_date: 'Close Date',
+        task_last_update: 'Last Update',
+        task_userid_open: 'Opened By User ID',
+        task_userid_close: 'Closed By User ID',
+        task_userid_update: 'Updated By User ID',
+        task_status_id: 'Status ID',
+        task_case_id: 'Case ID'
+      }
     }
   };
 
@@ -348,7 +510,7 @@
 
   function loadWidgetPresets() {
     if (widgetPresetsCache) {
-      return Promise.resolve(widgetPresetsCache);
+    return Promise.resolve(widgetPresetsCache || []);
     }
     if (widgetPresetsLoadPromise) {
       return widgetPresetsLoadPromise;
@@ -721,6 +883,7 @@
         legendPosition: '',
         fill: false,
         labelMaxLength: '',
+        showValueLabels: false,
         includeAdvanced: []
       },
       customOptions: [],
@@ -811,7 +974,7 @@
       : [];
 
     const options = (definition.options && typeof definition.options === 'object') ? definition.options : {};
-    const handledOptionKeys = new Set(['widget_size', 'size', 'display_mode', 'display', 'sort', 'limit', 'time_column', 'color', 'colors', 'total_label', 'legend_position', 'fill', 'label_max_length', 'thresholds']);
+  const handledOptionKeys = new Set(['widget_size', 'size', 'display_mode', 'display', 'sort', 'limit', 'time_column', 'color', 'colors', 'total_label', 'legend_position', 'fill', 'label_max_length', 'thresholds', 'show_value_labels']);
 
     const customOptions = Object.entries(options)
       .filter(([key]) => !handledOptionKeys.has(key))
@@ -848,7 +1011,8 @@
         totalLabel: options.total_label || '',
         legendPosition: options.legend_position || '',
         fill: options.fill === true || options.fill === 'true',
-        labelMaxLength: options.label_max_length !== undefined && options.label_max_length !== null ? String(options.label_max_length) : ''
+        labelMaxLength: options.label_max_length !== undefined && options.label_max_length !== null ? String(options.label_max_length) : '',
+        showValueLabels: options.show_value_labels === true || options.show_value_labels === 'true'
       },
       thresholds,
       customOptions,
@@ -1031,6 +1195,9 @@
       const numericLabelMax = Number(widget.options.labelMaxLength);
       options.label_max_length = Number.isFinite(numericLabelMax) ? numericLabelMax : widget.options.labelMaxLength;
     }
+    if (widget.options.showValueLabels) {
+      options.show_value_labels = true;
+    }
 
     const thresholdPayload = Array.isArray(widget.thresholds)
       ? widget.thresholds
@@ -1048,6 +1215,10 @@
       }
       options[option.key] = coerceCustomOptionValue(option.value);
     });
+
+    if (widget.chartType !== 'bar') {
+      delete options.show_value_labels;
+    }
 
     definition.options = options;
 
@@ -1725,11 +1896,19 @@
     const chartSelect = $('<select class="form-control form-control-sm builder-widget-chart"></select>');
     chartSelect.attr('data-section-id', section.id);
     chartSelect.attr('data-widget-id', widget.id);
-    ['line', 'bar', 'pie', 'number', 'percentage', 'table'].forEach((type) => {
+    [
+      { value: 'line', label: 'Line' },
+      { value: 'timechart', label: 'Time series' },
+      { value: 'bar', label: 'Bar' },
+      { value: 'pie', label: 'Pie' },
+      { value: 'number', label: 'Number' },
+      { value: 'percentage', label: 'Percentage' },
+      { value: 'table', label: 'Table' }
+    ].forEach((entry) => {
       const option = document.createElement('option');
-      option.value = type;
-      option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
-      if (type === widget.chartType) {
+      option.value = entry.value;
+      option.textContent = entry.label;
+      if (entry.value === widget.chartType) {
         option.selected = true;
       }
       chartSelect.append(option);
@@ -1780,8 +1959,11 @@
     timeColumnGroup.append(timeColumnInput);
     body.append(timeColumnGroup);
 
-    const fieldsBlock = $('<div class="mb-3"></div>');
-    fieldsBlock.append('<h6 class="text-uppercase text-muted small mb-2">Fields</h6>');
+  const fieldsBlock = $('<div class="mb-4"></div>');
+  const fieldsHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
+  fieldsHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Fields</h6>');
+  fieldsHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
+  fieldsBlock.append(fieldsHeader);
     const fieldsContainer = $('<div class="dashboard-builder-fields"></div>');
     widget.fields.forEach((field) => {
       fieldsContainer.append(renderFieldRow(section.id, widget.id, field));
@@ -1793,8 +1975,11 @@
     fieldsBlock.append(addFieldBtn);
     body.append(fieldsBlock);
 
-    const groupBlock = $('<div class="mb-3"></div>');
-    groupBlock.append('<h6 class="text-uppercase text-muted small mb-2">Grouping</h6>');
+  const groupBlock = $('<div class="mb-4"></div>');
+  const groupHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
+  groupHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Grouping</h6>');
+  groupHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
+  groupBlock.append(groupHeader);
     const groupContainer = $('<div class="dashboard-builder-groups"></div>');
     widget.groupBy.forEach((group) => {
       groupContainer.append(renderGroupingRow(section.id, widget.id, group));
@@ -1809,8 +1994,11 @@
     groupBlock.append(addGroupBtn);
     body.append(groupBlock);
 
-    const filterBlock = $('<div class="mb-3"></div>');
-    filterBlock.append('<h6 class="text-uppercase text-muted small mb-2">Filters</h6>');
+  const filterBlock = $('<div class="mb-4"></div>');
+  const filterHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
+  filterHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Filters</h6>');
+  filterHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
+  filterBlock.append(filterHeader);
     const filterContainer = $('<div class="dashboard-builder-filters"></div>');
     widget.filters.forEach((filter) => {
       filterContainer.append(renderFilterRow(section.id, widget.id, filter));
@@ -1825,8 +2013,11 @@
     filterBlock.append(addFilterBtn);
     body.append(filterBlock);
 
-    const optionsBlock = $('<div class="mb-3"></div>');
-    optionsBlock.append('<h6 class="text-uppercase text-muted small mb-2">Visualization options</h6>');
+  const optionsBlock = $('<div class="mb-3"></div>');
+  const optionsHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
+  optionsHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Visualization options</h6>');
+  optionsHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
+  optionsBlock.append(optionsHeader);
     const optionsRowOne = $('<div class="form-row"></div>');
 
     const displayGroup = $('<div class="form-group col-lg-3"></div>');
@@ -1886,36 +2077,36 @@
     legendGroup.append(legendSelect);
 
     const fillGroup = $('<div class="form-group col-lg-2"></div>');
-    fillGroup.append('<label class="small text-muted text-uppercase">Fill</label>');
-    const fillSwitchWrapper = $('<div class="custom-control custom-switch"></div>');
+    fillGroup.append('<label class="small text-muted text-uppercase d-block">Fill</label>');
     const fillId = `builderFill-${section.id}-${widget.id}`;
-    const fillInput = $('<input type="checkbox" class="custom-control-input builder-option-fill">');
+    const fillWrapper = $('<div class="form-check mb-0"></div>');
+    const fillInput = $('<input type="checkbox" class="form-check-input builder-option-fill">');
     fillInput.attr('data-section-id', section.id);
     fillInput.attr('data-widget-id', widget.id);
     fillInput.attr('id', fillId);
     fillInput.prop('checked', !!widget.options.fill);
-    const fillLabel = $('<label class="custom-control-label"></label>').attr('for', fillId).text('Area');
-    fillSwitchWrapper.append(fillInput, fillLabel);
-    fillGroup.append(fillSwitchWrapper);
+    const fillLabel = $('<label class="form-check-label mb-0"></label>').attr('for', fillId).text('Area fill');
+    fillWrapper.append(fillInput, fillLabel);
+    fillGroup.append(fillWrapper);
 
     optionsRowOne.append(displayGroup, sortGroup, limitGroup, legendGroup, fillGroup);
 
     const optionsRowTwo = $('<div class="form-row"></div>');
 
-  const colorGroup = $('<div class="form-group col-lg-3"></div>');
-  colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
-  const colorWrapper = $('<div class="d-flex align-items-center builder-color-picker-container"></div>');
-  const colorInput = $('<input type="text" class="form-control form-control-sm builder-option-color mr-2" placeholder="#4e73df">');
-  colorInput.attr('data-section-id', section.id);
-  colorInput.attr('data-widget-id', widget.id);
-  colorInput.val(widget.options.color || '');
-  const colorPicker = $('<input type="color" class="builder-option-color-picker" title="Choose color">');
-  colorPicker.attr('data-section-id', section.id);
-  colorPicker.attr('data-widget-id', widget.id);
-  colorPicker.val(getColorPickerValue(widget.options.color));
-  colorPicker.css({ width: '42px', padding: 0 });
-  colorWrapper.append(colorInput, colorPicker);
-  colorGroup.append(colorWrapper);
+    const colorGroup = $('<div class="form-group col-lg-3"></div>');
+    colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
+    const colorWrapper = $('<div class="d-flex align-items-center builder-color-picker-container"></div>');
+    const colorInput = $('<input type="text" class="form-control form-control-sm builder-option-color mr-2" placeholder="#4e73df">');
+    colorInput.attr('data-section-id', section.id);
+    colorInput.attr('data-widget-id', widget.id);
+    colorInput.val(widget.options.color || '');
+    const colorPicker = $('<input type="color" class="builder-option-color-picker" title="Choose color">');
+    colorPicker.attr('data-section-id', section.id);
+    colorPicker.attr('data-widget-id', widget.id);
+    colorPicker.val(getColorPickerValue(widget.options.color));
+    colorPicker.css({ width: '42px', padding: 0 });
+    colorWrapper.append(colorInput, colorPicker);
+    colorGroup.append(colorWrapper);
 
     const colorsGroup = $('<div class="form-group col-lg-3"></div>');
     colorsGroup.append('<label class="small text-muted text-uppercase">Palette (comma separated)</label>');
@@ -1943,7 +2134,28 @@
 
     optionsRowTwo.append(colorGroup, colorsGroup, totalLabelGroup, labelMaxGroup);
 
-    optionsBlock.append(optionsRowOne, optionsRowTwo);
+    const optionsRowThree = $('<div class="form-row builder-bar-only-option"></div>');
+
+    const valueLabelGroup = $('<div class="form-group col-lg-3"></div>');
+    valueLabelGroup.append('<label class="small text-muted text-uppercase d-block">Bar value labels</label>');
+    const valueLabelId = `builderValueLabels-${section.id}-${widget.id}`;
+    const valueLabelWrapper = $('<div class="form-check mb-0"></div>');
+    const valueLabelInput = $('<input type="checkbox" class="form-check-input builder-option-value-labels">');
+    valueLabelInput.attr('data-section-id', section.id);
+    valueLabelInput.attr('data-widget-id', widget.id);
+    valueLabelInput.attr('id', valueLabelId);
+    valueLabelInput.prop('checked', !!widget.options.showValueLabels);
+    const valueLabelLabel = $('<label class="form-check-label mb-0"></label>').attr('for', valueLabelId).text('Show values above bars');
+    valueLabelWrapper.append(valueLabelInput, valueLabelLabel);
+    valueLabelGroup.append(valueLabelWrapper);
+
+    optionsRowThree.append(valueLabelGroup);
+
+    if (widget.chartType !== 'bar') {
+      optionsRowThree.addClass('d-none');
+    }
+
+    optionsBlock.append(optionsRowOne, optionsRowTwo, optionsRowThree);
 
     const thresholdsWrapper = $('<div class="mt-3"></div>');
     thresholdsWrapper.append('<h6 class="text-uppercase text-muted small mb-2">Thresholds</h6>');
@@ -2026,20 +2238,14 @@
     body.append(detailsRow);
 
     const dividerId = `builder-section-divider-${section.id}`;
-    const dividerSwitch = $('<div class="custom-control custom-switch mb-3"></div>');
-    const dividerInput = $('<input type="checkbox" class="custom-control-input builder-section-divider">');
+    const dividerSwitch = $('<div class="form-check mb-3"></div>');
+    const dividerInput = $('<input type="checkbox" class="form-check-input builder-section-divider">');
     dividerInput.attr('id', dividerId);
     dividerInput.attr('data-section-id', section.id);
     dividerInput.prop('checked', !!section.showDivider);
-    const dividerLabel = $('<label class="custom-control-label"></label>').attr('for', dividerId).text('Show horizontal divider after this section');
+    const dividerLabel = $('<label class="form-check-label mb-0"></label>').attr('for', dividerId).text('Show horizontal divider after this section');
     dividerSwitch.append(dividerInput, dividerLabel);
     body.append(dividerSwitch);
-
-    const dividerPreview = $('<div class="dashboard-builder-section-divider-preview"></div>');
-    if (!section.showDivider) {
-      dividerPreview.addClass('d-none');
-    }
-    body.append(dividerPreview);
 
     const widgetsContainer = $('<div class="dashboard-builder-widgets"></div>');
     if (section.widgets.length) {
@@ -2356,12 +2562,6 @@
         return;
       }
       section.showDivider = $(this).is(':checked');
-      const preview = $(this).closest('.dashboard-builder-section').find('.dashboard-builder-section-divider-preview');
-      if (section.showDivider) {
-        preview.removeClass('d-none');
-      } else {
-        preview.addClass('d-none');
-      }
     });
 
     $(document).on('click', '.builder-add-widget', function () {
@@ -2536,6 +2736,13 @@
       }
       widget.chartType = $(this).val();
       $(this).closest('.dashboard-builder-widget').find('.badge').first().text(widget.chartType ? widget.chartType.toUpperCase() : 'WIDGET');
+
+      const widgetCard = $(this).closest('.dashboard-builder-widget');
+      if (widget.chartType === 'bar') {
+        widgetCard.find('.builder-bar-only-option').removeClass('d-none');
+      } else {
+        widgetCard.find('.builder-bar-only-option').addClass('d-none');
+      }
     });
 
     $(document).on('change', '.builder-widget-size', function () {
@@ -2982,6 +3189,16 @@
         return;
       }
       widget.options.labelMaxLength = $(this).val();
+    });
+
+    $(document).on('change', '.builder-option-value-labels', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.options.showValueLabels = $(this).is(':checked');
     });
 
     $(document).on('click', '.builder-add-custom-option', function () {
@@ -4097,16 +4314,27 @@
       return;
     }
 
+  const chartTypeRaw = (widget.chart_type || '').toLowerCase();
+  const isTimeChartType = chartTypeRaw === 'timechart';
+  const effectiveChartType = isTimeChartType ? 'line' : chartTypeRaw;
   const widgetOptions = widget.definition && widget.definition.options ? widget.definition.options : {};
   const resolvedDisplayMode = normalizeDisplayMode(widgetOptions.display_mode || widgetOptions.display || chartData.display_mode);
-  const effectiveDisplayMode = widget.chart_type === 'pie' && resolvedDisplayMode === 'number' ? 'number_percentage' : resolvedDisplayMode;
+  const effectiveDisplayMode = effectiveChartType === 'pie' && resolvedDisplayMode === 'number' ? 'number_percentage' : resolvedDisplayMode;
+    const axisMetadata = chartData.axis || {};
+    const isTimeAxis = axisMetadata.type === 'time';
+    const rawLabels = Array.isArray(chartData.labels) ? chartData.labels.slice() : [];
+    const baseDisplayLabels = Array.isArray(axisMetadata.display_labels) && axisMetadata.display_labels.length === rawLabels.length
+      ? axisMetadata.display_labels.slice()
+      : (Array.isArray(chartData.display_labels) && chartData.display_labels.length === rawLabels.length ? chartData.display_labels.slice() : rawLabels.slice());
+    const tooltipLabels = baseDisplayLabels.slice();
+
     const canvasWrapper = $('<div class="custom-dashboard-chart"></div>');
     const canvas = $('<canvas></canvas>');
     canvasWrapper.append(canvas);
     container.append(canvasWrapper);
 
-    const datasets = chartData.datasets ? chartData.datasets.map((dataset) => Object.assign({}, dataset)) : [];
-    assignDatasetColors(datasets, widget.chart_type, widgetOptions);
+  const datasets = chartData.datasets ? chartData.datasets.map((dataset) => Object.assign({}, dataset)) : [];
+  assignDatasetColors(datasets, effectiveChartType, widgetOptions);
 
     const maxLabelLength = Number(widgetOptions.label_max_length) > 0 ? Number(widgetOptions.label_max_length) : 32;
     const trimLabel = (label) => {
@@ -4147,13 +4375,13 @@
         }
         return (value / computedTotal) * 100;
       });
-      dataset._irisOriginalLabels = Array.isArray(chartData.labels) ? chartData.labels.slice() : [];
-      dataset._irisIsPieChart = widget.chart_type === 'pie';
+      dataset._irisOriginalLabels = tooltipLabels.slice();
+      dataset._irisIsPieChart = effectiveChartType === 'pie';
     });
 
-    let displayLabels = Array.isArray(chartData.labels) ? chartData.labels.slice() : [];
+    let displayLabels = baseDisplayLabels.slice();
 
-    if (widget.chart_type === 'pie' && datasets.length) {
+    if (effectiveChartType === 'pie' && datasets.length) {
       const primaryDataset = datasets[0];
       const rawValues = Array.isArray(primaryDataset._irisRawData) ? primaryDataset._irisRawData : (Array.isArray(primaryDataset.data) ? primaryDataset.data : []);
       const percentageValues = Array.isArray(primaryDataset._irisPercentageValues) ? primaryDataset._irisPercentageValues : [];
@@ -4169,17 +4397,19 @@
       });
     }
 
+    const chartLabels = isTimeAxis ? rawLabels : displayLabels;
+
     const chartConfig = {
-      type: widget.chart_type,
+      type: effectiveChartType,
       data: {
-        labels: displayLabels,
+        labels: chartLabels,
         datasets: datasets
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         legend: {
-          display: datasets.length > 1 || widget.chart_type === 'pie'
+          display: datasets.length > 1 || effectiveChartType === 'pie'
         },
         layout: {
           padding: {
@@ -4196,6 +4426,14 @@
                 return '';
               }
               const index = tooltipItems[0].index;
+              const axisLabels = Array.isArray(axisMetadata.display_labels) ? axisMetadata.display_labels : null;
+              if (isTimeAxis && axisLabels && axisLabels[index] !== undefined) {
+                return axisLabels[index];
+              }
+              const fallbackLabels = displayLabels;
+              if (fallbackLabels && fallbackLabels[index] !== undefined) {
+                return fallbackLabels[index];
+              }
               return data.labels && data.labels[index] ? data.labels[index] : '';
             },
             label: (tooltipItem, data) => {
@@ -4232,13 +4470,18 @@
             }
           }
         },
-        scales: widget.chart_type === 'pie' ? {} : {
+        scales: effectiveChartType === 'pie' ? {} : {
           xAxes: [{
             ticks: {
               autoSkip: true,
               maxRotation: 0,
               minRotation: 0,
-              callback: (value) => trimLabel(value)
+              callback: (value, index) => {
+                if (isTimeAxis && Array.isArray(axisMetadata.display_labels) && axisMetadata.display_labels[index] !== undefined) {
+                  return trimLabel(axisMetadata.display_labels[index]);
+                }
+                return trimLabel(value);
+              }
             }
           }],
           yAxes: [{
@@ -4249,6 +4492,147 @@
         }
       }
     };
+
+    const hasMoment = typeof window !== 'undefined' && typeof window.moment !== 'undefined';
+
+    if (isTimeAxis && Array.isArray(chartConfig.options.scales.xAxes) && chartConfig.options.scales.xAxes.length && hasMoment) {
+      const bucket = (axisMetadata.bucket || '').toLowerCase();
+      const bucketUnitMap = {
+        minute: 'minute',
+        '5minute': 'minute',
+        '5m': 'minute',
+        '15minute': 'minute',
+        '15m': 'minute',
+        hour: 'hour',
+        day: 'day',
+        week: 'week',
+        month: 'month',
+        year: 'year'
+      };
+      const timeConfig = {};
+      if (bucketUnitMap[bucket]) {
+        timeConfig.unit = bucketUnitMap[bucket];
+      }
+      if (['minute', '5minute', '5m', '15minute', '15m', 'hour'].includes(bucket)) {
+        timeConfig.tooltipFormat = 'YYYY-MM-DD HH:mm';
+        timeConfig.displayFormats = Object.assign({}, (chartConfig.options.scales.xAxes[0].time && chartConfig.options.scales.xAxes[0].time.displayFormats) || {}, {
+          minute: 'YYYY-MM-DD HH:mm',
+          hour: 'YYYY-MM-DD HH:mm'
+        });
+      } else if (bucket === 'week') {
+        timeConfig.tooltipFormat = 'YYYY-[W]WW';
+      } else if (bucket === 'month') {
+        timeConfig.tooltipFormat = 'YYYY-MM';
+      } else if (bucket === 'year') {
+        timeConfig.tooltipFormat = 'YYYY';
+      } else {
+        timeConfig.tooltipFormat = 'YYYY-MM-DD';
+      }
+      chartConfig.options.scales.xAxes[0].type = 'time';
+      chartConfig.options.scales.xAxes[0].distribution = 'linear';
+      chartConfig.options.scales.xAxes[0].time = Object.assign({}, chartConfig.options.scales.xAxes[0].time || {}, timeConfig);
+      if (axisMetadata.range) {
+        const xAxisOpts = chartConfig.options.scales.xAxes[0];
+        const { start: rangeStart, end: rangeEnd } = axisMetadata.range;
+        if (!xAxisOpts.ticks) {
+          xAxisOpts.ticks = {};
+        }
+        if (rangeStart) {
+          xAxisOpts.ticks.min = rangeStart;
+          xAxisOpts.time.min = rangeStart;
+        }
+        if (rangeEnd) {
+          xAxisOpts.ticks.max = rangeEnd;
+          xAxisOpts.time.max = rangeEnd;
+        }
+      }
+    } else if (isTimeAxis && !hasMoment) {
+      console.warn('Custom dashboards: Moment.js is not available, falling back to category axis for time series charts.');
+    }
+
+  const showValueLabels = effectiveChartType === 'bar' && (widgetOptions.show_value_labels === true || widgetOptions.showValueLabels === true || widgetOptions.showValueLabels === 'true');
+
+    if (showValueLabels) {
+      const valueLabelColor = typeof widgetOptions.color === 'string' && widgetOptions.color.trim()
+        ? widgetOptions.color.trim()
+        : '#212529';
+      const plugin = {
+        afterDatasetsDraw(chartInstance) {
+          if (!chartInstance || !chartInstance.chart || chartInstance.config.type !== 'bar') {
+            // Chart.js v2 attaches .chart, v3+ uses .chart and .data similarly.
+            if (!chartInstance || chartInstance.config.type !== 'bar') {
+              return;
+            }
+          }
+
+          const chartObj = chartInstance.chart || chartInstance;
+          if (!chartObj || !chartObj.ctx) {
+            return;
+          }
+          const ctx = chartObj.ctx;
+          ctx.save();
+          ctx.fillStyle = valueLabelColor;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+
+          const fontSize = 12;
+          const fontStyle = 'bold';
+          let fontFamily = 'Helvetica Neue';
+          if (typeof Chart !== 'undefined' && Chart.defaults) {
+            if (Chart.defaults.global && Chart.defaults.global.defaultFontFamily) {
+              fontFamily = Chart.defaults.global.defaultFontFamily;
+            } else if (Chart.defaults.font && Chart.defaults.font.family) {
+              fontFamily = Chart.defaults.font.family;
+            }
+          }
+          if (typeof Chart !== 'undefined' && Chart.helpers && Chart.helpers.fontString) {
+            ctx.font = Chart.helpers.fontString(fontSize, fontStyle, fontFamily);
+          } else {
+            ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
+          }
+
+          const datasets = chartInstance.data ? chartInstance.data.datasets : (chartObj.data ? chartObj.data.datasets : []);
+
+          datasets.forEach((dataset, datasetIndex) => {
+            const meta = chartInstance.getDatasetMeta ? chartInstance.getDatasetMeta(datasetIndex) : (chartObj.getDatasetMeta ? chartObj.getDatasetMeta(datasetIndex) : null);
+            if (!meta || meta.hidden) {
+              return;
+            }
+            const rawValues = Array.isArray(dataset._irisRawData) ? dataset._irisRawData : (Array.isArray(dataset.data) ? dataset.data : []);
+            const numericValues = Array.isArray(dataset._irisNumericValues) ? dataset._irisNumericValues : rawValues.map((value) => toNumericValue(value));
+
+            meta.data.forEach((element, index) => {
+              if (!element) {
+                return;
+              }
+              const rawValue = rawValues[index];
+              const formattedValue = formatNumberValue(rawValue);
+              if (!formattedValue || formattedValue === '--') {
+                return;
+              }
+              const numericValue = numericValues[index];
+              let model = element && element._model ? element._model : null;
+              if (!model && element && typeof element.tooltipPosition === 'function') {
+                model = element.tooltipPosition();
+              }
+              if (!model || typeof model.x !== 'number' || typeof model.y !== 'number') {
+                return;
+              }
+              let yPosition = model.y - 6;
+              if (typeof numericValue === 'number' && numericValue < 0) {
+                yPosition = model.y + fontSize + 2;
+              }
+              ctx.fillText(formattedValue, model.x, yPosition);
+            });
+          });
+
+          ctx.restore();
+        }
+      };
+
+      chartConfig.plugins = Array.isArray(chartConfig.plugins) ? chartConfig.plugins.slice() : [];
+      chartConfig.plugins.push(plugin);
+    }
 
     if (widgetOptions.legend_position) {
       chartConfig.options.legend.position = widgetOptions.legend_position;
