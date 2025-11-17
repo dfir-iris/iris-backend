@@ -399,6 +399,44 @@ body .vis-network {
   background-color: #1f283e !important;
 }
 
+body .preset-range-container {
+  background: rgba(20, 28, 45, 0.9) !important;
+  border: 1px solid rgba(102, 170, 255, 0.25) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body .preset-range-container h6,
+body .preset-range-container .text-muted {
+  color: #d6def5 !important;
+}
+
+body .preset-range-container .dashboard-quick-range,
+body .preset-range-container .stats-quick-range {
+  background: rgba(102, 170, 255, 0.08);
+  border-color: rgba(102, 170, 255, 0.35);
+  color: #dfe8ff;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body .preset-range-container .dashboard-quick-range:hover,
+body .preset-range-container .stats-quick-range:hover,
+body .preset-range-container .dashboard-quick-range:focus,
+body .preset-range-container .stats-quick-range:focus {
+  background: rgba(102, 170, 255, 0.18);
+  border-color: rgba(102, 170, 255, 0.55);
+  color: #ffffff;
+  box-shadow: 0 0 0 0.2rem rgba(102, 170, 255, 0.15);
+}
+
+body .preset-range-container .dashboard-quick-range.active,
+body .preset-range-container .stats-quick-range.active {
+  background: #3a61c9 !important;
+  border-color: #7ba4ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.25rem rgba(102, 170, 255, 0.25);
+}
+
 body .kanban-board {
   background: #4c5366 !important;
 }

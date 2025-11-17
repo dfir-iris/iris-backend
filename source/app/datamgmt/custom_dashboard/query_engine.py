@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from flask_login import current_user
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, cast, Integer, case, literal
 from sqlalchemy.orm import Query, aliased
 
 from app import db
@@ -15,9 +15,9 @@ from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
 from app.iris_engine.access_control.utils import ac_current_user_has_permission, ac_get_fast_user_cases_access
 from app.models.alerts import Alert, AlertResolutionStatus, AlertStatus, Severity
 from app.models.alerts import AlertCaseAssociation
-from app.models.cases import Cases
+from app.models.cases import Cases, CaseTags
 from app.models.authorization import Permissions, User
-from app.models.models import CaseClassification, Client
+from app.models.models import CaseClassification, Client, Tags
 
 
 class QueryExecutionError(Exception):
@@ -102,6 +102,15 @@ def _join_case_creator(query):
 
 def _join_alert_owner(query):
     return query.outerjoin(AlertOwnerUser, Alert.owner)
+
+
+def _join_case_tags_table(query):
+    return query.outerjoin(CaseTags, CaseTags.case_id == Cases.case_id)
+
+
+def _join_tags_table(query):
+    # Case tags join is registered before reaching this point, so reuse its alias when linking tags.
+    return query.outerjoin(Tags, Tags.id == CaseTags.tag_id)
 
 
 _AGGREGATIONS = {
@@ -196,7 +205,8 @@ class WidgetQueryExecutor:
                 'alert_status_id': Alert.alert_status_id,
                 'alert_severity_id': Alert.alert_severity_id,
                 'alert_owner_id': Alert.alert_owner_id,
-                'alert_classification_id': Alert.alert_classification_id
+                'alert_classification_id': Alert.alert_classification_id,
+                'alert_tags': Alert.alert_tags
             },
             'default_time_column': Alert.alert_creation_time
         },
@@ -251,6 +261,14 @@ class WidgetQueryExecutor:
             },
             'join': _join_cases
         },
+        'case_tags': {
+            'model': CaseTags,
+            'columns': {
+                'case_id': CaseTags.case_id,
+                'tag_id': CaseTags.tag_id
+            },
+            'join': _join_case_tags_table
+        },
         'alert_owner': {
             'model': User,
             'columns': {
@@ -277,12 +295,28 @@ class WidgetQueryExecutor:
                 'name': CaseCreatorUser.name
             },
             'join': _join_case_creator
+        },
+        'tags': {
+            'model': Tags,
+            'columns': {
+                'id': Tags.id,
+                'tag_title': Tags.tag_title,
+                'tag_namespace': Tags.tag_namespace,
+                'tag_creation_date': Tags.tag_creation_date
+            },
+            'join': _join_tags_table
         }
     }
 
     def __init__(self, definition: Dict[str, Any]):
         self.definition = definition or {}
         self.builder = _WidgetQueryBuilder()
+        options = self.definition.get('options') or {}
+        self.time_column_spec = options.get('time_column') or 'alerts.alert_creation_time'
+        self._normalized_time_column_spec = self._normalize_table_column_value(self.time_column_spec)
+        raw_time_bucket = self.definition.get('time_bucket')
+        self.time_bucket = raw_time_bucket.strip().lower() if isinstance(raw_time_bucket, str) else ''
+        self._time_bucket_label = ''
 
     def execute(self, timeframe: Tuple[Optional[datetime], Optional[datetime]]) -> WidgetQueryResult:
         widgets_fields = self.definition.get('fields') or []
@@ -298,6 +332,8 @@ class WidgetQueryExecutor:
 
         for group_entry in self.definition.get('group_by', []) or []:
             self._apply_group_by(group_entry)
+
+        self._ensure_time_bucket_group()
 
         for filter_entry in self.definition.get('filters', []) or []:
             self._apply_filter(filter_entry)
@@ -333,8 +369,10 @@ class WidgetQueryExecutor:
         column = columns.get(column_name)
         if column is None:
             raise QueryExecutionError(f"Column '{column_name}' is not allowed for table '{table_name}'.")
-        if table_name in {'case_owner', 'case_creator'}:
+        if table_name in {'case_owner', 'case_creator', 'case_tags', 'tags'}:
             self.builder.add_join('cases')
+        if table_name == 'tags':
+            self.builder.add_join('case_tags')
         if table_name != self._BASE_TABLE:
             self.builder.add_join(table_name)
         return column
@@ -348,50 +386,57 @@ class WidgetQueryExecutor:
         column = self._get_column(table_name, column_name)
         alias = field_definition.get('alias') or f"{table_name}_{column_name}"
         aggregation = (field_definition.get('aggregation') or '').lower() or None
+        field_filter_definition = field_definition.get('filter')
 
         if aggregation:
-            agg_fn = _AGGREGATIONS.get(aggregation)
-            if agg_fn is None:
-                raise QueryExecutionError(f"Aggregation '{aggregation}' is not supported.")
-            expr = agg_fn(column)
+            filter_expression = None
+            if field_filter_definition:
+                filter_expression = self._build_filter_expression(field_filter_definition)
+            expr = self._build_aggregate_expression(aggregation, column, filter_expression)
             self.builder.add_select(expr, alias, aggregated=True)
         else:
+            if field_filter_definition:
+                raise QueryExecutionError('Non-aggregated fields cannot specify a filter.')
             self.builder.add_select(column, alias, aggregated=False)
 
     def _apply_group_by(self, group_entry: str):
         table_name, column_name = self._parse_table_column(group_entry)
         column = self._get_column(table_name, column_name)
         alias = f"{table_name}_{column_name}"
-        self.builder.add_select(column, alias, aggregated=False)
+        is_time_group = self._is_time_column(group_entry)
+
+        if is_time_group and self.time_bucket:
+            truncated_column = self._apply_time_bucket(column)
+            alias = self._resolve_time_bucket_label(table_name, column_name)
+            self.builder.add_select(truncated_column, alias, aggregated=False)
+            self._time_bucket_label = alias
+        else:
+            self.builder.add_select(column, alias, aggregated=False)
 
     def _apply_filter(self, filter_definition: Dict[str, Any]):
-        table_name = filter_definition.get('table')
-        column_name = filter_definition.get('column')
-        operator = (filter_definition.get('operator') or '').lower()
-        value = filter_definition.get('value')
-
-        if not table_name or not column_name or not operator:
-            raise QueryExecutionError('Each filter must provide table, column, and operator.')
-
-        column = self._get_column(table_name, column_name)
-        operator_fn = _OPERATORS.get(operator)
-        if operator_fn is None:
-            raise QueryExecutionError(f"Operator '{operator}' is not supported.")
-
-        expression = operator_fn(column, value)
-        if expression is None:
-            raise QueryExecutionError(f"Operator '{operator}' expects a different value format.")
-
+        expression = self._build_filter_expression(filter_definition)
         self.builder.filters.append(expression)
 
     def _apply_timeframe(self, start: Optional[datetime], end: Optional[datetime]):
-        options = self.definition.get('options') or {}
-        time_column_spec = options.get('time_column') or 'alerts.alert_creation_time'
-        table_name, column_name = self._parse_table_column(time_column_spec)
+        table_name, column_name = self._parse_table_column(self.time_column_spec)
         column = self._get_column(table_name, column_name)
 
         for expression in _between_dates(column, start, end):
             self.builder.filters.append(expression)
+
+    def _ensure_time_bucket_group(self):
+        if not self.time_bucket:
+            return
+
+        if self._time_bucket_label and self._time_bucket_label in self.builder.select_labels:
+            return
+
+        table_name, column_name = self._parse_table_column(self.time_column_spec)
+        column = self._get_column(table_name, column_name)
+        alias = self._resolve_time_bucket_label(table_name, column_name)
+        truncated_column = self._apply_time_bucket(column)
+        self.builder.add_select(truncated_column, alias, aggregated=False)
+        self._time_bucket_label = alias
 
     def _apply_access_filters(self):
         if ac_current_user_has_permission(Permissions.server_administrator):
@@ -484,6 +529,92 @@ class WidgetQueryExecutor:
         table_name, column_name = value.split('.', 1)
         return table_name.strip(), column_name.strip()
 
+    def _build_filter_expression(self, filter_definition: Dict[str, Any]):
+        if not isinstance(filter_definition, dict):
+            raise QueryExecutionError('Invalid filter definition supplied.')
+
+        table_name = filter_definition.get('table')
+        column_name = filter_definition.get('column')
+        operator = (filter_definition.get('operator') or '').lower()
+        value = filter_definition.get('value')
+
+        if not table_name or not column_name or not operator:
+            raise QueryExecutionError('Filters must define table, column, and operator.')
+
+        column = self._get_column(table_name, column_name)
+        operator_fn = _OPERATORS.get(operator)
+        if operator_fn is None:
+            raise QueryExecutionError(f"Operator '{operator}' is not supported.")
+
+        expression = operator_fn(column, value)
+        if expression is None:
+            raise QueryExecutionError(f"Operator '{operator}' expects a different value format.")
+
+        return expression
+
+    def _build_aggregate_expression(self, aggregation: str, column, filter_expression):
+        normalized = aggregation.lower()
+
+        if filter_expression is not None:
+            if normalized == 'count':
+                return func.coalesce(func.sum(case((filter_expression, 1), else_=0)), 0)
+            if normalized == 'sum':
+                return func.coalesce(func.sum(case((filter_expression, column), else_=0)), 0)
+            if normalized == 'avg':
+                return func.avg(case((filter_expression, column), else_=None))
+            if normalized == 'min':
+                return func.min(case((filter_expression, column), else_=None))
+            if normalized == 'max':
+                return func.max(case((filter_expression, column), else_=None))
+            if normalized == 'ratio':
+                base_column = column or Alert.alert_id
+                numerator = func.sum(case((filter_expression, 1), else_=0))
+                denominator = func.nullif(func.count(base_column), 0)
+                ratio_expr = (numerator * literal(100.0)) / denominator
+                return func.coalesce(ratio_expr, 0)
+            raise QueryExecutionError(f"Aggregation '{aggregation}' with filter is not supported.")
+
+        if normalized == 'ratio':
+            raise QueryExecutionError("Ratio aggregation requires a filter to be specified.")
+
+        agg_fn = _AGGREGATIONS.get(normalized)
+        if agg_fn is None:
+            raise QueryExecutionError(f"Aggregation '{aggregation}' is not supported.")
+        return agg_fn(column)
+
+    def _normalize_table_column_value(self, value: Optional[str]) -> str:
+        if not isinstance(value, str):
+            return ''
+        return value.replace(' ', '').lower()
+
+    def _is_time_column(self, group_entry: str) -> bool:
+        return self._normalize_table_column_value(group_entry) == self._normalized_time_column_spec
+
+    def _resolve_time_bucket_label(self, table_name: str, column_name: str) -> str:
+        if not self.time_bucket:
+            return f"{table_name}_{column_name}"
+        return f"{table_name}_{column_name}_{self.time_bucket}"
+
+    def _apply_time_bucket(self, column):
+        if not self.time_bucket:
+            return column
+
+        bucket = self.time_bucket
+        if bucket in {'minute', 'hour', 'day', 'week', 'month', 'year'}:
+            return func.date_trunc(bucket, column)
+
+        if bucket in {'5minute', '5m'}:
+            minute_part = cast(func.date_part('minute', column), Integer)
+            remainder = cast(minute_part % 5, Integer)
+            return func.date_trunc('minute', column) - func.make_interval(0, 0, 0, 0, 0, remainder)
+
+        if bucket in {'15minute', '15m'}:
+            minute_part = cast(func.date_part('minute', column), Integer)
+            remainder = cast(minute_part % 15, Integer)
+            return func.date_trunc('minute', column) - func.make_interval(0, 0, 0, 0, 0, remainder)
+
+        return func.date_trunc(bucket, column)
+
 
 def execute_widget(definition: Dict[str, Any], timeframe: Tuple[Optional[datetime], Optional[datetime]]) -> WidgetQueryResult:
     executor = WidgetQueryExecutor(definition)
@@ -548,22 +679,54 @@ def format_widget_payload(result: WidgetQueryResult, definition: Optional[Dict[s
         }
 
     if chart_type in {'number', 'percentage'}:
+        numerator_key = options.get('percentage_numerator') or options.get('percentageNumerator')
+        denominator_key = options.get('percentage_denominator') or options.get('percentageDenominator')
+        label_override = options.get('percentage_label') or options.get('percentageLabel')
+
         value_label = result.value_labels[0] if result.value_labels else None
         value = None
-        if result.rows:
-            value = result.rows[0].get(value_label) if value_label else None
+        numerator_raw = None
+        denominator_raw = None
+
+        if numerator_key and result.rows:
+            numerator_raw = result.rows[0].get(numerator_key)
+        if denominator_key and result.rows:
+            denominator_raw = result.rows[0].get(denominator_key)
+
+        if numerator_key and denominator_key:
+            numerator_value = _ensure_numeric(numerator_raw)
+            denominator_value = _ensure_numeric(denominator_raw)
+            if numerator_value is not None and denominator_value not in (None, 0):
+                value = (numerator_value / denominator_value) * 100.0
+            else:
+                value = None
+            value_label = numerator_key
+        else:
+            if result.rows:
+                value = result.rows[0].get(value_label) if value_label else None
+
         numeric_value = _ensure_numeric(value)
         formatted_value = _format_number(value)
         formatted_percentage = _format_percentage(numeric_value if numeric_value is not None else None)
 
+        label_text = label_override or (_capitalize_label(value_label) if value_label else '')
+
         payload = {
             'value': value,
-            'label': _capitalize_label(value_label) if value_label else '',
+            'label': label_text,
             'rows': result.rows,
             'display_mode': display_mode,
             'formatted_value': formatted_value,
             'formatted_percentage': formatted_percentage
         }
+
+        if numerator_key and denominator_key:
+            payload['source_values'] = {
+                'numerator': numerator_raw,
+                'denominator': denominator_raw,
+                'numerator_key': numerator_key,
+                'denominator_key': denominator_key
+            }
 
         if chart_type == 'percentage':
             payload['formatted_value'] = formatted_percentage

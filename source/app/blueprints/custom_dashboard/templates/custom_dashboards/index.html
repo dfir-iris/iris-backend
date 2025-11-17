@@ -51,7 +51,7 @@
             </div>
           </div>
         </div>
-        <div class="bg-light rounded px-2 py-2 mt-2">
+  <div class="preset-range-container bg-light rounded px-2 py-2 mt-2">
           <div class="d-flex align-items-center mb-3">
             <h6 class="mb-0 text-uppercase text-muted small">Preset ranges</h6>
           </div>
@@ -215,7 +215,8 @@
         </button>
       </div>
       <div class="modal-body">
-        <p class="mb-3">For each widget, paste JSON describing the <code>fields</code> array. Provide one object per field you want to display or aggregate.</p>
+    <p class="mb-3">For each widget, paste JSON describing the <code>fields</code> array. Provide one object per field you want to display or aggregate.</p>
+    <p class="mb-3">Need a quick start? Use the "Add from template" dropdown in each section or review <code>static/assets/js/iris/custom_dashboards/widget_presets.json</code> for the preset definitions.</p>
         <h6>Field attributes</h6>
         <ul>
           <li><code>table</code> (required): one of the allowed tables below.</li>
@@ -351,10 +352,51 @@
           <td>Moves the chart legend.</td>
           <td><code>"top"</code>, <code>"right"</code>, <code>"bottom"</code>, <code>"left"</code></td>
         </tr>
+        <tr>
+          <td><code>thresholds</code></td>
+          <td>Optional list of conditional styles for number and percentage widgets. Each entry supports <code>mode</code> (<code>"above"</code>, <code>"below"</code>, <code>"between"</code>, <code>"equal"</code>), <code>value</code>, optional <code>end_value</code>, <code>color</code>, and <code>label</code>.</td>
+          <td><code>[{"mode":"above","value":40,"color":"#dc3545"}]</code></td>
+        </tr>
       </tbody>
     </table>
   </div>
-  <p class="mb-0">Dataset entries accept the same <code>color</code> and <code>colors</code> keys to override individual series, and you can provide <code>total</code> to lock in percentage calculations. Percentages are automatically calculated when totals are provided or inferred.</p>
+  <p class="mb-3">Dataset entries accept the same <code>color</code> and <code>colors</code> keys to override individual series, and you can provide <code>total</code> to lock in percentage calculations. Percentages are automatically calculated when totals are provided or inferred.</p>
+  <h6>Example: False Positive Rate KPI</h6>
+  <pre class="bg-light p-2"><code>{
+  "name": "False Positive Rate KPI",
+  "chart_type": "percentage",
+  "fields": [
+    {
+      "table": "alerts",
+      "column": "alert_id",
+      "aggregation": "count",
+      "alias": "total_alerts"
+    },
+    {
+      "table": "alerts",
+      "column": "alert_id",
+      "aggregation": "count",
+      "alias": "false_positive_alerts",
+      "filter": {
+        "table": "alert_resolution_status",
+        "column": "resolution_status_name",
+        "operator": "eq",
+        "value": "False Positive"
+      }
+    }
+  ],
+  "options": {
+    "widget_size": "col-lg-4",
+    "display_mode": "number_percentage",
+    "percentage_numerator": "false_positive_alerts",
+    "percentage_denominator": "total_alerts",
+    "thresholds": [
+      {"mode": "above", "value": 40, "color": "#dc3545", "label": "Critical"},
+      {"mode": "between", "value": 20, "end_value": 40, "color": "#fd7e14", "label": "Monitor"},
+      {"mode": "below", "value": 20, "color": "#1cc88a", "label": "Healthy"}
+    ]
+  }
+}</code></pre>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

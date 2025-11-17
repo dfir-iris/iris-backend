@@ -7,6 +7,12 @@
     '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#fd7e14', '#20c997', '#6f42c1', '#17a2b8'
   ];
 
+  const COLOR_PICKER_FALLBACK = '#4e73df';
+  const WIDGET_PRESETS_URL = '/static/assets/js/iris/custom_dashboards/widget_presets.json';
+  let widgetPresetsCache = null;
+  let widgetPresetsMap = null;
+  let widgetPresetsLoadPromise = null;
+
   const TABLE_DEFINITIONS = {
     alerts: {
       label: 'Alerts',
@@ -24,7 +30,8 @@
         alert_status_id: 'Status ID',
         alert_severity_id: 'Severity ID',
         alert_owner_id: 'Owner ID',
-        alert_classification_id: 'Classification ID'
+        alert_classification_id: 'Classification ID',
+        alert_tags: 'Tags'
       }
     },
     client: {
@@ -95,6 +102,22 @@
         username: 'Creator Username',
         name: 'Creator Name'
       }
+    },
+    case_tags: {
+      label: 'Case Tags',
+      columns: {
+        case_id: 'Case ID',
+        tag_id: 'Tag ID'
+      }
+    },
+    tags: {
+      label: 'Tags',
+      columns: {
+        id: 'Tag ID',
+        tag_title: 'Tag Title',
+        tag_namespace: 'Tag Namespace',
+        tag_creation_date: 'Tag Creation Date'
+      }
     }
   };
 
@@ -104,7 +127,8 @@
     { value: 'sum', label: 'Sum' },
     { value: 'avg', label: 'Average' },
     { value: 'min', label: 'Minimum' },
-    { value: 'max', label: 'Maximum' }
+    { value: 'max', label: 'Maximum' },
+    { value: 'ratio', label: 'Ratio (requires filter)' }
   ];
 
   const OPERATOR_OPTIONS = [
@@ -118,6 +142,13 @@
     { value: 'nin', label: 'Not in list' },
     { value: 'between', label: 'Between' },
     { value: 'contains', label: 'Contains (case-insensitive)' }
+  ];
+
+  const THRESHOLD_MODE_OPTIONS = [
+    { value: 'above', label: 'Above' },
+    { value: 'below', label: 'Below' },
+    { value: 'between', label: 'Between' },
+    { value: 'equal', label: 'Equal' }
   ];
 
   const TIME_BUCKET_OPTIONS = [
@@ -263,6 +294,125 @@
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
+  function isValidHexColor(value) {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    const trimmed = value.trim();
+    return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed);
+  }
+
+  function normalizeHexColor(value) {
+    if (!isValidHexColor(value)) {
+      return '';
+    }
+    const trimmed = value.trim();
+    if (trimmed.length === 4) {
+      const r = trimmed.charAt(1);
+      const g = trimmed.charAt(2);
+      const b = trimmed.charAt(3);
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return trimmed.toLowerCase();
+  }
+
+  function getColorPickerValue(value) {
+    const normalized = normalizeHexColor(value);
+    if (normalized) {
+      return normalized;
+    }
+    return COLOR_PICKER_FALLBACK;
+  }
+
+  function normalizePresetEntry(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    const key = typeof entry.key === 'string' ? entry.key.trim() : '';
+    if (!key) {
+      return null;
+    }
+    const definition = entry.definition && typeof entry.definition === 'object' ? entry.definition : null;
+    if (!definition) {
+      return null;
+    }
+    const label = typeof entry.label === 'string' && entry.label.trim() ? entry.label.trim() : key;
+    const description = typeof entry.description === 'string' ? entry.description.trim() : '';
+    return {
+      key,
+      label,
+      description,
+      definition
+    };
+  }
+
+  function loadWidgetPresets() {
+    if (widgetPresetsCache) {
+      return Promise.resolve(widgetPresetsCache);
+    }
+    if (widgetPresetsLoadPromise) {
+      return widgetPresetsLoadPromise;
+    }
+
+    widgetPresetsLoadPromise = fetch(WIDGET_PRESETS_URL, { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load widget templates (${response.status})`);
+        }
+        return response.json();
+      })
+      .then((payload) => {
+        const entries = Array.isArray(payload)
+          ? payload
+          : (Array.isArray(payload.presets) ? payload.presets : []);
+        const normalized = entries.map((entry) => normalizePresetEntry(entry)).filter((entry) => entry !== null);
+        widgetPresetsCache = normalized;
+        widgetPresetsMap = new Map(normalized.map((item) => [item.key, item]));
+        widgetPresetsLoadPromise = null;
+        return normalized;
+      })
+      .catch((error) => {
+        console.error('Failed to load widget templates', error);
+        widgetPresetsLoadPromise = null;
+        widgetPresetsCache = null;
+        widgetPresetsMap = null;
+        throw error;
+      });
+
+    return widgetPresetsLoadPromise;
+  }
+
+  function populatePresetMenu($menu, sectionId) {
+    if (!$menu || !$menu.length) {
+      return;
+    }
+    $menu.empty();
+    if (!widgetPresetsCache || !widgetPresetsCache.length) {
+      $menu.append('<button type="button" class="dropdown-item disabled text-muted">No templates available</button>');
+      return;
+    }
+    widgetPresetsCache.forEach((preset) => {
+      const item = $('<button type="button" class="dropdown-item builder-add-preset-widget"></button>');
+      item.text(preset.label || preset.key);
+      if (preset.description) {
+        item.attr('title', preset.description);
+      }
+      item.attr('data-section-id', sectionId);
+      item.attr('data-preset-key', preset.key);
+      $menu.append(item);
+    });
+  }
+
+  function getWidgetPresetByKey(key) {
+    if (!key) {
+      return null;
+    }
+    if (widgetPresetsMap && widgetPresetsMap.has(key)) {
+      return widgetPresetsMap.get(key);
+    }
+    return null;
+  }
+
   function generateBuilderId(prefix) {
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 10);
@@ -329,9 +479,18 @@
       table: 'alerts',
       column: 'alert_id',
       aggregation: 'count',
-      alias: 'alert_count'
+      alias: 'alert_count',
+      filter: null
     };
-    return Object.assign(defaults, overrides);
+    const field = Object.assign({}, defaults, overrides);
+    if (overrides && overrides.filter) {
+      field.filter = cloneFieldFilter(overrides.filter);
+    } else if (field.filter) {
+      field.filter = cloneFieldFilter(field.filter);
+    } else {
+      field.filter = null;
+    }
+    return field;
   }
 
   function createEmptyGroupBy(overrides = {}) {
@@ -364,6 +523,15 @@
     return filter;
   }
 
+  function cloneFieldFilter(filter) {
+    if (!filter || typeof filter !== 'object') {
+      return null;
+    }
+    const cloned = createEmptyFilter(Object.assign({}, filter));
+    delete cloned.id;
+    return cloned;
+  }
+
   function createEmptyCustomOption(overrides = {}) {
     const defaults = {
       id: generateBuilderId('option'),
@@ -383,6 +551,154 @@
     return option;
   }
 
+  function normalizeThresholdEntryForState(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    const allowedModes = new Set(THRESHOLD_MODE_OPTIONS.map((item) => item.value));
+    const rawMode = typeof entry.mode === 'string' ? entry.mode.toLowerCase() : '';
+    const mode = allowedModes.has(rawMode) ? rawMode : 'above';
+    const endValueSource = entry.end_value !== undefined ? entry.end_value : entry.endValue;
+    return {
+      mode,
+      value: entry.value !== undefined && entry.value !== null ? entry.value : '',
+      endValue: endValueSource !== undefined && endValueSource !== null ? endValueSource : '',
+      color: typeof entry.color === 'string' ? entry.color : '',
+      label: typeof entry.label === 'string' ? entry.label : ''
+    };
+  }
+
+  function createEmptyThreshold(overrides = {}) {
+    const defaults = {
+      id: generateBuilderId('threshold'),
+      mode: 'above',
+      value: '',
+      endValue: '',
+      color: '',
+      label: ''
+    };
+    const threshold = Object.assign({}, defaults, overrides);
+    const allowedModes = new Set(THRESHOLD_MODE_OPTIONS.map((item) => item.value));
+    const rawMode = typeof threshold.mode === 'string' ? threshold.mode.toLowerCase().trim() : '';
+    threshold.mode = allowedModes.has(rawMode) ? rawMode : 'above';
+    threshold.value = threshold.value !== undefined && threshold.value !== null ? String(threshold.value).trim() : '';
+    threshold.endValue = threshold.endValue !== undefined && threshold.endValue !== null ? String(threshold.endValue).trim() : '';
+    threshold.color = threshold.color !== undefined && threshold.color !== null ? String(threshold.color).trim() : '';
+    threshold.label = threshold.label !== undefined && threshold.label !== null ? String(threshold.label).trim() : '';
+    return threshold;
+  }
+
+  function serializeThresholdForOptions(threshold) {
+    if (!threshold) {
+      return null;
+    }
+    const allowedModes = new Set(THRESHOLD_MODE_OPTIONS.map((item) => item.value));
+    const rawMode = typeof threshold.mode === 'string' ? threshold.mode.toLowerCase().trim() : '';
+    const mode = allowedModes.has(rawMode) ? rawMode : 'above';
+    const primaryValue = Number.parseFloat(threshold.value);
+    if (!Number.isFinite(primaryValue)) {
+      return null;
+    }
+
+    const payload = { mode, value: primaryValue };
+
+    const secondaryRaw = threshold.endValue !== undefined && threshold.endValue !== null ? String(threshold.endValue).trim() : '';
+    if (mode === 'between') {
+      const secondaryValue = Number.parseFloat(secondaryRaw);
+      if (!Number.isFinite(secondaryValue)) {
+        return null;
+      }
+      payload.value = Math.min(primaryValue, secondaryValue);
+      payload.end_value = Math.max(primaryValue, secondaryValue);
+    } else if (secondaryRaw) {
+      const secondaryValue = Number.parseFloat(secondaryRaw);
+      if (Number.isFinite(secondaryValue)) {
+        payload.end_value = secondaryValue;
+      }
+    }
+
+    if (threshold.color && String(threshold.color).trim()) {
+      payload.color = String(threshold.color).trim();
+    }
+    if (threshold.label && String(threshold.label).trim()) {
+      payload.label = String(threshold.label).trim();
+    }
+
+    return payload;
+  }
+
+  function normalizeThresholdEntryForRuntime(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    const allowedModes = new Set(THRESHOLD_MODE_OPTIONS.map((item) => item.value));
+    const rawMode = typeof entry.mode === 'string' ? entry.mode.toLowerCase() : '';
+    const mode = allowedModes.has(rawMode) ? rawMode : 'above';
+    const numericValue = toNumericValue(entry.value);
+    if (numericValue === null) {
+      return null;
+    }
+    const endSource = entry.end_value !== undefined ? entry.end_value : entry.endValue;
+    const numericEndValue = endSource !== undefined ? toNumericValue(endSource) : null;
+    if (mode === 'between' && numericEndValue === null) {
+      return null;
+    }
+    const color = typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : '';
+    const label = typeof entry.label === 'string' && entry.label.trim() ? entry.label.trim() : '';
+    return {
+      mode,
+      value: numericValue,
+      endValue: numericEndValue,
+      color,
+      label
+    };
+  }
+
+  function normalizeThresholdArrayFromOptions(options) {
+    if (!options || !Array.isArray(options.thresholds)) {
+      return [];
+    }
+    return options.thresholds
+      .map((entry) => normalizeThresholdEntryForRuntime(entry))
+      .filter((entry) => entry !== null);
+  }
+
+  function resolveNumericThresholdMatch(thresholds, numericValue) {
+    if (!Array.isArray(thresholds) || thresholds.length === 0) {
+      return null;
+    }
+    if (numericValue === null || numericValue === undefined) {
+      return null;
+    }
+
+    const EPSILON = 1e-9;
+
+    for (let index = 0; index < thresholds.length; index += 1) {
+      const threshold = thresholds[index];
+      if (!threshold || threshold.value === null || threshold.value === undefined) {
+        continue;
+      }
+      if (threshold.mode === 'between') {
+        if (threshold.endValue === null || threshold.endValue === undefined) {
+          continue;
+        }
+        const min = Math.min(threshold.value, threshold.endValue);
+        const max = Math.max(threshold.value, threshold.endValue);
+        if (numericValue >= min && numericValue <= max) {
+          return threshold;
+        }
+      } else if (threshold.mode === 'above' && numericValue > threshold.value) {
+        return threshold;
+      } else if (threshold.mode === 'below' && numericValue < threshold.value) {
+        return threshold;
+      } else if (threshold.mode === 'equal' && Math.abs(numericValue - threshold.value) <= EPSILON) {
+        return threshold;
+      }
+    }
+
+    return null;
+  }
+
   function createEmptyWidget(overrides = {}) {
     const defaults = {
       id: generateBuilderId('widget'),
@@ -394,6 +710,7 @@
       fields: [createEmptyField()],
       groupBy: [],
       filters: [],
+      thresholds: [],
       options: {
         displayMode: '',
         sortDirection: '',
@@ -419,9 +736,14 @@
     }
     widget.groupBy = Array.isArray(widget.groupBy) ? widget.groupBy.map((group) => createEmptyGroupBy(group)) : [];
     widget.filters = Array.isArray(widget.filters) ? widget.filters.map((filter) => createEmptyFilter(filter)) : [];
+    widget.thresholds = Array.isArray(widget.thresholds) ? widget.thresholds.map((threshold) => createEmptyThreshold(threshold)) : [];
     widget.customOptions = Array.isArray(widget.customOptions) ? widget.customOptions.map((option) => createEmptyCustomOption(option)) : [];
     widget.layoutMeta = Object.assign({}, overrides.layoutMeta || defaults.layoutMeta);
     return widget;
+  }
+
+  function clonePresetDefinition(definition) {
+    return JSON.parse(JSON.stringify(definition));
   }
 
   function createEmptySection(overrides = {}) {
@@ -467,7 +789,8 @@
         table: field.table,
         column: field.column,
         aggregation: field.aggregation || '',
-        alias: field.alias || ''
+        alias: field.alias || '',
+        filter: field.filter ? cloneFieldFilter(field.filter) : null
       }))
       : [createEmptyField()];
 
@@ -488,7 +811,7 @@
       : [];
 
     const options = (definition.options && typeof definition.options === 'object') ? definition.options : {};
-    const handledOptionKeys = new Set(['widget_size', 'size', 'display_mode', 'display', 'sort', 'limit', 'time_column', 'color', 'colors', 'total_label', 'legend_position', 'fill', 'label_max_length']);
+    const handledOptionKeys = new Set(['widget_size', 'size', 'display_mode', 'display', 'sort', 'limit', 'time_column', 'color', 'colors', 'total_label', 'legend_position', 'fill', 'label_max_length', 'thresholds']);
 
     const customOptions = Object.entries(options)
       .filter(([key]) => !handledOptionKeys.has(key))
@@ -498,6 +821,13 @@
       }));
 
     const layoutMeta = (definition.layout && typeof definition.layout === 'object') ? definition.layout : {};
+
+    const thresholds = Array.isArray(options.thresholds)
+      ? options.thresholds
+        .map((entry) => normalizeThresholdEntryForState(entry))
+        .filter(Boolean)
+        .map((entry) => createEmptyThreshold(entry))
+      : [];
 
     return createEmptyWidget({
       id: definition.id || layoutMeta.widget_id || generateBuilderId('widget'),
@@ -520,6 +850,7 @@
         fill: options.fill === true || options.fill === 'true',
         labelMaxLength: options.label_max_length !== undefined && options.label_max_length !== null ? String(options.label_max_length) : ''
       },
+      thresholds,
       customOptions,
       layoutMeta
     });
@@ -632,19 +963,26 @@
     const definition = {
       name: widget.name || `Widget ${widgetIndex + 1}`,
       chart_type: widget.chartType || 'number',
-      fields: widget.fields.map((field) => ({
-        table: field.table,
-        column: field.column,
-        aggregation: field.aggregation || undefined,
-        alias: field.alias || undefined
-      })).map((field) => {
-        if (!field.aggregation) {
-          delete field.aggregation;
+      fields: widget.fields.map((field) => {
+        const payload = {
+          table: field.table,
+          column: field.column
+        };
+        if (field.aggregation) {
+          payload.aggregation = field.aggregation;
         }
-        if (!field.alias) {
-          delete field.alias;
+        if (field.alias) {
+          payload.alias = field.alias;
         }
-        return field;
+        if (field.filter && field.filter.table && field.filter.column && field.filter.operator) {
+          payload.filter = {
+            table: field.filter.table,
+            column: field.filter.column,
+            operator: field.filter.operator,
+            value: coerceFilterValue(field.filter.value, field.filter.operator)
+          };
+        }
+        return payload;
       }),
       filters: widget.filters.map((filter) => ({
         table: filter.table,
@@ -692,6 +1030,16 @@
     if (widget.options.labelMaxLength) {
       const numericLabelMax = Number(widget.options.labelMaxLength);
       options.label_max_length = Number.isFinite(numericLabelMax) ? numericLabelMax : widget.options.labelMaxLength;
+    }
+
+    const thresholdPayload = Array.isArray(widget.thresholds)
+      ? widget.thresholds
+        .map((threshold) => serializeThresholdForOptions(threshold))
+        .filter((entry) => entry !== null)
+      : [];
+
+    if (thresholdPayload.length) {
+      options.thresholds = thresholdPayload;
     }
 
     widget.customOptions.forEach((option) => {
@@ -1212,6 +1560,84 @@
     return row;
   }
 
+  function renderThresholdRow(sectionId, widgetId, threshold) {
+    const row = $('<div class="form-row align-items-end dashboard-builder-threshold-row"></div>');
+
+    const modeGroup = $('<div class="form-group col-lg-2"></div>');
+    modeGroup.append('<label class="small text-muted text-uppercase">Condition</label>');
+    const modeSelect = $('<select class="form-control form-control-sm builder-threshold-mode"></select>');
+    modeSelect.attr('data-section-id', sectionId);
+    modeSelect.attr('data-widget-id', widgetId);
+    modeSelect.attr('data-threshold-id', threshold.id);
+    THRESHOLD_MODE_OPTIONS.forEach((mode) => {
+      const option = document.createElement('option');
+      option.value = mode.value;
+      option.textContent = mode.label;
+      if (mode.value === threshold.mode) {
+        option.selected = true;
+      }
+      modeSelect.append(option);
+    });
+    modeGroup.append(modeSelect);
+
+    const valueGroup = $('<div class="form-group col-lg-2"></div>');
+    valueGroup.append('<label class="small text-muted text-uppercase">Value</label>');
+    const valueInput = $('<input type="text" class="form-control form-control-sm builder-threshold-value" placeholder="0">');
+    valueInput.attr('data-section-id', sectionId);
+    valueInput.attr('data-widget-id', widgetId);
+    valueInput.attr('data-threshold-id', threshold.id);
+    valueInput.val(threshold.value || '');
+    valueGroup.append(valueInput);
+
+    const endGroup = $('<div class="form-group col-lg-2"></div>');
+    endGroup.append('<label class="small text-muted text-uppercase">And value</label>');
+    const endValueInput = $('<input type="text" class="form-control form-control-sm builder-threshold-end-value" placeholder="10">');
+    endValueInput.attr('data-section-id', sectionId);
+    endValueInput.attr('data-widget-id', widgetId);
+    endValueInput.attr('data-threshold-id', threshold.id);
+    endValueInput.val(threshold.endValue || '');
+    if (threshold.mode !== 'between') {
+      endGroup.addClass('d-none');
+    }
+    endGroup.append(endValueInput);
+
+  const colorGroup = $('<div class="form-group col-lg-2"></div>');
+  colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
+  const colorWrapper = $('<div class="d-flex align-items-center builder-color-picker-container"></div>');
+  const colorInput = $('<input type="text" class="form-control form-control-sm builder-threshold-color mr-2" placeholder="#ff0000">');
+  colorInput.attr('data-section-id', sectionId);
+  colorInput.attr('data-widget-id', widgetId);
+  colorInput.attr('data-threshold-id', threshold.id);
+  colorInput.val(threshold.color || '');
+  const colorPicker = $('<input type="color" class="builder-threshold-color-picker" title="Choose color">');
+  colorPicker.attr('data-section-id', sectionId);
+  colorPicker.attr('data-widget-id', widgetId);
+  colorPicker.attr('data-threshold-id', threshold.id);
+  colorPicker.val(getColorPickerValue(threshold.color));
+  colorPicker.css({ width: '42px', padding: 0 });
+  colorWrapper.append(colorInput, colorPicker);
+  colorGroup.append(colorWrapper);
+
+    const labelGroup = $('<div class="form-group col-lg-3"></div>');
+    labelGroup.append('<label class="small text-muted text-uppercase">Label (optional)</label>');
+    const labelInput = $('<input type="text" class="form-control form-control-sm builder-threshold-label" placeholder="Alerting">');
+    labelInput.attr('data-section-id', sectionId);
+    labelInput.attr('data-widget-id', widgetId);
+    labelInput.attr('data-threshold-id', threshold.id);
+    labelInput.val(threshold.label || '');
+    labelGroup.append(labelInput);
+
+    const removeGroup = $('<div class="form-group col-lg-1 text-right"></div>');
+    const removeButton = $('<button type="button" class="btn btn-link text-danger builder-remove-threshold" title="Remove threshold"><i class="fas fa-times"></i></button>');
+    removeButton.attr('data-section-id', sectionId);
+    removeButton.attr('data-widget-id', widgetId);
+    removeButton.attr('data-threshold-id', threshold.id);
+    removeGroup.append(removeButton);
+
+    row.append(modeGroup, valueGroup, endGroup, colorGroup, labelGroup, removeGroup);
+    return row;
+  }
+
   function renderCustomOptionRow(sectionId, widgetId, option) {
     const row = $('<div class="form-row align-items-end dashboard-builder-custom-option-row"></div>');
 
@@ -1476,13 +1902,20 @@
 
     const optionsRowTwo = $('<div class="form-row"></div>');
 
-    const colorGroup = $('<div class="form-group col-lg-3"></div>');
-    colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
-    const colorInput = $('<input type="text" class="form-control form-control-sm builder-option-color" placeholder="#4e73df">');
-    colorInput.attr('data-section-id', section.id);
-    colorInput.attr('data-widget-id', widget.id);
-    colorInput.val(widget.options.color || '');
-    colorGroup.append(colorInput);
+  const colorGroup = $('<div class="form-group col-lg-3"></div>');
+  colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
+  const colorWrapper = $('<div class="d-flex align-items-center builder-color-picker-container"></div>');
+  const colorInput = $('<input type="text" class="form-control form-control-sm builder-option-color mr-2" placeholder="#4e73df">');
+  colorInput.attr('data-section-id', section.id);
+  colorInput.attr('data-widget-id', widget.id);
+  colorInput.val(widget.options.color || '');
+  const colorPicker = $('<input type="color" class="builder-option-color-picker" title="Choose color">');
+  colorPicker.attr('data-section-id', section.id);
+  colorPicker.attr('data-widget-id', widget.id);
+  colorPicker.val(getColorPickerValue(widget.options.color));
+  colorPicker.css({ width: '42px', padding: 0 });
+  colorWrapper.append(colorInput, colorPicker);
+  colorGroup.append(colorWrapper);
 
     const colorsGroup = $('<div class="form-group col-lg-3"></div>');
     colorsGroup.append('<label class="small text-muted text-uppercase">Palette (comma separated)</label>');
@@ -1511,6 +1944,22 @@
     optionsRowTwo.append(colorGroup, colorsGroup, totalLabelGroup, labelMaxGroup);
 
     optionsBlock.append(optionsRowOne, optionsRowTwo);
+
+    const thresholdsWrapper = $('<div class="mt-3"></div>');
+    thresholdsWrapper.append('<h6 class="text-uppercase text-muted small mb-2">Thresholds</h6>');
+    const thresholdsContainer = $('<div class="dashboard-builder-thresholds"></div>');
+    if (widget.thresholds.length) {
+      widget.thresholds.forEach((threshold) => {
+        thresholdsContainer.append(renderThresholdRow(section.id, widget.id, threshold));
+      });
+    } else {
+      thresholdsContainer.append('<div class="text-muted small">No thresholds configured. Add one to adjust colors based on values.</div>');
+    }
+    const addThresholdBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm builder-add-threshold mt-2"><i class="fas fa-plus mr-1"></i>Add threshold</button>');
+    addThresholdBtn.attr('data-section-id', section.id);
+    addThresholdBtn.attr('data-widget-id', widget.id);
+    thresholdsWrapper.append(thresholdsContainer, addThresholdBtn);
+    optionsBlock.append(thresholdsWrapper);
 
     const customOptionsContainer = $('<div class="dashboard-builder-custom-options"></div>');
     widget.customOptions.forEach((option) => {
@@ -1602,10 +2051,27 @@
     }
     body.append(widgetsContainer);
 
-    const footer = $('<div class="dashboard-builder-section-footer"></div>');
-    const addWidgetBtn = $('<button type="button" class="btn btn-outline-primary btn-sm builder-add-widget"><i class="fas fa-plus mr-1"></i>Add widget</button>');
+    const footer = $('<div class="dashboard-builder-section-footer d-flex flex-wrap align-items-center"></div>');
+    const addWidgetBtn = $('<button type="button" class="btn btn-outline-primary btn-sm builder-add-widget mr-2"><i class="fas fa-plus mr-1"></i>Add widget</button>');
     addWidgetBtn.attr('data-section-id', section.id);
     footer.append(addWidgetBtn);
+
+    const presetGroup = $('<div class="btn-group btn-group-sm builder-preset-dropdown"></div>');
+    const presetToggle = $('<button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle builder-preset-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></button>');
+    presetToggle.text('Add from template');
+    const presetMenu = $('<div class="dropdown-menu dropdown-menu-right builder-preset-menu"></div>');
+    presetMenu.attr('data-section-id', section.id);
+    if (widgetPresetsCache) {
+      populatePresetMenu(presetMenu, section.id);
+      presetMenu.data('loaded', true);
+      if (!widgetPresetsCache.length) {
+        presetToggle.prop('disabled', true);
+      }
+    } else {
+      presetMenu.append('<button type="button" class="dropdown-item disabled text-muted">Templates load on first use</button>');
+    }
+    presetGroup.append(presetToggle, presetMenu);
+    footer.append(presetGroup);
 
     card.append(header, body, footer);
 
@@ -1694,6 +2160,18 @@
     return { section, sectionIndex, widget, widgetIndex, filter: widget.filters[filterIndex], filterIndex };
   }
 
+  function findThreshold(sectionId, widgetId, thresholdId) {
+    const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
+    if (!widget) {
+      return { section, sectionIndex, widget, widgetIndex, threshold: null, thresholdIndex: -1 };
+    }
+    const thresholdIndex = widget.thresholds.findIndex((threshold) => threshold.id === thresholdId);
+    if (thresholdIndex === -1) {
+      return { section, sectionIndex, widget, widgetIndex, threshold: null, thresholdIndex: -1 };
+    }
+    return { section, sectionIndex, widget, widgetIndex, threshold: widget.thresholds[thresholdIndex], thresholdIndex };
+  }
+
   function findCustomOption(sectionId, widgetId, optionId) {
     const { section, sectionIndex, widget, widgetIndex } = findWidget(sectionId, widgetId);
     if (!widget) {
@@ -1756,6 +2234,14 @@
       value: filter.value
     }));
 
+    const clonedThresholds = widget.thresholds.map((threshold) => createEmptyThreshold({
+      mode: threshold.mode,
+      value: threshold.value,
+      endValue: threshold.endValue,
+      color: threshold.color,
+      label: threshold.label
+    }));
+
     const clonedCustomOptions = widget.customOptions.map((option) => createEmptyCustomOption({
       key: option.key,
       value: option.value
@@ -1770,6 +2256,7 @@
       fields: clonedFields,
       groupBy: clonedGroupBy,
       filters: clonedFilters,
+      thresholds: clonedThresholds,
       options: {
         displayMode: widget.options.displayMode,
         sortDirection: widget.options.sortDirection,
@@ -1885,6 +2372,87 @@
       }
       section.widgets.push(createEmptyWidget({ name: `Widget ${section.widgets.length + 1}` }));
       rerenderSection(sectionId);
+    });
+
+    $(document).on('show.bs.dropdown', '.builder-preset-dropdown', function () {
+      const menu = $(this).find('.builder-preset-menu');
+      if (!menu.length) {
+        return;
+      }
+      if (menu.data('loaded')) {
+        return;
+      }
+      const sectionId = menu.attr('data-section-id');
+      if (widgetPresetsCache) {
+        populatePresetMenu(menu, sectionId);
+        menu.data('loaded', true);
+        if (!widgetPresetsCache.length) {
+          $(this).find('.builder-preset-toggle').prop('disabled', true);
+        }
+        return;
+      }
+      if (menu.data('loading')) {
+        return;
+      }
+  menu.data('loading', true);
+  menu.empty().append('<button type="button" class="dropdown-item disabled text-muted">Loading...</button>');
+      loadWidgetPresets()
+        .then(() => {
+          menu.data('loading', false);
+          menu.data('loaded', true);
+          populatePresetMenu(menu, sectionId);
+          if (!widgetPresetsCache.length) {
+            $(this).find('.builder-preset-toggle').prop('disabled', true);
+          }
+        })
+        .catch(() => {
+          menu.data('loading', false);
+          menu.data('loaded', false);
+          menu.empty().append('<button type="button" class="dropdown-item disabled text-danger">Failed to load templates</button>');
+        });
+    });
+
+    $(document).on('click', '.builder-add-preset-widget', function (event) {
+      event.preventDefault();
+      const sectionId = $(this).data('section-id');
+      const presetKey = $(this).data('preset-key');
+      if (!sectionId || !presetKey) {
+        return;
+      }
+      const applyPreset = (preset) => {
+        if (!preset) {
+          return;
+        }
+        const { section } = findSection(sectionId);
+        if (!section) {
+          return;
+        }
+        const definition = clonePresetDefinition(preset.definition);
+        const widgetState = convertWidgetDefinitionToState(definition);
+        widgetState.id = generateBuilderId('widget');
+        widgetState.collapsed = false;
+        section.widgets.push(widgetState);
+        rerenderSection(sectionId);
+      };
+
+      const preset = getWidgetPresetByKey(presetKey);
+      if (preset) {
+        applyPreset(preset);
+        return;
+      }
+
+      loadWidgetPresets()
+        .then(() => {
+          const resolved = getWidgetPresetByKey(presetKey);
+          if (!resolved) {
+            alert('Template is no longer available. Please reload the page.');
+            return;
+          }
+          applyPreset(resolved);
+        })
+        .catch(() => {
+          alert('Unable to load templates right now. Please try again later.');
+        });
     });
 
     $(document).on('click', '.builder-remove-widget', function () {
@@ -2201,6 +2769,110 @@
       rerenderWidget(sectionId, widgetId);
     });
 
+    $(document).on('click', '.builder-add-threshold', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      widget.thresholds.push(createEmptyThreshold());
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('click', '.builder-remove-threshold', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { widget, thresholdIndex } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!widget || thresholdIndex === -1) {
+        return;
+      }
+      widget.thresholds.splice(thresholdIndex, 1);
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('change', '.builder-threshold-mode', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { threshold } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!threshold) {
+        return;
+      }
+      const nextMode = ($(this).val() || '').toString().toLowerCase();
+      threshold.mode = THRESHOLD_MODE_OPTIONS.some((option) => option.value === nextMode) ? nextMode : 'above';
+      if (threshold.mode !== 'between') {
+        threshold.endValue = '';
+      }
+      rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('input', '.builder-threshold-value', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { threshold } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!threshold) {
+        return;
+      }
+      threshold.value = $(this).val();
+    });
+
+    $(document).on('input', '.builder-threshold-end-value', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { threshold } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!threshold) {
+        return;
+      }
+      threshold.endValue = $(this).val();
+    });
+
+    $(document).on('input', '.builder-threshold-color', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { threshold } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!threshold) {
+        return;
+      }
+      const value = $(this).val();
+      threshold.color = value;
+      const normalized = normalizeHexColor(value);
+      if (normalized) {
+        $(this).siblings('.builder-threshold-color-picker').val(normalized);
+      }
+    });
+
+    $(document).on('input', '.builder-threshold-color-picker', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { threshold } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!threshold) {
+        return;
+      }
+      const value = $(this).val();
+      threshold.color = value;
+      const textInput = $(this).siblings('.builder-threshold-color');
+      if (textInput.length) {
+        textInput.val(value);
+      }
+    });
+
+    $(document).on('input', '.builder-threshold-label', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const thresholdId = $(this).data('threshold-id');
+      const { threshold } = findThreshold(sectionId, widgetId, thresholdId);
+      if (!threshold) {
+        return;
+      }
+      threshold.label = $(this).val();
+    });
+
     $(document).on('change', '.builder-option-display', function () {
       const sectionId = $(this).data('section-id');
       const widgetId = $(this).data('widget-id');
@@ -2258,7 +2930,27 @@
       if (!widget) {
         return;
       }
-      widget.options.color = $(this).val();
+      const value = $(this).val();
+      widget.options.color = value;
+      const normalized = normalizeHexColor(value);
+      if (normalized) {
+        $(this).siblings('.builder-option-color-picker').val(normalized);
+      }
+    });
+
+    $(document).on('input', '.builder-option-color-picker', function () {
+      const sectionId = $(this).data('section-id');
+      const widgetId = $(this).data('widget-id');
+      const { widget } = findWidget(sectionId, widgetId);
+      if (!widget) {
+        return;
+      }
+      const value = $(this).val();
+      widget.options.color = value;
+      const textInput = $(this).siblings('.builder-option-color');
+      if (textInput.length) {
+        textInput.val(value);
+      }
     });
 
     $(document).on('input', '.builder-option-colors', function () {
@@ -3360,13 +4052,42 @@
     }
 
     const valueElement = $('<div class="display-3 font-weight-bold mb-1"></div>').text(displayValue !== null && displayValue !== undefined ? displayValue : '--');
-    if (typeof widgetOptions.color === 'string') {
-      valueElement.css('color', widgetOptions.color);
+    let numericValue = null;
+    if (widget && widget.data) {
+      if (widget.data.value !== undefined && widget.data.value !== null) {
+        numericValue = toNumericValue(widget.data.value);
+      }
+      if (numericValue === null && widget.data.formatted_value !== undefined) {
+        numericValue = toNumericValue(widget.data.formatted_value);
+      }
+      if (numericValue === null && widget.data.formatted_percentage !== undefined) {
+        numericValue = toNumericValue(widget.data.formatted_percentage);
+      }
+    }
+    if (numericValue === null) {
+      numericValue = toNumericValue(displayValue);
+    }
+
+    const thresholdMatches = normalizeThresholdArrayFromOptions(widgetOptions);
+    const matchedThreshold = resolveNumericThresholdMatch(thresholdMatches, numericValue);
+    const baseColor = typeof widgetOptions.color === 'string' ? widgetOptions.color.trim() : '';
+    const appliedColor = matchedThreshold && matchedThreshold.color ? matchedThreshold.color : baseColor;
+    if (appliedColor) {
+      valueElement.css('color', appliedColor);
     }
     const labelElement = $('<small class="text-muted"></small>').text(label);
 
     container.append(valueElement);
     container.append(labelElement);
+    if (matchedThreshold && matchedThreshold.label) {
+      const thresholdLabel = $('<div class="small mt-1"></div>').text(matchedThreshold.label);
+      if (matchedThreshold.color) {
+        thresholdLabel.css('color', matchedThreshold.color);
+      } else {
+        thresholdLabel.addClass('text-muted');
+      }
+      container.append(thresholdLabel);
+    }
   }
 
   function renderChartWidget(widget, container) {

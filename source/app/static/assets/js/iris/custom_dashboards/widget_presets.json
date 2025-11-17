@@ -1,0 +1,164 @@
+{
+  "presets": [
+    {
+      "key": "falsePositiveRateKpi",
+      "label": "False Positive Rate KPI",
+      "description": "Percentage of alerts resolved as False Positive with colour-coded thresholds.",
+      "definition": {
+        "name": "False Positive Rate KPI",
+        "chart_type": "percentage",
+        "fields": [
+          {
+            "table": "alerts",
+            "column": "alert_id",
+            "aggregation": "count",
+            "alias": "total_alerts"
+          },
+          {
+            "table": "alerts",
+            "column": "alert_id",
+            "aggregation": "count",
+            "alias": "false_positive_alerts",
+            "filter": {
+              "table": "alert_resolution_status",
+              "column": "resolution_status_name",
+              "operator": "eq",
+              "value": "False Positive"
+            }
+          }
+        ],
+        "options": {
+          "widget_size": "col-lg-4",
+          "display_mode": "number_percentage",
+          "percentage_numerator": "false_positive_alerts",
+          "percentage_denominator": "total_alerts",
+          "thresholds": [
+            {
+              "mode": "above",
+              "value": 40,
+              "color": "#dc3545",
+              "label": "Critical"
+            },
+            {
+              "mode": "between",
+              "value": 20,
+              "end_value": 40,
+              "color": "#fd7e14",
+              "label": "Monitor"
+            },
+            {
+              "mode": "below",
+              "value": 20,
+              "color": "#1cc88a",
+              "label": "Healthy"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "key": "openAlertsKpi",
+      "label": "Open Alerts KPI",
+      "description": "Count of alerts currently marked as Open with status-based thresholds.",
+      "definition": {
+        "name": "Open Alerts KPI",
+        "chart_type": "number",
+        "fields": [
+          {
+            "table": "alerts",
+            "column": "alert_id",
+            "aggregation": "count",
+            "alias": "open_alerts",
+            "filter": {
+              "table": "alert_status",
+              "column": "status_name",
+              "operator": "eq",
+              "value": "Open"
+            }
+          }
+        ],
+        "options": {
+          "widget_size": "col-lg-3",
+          "display_mode": "number",
+          "color": "#4e73df",
+          "thresholds": [
+            {
+              "mode": "above",
+              "value": 200,
+              "color": "#dc3545",
+              "label": "Severe backlog"
+            },
+            {
+              "mode": "between",
+              "value": 120,
+              "end_value": 200,
+              "color": "#f6c23e",
+              "label": "Monitor"
+            },
+            {
+              "mode": "below",
+              "value": 120,
+              "color": "#1cc88a",
+              "label": "On track"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "key": "alertsBySeverity",
+      "label": "Alerts by Severity",
+      "description": "Bar chart showing alert volume grouped by severity.",
+      "definition": {
+        "name": "Alerts by Severity",
+        "chart_type": "bar",
+        "fields": [
+          {
+            "table": "alerts",
+            "column": "alert_id",
+            "aggregation": "count",
+            "alias": "alert_total"
+          }
+        ],
+        "group_by": [
+          "severities.severity_name"
+        ],
+        "options": {
+          "widget_size": "col-lg-6",
+          "legend_position": "top",
+          "colors": [
+            "#e74a3b",
+            "#f6c23e",
+            "#4e73df",
+            "#1cc88a"
+          ]
+        }
+      }
+    },
+    {
+      "key": "casesByClassification",
+      "label": "Cases by Classification",
+      "description": "Tabular breakdown of case volume by classification.",
+      "definition": {
+        "name": "Cases by Classification",
+        "chart_type": "table",
+        "fields": [
+          {
+            "table": "cases",
+            "column": "case_id",
+            "aggregation": "count",
+            "alias": "case_total"
+          }
+        ],
+        "group_by": [
+          "case_classification.name"
+        ],
+        "options": {
+          "widget_size": "col-lg-6",
+          "sort": "desc",
+          "total_label": "Total cases"
+        }
+      }
+    }
+  ]
+}
