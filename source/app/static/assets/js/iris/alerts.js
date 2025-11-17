@@ -53,6 +53,7 @@ const selectsConfig = {
 
 let alertStatusList = {};
 let alertResolutionList = {};
+const selectOptionsLoaded = {};
 
 function getAlertStatusList() {
     get_request_api('/manage/alert-status/list')
@@ -1467,7 +1468,8 @@ async function updateAlerts(page, per_page, filters = {}, paging=false){
 
 $('#alertsPerPage').on('change', (e) => {
   const per_page = parseInt(e.target.value, 10);
-  updateAlerts(1, per_page, undefined, sortOrder); // Update the alerts list with the new 'per_page' value and reset to the first page
+    const filters = getFiltersFromUrl();
+    updateAlerts(1, per_page, filters); // Keep current filters when changing the page size
 });
 
 
@@ -1552,12 +1554,16 @@ $('#resetFilters').on('click', function () {
   const form = $('#alertFilterForm');
 
     // Reset all input fields
-    form.find('input, select').each((_, element) => {
-        if (element.type === 'checkbox') {
-          $(element).prop('checked', false);
-        } else {
-          $(element).val('');
-        }
+        form.find('input, select').each((_, element) => {
+                const $element = $(element);
+                if (element.type === 'checkbox') {
+                    $element.prop('checked', false);
+                } else if ($element.is('select') && $element.hasClass('selectpicker')) {
+                    $element.selectpicker('val', '');
+                    $element.selectpicker('refresh');
+                } else {
+                    $element.val('');
+                }
     });
 
     editor.setValue("", 1);
@@ -1953,18 +1959,21 @@ function setFormValuesFromUrl() {
       if (input.prop('type') === 'checkbox') {
         input.prop('checked', value in ['true', 'y', 'yes', '1', 'on']);
       } else if (input.is('select') && selectsConfig[input.attr('id')]) {
-        const ajaxCall = new Promise((resolve, reject) => {
-          input.one('click', function () {
-            fetchSelectOptions(input.attr('id'), selectsConfig[input.attr('id')]).then(() => {
-              input.val(value);
-              resolve();
-            }).catch(error => {
-              console.error(error);
-              reject(error);
-            });
-          }).trigger('click');
-        });
-        ajaxCalls.push(ajaxCall);
+                const selectId = input.attr('id');
+                const ajaxCall = fetchSelectOptions(selectId, selectsConfig[selectId])
+                    .then(() => {
+                        if (input.hasClass('selectpicker')) {
+                            input.selectpicker('val', value);
+                            input.selectpicker('refresh');
+                        } else {
+                            input.val(value);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        throw error;
+                    });
+                ajaxCalls.push(ajaxCall);
       } else {
         input.val(value);
       }
@@ -1985,37 +1994,80 @@ function setFormValuesFromUrl() {
 }
 
 
-function fetchSelectOptions(selectElementId, configItem) {
-  return new Promise((resolve, reject) => {
-    get_request_api(configItem.url)
-      .then(function (data) {
-        if (!notify_auto_api(data, true)) {
-          reject('Failed to fetch options');
-          return;
-        }
-        const selectElement = $(`#${selectElementId}`);
-        selectElement.empty();
-        selectElement.append($('<option>', {
-          value: null,
-          text: ''
-        }));
-        if (selectElementId === 'alert_owner_id') {
-            selectElement.append($('<option>', {
-                value: '-1',
-                text: 'Unassigned'
-            }));
-        }
+function fetchSelectOptions(selectElementId, configItem, forceReload = false) {
+    const selectElement = $(`#${selectElementId}`);
+    if (!selectElement.length) {
+        return Promise.resolve();
+    }
 
-        data.data.forEach(function (item) {
-          selectElement.append($('<option>', {
-            value: item[configItem.id],
-            text: item[configItem.name]
-          }));
+    if (!forceReload && selectOptionsLoaded[selectElementId]) {
+        if (selectElement.hasClass('selectpicker')) {
+            selectElement.selectpicker('refresh');
+        }
+        return Promise.resolve();
+    }
+
+    return get_request_api(configItem.url)
+        .then(function (data) {
+            if (!notify_auto_api(data, true)) {
+                throw new Error('Failed to fetch options');
+            }
+
+            selectElement.empty();
+            selectElement.append($('<option>', {
+                value: '',
+                text: ''
+            }));
+            if (selectElementId === 'alert_owner_id') {
+                selectElement.append($('<option>', {
+                    value: '-1',
+                    text: 'Unassigned'
+                }));
+            }
+
+            data.data.forEach(function (item) {
+                selectElement.append($('<option>', {
+                    value: item[configItem.id],
+                    text: item[configItem.name]
+                }));
+            });
+
+            selectOptionsLoaded[selectElementId] = true;
+
+            if (selectElement.hasClass('selectpicker')) {
+                selectElement.selectpicker('refresh');
+            }
+        })
+        .catch((error) => {
+            selectOptionsLoaded[selectElementId] = false;
+            throw error;
         });
-        resolve();
-      });
-  });
 }
+
+    function initializeFilterSelectPickers() {
+        Object.entries(selectsConfig).forEach(([selectElementId, configItem]) => {
+            const selectElement = $(`#${selectElementId}`);
+            if (!selectElement.length) {
+                return;
+            }
+
+            if (selectElement.hasClass('form-control')) {
+                selectElement.removeClass('form-control');
+            }
+
+            selectElement.addClass('selectpicker');
+            selectElement.attr('data-live-search', 'true');
+            selectElement.attr('data-style', 'btn-sm');
+            selectElement.attr('data-width', '100%');
+
+            selectElement.selectpicker();
+                selectElement.selectpicker('refresh');
+
+            selectElement.off('show.bs.select.alerts').on('show.bs.select.alerts', function () {
+                fetchSelectOptions(selectElementId, configItem).catch(error => console.error(error));
+            });
+        });
+    }
 
 function getBatchAlerts() {
     const selectedAlerts = [];
@@ -2126,12 +2178,7 @@ function refreshAlertRelationships(alertId) {
 }
 
 $(document).ready(function () {
-    for (const [selectElementId, configItem] of Object.entries(selectsConfig)) {
-        $(`#${selectElementId}`).one('click', function () {
-          fetchSelectOptions(selectElementId, configItem)
-            .catch(error => console.error(error));
-        });
-      }
+        initializeFilterSelectPickers();
 
 
     editor = ace.edit('custom_conditions');
