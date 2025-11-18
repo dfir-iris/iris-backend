@@ -353,6 +353,48 @@
     { value: 'right', label: 'Right' }
   ];
 
+  const CHART_TYPE_OPTIONS = [
+    { value: 'line', label: 'Line', description: 'Standard category or trend line chart.' },
+    { value: 'timechart', label: 'Time series', description: 'Line chart with a chronological axis that supports time buckets.' },
+    { value: 'bar', label: 'Bar', description: 'Vertical bar chart for categorical comparisons.' },
+    { value: 'pie', label: 'Pie', description: 'Proportional breakdown of a single dataset.' },
+    { value: 'number', label: 'Number', description: 'Single KPI value with optional thresholds.' },
+    { value: 'percentage', label: 'Percentage', description: 'Single KPI rendered as a percentage with numerator/denominator support.' },
+    { value: 'table', label: 'Table', description: 'Tabular view of grouped results and totals.' }
+  ];
+
+  const DASHBOARD_HELP_OPTION_ENTRIES = [
+    { scope: 'Widget', key: 'name', description: 'Title displayed above the widget card.', example: '"Open Alerts"' },
+    { scope: 'Widget', key: 'chart_type', description: 'Visualization to render. See chart types below.', example: '"timechart"' },
+    { scope: 'Widget', key: 'fields[]', description: 'Array of field definitions (see “Field attributes”).', example: '[{...}]' },
+    { scope: 'Field', key: 'fields[].table', description: 'Allowed table key taken from the table reference.', example: '"alerts"' },
+    { scope: 'Field', key: 'fields[].column', description: 'Column from the selected table.', example: '"alert_id"' },
+    { scope: 'Field', key: 'fields[].aggregation', description: 'Aggregation applied to the field. Required for metrics.', example: '"count"' },
+    { scope: 'Field', key: 'fields[].alias', description: 'Custom key used when referencing the aggregated result.', example: '"alert_total"' },
+    { scope: 'Field', key: 'fields[].filter', description: 'Inline filter applied before aggregation (table, column, operator, value).', example: '{"table":"alert_status","column":"status_name","operator":"eq","value":"Open"}' },
+    { scope: 'Widget', key: 'filters[]', description: 'Array of global filters applied to all fields (same structure as field filters).', example: '{"table":"client","column":"client_id","operator":"eq","value":42}' },
+    { scope: 'Widget', key: 'group_by[]', description: 'Array of table.column strings used to group results.', example: '"alerts.alert_creation_time"' },
+    { scope: 'Widget', key: 'time_bucket', description: 'Optional bucket applied to the time column when rendering time-series data.', example: '"day"' },
+    { scope: 'Options', key: 'options.widget_size', description: 'Bootstrap column width for the widget.', example: '"col-lg-6"' },
+    { scope: 'Options', key: 'options.display_mode', description: 'Controls numeric formatting of datasets.', example: '"number_percentage"' },
+    { scope: 'Options', key: 'options.display', description: 'Alias for display_mode kept for backward compatibility.', example: '"number"' },
+    { scope: 'Options', key: 'options.time_column', description: 'Override the timestamp column used for timeframe filtering.', example: '"alerts.alert_creation_time"' },
+    { scope: 'Options', key: 'options.sort', description: 'Sort direction for grouped results.', example: '"desc"' },
+    { scope: 'Options', key: 'options.limit', description: 'Maximum number of grouped rows returned.', example: '10' },
+    { scope: 'Options', key: 'options.color', description: 'Primary color for single-series charts or numeric widgets.', example: '"#4e73df"' },
+    { scope: 'Options', key: 'options.colors', description: 'Palette for multi-series charts.', example: '["#4e73df","#1cc88a"]' },
+    { scope: 'Options', key: 'options.legend_position', description: 'Placement of the chart legend.', example: '"top"' },
+    { scope: 'Options', key: 'options.fill', description: 'Fills the area under line charts when true.', example: 'true' },
+    { scope: 'Options', key: 'options.label_max_length', description: 'Truncates long axis labels after the specified number of characters.', example: '32' },
+    { scope: 'Options', key: 'options.show_value_labels', description: 'Displays numeric labels on bar charts.', example: 'true' },
+    { scope: 'Options', key: 'options.total_label', description: 'Custom label for totals in table widgets.', example: '"Grand total"' },
+    { scope: 'Options', key: 'options.percentage_numerator', description: 'Field key used as the numerator for percentage widgets.', example: '"false_positive_alerts"' },
+    { scope: 'Options', key: 'options.percentage_denominator', description: 'Field key used as the denominator for percentage widgets.', example: '"total_alerts"' },
+    { scope: 'Options', key: 'options.percentage_label', description: 'Label displayed for percentage widgets.', example: '"False Positive Rate"' },
+    { scope: 'Options', key: 'options.thresholds[]', description: 'List of conditional styling rules (mode, value, optional end_value, color, label).', example: '[{"mode":"above","value":40,"color":"#dc3545"}]' },
+    { scope: 'Options', key: 'options.[custom]', description: 'Any additional custom keys are stored and sent with the widget payload for advanced use cases.', example: '{"stacked":true}' }
+  ];
+
   let builderState = null;
   let builderMode = 'builder';
   let dashboardEditorJsonEditor = null;
@@ -368,6 +410,7 @@
   let currentQuickRangeKey = null;
   let canShareDashboards = false;
   let dashboardJsonEditor = null;
+  let helpContentRendered = false;
 
   function loadDashboardState() {
     try {
@@ -1841,6 +1884,57 @@
     return row;
   }
 
+  function createWidgetDetailSection(config) {
+    const panelId = generateBuilderId('widgetSection');
+    const container = $('<div class="dashboard-builder-widget-section"></div>');
+    container.attr('data-panel-id', panelId);
+    if (config && config.sectionId) {
+      container.attr('data-section-id', config.sectionId);
+    }
+    if (config && config.widgetId) {
+      container.attr('data-widget-id', config.widgetId);
+    }
+    if (config && config.key) {
+      container.attr('data-widget-section', config.key);
+    }
+
+    const header = $('<div class="dashboard-builder-widget-section-header d-flex align-items-center justify-content-between"></div>');
+    const titleWrap = $('<div class="d-flex align-items-center"></div>');
+    if (config && config.iconClass) {
+      const iconSpan = $('<span class="builder-widget-section-icon mr-2 text-primary"></span>');
+      iconSpan.append($('<i></i>').addClass(config.iconClass));
+      titleWrap.append(iconSpan);
+    }
+    const titleText = $('<span class="builder-widget-section-title"></span>').text((config && config.title) || 'Section');
+    titleWrap.append(titleText);
+    if (config && config.subtitle) {
+      titleWrap.append($('<small class="text-muted ml-2"></small>').text(config.subtitle));
+    }
+
+    const toggleBtn = $('<button type="button" class="btn btn-link btn-sm builder-toggle-widget-section" title="Collapse section"><i class="fas fa-chevron-up"></i></button>');
+    header.append(titleWrap, toggleBtn);
+
+    const body = $('<div class="dashboard-builder-widget-section-body"></div>');
+    if (config && config.description) {
+      body.append($('<p class="text-muted small mb-3"></p>').text(config.description));
+    }
+
+    container.append(header, body);
+
+    if (config && config.defaultCollapsed) {
+      container.addClass('collapsed');
+      toggleBtn.attr('title', 'Expand section');
+      toggleBtn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+      body.hide();
+    }
+
+    return {
+      container,
+      body,
+      toggleBtn
+    };
+  }
+
   function renderWidgetCard(section, widget, sectionIndex, widgetIndex) {
     const card = $('<div class="dashboard-builder-widget" draggable="false"></div>');
     card.attr('data-section-id', section.id);
@@ -1896,15 +1990,7 @@
     const chartSelect = $('<select class="form-control form-control-sm builder-widget-chart"></select>');
     chartSelect.attr('data-section-id', section.id);
     chartSelect.attr('data-widget-id', widget.id);
-    [
-      { value: 'line', label: 'Line' },
-      { value: 'timechart', label: 'Time series' },
-      { value: 'bar', label: 'Bar' },
-      { value: 'pie', label: 'Pie' },
-      { value: 'number', label: 'Number' },
-      { value: 'percentage', label: 'Percentage' },
-      { value: 'table', label: 'Table' }
-    ].forEach((entry) => {
+    CHART_TYPE_OPTIONS.forEach((entry) => {
       const option = document.createElement('option');
       option.value = entry.value;
       option.textContent = entry.label;
@@ -1959,27 +2045,31 @@
     timeColumnGroup.append(timeColumnInput);
     body.append(timeColumnGroup);
 
-  const fieldsBlock = $('<div class="mb-4"></div>');
-  const fieldsHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
-  fieldsHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Fields</h6>');
-  fieldsHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
-  fieldsBlock.append(fieldsHeader);
+    const fieldsSection = createWidgetDetailSection({
+      sectionId: section.id,
+      widgetId: widget.id,
+      key: 'fields',
+      title: 'Fields',
+      iconClass: 'fas fa-database'
+    });
     const fieldsContainer = $('<div class="dashboard-builder-fields"></div>');
     widget.fields.forEach((field) => {
       fieldsContainer.append(renderFieldRow(section.id, widget.id, field));
     });
-    fieldsBlock.append(fieldsContainer);
     const addFieldBtn = $('<button type="button" class="btn btn-outline-primary btn-sm builder-add-field"><i class="fas fa-plus mr-1"></i>Add field</button>');
     addFieldBtn.attr('data-section-id', section.id);
     addFieldBtn.attr('data-widget-id', widget.id);
-    fieldsBlock.append(addFieldBtn);
-    body.append(fieldsBlock);
+    fieldsSection.body.append(fieldsContainer);
+    fieldsSection.body.append($('<div class="mt-3"></div>').append(addFieldBtn));
+    body.append(fieldsSection.container);
 
-  const groupBlock = $('<div class="mb-4"></div>');
-  const groupHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
-  groupHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Grouping</h6>');
-  groupHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
-  groupBlock.append(groupHeader);
+    const groupSection = createWidgetDetailSection({
+      sectionId: section.id,
+      widgetId: widget.id,
+      key: 'grouping',
+      title: 'Grouping',
+      iconClass: 'fas fa-layer-group'
+    });
     const groupContainer = $('<div class="dashboard-builder-groups"></div>');
     widget.groupBy.forEach((group) => {
       groupContainer.append(renderGroupingRow(section.id, widget.id, group));
@@ -1987,18 +2077,20 @@
     if (!widget.groupBy.length) {
       groupContainer.append('<div class="text-muted small">No grouping columns configured.</div>');
     }
-    groupBlock.append(groupContainer);
     const addGroupBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm builder-add-group"><i class="fas fa-plus mr-1"></i>Add grouping</button>');
     addGroupBtn.attr('data-section-id', section.id);
     addGroupBtn.attr('data-widget-id', widget.id);
-    groupBlock.append(addGroupBtn);
-    body.append(groupBlock);
+    groupSection.body.append(groupContainer);
+    groupSection.body.append($('<div class="mt-3"></div>').append(addGroupBtn));
+    body.append(groupSection.container);
 
-  const filterBlock = $('<div class="mb-4"></div>');
-  const filterHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
-  filterHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Filters</h6>');
-  filterHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
-  filterBlock.append(filterHeader);
+    const filterSection = createWidgetDetailSection({
+      sectionId: section.id,
+      widgetId: widget.id,
+      key: 'filters',
+      title: 'Filters',
+      iconClass: 'fas fa-filter'
+    });
     const filterContainer = $('<div class="dashboard-builder-filters"></div>');
     widget.filters.forEach((filter) => {
       filterContainer.append(renderFilterRow(section.id, widget.id, filter));
@@ -2006,18 +2098,20 @@
     if (!widget.filters.length) {
       filterContainer.append('<div class="text-muted small">No filters applied.</div>');
     }
-    filterBlock.append(filterContainer);
     const addFilterBtn = $('<button type="button" class="btn btn-outline-secondary btn-sm builder-add-filter"><i class="fas fa-plus mr-1"></i>Add filter</button>');
     addFilterBtn.attr('data-section-id', section.id);
     addFilterBtn.attr('data-widget-id', widget.id);
-    filterBlock.append(addFilterBtn);
-    body.append(filterBlock);
+    filterSection.body.append(filterContainer);
+    filterSection.body.append($('<div class="mt-3"></div>').append(addFilterBtn));
+    body.append(filterSection.container);
 
-  const optionsBlock = $('<div class="mb-3"></div>');
-  const optionsHeader = $('<div class="d-flex flex-wrap align-items-center mb-2"></div>');
-  optionsHeader.append('<h6 class="text-uppercase text-muted small mb-0 mr-3">Visualization options</h6>');
-  optionsHeader.append($('<div class="flex-grow-1 border-top"></div>').css({ opacity: 0.25 }));
-  optionsBlock.append(optionsHeader);
+    const optionsSection = createWidgetDetailSection({
+      sectionId: section.id,
+      widgetId: widget.id,
+      key: 'visualizationOptions',
+      title: 'Visualization options',
+      iconClass: 'fas fa-sliders-h'
+    });
     const optionsRowOne = $('<div class="form-row"></div>');
 
     const displayGroup = $('<div class="form-group col-lg-3"></div>');
@@ -2091,7 +2185,7 @@
 
     optionsRowOne.append(displayGroup, sortGroup, limitGroup, legendGroup, fillGroup);
 
-    const optionsRowTwo = $('<div class="form-row"></div>');
+  const optionsRowTwo = $('<div class="form-row"></div>');
 
     const colorGroup = $('<div class="form-group col-lg-3"></div>');
     colorGroup.append('<label class="small text-muted text-uppercase">Color</label>');
@@ -2155,7 +2249,7 @@
       optionsRowThree.addClass('d-none');
     }
 
-    optionsBlock.append(optionsRowOne, optionsRowTwo, optionsRowThree);
+    optionsSection.body.append(optionsRowOne, optionsRowTwo, optionsRowThree);
 
     const thresholdsWrapper = $('<div class="mt-3"></div>');
     thresholdsWrapper.append('<h6 class="text-uppercase text-muted small mb-2">Thresholds</h6>');
@@ -2171,7 +2265,7 @@
     addThresholdBtn.attr('data-section-id', section.id);
     addThresholdBtn.attr('data-widget-id', widget.id);
     thresholdsWrapper.append(thresholdsContainer, addThresholdBtn);
-    optionsBlock.append(thresholdsWrapper);
+    optionsSection.body.append(thresholdsWrapper);
 
     const customOptionsContainer = $('<div class="dashboard-builder-custom-options"></div>');
     widget.customOptions.forEach((option) => {
@@ -2184,10 +2278,10 @@
     addCustomOptionBtn.attr('data-section-id', section.id);
     addCustomOptionBtn.attr('data-widget-id', widget.id);
 
-    optionsBlock.append('<h6 class="text-uppercase text-muted small mt-3 mb-2">Custom options</h6>');
-    optionsBlock.append(customOptionsContainer, addCustomOptionBtn);
+    optionsSection.body.append('<h6 class="text-uppercase text-muted small mt-3 mb-2">Custom options</h6>');
+    optionsSection.body.append(customOptionsContainer, addCustomOptionBtn);
 
-    body.append(optionsBlock);
+    body.append(optionsSection.container);
 
     const footer = $('<div class="dashboard-builder-widget-footer"></div>');
     footer.append('<span class="text-muted small">Changes are saved when you click “Save” in the modal footer.</span>');
@@ -2714,6 +2808,27 @@
       }
       widget.collapsed = !widget.collapsed;
       rerenderWidget(sectionId, widgetId);
+    });
+
+    $(document).on('click', '.builder-toggle-widget-section', function () {
+      const panel = $(this).closest('.dashboard-builder-widget-section');
+      if (!panel.length) {
+        return;
+      }
+      const icon = $(this).find('i');
+      const content = panel.children('.dashboard-builder-widget-section-body').first();
+      const isCollapsed = panel.hasClass('collapsed');
+      if (isCollapsed) {
+        content.stop(true, true).slideDown(150);
+        panel.removeClass('collapsed');
+        icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        $(this).attr('title', 'Collapse section');
+      } else {
+        content.stop(true, true).slideUp(150);
+        panel.addClass('collapsed');
+        icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        $(this).attr('title', 'Expand section');
+      }
     });
 
     $(document).on('input', '.builder-widget-name', function () {
@@ -5141,6 +5256,181 @@
     });
   }
 
+  function renderHelpModalContent() {
+    if (helpContentRendered) {
+      return;
+    }
+
+    const helpModal = $('#dashboardHelpModal');
+    if (!helpModal.length) {
+      return;
+    }
+
+    const aggregationBody = helpModal.find('#dashboardHelpAggregationBody');
+    if (aggregationBody.length) {
+      aggregationBody.empty();
+      AGGREGATION_OPTIONS.forEach((option) => {
+        const row = $('<tr></tr>');
+        const valueCell = $('<td style="width: 160px;"></td>');
+        const valueCode = $('<code></code>').text(option.value || 'none');
+        valueCell.append(valueCode);
+        const labelCell = $('<td></td>').text(option.label || '');
+        row.append(valueCell, labelCell);
+        aggregationBody.append(row);
+      });
+    }
+
+    const operatorBody = helpModal.find('#dashboardHelpOperatorBody');
+    if (operatorBody.length) {
+      operatorBody.empty();
+      OPERATOR_OPTIONS.forEach((option) => {
+        const row = $('<tr></tr>');
+        const valueCell = $('<td style="width: 160px;"></td>').append($('<code></code>').text(option.value));
+        const labelCell = $('<td></td>').text(option.label || '');
+        row.append(valueCell, labelCell);
+        operatorBody.append(row);
+      });
+    }
+
+    const tablesBody = helpModal.find('#dashboardHelpTablesBody');
+    if (tablesBody.length) {
+      tablesBody.empty();
+      Object.entries(TABLE_DEFINITIONS)
+        .sort((a, b) => {
+          const labelA = (a[1] && a[1].label) ? a[1].label : a[0];
+          const labelB = (b[1] && b[1].label) ? b[1].label : b[0];
+          return labelA.localeCompare(labelB);
+        })
+        .forEach(([tableKey, tableDef]) => {
+          const row = $('<tr></tr>');
+          const nameCell = $('<td style="width: 220px;"></td>');
+          const title = $('<div class="font-weight-semibold"></div>').text((tableDef && tableDef.label) || tableKey);
+          const keyText = $('<div class="text-muted small"></div>').append($('<code></code>').text(tableKey));
+          nameCell.append(title, keyText);
+
+          const columnsCell = $('<td></td>');
+          const columnKeys = tableDef && tableDef.columns ? Object.keys(tableDef.columns) : [];
+          if (columnKeys.length) {
+            const chipWrap = $('<div class="dashboard-help-chipset"></div>');
+            columnKeys.sort().forEach((columnKey) => {
+              const chip = $('<span class="dashboard-help-chip"></span>');
+              chip.append($('<code></code>').text(columnKey));
+              const friendlyName = tableDef.columns[columnKey];
+              if (friendlyName && friendlyName !== columnKey) {
+                chip.append(document.createTextNode(` (${friendlyName})`));
+              }
+              chipWrap.append(chip);
+            });
+            columnsCell.append(chipWrap);
+          } else {
+            columnsCell.append($('<span class="text-muted">No columns listed.</span>'));
+          }
+
+          row.append(nameCell, columnsCell);
+          tablesBody.append(row);
+        });
+    }
+
+    const chartTypeList = helpModal.find('#dashboardHelpChartTypesList');
+    if (chartTypeList.length) {
+      chartTypeList.empty();
+      CHART_TYPE_OPTIONS.forEach((option) => {
+        const item = $('<li class="mb-1"></li>');
+        item.append($('<code></code>').text(option.value));
+        const description = option.description || option.label || '';
+        if (description) {
+          item.append(document.createTextNode(` – ${description}`));
+        }
+        chartTypeList.append(item);
+      });
+    }
+
+    const timeBucketList = helpModal.find('#dashboardHelpTimeBucketsList');
+    if (timeBucketList.length) {
+      timeBucketList.empty();
+      TIME_BUCKET_OPTIONS.forEach((option) => {
+        const item = $('<li class="mb-1"></li>');
+        const bucketValue = option.value || 'auto';
+        item.append($('<code></code>').text(bucketValue));
+        if (option.label) {
+          item.append(document.createTextNode(` – ${option.label}`));
+        }
+        timeBucketList.append(item);
+      });
+    }
+
+    const displayModesList = helpModal.find('#dashboardHelpDisplayModesList');
+    if (displayModesList.length) {
+      displayModesList.empty();
+      DISPLAY_MODE_OPTIONS.forEach((option) => {
+        const item = $('<li class="mb-1"></li>');
+        item.append($('<code></code>').text(option.value || 'auto'));
+        if (option.label) {
+          item.append(document.createTextNode(` – ${option.label}`));
+        }
+        displayModesList.append(item);
+      });
+    }
+
+    const legendList = helpModal.find('#dashboardHelpLegendPositionsList');
+    if (legendList.length) {
+      legendList.empty();
+      LEGEND_POSITION_OPTIONS.forEach((option) => {
+        const item = $('<li class="mb-1"></li>');
+        item.append($('<code></code>').text(option.value || 'auto'));
+        if (option.label) {
+          item.append(document.createTextNode(` – ${option.label}`));
+        }
+        legendList.append(item);
+      });
+    }
+
+    const widgetSizeList = helpModal.find('#dashboardHelpWidgetSizesList');
+    if (widgetSizeList.length) {
+      widgetSizeList.empty();
+      WIDGET_SIZE_PRESETS.forEach((option) => {
+        const item = $('<li class="mb-1"></li>');
+        item.append($('<code></code>').text(option.value || 'auto'));
+        if (option.label) {
+          item.append(document.createTextNode(` – ${option.label}`));
+        }
+        widgetSizeList.append(item);
+      });
+    }
+
+    const optionBody = helpModal.find('#dashboardHelpOptionBody');
+    if (optionBody.length) {
+      optionBody.empty();
+      DASHBOARD_HELP_OPTION_ENTRIES
+        .slice()
+        .sort((a, b) => {
+          const scopeCompare = a.scope.localeCompare(b.scope);
+          if (scopeCompare !== 0) {
+            return scopeCompare;
+          }
+          return a.key.localeCompare(b.key);
+        })
+        .forEach((entry) => {
+          const row = $('<tr></tr>');
+          row.append($('<td class="align-middle"></td>').text(entry.scope));
+          const keyCell = $('<td class="align-middle"></td>');
+          keyCell.append($('<code></code>').text(entry.key));
+          row.append(keyCell);
+          row.append($('<td></td>').text(entry.description));
+          const exampleCell = $('<td></td>');
+          if (entry.example) {
+            exampleCell.append($('<code></code>').text(entry.example));
+          } else {
+            exampleCell.append($('<span class="text-muted">—</span>'));
+          }
+          row.append(exampleCell);
+          optionBody.append(row);
+        });
+    }
+
+    helpContentRendered = true;
+  }
+
   function bindEvents() {
     bindBuilderEvents();
 
@@ -5158,7 +5448,12 @@
     });
 
     $('#dashboardHelpBtn').on('click', function () {
+      renderHelpModalContent();
       $('#dashboardHelpModal').modal('show');
+    });
+
+    $('#dashboardHelpModal').on('show.bs.modal', function () {
+      renderHelpModalContent();
     });
 
     $('#dashboardAutoRefresh').on('change', function () {

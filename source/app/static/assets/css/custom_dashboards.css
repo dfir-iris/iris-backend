@@ -52,22 +52,6 @@
   margin: 1.5rem 0;
 }
 
-#customDashboardsRoot .dashboard-tools-trigger {
-  font-size: 0.95rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  min-width: 11.5rem;
-}
-
-#customDashboardsRoot .dashboard-tools-menu {
-  min-width: 13rem;
-}
-
-#customDashboardsRoot .dashboard-tools-menu .dropdown-item {
-  padding: 0.6rem 1.1rem;
-  font-size: 0.95rem;
-}
-
 #dashboardEditorModal .dashboard-builder-panel {
   background-color: #f8f9fc;
   border: 1px solid #e9ecef;
@@ -139,6 +123,75 @@
   padding: 1rem;
 }
 
+#dashboardEditorModal .dashboard-builder-widget-body .dashboard-builder-widget-section {
+  border: 1px solid #dbe2f1;
+  border-radius: 0.5rem;
+  background-color: #f8faff;
+  margin-bottom: 1.25rem;
+  box-shadow: inset 0 0 0 1px rgba(78, 115, 223, 0.03);
+  overflow: hidden;
+}
+
+#dashboardEditorModal .dashboard-builder-widget-body .dashboard-builder-widget-section:last-of-type {
+  margin-bottom: 0;
+}
+
+#dashboardEditorModal .dashboard-builder-widget-section-header {
+  padding: 0.65rem 1rem;
+  background-color: #eef2fb;
+  border-bottom: 1px solid #dbe2f1;
+}
+
+#dashboardEditorModal .dashboard-builder-widget-section.collapsed .dashboard-builder-widget-section-header {
+  border-bottom: none;
+}
+
+#dashboardEditorModal .dashboard-builder-widget-section-body {
+  padding: 1rem 1rem 1.1rem;
+  background-color: #ffffff;
+}
+
+#dashboardEditorModal .dashboard-builder-widget-section.collapsed .dashboard-builder-widget-section-body {
+  display: none;
+}
+
+#dashboardEditorModal .builder-widget-section-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2f3b52;
+}
+
+#dashboardEditorModal .builder-widget-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: rgba(78, 115, 223, 0.12);
+  color: #4e73df;
+  font-size: 0.75rem;
+}
+
+#dashboardEditorModal .builder-toggle-widget-section {
+  color: #4a5568;
+}
+
+#dashboardEditorModal .builder-toggle-widget-section:hover {
+  color: #1a202c;
+  text-decoration: none;
+}
+
+#dashboardEditorModal .builder-toggle-widget-section:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+#dashboardEditorModal .dashboard-builder-widget-section-body .form-row + .form-row {
+  margin-top: 0.75rem;
+}
+
 #dashboardEditorModal .dashboard-builder-widget-footer {
   border-top: 1px solid #edf2fb;
   padding: 0.5rem 1rem;
@@ -199,4 +252,41 @@
 #dashboardEditorModal .dashboard-builder-section-divider-preview {
   border-bottom: 2px solid #dee2e6;
   margin: 0.75rem 0;
+}
+
+#dashboardHelpModal .dashboard-help-section + .dashboard-help-section {
+  margin-top: 1.5rem;
+}
+
+#dashboardHelpModal .dashboard-help-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #223049;
+  margin-bottom: 0.75rem;
+}
+
+#dashboardHelpModal .dashboard-help-subheading {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #4e73df;
+  margin-bottom: 0.35rem;
+}
+
+#dashboardHelpModal .dashboard-help-chipset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+#dashboardHelpModal .dashboard-help-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.35rem;
+  background-color: #eef2fb;
+  border: 1px solid #dbe2f1;
+  font-size: 0.75rem;
+  color: #2f3b52;
 }

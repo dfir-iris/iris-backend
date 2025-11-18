@@ -198,7 +198,7 @@
 </div>
 
 <div class="modal" id="dashboardHelpModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Custom Dashboard Reference</h5>
@@ -207,59 +207,75 @@
         </button>
       </div>
       <div class="modal-body">
-    <p class="mb-3">For each widget, paste JSON describing the <code>fields</code> array. Provide one object per field you want to display or aggregate.</p>
-    <p class="mb-3">Need a quick start? Use the "Add from template" dropdown in each section or review <code>static/assets/js/iris/custom_dashboards/widget_presets.json</code> for the preset definitions.</p>
-        <h6>Field attributes</h6>
-        <ul>
-          <li><code>table</code> (required): one of the allowed tables below.</li>
-          <li><code>column</code> (required): column name from that table.</li>
-          <li><code>aggregation</code> (optional): <code>count</code>, <code>sum</code>, <code>avg</code>, <code>min</code>, or <code>max</code>.</li>
-          <li><code>alias</code> (optional): label used in the chart or value output.</li>
-        </ul>
-        <h6>Allowed tables and columns</h6>
-        <div class="table-responsive mb-3">
-          <table class="table table-sm table-striped mb-0">
-            <thead>
-              <tr>
-                <th style="width: 180px;">Table</th>
-                <th>Columns</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>alerts</code></td>
-                <td><code>alert_id</code>, <code>alert_uuid</code>, <code>alert_title</code>, <code>alert_source</code>, <code>alert_source_ref</code>, <code>alert_description</code>, <code>alert_creation_time</code>, <code>alert_source_event_time</code>, <code>alert_customer_id</code>, <code>alert_resolution_status_id</code>, <code>alert_status_id</code>, <code>alert_severity_id</code>, <code>alert_classification_id</code></td>
-              </tr>
-              <tr>
-                <td><code>client</code></td>
-                <td><code>client_id</code>, <code>name</code></td>
-              </tr>
-              <tr>
-                <td><code>alert_resolution_status</code></td>
-                <td><code>resolution_status_id</code>, <code>resolution_status_name</code></td>
-              </tr>
-              <tr>
-                <td><code>alert_status</code></td>
-                <td><code>status_id</code>, <code>status_name</code></td>
-              </tr>
-              <tr>
-                <td><code>severities</code></td>
-                <td><code>severity_id</code>, <code>severity_name</code></td>
-              </tr>
-              <tr>
-                <td><code>case_classification</code></td>
-                <td><code>id</code>, <code>name</code>, <code>name_expanded</code></td>
-              </tr>
-              <tr>
-                <td><code>cases</code></td>
-                <td><code>case_id</code>, <code>name</code></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Overview</h6>
+          <p class="mb-2">Custom dashboards are composed of widgets. Each widget definition includes <code>name</code>, <code>chart_type</code>, <code>fields</code>, optional <code>filters</code>, <code>group_by</code>, <code>time_bucket</code>, and an <code>options</code> object.</p>
+          <p class="mb-2">Use the visual builder to configure widgets interactively, or paste JSON into the advanced editor. This reference lists every supported field, option, and data source.</p>
+          <ul class="small mb-0">
+            <li><code>fields</code> (required): controls what data is selected and how it is aggregated.</li>
+            <li><code>filters</code> (optional): applies global filters to the widget.</li>
+            <li><code>group_by</code> (optional): sets grouping columns for aggregated widgets and tables.</li>
+            <li><code>time_bucket</code> (optional): normalizes time-series groupings to the chosen bucket.</li>
+            <li><code>options</code> (optional): formatting, layout, and widget-specific settings.</li>
+          </ul>
         </div>
-        <p class="mb-3">You can optionally include <code>filters</code>, <code>group_by</code>, or <code>options</code> objects alongside <code>fields</code> if your widget requires them.</p>
-        <h6>Example fields payload</h6>
-        <pre class="bg-light p-2"><code>[
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Field attributes</h6>
+          <p class="mb-2">Each entry inside <code>fields</code> supports the keys below:</p>
+          <ul class="small mb-0">
+            <li><code>table</code> (required): allowed table key from the reference list.</li>
+            <li><code>column</code> (required): column name from that table.</li>
+            <li><code>aggregation</code> (optional): aggregation to apply. Leave empty to return raw values.</li>
+            <li><code>alias</code> (optional): name used when referencing the aggregated value in options.</li>
+            <li><code>filter</code> (optional): per-field filter object using <code>table</code>, <code>column</code>, <code>operator</code>, and <code>value</code>.</li>
+          </ul>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Available aggregations</h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 160px;">Value</th>
+                  <th>Label</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardHelpAggregationBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Filter operators</h6>
+          <p class="mb-2">Filters (both widget-level and per-field) support the operators below.</p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 160px;">Value</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardHelpOperatorBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Allowed tables &amp; columns</h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 220px;">Table</th>
+                  <th>Columns</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardHelpTablesBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Field example</h6>
+          <pre class="bg-light p-2"><code>[
   {
     "table": "alerts",
     "column": "alert_id",
@@ -272,88 +288,56 @@
     "alias": "client_name"
   }
 ]</code></pre>
-  <h6 class="mt-4">Widget options</h6>
-  <p class="mb-2">Set the keys below inside each widget's <code>options</code> object to control layout, data shaping, and styling.</p>
-  <div class="table-responsive mb-3">
-    <table class="table table-sm table-striped mb-0">
-      <thead>
-        <tr>
-          <th style="width: 180px;">Option</th>
-          <th>Description</th>
-          <th style="width: 200px;">Example values</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>chart_type</code></td>
-          <td>Set on the widget root (outside <code>options</code>) to choose the visualization.</td>
-          <td><code>"line"</code>, <code>"bar"</code>, <code>"pie"</code>, <code>"number"</code>, <code>"percentage"</code>, <code>"table"</code></td>
-        </tr>
-        <tr>
-          <td><code>display</code> / <code>display_mode</code></td>
-          <td>Controls table value formatting.</td>
-          <td><code>"number"</code>, <code>"percentage"</code>, <code>"number_percentage"</code></td>
-        </tr>
-        <tr>
-          <td><code>widget_size</code></td>
-          <td>Overrides the widget column width. Provide Bootstrap grid classes (e.g., <code>col-md-6</code>) or short forms like <code>md-6</code> which auto-expand.</td>
-          <td><code>"col-md-6"</code>, <code>"col-lg-4"</code></td>
-        </tr>
-        <tr>
-          <td><code>total_label</code></td>
-          <td>Custom label for table summary rows and totals.</td>
-          <td><code>"Grand total"</code></td>
-        </tr>
-        <tr>
-          <td><code>time_column</code></td>
-          <td>Overrides the timestamp column used for range filtering (<code>table.column</code> format).</td>
-          <td><code>"cases.created_at"</code></td>
-        </tr>
-        <tr>
-          <td><code>sort</code></td>
-          <td>Sorts aggregated results by the first metric or group.</td>
-          <td><code>"asc"</code>, <code>"desc"</code></td>
-        </tr>
-        <tr>
-          <td><code>limit</code></td>
-          <td>Limits the number of grouped rows returned (must be a positive integer).</td>
-          <td><code>10</code></td>
-        </tr>
-        <tr>
-          <td><code>color</code></td>
-          <td>Single color applied to the series or number widgets.</td>
-          <td><code>"#4e73df"</code></td>
-        </tr>
-        <tr>
-          <td><code>colors</code></td>
-          <td>Palette for charts; accepts an array or comma-separated list.</td>
-          <td><code>["#4e73df", "#1cc88a"]</code></td>
-        </tr>
-        <tr>
-          <td><code>fill</code></td>
-          <td>Fills the area under line charts when <code>true</code>.</td>
-          <td><code>true</code></td>
-        </tr>
-        <tr>
-          <td><code>label_max_length</code></td>
-          <td>Truncates long axis labels to the given character count.</td>
-          <td><code>32</code></td>
-        </tr>
-        <tr>
-          <td><code>legend_position</code></td>
-          <td>Moves the chart legend.</td>
-          <td><code>"top"</code>, <code>"right"</code>, <code>"bottom"</code>, <code>"left"</code></td>
-        </tr>
-        <tr>
-          <td><code>thresholds</code></td>
-          <td>Optional list of conditional styles for number and percentage widgets. Each entry supports <code>mode</code> (<code>"above"</code>, <code>"below"</code>, <code>"between"</code>, <code>"equal"</code>), <code>value</code>, optional <code>end_value</code>, <code>color</code>, and <code>label</code>.</td>
-          <td><code>[{"mode":"above","value":40,"color":"#dc3545"}]</code></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="mb-3">Dataset entries accept the same <code>color</code> and <code>colors</code> keys to override individual series, and you can provide <code>total</code> to lock in percentage calculations. Percentages are automatically calculated when totals are provided or inferred.</p>
-  <h6>Example: False Positive Rate KPI</h6>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Chart &amp; time settings</h6>
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="dashboard-help-subheading">Chart types</h6>
+              <ul class="list-unstyled small mb-3" id="dashboardHelpChartTypesList"></ul>
+            </div>
+            <div class="col-md-6">
+              <h6 class="dashboard-help-subheading">Time buckets</h6>
+              <ul class="list-unstyled small mb-3" id="dashboardHelpTimeBucketsList"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Display presets</h6>
+          <div class="row">
+            <div class="col-md-4">
+              <h6 class="dashboard-help-subheading">Display modes</h6>
+              <ul class="list-unstyled small mb-3" id="dashboardHelpDisplayModesList"></ul>
+            </div>
+            <div class="col-md-4">
+              <h6 class="dashboard-help-subheading">Legend positions</h6>
+              <ul class="list-unstyled small mb-3" id="dashboardHelpLegendPositionsList"></ul>
+            </div>
+            <div class="col-md-4">
+              <h6 class="dashboard-help-subheading">Widget widths</h6>
+              <ul class="list-unstyled small mb-3" id="dashboardHelpWidgetSizesList"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Options reference</h6>
+          <p class="mb-2">Keys inside the <code>options</code> object (and related widget metadata) are described below.</p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 110px;">Scope</th>
+                  <th style="width: 220px;">Key</th>
+                  <th>Description</th>
+                  <th style="width: 200px;">Example</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardHelpOptionBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="dashboard-help-section">
+          <h6 class="dashboard-help-heading">Example: False Positive Rate KPI</h6>
   <pre class="bg-light p-2"><code>{
   "name": "False Positive Rate KPI",
   "chart_type": "percentage",
@@ -389,6 +373,7 @@
     ]
   }
 }</code></pre>
+    </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
