@@ -27,7 +27,8 @@ from app.models.models import (
     IocType,
     IocLink,
     Notes,
-    CaseTasks
+    CaseTasks,
+    ReviewStatus
 )
 
 
@@ -221,6 +222,7 @@ def _normalize_display_mode(value: Optional[str]) -> str:
 
 CaseOwnerUser = aliased(User, name='case_owner_user')
 CaseCreatorUser = aliased(User, name='case_creator_user')
+CaseReviewerUser = aliased(User, name='case_reviewer_user')
 AlertOwnerUser = aliased(User, name='alert_owner_user')
 AlertAsset = aliased(CaseAssets, name='alert_asset')
 CaseAsset = aliased(CaseAssets, name='case_asset')
@@ -246,6 +248,10 @@ def _join_case_owner(query):
 
 def _join_case_creator(query):
     return query.outerjoin(CaseCreatorUser, Cases.user)
+
+
+def _join_case_reviewer(query):
+    return query.outerjoin(CaseReviewerUser, Cases.reviewer)
 
 
 def _join_alert_owner(query):
@@ -450,7 +456,9 @@ class WidgetQueryExecutor:
                 'case_id': Cases.case_id,
                 'name': Cases.name,
                 'owner_id': Cases.owner_id,
-                'creator_id': Cases.user_id
+                'creator_id': Cases.user_id,
+                'reviewer_id': Cases.reviewer_id,
+                'review_status_id': Cases.review_status_id
             },
             'join': _join_cases
         },
@@ -488,6 +496,15 @@ class WidgetQueryExecutor:
                 'name': CaseCreatorUser.name
             },
             'join': _join_case_creator
+        },
+        'case_reviewer': {
+            'model': User,
+            'columns': {
+                'id': CaseReviewerUser.id,
+                'username': CaseReviewerUser.user,
+                'name': CaseReviewerUser.name
+            },
+            'join': _join_case_reviewer
         },
         'tags': {
             'model': Tags,
@@ -671,6 +688,14 @@ class WidgetQueryExecutor:
                 'task_case_id': CaseTaskAlias.task_case_id
             },
             'join': _join_case_tasks
+        },
+        'review_status': {
+            'model': ReviewStatus,
+            'columns': {
+                'id': ReviewStatus.id,
+                'status_name': ReviewStatus.status_name
+            },
+            'join': lambda query: query.outerjoin(ReviewStatus, Cases.review_status)
         }
     }
 
@@ -735,7 +760,7 @@ class WidgetQueryExecutor:
         column = columns.get(column_name)
         if column is None:
             raise QueryExecutionError(f"Column '{column_name}' is not allowed for table '{table_name}'.")
-        if table_name in {'case_owner', 'case_creator', 'case_tags', 'tags', 'case_assets', 'case_asset_types', 'case_iocs', 'case_ioc_types', 'case_events', 'case_notes', 'case_tasks'}:
+        if table_name in {'case_owner', 'case_creator', 'case_reviewer', 'case_tags', 'tags', 'case_assets', 'case_asset_types', 'case_iocs', 'case_ioc_types', 'case_events', 'case_notes', 'case_tasks', 'review_status'}:
             self.builder.add_join('cases')
         if table_name == 'tags':
             self.builder.add_join('case_tags')

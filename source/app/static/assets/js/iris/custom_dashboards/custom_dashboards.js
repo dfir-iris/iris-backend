@@ -76,7 +76,9 @@
         case_id: 'Case ID',
         name: 'Case Name',
         owner_id: 'Owner ID',
-        creator_id: 'Creator ID'
+        creator_id: 'Creator ID',
+        reviewer_id: 'Reviewer ID',
+        review_status_id: 'Review Status ID'
       }
     },
     alert_owner: {
@@ -101,6 +103,14 @@
         id: 'Creator ID',
         username: 'Creator Username',
         name: 'Creator Name'
+      }
+    },
+    case_reviewer: {
+      label: 'Case Reviewer',
+      columns: {
+        id: 'Reviewer ID',
+        username: 'Reviewer Username',
+        name: 'Reviewer Name'
       }
     },
     case_tags: {
@@ -279,6 +289,13 @@
         task_userid_update: 'Updated By User ID',
         task_status_id: 'Status ID',
         task_case_id: 'Case ID'
+      }
+    },
+    review_status: {
+      label: 'Review Status',
+      columns: {
+        id: 'Status ID',
+        status_name: 'Status Name'
       }
     }
   };
@@ -3455,6 +3472,7 @@
     const data = widget.data || {};
     const rows = Array.isArray(data.rows) ? data.rows : [];
     const groupHeaders = Array.isArray(data.group_headers) ? data.group_headers : [];
+    const groupKeys = Array.isArray(data.group_keys) ? data.group_keys : [];
     const valueHeaders = Array.isArray(data.value_headers) ? data.value_headers : [];
     const valueKeys = Array.isArray(data.value_keys) ? data.value_keys : [];
     const totalLabel = data.total_label || 'Total';
@@ -3580,6 +3598,60 @@
         return a - b;
       }
       return String(a).localeCompare(String(b));
+    }
+
+    function buildRecordLink(key, rawValue) {
+      if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return null;
+      }
+
+      const normalizedKey = (key || '').toString().toLowerCase();
+      const sanitizedKey = normalizedKey.replace(/[^a-z0-9]/g, '');
+      const rawString = typeof rawValue === 'number' ? String(rawValue) : String(rawValue || '').trim();
+      if (!rawString) {
+        return null;
+      }
+      if (!/^\d+$/.test(rawString)) {
+        return null;
+      }
+
+      const numericId = Number(rawString);
+      if (!Number.isFinite(numericId)) {
+        return null;
+      }
+
+  if (normalizedKey === 'alerts_alert_id' || normalizedKey === 'alert_id' || sanitizedKey.endsWith('alertid')) {
+        return {
+          url: `/alerts?alert_ids=${encodeURIComponent(numericId)}`,
+          title: `Open alert ${numericId}`
+        };
+      }
+
+  if (normalizedKey === 'cases_case_id' || normalizedKey === 'case_id' || sanitizedKey.endsWith('caseid')) {
+        return {
+          url: `/case?cid=${encodeURIComponent(numericId)}`,
+          title: `Open case ${numericId}`
+        };
+      }
+
+      return null;
+    }
+
+    function buildLinkedCell(textValue, linkInfo, alignmentClass) {
+      const cell = $('<td></td>');
+      if (alignmentClass) {
+        cell.addClass(alignmentClass);
+      }
+      cell.append($('<span class="dashboard-table-cell-text"></span>').text(textValue));
+      if (linkInfo && linkInfo.url) {
+        const link = $('<a class="dashboard-table-open-link ml-2" target="_blank" rel="noopener"></a>')
+          .attr('href', linkInfo.url)
+          .attr('title', linkInfo.title || 'Open in new tab')
+          .attr('aria-label', linkInfo.title || 'Open in new tab');
+        link.append($('<i class="fa-solid fa-arrow-up-right-from-square"></i>'));
+        cell.append(link);
+      }
+      return cell;
     }
 
     function buildProcessedDataset() {
@@ -3728,7 +3800,9 @@
             const rawValue = row.group_values[index];
             const candidate = formattedValue !== undefined ? formattedValue : rawValue;
             const textValue = candidate === null || candidate === undefined || candidate === '' ? 'N/A' : candidate;
-            tr.append($('<td></td>').text(textValue));
+            const groupKey = groupKeys[index] || groupHeaders[index] || '';
+            const recordLink = buildRecordLink(groupKey, rawValue);
+            tr.append(buildLinkedCell(textValue, recordLink, ''));
           });
         }
 
@@ -3738,19 +3812,23 @@
             const cell = row.value_cells[index] || null;
             const numberText = cell && cell.formatted_value !== undefined ? cell.formatted_value : formatNumberValue(cell ? cell.value : null);
             const percentageText = cell && cell.formatted_percentage !== undefined ? cell.formatted_percentage : formatPercentageValue(cell ? cell.percentage : null);
+            const cellKey = cell && cell.key ? cell.key : (valueKeys[index] || header || '');
+            const recordLink = cell ? buildRecordLink(cellKey, cell.value) : null;
             if (displayMode === 'number_percentage') {
-              tr.append($('<td class="text-right"></td>').text(numberText));
-              tr.append($('<td class="text-right"></td>').text(percentageText));
+              tr.append(buildLinkedCell(numberText, recordLink, 'text-right'));
+              tr.append(buildLinkedCell(percentageText, null, 'text-right'));
             } else if (displayMode === 'percentage') {
-              tr.append($('<td class="text-right"></td>').text(percentageText));
+              tr.append(buildLinkedCell(percentageText, recordLink, 'text-right'));
             } else {
-              tr.append($('<td class="text-right"></td>').text(numberText));
+              tr.append(buildLinkedCell(numberText, recordLink, 'text-right'));
             }
           });
         } else {
           const firstCell = row.value_cells[0];
           const fallbackText = firstCell && firstCell.formatted_value !== undefined ? firstCell.formatted_value : formatNumberValue(firstCell ? firstCell.value : null);
-          tr.append($('<td class="text-right"></td>').text(fallbackText));
+          const fallbackKey = firstCell && firstCell.key ? firstCell.key : (valueKeys[0] || '');
+          const fallbackLink = firstCell ? buildRecordLink(fallbackKey, firstCell.value) : null;
+          tr.append(buildLinkedCell(fallbackText, fallbackLink, 'text-right'));
         }
         tbody.append(tr);
       });

@@ -290,3 +290,17 @@
   font-size: 0.75rem;
   color: #2f3b52;
 }
+
+#customDashboardsRoot .dashboard-table-open-link {
+  color: #4e73df;
+  font-size: 0.85rem;
+}
+
+#customDashboardsRoot .dashboard-table-open-link:hover {
+  color: #2f3b52;
+  text-decoration: none;
+}
+
+#customDashboardsRoot .dashboard-table-cell-text {
+  display: inline-block;
+}
