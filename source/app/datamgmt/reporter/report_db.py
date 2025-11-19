@@ -176,8 +176,7 @@ def export_case_evidences_json(case_id):
 
         return [row._asdict() for row in evidences]
 
-    else:
-        return []
+    return []
 
 
 def export_case_notes_json(case_id):

@@ -132,8 +132,7 @@ def update_note(note_content, note_title, update_date, user_id, note_id, caseid)
         db.session.commit()
         return note
 
-    else:
-        return None
+    return None
 
 
 def update_note_revision(user_identifier, note: Notes) -> bool:
@@ -345,8 +344,7 @@ def update_note_group(group_title, group_id, caseid):
         db.session.commit()
         return ng
 
-    else:
-        return None
+    return None
 
 
 def find_pattern_in_notes(pattern, caseid):

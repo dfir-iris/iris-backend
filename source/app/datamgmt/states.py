@@ -73,8 +73,7 @@ def get_object_state(object_name, caseid):
 
     if os:
         return os._asdict()
-    else:
-        return None
+    return None
 
 
 def delete_case_states(caseid):

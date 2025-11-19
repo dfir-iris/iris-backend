@@ -128,10 +128,9 @@ def add_tab_attribute(obj, tab_name):
     if tab_name in attribute:
         return True
 
-    else:
-        attribute[tab_name] = {}
-        flag_modified(obj, "custom_attributes")
-        db.session.commit()
+    attribute[tab_name] = {}
+    flag_modified(obj, "custom_attributes")
+    db.session.commit()
 
     return True
 
@@ -214,21 +213,20 @@ def merge_custom_attributes(data, obj_id, object_type, overwrite=False):
         db.session.commit()
         return obj.custom_attributes
 
-    else:
-        default_attr = get_default_custom_attributes(object_type)
-        for tab in data:
-            if default_attr.get(tab) is None:
-                app.logger.info(f'Missing tab {tab} in {object_type} default attribute')
-                continue
+    default_attr = get_default_custom_attributes(object_type)
+    for tab in data:
+        if default_attr.get(tab) is None:
+            app.logger.info(f'Missing tab {tab} in {object_type} default attribute')
+            continue
 
-            for field in data[tab]:
-                if field not in default_attr[tab]:
-                    app.logger.info(f'Missing field {field} in {object_type} default attribute')
+        for field in data[tab]:
+            if field not in default_attr[tab]:
+                app.logger.info(f'Missing field {field} in {object_type} default attribute')
 
-                else:
-                    default_attr[tab][field]['value'] = data[tab][field]
+            else:
+                default_attr[tab][field]['value'] = data[tab][field]
 
-        return default_attr
+    return default_attr
 
 
 def validate_attribute(attribute):

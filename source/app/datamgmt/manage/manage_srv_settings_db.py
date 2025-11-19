@@ -16,8 +16,7 @@ def get_server_settings_as_dict():
         sc = ServerSettingsSchema()
         return sc.dump(srv_settings)
 
-    else:
-        return {}
+    return {}
 
 
 def get_alembic_revision():

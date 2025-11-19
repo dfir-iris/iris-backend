@@ -149,10 +149,9 @@ def is_updates_available():
         db.session.commit()
         return True, f'# New version {release_version} available\n\n{release.get("body")}', release
 
-    else:
-        srv_settings.has_updates_available = False
-        db.session.commit()
-        return False, f'**Current server is up-to-date with {release_version}**', None
+    srv_settings.has_updates_available = False
+    db.session.commit()
+    return False, f'**Current server is up-to-date with {release_version}**', None
 
 
 def init_server_update(release_config):
