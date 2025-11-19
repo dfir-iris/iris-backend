@@ -18,9 +18,9 @@
 
 from sqlalchemy import and_
 
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_ioc_state
 from app.models.alerts import Alert
@@ -262,10 +262,10 @@ def get_case_ioc_comment(ioc_id, comment_id):
             .join(Comments.user).first())
 
 
-def delete_ioc_comment(ioc_id, comment_id):
+def delete_ioc_comment(user_identifier, ioc_id, comment_id):
     comment = Comments.query.filter(
         Comments.comment_id == comment_id,
-        Comments.comment_user_id == iris_current_user.id
+        Comments.comment_user_id == user_identifier
     ).first()
     if not comment:
         return False, "You are not allowed to delete this comment"
