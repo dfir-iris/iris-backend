@@ -41,14 +41,7 @@ def create_safe_limited(session, model, keywords_list, **kwargs):
         if kw not in keywords_list:
             kwargs.pop(kw)
 
-    instance = session.query(model).filter_by(**kwargs).first()
-    if instance:
-        return False
-    else:
-        instance = model(**kwargs)
-        session.add(instance)
-        session.commit()
-        return True
+    return create_safe(session, model, **kwargs)
 
 
 def db_delete(element):
