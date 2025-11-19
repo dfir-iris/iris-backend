@@ -304,9 +304,8 @@ def mfa_setup():
             session["mfa_verified"] = False
             track_activity(f'MFA setup successful for user {user.user}', ctx_less=True, display_in_ui=False)
             return wrap_login_user(user)
-        else:
-            track_activity(f'Failed MFA setup for user {user.user}. Invalid token.', ctx_less=True, display_in_ui=False)
-            flash('Invalid token or password. Please try again.', 'danger')
+        track_activity(f'Failed MFA setup for user {user.user}. Invalid token.', ctx_less=True, display_in_ui=False)
+        flash('Invalid token or password. Please try again.', 'danger')
 
     temp_otp_secret = pyotp.random_base32()
     otp_uri = pyotp.TOTP(temp_otp_secret).provisioning_uri(user.email, issuer_name="IRIS")
@@ -347,8 +346,7 @@ def mfa_verify():
             session['mfa_verified'] = True
             track_activity(f'MFA verification successful for user {user.user}', ctx_less=True, display_in_ui=False)
             return wrap_login_user(user)
-        else:
-            track_activity(f'Failed MFA verification for user {user.user}. Invalid token.', ctx_less=True, display_in_ui=False)
-            flash('Invalid token. Please try again.', 'danger')
+        track_activity(f'Failed MFA verification for user {user.user}. Invalid token.', ctx_less=True, display_in_ui=False)
+        flash('Invalid token. Please try again.', 'danger')
 
     return render_template('mfa_verify.html', form=form)
