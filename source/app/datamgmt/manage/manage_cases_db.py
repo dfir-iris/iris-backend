@@ -40,7 +40,7 @@ from app.models.models import Tags
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent

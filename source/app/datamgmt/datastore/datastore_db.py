@@ -28,7 +28,7 @@ from app import app
 from app.datamgmt.db_operations import db_create, db_delete
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.models import DataStoreFile
 from app.models.models import DataStorePath
 from app.models.iocs import Ioc

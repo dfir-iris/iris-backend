@@ -15,7 +15,18 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-from sqlalchemy import Column, Integer, Text, DateTime, func, ForeignKey
+import uuid
+
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import Text
+from sqlalchemy import DateTime
+from sqlalchemy import func
+from sqlalchemy import ForeignKey
+from sqlalchemy import BigInteger
+from sqlalchemy import UUID
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -31,3 +42,28 @@ class EvidenceTypes(db.Model):
     created_by_id = Column(ForeignKey('user.id'), nullable=True)
 
     created_by = relationship('User')
+
+
+class CaseReceivedFile(db.Model):
+    __tablename__ = 'case_received_file'
+
+    id = Column(BigInteger, primary_key=True)
+    file_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, server_default=text("gen_random_uuid()"), nullable=False)
+    filename = Column(Text)
+    date_added = Column(DateTime)
+    acquisition_date = Column(DateTime)
+    file_hash = Column(Text)
+    file_description = Column(Text)
+    file_size = Column(BigInteger)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    case_id = Column(ForeignKey('cases.case_id'))
+    user_id = Column(ForeignKey('user.id'))
+    type_id = Column(ForeignKey('evidence_type.id'))
+    custom_attributes = Column(JSON)
+    chain_of_custody = Column(JSON)
+    modification_history = Column(JSON)
+
+    case = relationship('Cases')
+    user = relationship('User')
+    type = relationship('EvidenceTypes')

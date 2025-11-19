@@ -25,7 +25,7 @@ from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_evidences_state
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.comments import Comments
 from app.models.comments import EvidencesComments
 from app.models.authorization import User

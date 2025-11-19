@@ -383,31 +383,6 @@ class CaseKanban(db.Model):
     case = relationship('Cases')
 
 
-class CaseReceivedFile(db.Model):
-    __tablename__ = 'case_received_file'
-
-    id = Column(BigInteger, primary_key=True)
-    file_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, server_default=text("gen_random_uuid()"), nullable=False)
-    filename = Column(Text)
-    date_added = Column(DateTime)
-    acquisition_date = Column(DateTime)
-    file_hash = Column(Text)
-    file_description = Column(Text)
-    file_size = Column(BigInteger)
-    start_date = Column(DateTime)
-    end_date = Column(DateTime)
-    case_id = Column(ForeignKey('cases.case_id'))
-    user_id = Column(ForeignKey('user.id'))
-    type_id = Column(ForeignKey('evidence_type.id'))
-    custom_attributes = Column(JSON)
-    chain_of_custody = Column(JSON)
-    modification_history = Column(JSON)
-
-    case = relationship('Cases')
-    user = relationship('User')
-    type = relationship('EvidenceTypes')
-
-
 class TaskStatus(db.Model):
     __tablename__ = 'task_status'
 

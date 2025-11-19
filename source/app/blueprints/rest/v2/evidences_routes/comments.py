@@ -34,7 +34,7 @@ from app.business.comments import comments_get_filtered_by_evidence
 from app.business.comments import comments_create_for_evidence
 from app.business.comments import comments_get_for_evidence
 from app.business.comments import comments_delete_for_evidence
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.business.evidences import evidences_get
 from app.models.errors import ObjectNotFoundError
 from app.schema.marshables import CommentSchema

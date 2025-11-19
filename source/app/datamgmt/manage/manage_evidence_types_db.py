@@ -18,7 +18,7 @@ from sqlalchemy import func
 from typing import List
 
 from app.models.evidences import EvidenceTypes
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 
 
 def get_evidence_types_list() -> List[dict]:
