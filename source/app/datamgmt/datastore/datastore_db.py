@@ -251,8 +251,6 @@ def datastore_iter_deletion(dsp, cid):
 
     db_delete(dsp)
 
-    return None
-
 
 def datastore_delete_files_of_path(node_id, cid):
     dsf_list = DataStoreFile.query.filter(
