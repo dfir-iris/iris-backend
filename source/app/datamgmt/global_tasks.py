@@ -29,6 +29,10 @@ def delete_global_task(task: GlobalTasks):
     db.session.commit()
 
 
+def update_global_task():
+    db.session.commit()
+
+
 def list_global_tasks():
     ct = GlobalTasks.query.with_entities(
         GlobalTasks.id.label("task_id"),

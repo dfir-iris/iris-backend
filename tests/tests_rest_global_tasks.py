@@ -62,3 +62,11 @@ class TestsRestGlobalTasks(TestCase):
         self._subject.delete(f'/api/v2/global-tasks/{identifier}')
         response = self._subject.get(f'/api/v2/global-tasks/{identifier}')
         self.assertEqual(404, response.status_code)
+
+    def test_update_global_task_should_return_200(self):
+        body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
+        response = self._subject.create('/api/v2/global-tasks', body).json()
+        identifier = response['task_id']
+        body = {'task_title': 'new title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
+        response = self._subject.update(f'/api/v2/global-tasks/{identifier}', body)
+        self.assertEqual(200, response.status_code)
