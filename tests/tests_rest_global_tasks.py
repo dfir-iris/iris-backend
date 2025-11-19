@@ -34,6 +34,13 @@ class TestsRestGlobalTasks(TestCase):
         response = self._subject.create('/api/v2/global-tasks', body)
         self.assertEqual(201, response.status_code)
 
+    def test_create_global_task_should_set_field_task_close_date(self):
+        closing_date = '2025-11-19T12:28:01'
+        body = {'task_title': 'new title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER,
+                'task_close_date': closing_date}
+        response = self._subject.create('/api/v2/global-tasks', body).json()
+        self.assertEqual(closing_date, response['task_close_date'])
+
     def test_get_global_task_should_return_200(self):
         body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
         response = self._subject.create('/api/v2/global-tasks', body).json()
@@ -70,3 +77,13 @@ class TestsRestGlobalTasks(TestCase):
         body = {'task_title': 'new title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
         response = self._subject.update(f'/api/v2/global-tasks/{identifier}', body)
         self.assertEqual(200, response.status_code)
+
+    def test_update_global_task_should_update_field_task_close_date(self):
+        body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
+        response = self._subject.create('/api/v2/global-tasks', body).json()
+        identifier = response['task_id']
+        closing_date = '2025-11-19T12:28:01'
+        body = {'task_title': 'new title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER,
+                'task_close_date': closing_date}
+        response = self._subject.update(f'/api/v2/global-tasks/{identifier}', body).json()
+        self.assertEqual(closing_date, response['task_close_date'])
