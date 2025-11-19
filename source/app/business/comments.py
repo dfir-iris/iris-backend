@@ -337,8 +337,8 @@ def comments_delete_for_task(task: CaseTasks, comment: Comments):
     track_activity(f'comment {comment.comment_id} on task {task.id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_event(event: CasesEvent, comment: Comments):
-    delete_event_comment(event.event_id, comment.comment_id)
+def comments_delete_for_event(user, event: CasesEvent, comment: Comments):
+    delete_event_comment(user.id, event.event_id, comment.comment_id)
 
     call_modules_hook('on_postload_event_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on event {event.event_id} deleted', caseid=comment.comment_case_id)

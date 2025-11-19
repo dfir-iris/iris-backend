@@ -96,7 +96,7 @@ def case_comments_get(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_delete(cur_id, com_id, caseid):
-    success, msg = delete_event_comment(cur_id, com_id)
+    success, msg = delete_event_comment(iris_current_user, cur_id, com_id)
     if not success:
         return response_error(msg)
 
