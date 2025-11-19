@@ -309,8 +309,8 @@ def comments_delete_for_asset(asset: CaseAssets, comment: Comments):
     track_activity(f'comment {comment.comment_id} on asset {asset.asset_id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_evidence(evidence: CaseReceivedFile, comment: Comments):
-    delete_evidence_comment(evidence.id, comment.comment_id)
+def comments_delete_for_evidence(user, evidence: CaseReceivedFile, comment: Comments):
+    delete_evidence_comment(user.id, evidence.id, comment.comment_id)
 
     call_modules_hook('on_postload_evidence_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on evidence {evidence.id} deleted', caseid=comment.comment_case_id)

@@ -104,7 +104,7 @@ class CommentsOperations:
             if comment.comment_user_id != iris_current_user.id:
                 return ac_api_return_access_denied()
 
-            comments_delete_for_evidence(evidence, comment)
+            comments_delete_for_evidence(iris_current_user, evidence, comment)
             return response_api_deleted()
         except ObjectNotFoundError:
             return response_api_not_found()
