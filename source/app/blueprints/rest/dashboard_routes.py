@@ -236,6 +236,7 @@ def add_gtask(caseid):
 
 
 @dashboard_rest_blueprint.route('/global/tasks/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/global-tasks/{identifier}')
 @ac_api_requires()
 @ac_requires_case_identifier()
 def edit_gtask(cur_id, caseid):
