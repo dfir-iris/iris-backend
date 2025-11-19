@@ -48,15 +48,17 @@ from app.iris_engine.module_handler.module_handler import check_module_health
 from app.iris_engine.module_handler.module_handler import instantiate_module_from_name
 from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.demo_builder import create_demo_users
-from app.models.models import create_safe_limited
-from app.models.assets import AssetsType, AnalysisStatus
+from app.models.assets import AssetsType
+from app.models.assets import AnalysisStatus
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Group
 from app.models.authorization import User
-from app.models.cases import Cases, ReviewStatusList, CaseClassification
+from app.models.cases import Cases
+from app.models.cases import ReviewStatusList
+from app.models.cases import CaseClassification
 from app.models.cases import CaseState
 from app.models.customers import Client
 from app.models.models import ReviewStatus
@@ -71,7 +73,8 @@ from app.models.models import ReportType
 from app.models.models import ServerSettings
 from app.models.models import TaskStatus
 from app.models.iocs import Tlp
-from app.models.models import create_safe
+from app.datamgmt.db_operations import create_safe
+from app.datamgmt.db_operations import create_safe_limited
 from app.models.models import create_safe_attr
 from app.business.asset_types import create_asset_type_if_not_exists
 from app.business.customers import customers_get_by_name

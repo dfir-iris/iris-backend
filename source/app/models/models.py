@@ -47,33 +47,6 @@ Base = declarative_base()
 metadata = Base.metadata
 
 
-def create_safe(session, model, **kwargs):
-    instance = session.query(model).filter_by(**kwargs).first()
-    if instance:
-        return False
-    else:
-        instance = model(**kwargs)
-        session.add(instance)
-        session.commit()
-        return True
-
-
-def create_safe_limited(session, model, keywords_list, **kwargs):
-    kwdup = kwargs.keys()
-    for kw in list(kwdup):
-        if kw not in keywords_list:
-            kwargs.pop(kw)
-
-    instance = session.query(model).filter_by(**kwargs).first()
-    if instance:
-        return False
-    else:
-        instance = model(**kwargs)
-        session.add(instance)
-        session.commit()
-        return True
-
-
 class EvidenceTypes(db.Model):
     __tablename__ = 'evidence_type'
 

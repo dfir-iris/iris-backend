@@ -24,6 +24,33 @@ def db_create(element):
     db.session.commit()
 
 
+def create_safe(session, model, **kwargs):
+    instance = session.query(model).filter_by(**kwargs).first()
+    if instance:
+        return False
+    else:
+        instance = model(**kwargs)
+        session.add(instance)
+        session.commit()
+        return True
+
+
+def create_safe_limited(session, model, keywords_list, **kwargs):
+    kwdup = kwargs.keys()
+    for kw in list(kwdup):
+        if kw not in keywords_list:
+            kwargs.pop(kw)
+
+    instance = session.query(model).filter_by(**kwargs).first()
+    if instance:
+        return False
+    else:
+        instance = model(**kwargs)
+        session.add(instance)
+        session.commit()
+        return True
+
+
 def db_delete(element):
     db.session.delete(element)
     db.session.commit()
