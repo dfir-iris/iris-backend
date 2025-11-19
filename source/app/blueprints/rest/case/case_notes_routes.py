@@ -142,7 +142,7 @@ def case_note_save(cur_id, caseid):
 
         request_data['note_id'] = note.note_id
         addnote_schema.load(request_data, partial=True, instance=note)
-        note = notes_update(note)
+        note = notes_update(iris_current_user, note)
 
         return response_success(f"Note ID {cur_id} saved", data=addnote_schema.dump(note))
 
@@ -458,7 +458,7 @@ def case_comment_note_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_delete(cur_id, com_id, caseid):
-    success, msg = delete_note_comment(cur_id, com_id)
+    success, msg = delete_note_comment(iris_current_user.id, cur_id, com_id)
     if not success:
         return response_error(msg)
 
