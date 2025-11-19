@@ -62,7 +62,7 @@ from app.models.cases import CaseClassification
 from app.models.cases import CaseState
 from app.models.customers import Client
 from app.models.models import ReviewStatus
-from app.models.models import EvidenceTypes
+from app.models.evidences import EvidenceTypes
 from app.models.models import EventCategory
 from app.models.models import IocType
 from app.models.models import IrisHook

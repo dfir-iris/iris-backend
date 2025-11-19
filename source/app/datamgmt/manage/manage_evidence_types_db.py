@@ -17,7 +17,7 @@
 from sqlalchemy import func
 from typing import List
 
-from app.models.models import EvidenceTypes
+from app.models.evidences import EvidenceTypes
 from app.models.models import CaseReceivedFile
 
 

@@ -57,7 +57,7 @@ from app.models.models import DataStorePath
 from app.models.models import IrisModuleHook
 from app.models.models import Tags
 from app.models.models import ReviewStatus
-from app.models.models import EvidenceTypes
+from app.models.evidences import EvidenceTypes
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
 from app.models.assets import AssetsType, CaseAssets, AnalysisStatus
