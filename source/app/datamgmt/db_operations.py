@@ -35,15 +35,6 @@ def create_safe(session, model, **kwargs):
         return True
 
 
-def create_safe_limited(session, model, keywords_list, **kwargs):
-    kwdup = kwargs.keys()
-    for kw in list(kwdup):
-        if kw not in keywords_list:
-            kwargs.pop(kw)
-
-    return create_safe(session, model, **kwargs)
-
-
 def db_delete(element):
     db.session.delete(element)
     db.session.commit()
