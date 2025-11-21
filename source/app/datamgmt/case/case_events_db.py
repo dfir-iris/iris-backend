@@ -400,7 +400,7 @@ def delete_event(user_identifier, event):
 
 def get_category_by_name(cat_name):
     return EventCategory.query.filter(
-        EventCategory.name  == cat_name,
+        EventCategory.name == cat_name,
     ).first()
 
 
