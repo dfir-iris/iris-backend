@@ -1133,50 +1133,17 @@ def _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, customer_
             })
 
     if open_cases or closed_cases:
-        close_condition = _build_cases_closed_filter(open_cases, closed_cases)
-
-        matching_ioc_cases = (
-            db.session.query(Ioc)
-            .with_entities(Ioc.case_id, Ioc.ioc_value, Cases.name, Cases.close_date, Cases.description)
-            .join(Ioc.case)
-            .filter(
-                and_(
-                    and_(
-                        Ioc.ioc_value.in_(added_iocs),
-                        close_condition,
-                    ),
-                    Cases.client_id == customer_id
-                )
-            )
-            .distinct()
-            .all()
-        )
-
-        matching_asset_cases = (
-            db.session.query(CaseAssets)
-            .with_entities(CaseAssets.case_id, CaseAssets.asset_name, Cases.name, Cases.close_date, Cases.description)
-            .join(CaseAssets.case)
-            .filter(
-                and_(
-                    and_(
-                        CaseAssets.asset_name.in_(added_assets),
-                        close_condition
-                    ),
-                    Cases.client_id == customer_id
-                )
-            )
-            .distinct(CaseAssets.case_id)
-            .all()
-        )
 
         cases_data = {}
 
+        matching_ioc_cases = get_iocs_with_cases(added_iocs, customer_id, open_cases, closed_cases)
         for case_id, ioc_value, case_name, close_date, case_desc in matching_ioc_cases:
             if case_id not in cases_data:
                 cases_data[case_id] = {'name': case_name, 'matching_ioc': [], 'matching_assets': [],
                                        'close_date': close_date, 'description': case_desc}
             cases_data[case_id]['matching_ioc'].append(ioc_value)
 
+        matching_asset_cases = get_assets_with_cases(added_assets, customer_id, open_cases, closed_cases)
         for case_id, asset_name, case_name, close_date, case_desc in matching_asset_cases:
             if case_id not in cases_data:
                 cases_data[case_id] = {'name': case_name, 'matching_ioc': [], 'matching_assets': [],
@@ -1216,6 +1183,49 @@ def _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, customer_
         'nodes': nodes,
         'edges': edges
     }
+
+
+def get_assets_with_cases(added_assets, customer_id, open_cases, closed_cases):
+    close_condition = _build_cases_closed_filter(open_cases, closed_cases)
+    matching_asset_cases = (
+        db.session.query(CaseAssets)
+        .with_entities(CaseAssets.case_id, CaseAssets.asset_name, Cases.name, Cases.close_date, Cases.description)
+        .join(CaseAssets.case)
+        .filter(
+            and_(
+                and_(
+                    CaseAssets.asset_name.in_(added_assets),
+                    close_condition
+                ),
+                Cases.client_id == customer_id
+            )
+        )
+        .distinct(CaseAssets.case_id)
+        .all()
+    )
+    return matching_asset_cases
+
+
+def get_iocs_with_cases(added_iocs, customer_id, open_cases, closed_cases):
+    close_condition = _build_cases_closed_filter(open_cases, closed_cases)
+
+    matching_ioc_cases = (
+        db.session.query(Ioc)
+        .with_entities(Ioc.case_id, Ioc.ioc_value, Cases.name, Cases.close_date, Cases.description)
+        .join(Ioc.case)
+        .filter(
+            and_(
+                and_(
+                    Ioc.ioc_value.in_(added_iocs),
+                    close_condition,
+                ),
+                Cases.client_id == customer_id
+            )
+        )
+        .distinct()
+        .all()
+    )
+    return matching_ioc_cases
 
 
 def _build_cases_closed_filter(open_cases, closed_cases):
