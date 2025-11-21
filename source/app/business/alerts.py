@@ -188,6 +188,18 @@ def _create_asset_node(asset_id, asset_info, in_dark_mode):
     }
 
 
+def _create_case_node(case_id, description, close_date, in_dark_mode):
+    return {
+        'id': f'case_{case_id}',
+        'label': f'[Closed] Case #{case_id}' if close_date else f'Case #{case_id}',
+        'title': description,
+        'group': 'case',
+        'shape': 'icon',
+        'icon': _get_icon_case(close_date),
+        'font': _get_font(in_dark_mode)
+    }
+
+
 def _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, customer_id, in_dark_mode):
     nodes = []
     edges = []
@@ -242,27 +254,21 @@ def _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, customer_
 
         added_cases = set()
         for case_id in cases_data:
+            case_data = cases_data[case_id]
             if case_id not in added_cases:
-                is_closed = cases_data[case_id].get('close_date')
-                nodes.append({
-                    'id': f'case_{case_id}',
-                    'label': f'[Closed] Case #{case_id}' if cases_data[case_id].get('close_date') else f'Case #{case_id}',
-                    'title': cases_data[case_id].get("description"),
-                    'group': 'case',
-                    'shape': 'icon',
-                    'icon': _get_icon_case(is_closed),
-                    'font': _get_font(in_dark_mode)
-                })
+                close_date = case_data.get('close_date')
+                description = case_data.get('description')
+                nodes.append(_create_case_node(case_id, description, close_date, in_dark_mode))
                 added_cases.add(case_id)
 
-            for ioc_value in cases_data[case_id]['matching_ioc']:
+            for ioc_value in case_data['matching_ioc']:
                 edges.append({
                     'from': f'ioc_{ioc_value}',
                     'to': f'case_{case_id}',
                     'dashes': True
                 })
 
-            for asset_name in cases_data[case_id]['matching_assets']:
+            for asset_name in case_data['matching_assets']:
                 edges.append({
                     'from': f'asset_{asset_name}',
                     'to': f'case_{case_id}',
