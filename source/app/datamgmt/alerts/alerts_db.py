@@ -1031,7 +1031,7 @@ def _get_icon_alert(alert_color) -> dict[str, str]:
 
 
 def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
-                               days_back=30, number_of_results=200):
+                               days_back, number_of_results):
     """
     Get the details of the related alerts
 
