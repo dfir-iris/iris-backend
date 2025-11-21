@@ -174,7 +174,7 @@ def filters_list_route(filter_type) -> Response:
     saved_filter_schema = SavedFilterSchema(many=True)
 
     try:
-        saved_filters = list_filters_by_type(str(filter_type).lower())
+        saved_filters = list_filters_by_type(iris_current_user.id, str(filter_type).lower())
 
         return response_success(data=saved_filter_schema.dump(saved_filters))
 

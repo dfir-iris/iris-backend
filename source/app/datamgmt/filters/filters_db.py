@@ -40,7 +40,7 @@ def get_filter_by_id(filter_id):
     return saved_filter
 
 
-def list_filters_by_type(filter_type):
+def list_filters_by_type(user_identifier, filter_type):
     """
     List filters by type
 
@@ -58,7 +58,7 @@ def list_filters_by_type(filter_type):
     private_filters_for_user = SavedFilter.query.filter(
         and_(
             SavedFilter.filter_is_private == True,
-            SavedFilter.created_by == iris_current_user.id,
+            SavedFilter.created_by == user_identifier,
             SavedFilter.filter_type == filter_type
         )
     )
