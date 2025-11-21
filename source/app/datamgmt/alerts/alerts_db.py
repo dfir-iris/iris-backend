@@ -994,8 +994,7 @@ def get_related_alerts(customer_id, assets, iocs, details=False):
     return similarities
 
 
-def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
-                               days_back, number_of_results):
+def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_alerts, days_back, number_of_results):
     """
     Get the details of the related alerts
 
