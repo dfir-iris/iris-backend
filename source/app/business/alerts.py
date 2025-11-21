@@ -112,9 +112,10 @@ def alerts_get(user, permissions, identifier) -> Alert:
     return alert
 
 
-def related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cases,
+def related_alerts_get(user, alert, open_alerts, closed_alerts, open_cases, closed_cases,
                         days_back, number_of_results):
-    return get_related_alerts_details(alert.alert_customer_id, alert.assets, alert.iocs,
+    in_dark_mode = user.in_dark_mode
+    return get_related_alerts_details(in_dark_mode, alert.alert_customer_id, alert.assets, alert.iocs,
                                      open_alerts, closed_alerts, open_cases, closed_cases,
                                      days_back, number_of_results)
 

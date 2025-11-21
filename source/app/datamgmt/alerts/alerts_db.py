@@ -1030,7 +1030,7 @@ def _get_icon_alert(alert_color) -> dict[str, str]:
     }
 
 
-def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
+def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
                                days_back=30, number_of_results=200):
     """
     Get the details of the related alerts
@@ -1049,7 +1049,6 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
     returns:
         dict: The details of the related alerts with matched assets and/or IOCs
     """
-    in_dark_mode = iris_current_user.in_dark_mode
     if not assets and not iocs:
         return {
             'nodes': [],

@@ -297,7 +297,8 @@ def alerts_similarities_route(alert_id) -> Response:
         days_back = 180
 
     # Get similar alerts
-    similar_alerts = get_related_alerts_details(alert.alert_customer_id, alert.assets, alert.iocs,
+    similar_alerts = get_related_alerts_details(iris_current_user.in_dark_mode,
+                                                alert.alert_customer_id, alert.assets, alert.iocs,
                                                 open_alerts=open_alerts, open_cases=open_cases,
                                                 closed_cases=closed_cases, closed_alerts=closed_alerts,
                                                 days_back=days_back, number_of_results=number_of_results)
