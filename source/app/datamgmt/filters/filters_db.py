@@ -18,11 +18,10 @@
 
 from sqlalchemy import and_
 
-from app.blueprints.iris_user import iris_current_user
 from app.models.models import SavedFilter
 
 
-def get_filter_by_id(filter_id):
+def get_filter_by_id(user_identifier, filter_id):
     """
     Get a filter by its ID
 
@@ -34,7 +33,7 @@ def get_filter_by_id(filter_id):
     """
     saved_filter = SavedFilter.query.filter(SavedFilter.filter_id == filter_id).first()
     if saved_filter:
-        if saved_filter.filter_is_private and saved_filter.created_by != iris_current_user.id:
+        if saved_filter.filter_is_private and saved_filter.created_by != user_identifier:
             return None
 
     return saved_filter

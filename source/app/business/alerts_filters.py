@@ -26,8 +26,8 @@ def alert_filter_add(new_saved_filter):
     db.session.commit()
 
 
-def alert_filter_get(identifier):
-    alert_filter = get_filter_by_id(identifier)
+def alert_filter_get(user, identifier):
+    alert_filter = get_filter_by_id(user.id, identifier)
     if not alert_filter:
         raise ObjectNotFoundError()
     return alert_filter

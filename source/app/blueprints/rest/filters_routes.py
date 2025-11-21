@@ -85,7 +85,7 @@ def filters_update_route(filter_id) -> Response:
     try:
         data = request.get_json()
 
-        saved_filter = get_filter_by_id(filter_id)
+        saved_filter = get_filter_by_id(iris_current_user.id, filter_id)
         if not saved_filter:
             return response_error('Filter not found')
 
@@ -115,7 +115,7 @@ def filters_delete_route(filter_id) -> Response:
         Response object
     """
     try:
-        saved_filter = get_filter_by_id(filter_id)
+        saved_filter = get_filter_by_id(iris_current_user.id, filter_id)
         if not saved_filter:
             return response_error('Filter not found')
 
@@ -147,7 +147,7 @@ def filters_get_route(filter_id) -> Response:
     saved_filter_schema = SavedFilterSchema()
 
     try:
-        saved_filter = get_filter_by_id(filter_id)
+        saved_filter = get_filter_by_id(iris_current_user.id, filter_id)
         if not saved_filter:
             return response_error('Filter not found')
 
