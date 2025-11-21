@@ -994,6 +994,13 @@ def get_related_alerts(customer_id, assets, iocs, details=False):
     return similarities
 
 
+# TODO this is presentation code, should be in the presentation layer (frontend) rather than in the persistence layer!
+def _get_font(in_dark_mode) -> str:
+    if in_dark_mode:
+        return '12px verdana white'
+    return ''
+
+
 def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
                                days_back=30, number_of_results=200):
     """
@@ -1013,6 +1020,7 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
     returns:
         dict: The details of the related alerts with matched assets and/or IOCs
     """
+    in_dark_mode = iris_current_user.in_dark_mode
     if not assets and not iocs:
         return {
             'nodes': [],
@@ -1096,9 +1104,9 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
                 'face': 'FontAwesome',
                 'code': '\uf0f3',
                 'color': alert_color,
-                'weight': "bold"
+                'weight': 'bold'
             },
-            'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
+            'font': _get_font(in_dark_mode)
         })
 
         for asset_info in alert_info['assets']:
@@ -1111,7 +1119,7 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
                     'group': 'asset',
                     'shape': 'image',
                     'image': '/static/assets/img/graph/' + asset_info['icon'],
-                    'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
+                    'font': _get_font(in_dark_mode)
                 })
                 added_assets.add(asset_id)
 
@@ -1130,10 +1138,10 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
                     'icon': {
                         'face': 'FontAwesome',
                         'code': '\ue4a8',
-                        'color': 'white' if iris_current_user.in_dark_mode else '',
+                        'color': 'white' if in_dark_mode else '',
                         'weight': "bold"
                     },
-                    'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
+                    'font': _get_font(in_dark_mode)
                 })
                 added_iocs.add(ioc_value)
 
@@ -1202,6 +1210,7 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
 
         for case_id in cases_data:
             if case_id not in added_cases:
+                is_closed = cases_data[case_id].get('close_date')
                 nodes.append({
                     'id': f'case_{case_id}',
                     'label': f'[Closed] Case #{case_id}' if cases_data[case_id].get('close_date') else f'Case #{case_id}',
@@ -1211,9 +1220,9 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
                     'icon': {
                         'face': 'FontAwesome',
                         'code': '\uf0b1',
-                        'color': '#c95029' if cases_data[case_id].get('close_date') else '#4cba4f'
+                        'color': '#c95029' if is_closed else '#4cba4f'
                     },
-                    'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
+                    'font': _get_font(in_dark_mode)
                 })
                 added_cases.add(case_id)
 
