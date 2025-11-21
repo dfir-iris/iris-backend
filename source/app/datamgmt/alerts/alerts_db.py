@@ -1070,10 +1070,8 @@ def get_assets_with_cases(added_assets, customer_id, open_cases, closed_cases):
         .join(CaseAssets.case)
         .filter(
             and_(
-                and_(
-                    CaseAssets.asset_name.in_(added_assets),
-                    close_condition
-                ),
+                CaseAssets.asset_name.in_(added_assets),
+                close_condition,
                 Cases.client_id == customer_id
             )
         )
@@ -1092,10 +1090,8 @@ def get_iocs_with_cases(added_iocs, customer_id, open_cases, closed_cases):
         .join(Ioc.case)
         .filter(
             and_(
-                and_(
-                    Ioc.ioc_value.in_(added_iocs),
-                    close_condition,
-                ),
+                Ioc.ioc_value.in_(added_iocs),
+                close_condition,
                 Cases.client_id == customer_id
             )
         )
