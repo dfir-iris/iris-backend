@@ -1062,16 +1062,10 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
     alert_status_filter = []
 
     if open_alerts:
-        open_alert_status_ids = AlertStatus.query.with_entities(
-            AlertStatus.status_id
-        ).filter(AlertStatus.status_name.in_(['New', 'Assigned', 'In progress', 'Pending', 'Unspecified'])).all()
-        alert_status_filter += [status_id[0] for status_id in open_alert_status_ids]
+        alert_status_filter += _get_open_alerts_status_identifiers()
 
     if closed_alerts:
-        closed_alert_status_ids = AlertStatus.query.with_entities(
-            AlertStatus.status_id
-        ).filter(AlertStatus.status_name.in_(['Closed', 'Merged', 'Escalated'])).all()
-        alert_status_filter += [status_id[0] for status_id in closed_alert_status_ids]
+        alert_status_filter += _get_closed_alerts_status_identifiers()
 
     conditions = and_(
         SimilarAlertsCache.customer_id == customer_id,
@@ -1258,6 +1252,24 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
         'nodes': nodes,
         'edges': edges
     }
+
+
+def _get_closed_alerts_status_identifiers():
+    return _get_alerts_status_identifiers(['Closed', 'Merged', 'Escalated'])
+
+
+def _get_open_alerts_status_identifiers():
+    return _get_alerts_status_identifiers(['New', 'Assigned', 'In progress', 'Pending', 'Unspecified'])
+
+
+def _get_alerts_status_identifiers(status_names):
+    open_alert_status_ids = AlertStatus.query.with_entities(
+        AlertStatus.status_id
+    ).filter(AlertStatus.status_name.in_(status_names)).all()
+    result = []
+    for status_id in open_alert_status_ids:
+        result.append(status_id)
+    return result
 
 
 def get_alert_comments(alert_id: int) -> List[Comments]:
