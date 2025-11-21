@@ -1049,12 +1049,6 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
     returns:
         dict: The details of the related alerts with matched assets and/or IOCs
     """
-    if not assets and not iocs:
-        return {
-            'nodes': [],
-            'edges': []
-        }
-
     asset_names = [(asset.asset_name, asset.asset_type_id) for asset in assets]
     ioc_values = [(ioc.ioc_value, ioc.ioc_type_id) for ioc in iocs]
 
@@ -1080,16 +1074,13 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
     if alert_status_filter:
         conditions = and_(conditions, Alert.alert_status_id.in_(alert_status_filter))
 
-    related_alerts = (
-        db.session.query(Alert, SimilarAlertsCache.asset_name, SimilarAlertsCache.ioc_value,
-                         asset_type_alias.asset_icon_not_compromised)
-        .join(SimilarAlertsCache, Alert.alert_id == SimilarAlertsCache.alert_id)
-        .outerjoin(Alert.resolution_status)
-        .outerjoin(asset_type_alias, SimilarAlertsCache.asset_type_id == asset_type_alias.asset_id)
-        .filter(conditions)
-        .limit(number_of_results)
-        .all()
-    )
+    related_alerts = db.session.query(
+        Alert, SimilarAlertsCache.asset_name, SimilarAlertsCache.ioc_value, asset_type_alias.asset_icon_not_compromised
+    ).join(
+        SimilarAlertsCache, Alert.alert_id == SimilarAlertsCache.alert_id
+    ).outerjoin(Alert.resolution_status).outerjoin(
+        asset_type_alias, SimilarAlertsCache.asset_type_id == asset_type_alias.asset_id
+    ).filter(conditions).limit(number_of_results).all()
 
     alerts_dict = {}
 

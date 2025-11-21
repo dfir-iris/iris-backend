@@ -113,8 +113,16 @@ def alerts_get(user, permissions, identifier) -> Alert:
 
 
 def alerts_get_related(user, alert, open_alerts, closed_alerts, open_cases, closed_cases, days_back, number_of_results):
+    assets = alert.assets
+    iocs = alert.iocs
+    if not assets and not iocs:
+        return {
+            'nodes': [],
+            'edges': []
+        }
+
     in_dark_mode = user.in_dark_mode
-    return get_related_alerts_details(in_dark_mode, alert.alert_customer_id, alert.assets, alert.iocs,
+    return get_related_alerts_details(in_dark_mode, alert.alert_customer_id, assets, iocs,
                                      open_alerts, closed_alerts, open_cases, closed_cases,
                                      days_back, number_of_results)
 
