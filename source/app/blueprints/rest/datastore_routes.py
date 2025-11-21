@@ -141,7 +141,7 @@ def datastore_update_file(cur_id: int, caseid: int):
             msg_added_as += 'and added in IOC'
 
         if dsf.file_is_evidence:
-            datastore_add_file_as_evidence(dsf, caseid)
+            datastore_add_file_as_evidence(iris_current_user.id, dsf, caseid)
             msg_added_as += ' and evidence' if len(msg_added_as) > 0 else 'and added in evidence'
 
         track_activity(f'File \"{dsf.file_original_name}\" updated in DS', caseid=caseid)
@@ -266,7 +266,7 @@ def datastore_add_file(cur_id: int, caseid: int):
             msg_added_as += 'and added in IOC'
 
         if dsf_sc.file_is_evidence:
-            datastore_add_file_as_evidence(dsf_sc, caseid)
+            datastore_add_file_as_evidence(iris_current_user.id, dsf_sc, caseid)
             msg_added_as += ' and evidence' if len(msg_added_as) > 0 else 'and added in evidence'
 
         track_activity(f"File \"{dsf_sc.file_original_name}\" added to DS", caseid=caseid)

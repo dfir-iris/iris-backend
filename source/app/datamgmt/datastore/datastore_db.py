@@ -366,7 +366,7 @@ def datastore_add_file_as_ioc(dsf):
         db_create(ioc)
 
 
-def datastore_add_file_as_evidence(dsf, caseid):
+def datastore_add_file_as_evidence(user_identifier, dsf, caseid):
     crf = CaseReceivedFile.query.filter(
         CaseReceivedFile.file_hash == dsf.file_sha256
     ).first()
@@ -379,7 +379,7 @@ def datastore_add_file_as_evidence(dsf, caseid):
         crf.date_added = datetime.datetime.now()
         crf.filename = dsf.file_original_name
         crf.file_size = dsf.file_size
-        crf.user_id = iris_current_user.id
+        crf.user_id = user_identifier
 
         db_create(crf)
 
