@@ -48,7 +48,7 @@ class AlertsFiltersOperations:
 
     def create(self):
         request_data = request.get_json()
-        request_data ['created_by'] = iris_current_user.id
+        request_data['created_by'] = iris_current_user.id
 
         try:
             new_saved_filter = self._load(request_data)
