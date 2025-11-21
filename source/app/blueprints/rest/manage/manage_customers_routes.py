@@ -201,7 +201,7 @@ def get_customer_case_stats(client_id):
             st = cases_stats['cases_last_year']
             et = cases_stats['cases_current_year']
 
-        cases_stats['ratio_year'] = ((et - st)/(st)) * 100
+        cases_stats['ratio_year'] = ((et - st) / (st)) * 100
 
         if cases_stats['cases_last_month'] == 0:
             st = 1
@@ -210,7 +210,7 @@ def get_customer_case_stats(client_id):
             st = cases_stats['cases_last_month']
             et = cases_stats['cases_current_month']
 
-        cases_stats['ratio_month'] = ((et - st)/(st)) * 100
+        cases_stats['ratio_month'] = ((et - st) / (st)) * 100
 
         if (case.close_date is not None) and (case.open_date is not None):
             cases_stats['average_case_duration'] += (case.close_date - case.open_date).days

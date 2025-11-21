@@ -192,7 +192,7 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
                                         access_level=CaseAccessLevel.full_access.value)
 
     cases_list = []
-    for case_index in range(0, int(cases_count/2)):
+    for case_index in range(0, int(cases_count / 2)):
         if demo_case_exists(f"Restricted Case {case_index}", f"SOC-RSTRCT-{case_index}") is not None:
             log.info(f'Restricted case {case_index} already exists')
             continue
