@@ -395,7 +395,7 @@ def get_user_cases_fast(user_id):
         UserCaseEffectiveAccess.access_level != CaseAccessLevel.deny_all.value
     ).all()
 
-    return [c.case_id for c  in user_cases]
+    return [c.case_id for c in user_cases]
 
 
 def remove_cases_access_from_user(user_id, cases_list):
