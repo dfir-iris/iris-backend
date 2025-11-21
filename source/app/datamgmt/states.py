@@ -36,9 +36,6 @@ def _update_object_state(object_name, caseid, userid) -> ObjectState:
     Returns:
         ObjectState object
     """
-    if not userid:
-        userid = iris_current_user.id
-
     os = ObjectState.query.filter(and_(
         ObjectState.object_name == object_name,
         ObjectState.object_case_id == caseid
@@ -83,6 +80,8 @@ def delete_case_states(caseid):
 
 
 def update_timeline_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
     return _update_object_state('timeline', caseid, userid)
 
 
@@ -91,6 +90,8 @@ def get_timeline_state(caseid):
 
 
 def update_tasks_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
     return _update_object_state('tasks', caseid, userid)
 
 
@@ -99,6 +100,8 @@ def get_tasks_state(caseid):
 
 
 def update_evidences_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
     return _update_object_state('evidences', caseid, userid)
 
 
@@ -107,6 +110,8 @@ def get_evidences_state(caseid):
 
 
 def update_ioc_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
     return _update_object_state('ioc', caseid, userid)
 
 
@@ -115,6 +120,8 @@ def get_ioc_state(caseid):
 
 
 def update_assets_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
     return _update_object_state('assets', caseid, userid)
 
 
@@ -123,6 +130,8 @@ def get_assets_state(caseid):
 
 
 def update_notes_state(caseid, userid=None):
+    if not userid:
+        userid = iris_current_user.id
     return _update_object_state('notes', caseid, userid)
 
 

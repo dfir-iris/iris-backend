@@ -40,6 +40,7 @@ from app.business.cases import cases_exists
 from app.iris_engine.utils.collab import notify
 from app.models.authorization import CaseAccessLevel
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.blueprints.iris_user import iris_current_user
 
 
 class Events:
@@ -142,7 +143,7 @@ class Events:
                 return ac_api_return_access_denied(caseid=event.case_id)
             self._check_event_and_case_identifier_match(event, case_identifier)
 
-            events_delete(event)
+            events_delete(iris_current_user, event)
 
             return response_api_deleted()
         except ObjectNotFoundError:

@@ -412,7 +412,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
             add_obj_history_entry(event, 'created')
 
             db.session.add(event)
-            update_timeline_state(caseid=case.case_id)
+            update_timeline_state(case.case_id)
 
             event.category = [unspecified_cat]
 
@@ -580,7 +580,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         add_obj_history_entry(event, 'created')
 
         db.session.add(event)
-        update_timeline_state(caseid=case.case_id)
+        update_timeline_state(case.case_id)
 
         event.category = [unspecified_cat]
 
@@ -702,7 +702,7 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
         add_obj_history_entry(event, 'created')
 
         db.session.add(event)
-        update_timeline_state(caseid=case.case_id)
+        update_timeline_state(case.case_id)
 
         event.category = [unspecified_cat]
 
