@@ -1001,6 +1001,35 @@ def _get_font(in_dark_mode) -> str:
     return ''
 
 
+# TODO this is presentation code, should be in the presentation layer (frontend) rather than in the persistence layer!
+def _get_icon_case(is_closed) -> dict[str, str]:
+    return {
+        'face': 'FontAwesome',
+        'code': '\uf0b1',
+        'color': '#c95029' if is_closed else '#4cba4f'
+    }
+
+
+# TODO this is presentation code, should be in the presentation layer (frontend) rather than in the persistence layer!
+def _get_icon_ioc(in_dark_mode) -> dict[str, str]:
+    return {
+        'face': 'FontAwesome',
+        'code': '\ue4a8',
+        'color': 'white' if in_dark_mode else '',
+        'weight': "bold"
+    }
+
+
+# TODO this is presentation code, should be in the presentation layer (frontend) rather than in the persistence layer!
+def _get_icon_alert(alert_color) -> dict[str, str]:
+    return {
+        'face': 'FontAwesome',
+        'code': '\uf0f3',
+        'color': alert_color,
+        'weight': 'bold'
+    }
+
+
 def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
                                days_back=30, number_of_results=200):
     """
@@ -1100,12 +1129,7 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
             'title': f'{alert_info["alert"].alert_description}',
             'group': 'alert',
             'shape': 'icon',
-            'icon': {
-                'face': 'FontAwesome',
-                'code': '\uf0f3',
-                'color': alert_color,
-                'weight': 'bold'
-            },
+            'icon': _get_icon_alert(alert_color),
             'font': _get_font(in_dark_mode)
         })
 
@@ -1135,12 +1159,7 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
                     'label': ioc_value,
                     'group': 'ioc',
                     'shape': 'icon',
-                    'icon': {
-                        'face': 'FontAwesome',
-                        'code': '\ue4a8',
-                        'color': 'white' if in_dark_mode else '',
-                        'weight': "bold"
-                    },
+                    'icon': _get_icon_ioc(in_dark_mode),
                     'font': _get_font(in_dark_mode)
                 })
                 added_iocs.add(ioc_value)
@@ -1217,11 +1236,7 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
                     'title': cases_data[case_id].get("description"),
                     'group': 'case',
                     'shape': 'icon',
-                    'icon': {
-                        'face': 'FontAwesome',
-                        'code': '\uf0b1',
-                        'color': '#c95029' if is_closed else '#4cba4f'
-                    },
+                    'icon': _get_icon_case(is_closed),
                     'font': _get_font(in_dark_mode)
                 })
                 added_cases.add(case_id)
