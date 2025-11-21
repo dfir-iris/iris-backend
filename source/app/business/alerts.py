@@ -297,7 +297,6 @@ def alerts_get_related(user, alert, open_alerts, closed_alerts, open_cases, clos
     return _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, alert.alert_customer_id, in_dark_mode)
 
 
-
 def alerts_exists(user, permissions, identifier) -> bool:
     alert = _get(user, permissions, identifier)
 
