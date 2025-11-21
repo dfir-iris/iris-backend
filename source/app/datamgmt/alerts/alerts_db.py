@@ -1095,40 +1095,25 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
         if any(value == ioc_value for value, _ in ioc_values):
             alerts_dict[alert.alert_id]['iocs'].append(ioc_value)
 
+    return _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, customer_id, in_dark_mode)
+
+
+def _build_related_alerts_graph(alerts_dict, open_cases, closed_cases, customer_id, in_dark_mode):
     nodes = []
     edges = []
 
     added_assets = set()
     added_iocs = set()
-    added_cases = set()
 
     for alert_id, alert_info in alerts_dict.items():
-        alert_color = '#c95029' if alert_info['alert'].status.status_name in ['Closed', 'Merged', 'Escalated'] else ''
-
-        alert_resolution_title = f'[{alert_info["alert"].resolution_status.resolution_status_name}]\n' if alert_info["alert"].resolution_status else ""
-
-        nodes.append({
-            'id': f'alert_{alert_id}',
-            'label': f'[Closed]{alert_resolution_title} {alert_info["alert"].alert_title}' if alert_color != '' else f'{alert_resolution_title}{alert_info["alert"].alert_title}',
-            'title': f'{alert_info["alert"].alert_description}',
-            'group': 'alert',
-            'shape': 'icon',
-            'icon': _get_icon_alert(alert_color),
-            'font': _get_font(in_dark_mode)
-        })
+        alert_node = _create_alert_node(alert_id, alert_info, in_dark_mode)
+        nodes.append(alert_node)
 
         for asset_info in alert_info['assets']:
             asset_id = asset_info['asset_name']
 
             if asset_id not in added_assets:
-                nodes.append({
-                    'id': f'asset_{asset_id}',
-                    'label': asset_id,
-                    'group': 'asset',
-                    'shape': 'image',
-                    'image': '/static/assets/img/graph/' + asset_info['icon'],
-                    'font': _get_font(in_dark_mode)
-                })
+                nodes.append(_create_asset_node(asset_id, asset_info, in_dark_mode))
                 added_assets.add(asset_id)
 
             edges.append({
@@ -1138,14 +1123,7 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
 
         for ioc_value in alert_info['iocs']:
             if ioc_value not in added_iocs:
-                nodes.append({
-                    'id': f'ioc_{ioc_value}',
-                    'label': ioc_value,
-                    'group': 'ioc',
-                    'shape': 'icon',
-                    'icon': _get_icon_ioc(in_dark_mode),
-                    'font': _get_font(in_dark_mode)
-                })
+                nodes.append(_create_ioc_node(in_dark_mode, ioc_value))
                 added_iocs.add(ioc_value)
 
             edges.append({
@@ -1155,13 +1133,7 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
             })
 
     if open_cases or closed_cases:
-        close_condition = None
-        if open_cases and not closed_cases:
-            close_condition = Cases.close_date.is_(None)
-        if closed_cases and not open_cases:
-            close_condition = Cases.close_date.isnot(None)
-        if open_cases and closed_cases:
-            close_condition = Cases.close_date.isnot(None) | Cases.close_date.is_(None)
+        close_condition = _build_cases_closed_filter(open_cases, closed_cases)
 
         matching_ioc_cases = (
             db.session.query(Ioc)
@@ -1211,6 +1183,7 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
                                        'close_date': close_date, 'description': case_desc}
             cases_data[case_id]['matching_assets'].append(asset_name)
 
+        added_cases = set()
         for case_id in cases_data:
             if case_id not in added_cases:
                 is_closed = cases_data[case_id].get('close_date')
@@ -1243,6 +1216,57 @@ def get_related_alerts_details(in_dark_mode, customer_id, assets, iocs, open_ale
         'nodes': nodes,
         'edges': edges
     }
+
+
+def _build_cases_closed_filter(open_cases, closed_cases):
+    # OPEN
+    if open_cases and not closed_cases:
+        return Cases.close_date.is_(None)
+    # CLOSED
+    if closed_cases and not open_cases:
+        return Cases.close_date.isnot(None)
+    # ANY
+    if open_cases and closed_cases:
+        return Cases.close_date.isnot(None) | Cases.close_date.is_(None)
+    return None
+
+
+def _create_ioc_node(in_dark_mode, ioc_value):
+    return {
+        'id': f'ioc_{ioc_value}',
+        'label': ioc_value,
+        'group': 'ioc',
+        'shape': 'icon',
+        'icon': _get_icon_ioc(in_dark_mode),
+        'font': _get_font(in_dark_mode)
+    }
+
+
+def _create_asset_node(asset_id, asset_info, in_dark_mode):
+    return {
+        'id': f'asset_{asset_id}',
+        'label': asset_id,
+        'group': 'asset',
+        'shape': 'image',
+        'image': '/static/assets/img/graph/' + asset_info['icon'],
+        'font': _get_font(in_dark_mode)
+    }
+
+
+def _create_alert_node(alert_id, alert_info, in_dark_mode):
+    alert_color = '#c95029' if alert_info['alert'].status.status_name in ['Closed', 'Merged', 'Escalated'] else ''
+    alert_resolution_title = f'[{alert_info["alert"].resolution_status.resolution_status_name}]\n' if alert_info[
+        "alert"].resolution_status else ""
+    alert_node = {
+        'id': f'alert_{alert_id}',
+        'label': f'[Closed]{alert_resolution_title} {alert_info["alert"].alert_title}' if alert_color != '' else f'{alert_resolution_title}{alert_info["alert"].alert_title}',
+        'title': f'{alert_info["alert"].alert_description}',
+        'group': 'alert',
+        'shape': 'icon',
+        'icon': _get_icon_alert(alert_color),
+        'font': _get_font(in_dark_mode)
+    }
+    return alert_node
 
 
 def _get_closed_alerts_status_identifiers():
