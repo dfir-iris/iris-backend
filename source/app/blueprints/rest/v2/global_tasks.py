@@ -27,8 +27,11 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
+from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
+from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.business.global_tasks import global_tasks_filter
 from app.business.global_tasks import global_tasks_create
 from app.business.global_tasks import global_tasks_get
 from app.business.global_tasks import global_tasks_update
@@ -40,6 +43,11 @@ class GlobalTasksOperations:
 
     def __init__(self):
         self._schema = GlobalTasksSchema()
+
+    def search(self):
+        pagination_parameters = parse_pagination_parameters(request)
+        global_tasks = global_tasks_filter(pagination_parameters)
+        return response_api_paginated(self._schema, global_tasks)
 
     def create(self):
         request_data = call_deprecated_on_preload_modules_hook('global_task_create', request.get_json())
@@ -88,6 +96,12 @@ class GlobalTasksOperations:
 global_tasks_blueprint = Blueprint('global_tasks_rest_v2', __name__, url_prefix='/global-tasks')
 
 global_tasks_operations = GlobalTasksOperations()
+
+
+@global_tasks_blueprint.get('')
+@ac_api_requires()
+def search_global_task():
+    return global_tasks_operations.search()
 
 
 @global_tasks_blueprint.post('')

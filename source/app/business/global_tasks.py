@@ -16,15 +16,23 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from flask_sqlalchemy.pagination import Pagination
+
 from app.models.errors import ObjectNotFoundError
 from app.models.models import GlobalTasks
 from datetime import datetime
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.db_operations import db_create
+from app.datamgmt.global_tasks import filter_global_tasks
 from app.datamgmt.global_tasks import get_global_task_by_identifier
 from app.datamgmt.global_tasks import update_global_task
 from app.datamgmt.global_tasks import delete_global_task
+from app.models.pagination_parameters import PaginationParameters
+
+
+def global_tasks_filter(pagination_parameters: PaginationParameters) -> Pagination:
+    return filter_global_tasks(pagination_parameters)
 
 
 def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:

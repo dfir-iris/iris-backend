@@ -87,3 +87,7 @@ class TestsRestGlobalTasks(TestCase):
                 'task_close_date': closing_date}
         response = self._subject.update(f'/api/v2/global-tasks/{identifier}', body).json()
         self.assertEqual(closing_date, response['task_close_date'])
+
+    def test_search_global_tasks_should_return_200(self):
+        response = self._subject.get('/api/v2/global-tasks')
+        self.assertEqual(200, response.status_code)
