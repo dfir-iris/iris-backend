@@ -959,7 +959,7 @@ def alert_comment_delete(alert_id, com_id):
     if not ac_current_user_has_customer_access(alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
-    success, msg = delete_alert_comment(comment_id=com_id, alert_id=alert_id)
+    success, msg = delete_alert_comment(iris_current_user.id, comment_id=com_id, alert_id=alert_id)
     if not success:
         return response_error(msg)
 
