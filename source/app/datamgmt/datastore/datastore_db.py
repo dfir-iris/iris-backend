@@ -25,9 +25,9 @@ from sqlalchemy import and_
 from sqlalchemy import func
 
 from app import app
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
-from app.blueprints.iris_user import iris_current_user
 from app.models.evidences import CaseReceivedFile
 from app.models.models import DataStoreFile
 from app.models.models import DataStorePath
@@ -341,7 +341,7 @@ def datastore_delete_file(cur_id, cid):
     return False, f'File {cur_id} deleted'
 
 
-def datastore_add_file_as_ioc(dsf):
+def datastore_add_file_as_ioc(user_identifier, dsf):
     ioc = Ioc.query.filter(
         Ioc.ioc_value == dsf.file_sha256
     ).first()
@@ -361,7 +361,7 @@ def datastore_add_file_as_ioc(dsf):
         ioc.ioc_type_id = ioc_type_id.type_id
         ioc.ioc_tlp_id = ioc_tlp_id.tlp_id
         ioc.ioc_tags = 'datastore'
-        ioc.user_id = iris_current_user.id
+        ioc.user_id = user_identifier
 
         db_create(ioc)
 
