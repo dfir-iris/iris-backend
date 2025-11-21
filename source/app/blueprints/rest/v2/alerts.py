@@ -43,7 +43,7 @@ from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
 from app.business.alerts import alerts_delete
-from app.business.alerts import related_alerts_get
+from app.business.alerts import alerts_get_related
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 
@@ -189,7 +189,7 @@ class AlertsOperations:
             if days_back < 0:
                 days_back = 180
 
-            similar_alerts = related_alerts_get(iris_current_user, alert, open_alerts, closed_alerts, open_cases,
+            similar_alerts = alerts_get_related(iris_current_user, alert, open_alerts, closed_alerts, open_cases,
                                                 closed_cases, days_back, number_of_results)
             return response_api_success(similar_alerts)
 
