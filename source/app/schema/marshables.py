@@ -158,9 +158,8 @@ def store_icon(file):
 
     try:
         store_fullpath = os.path.join(current_app.config['ASSET_STORE_PATH'], filename)
-        show_fullpath = os.path.join(current_app.config['APP_PATH'], 'app',
-                                     current_app.config['ASSET_SHOW_PATH'].strip(os.path.sep),
-                                     filename)
+        show_fullpath = os.path.join(current_app.config['APP_PATH'],
+                                     current_app.config['ASSET_SHOW_PATH'].strip(os.path.sep), filename)
         file.save(store_fullpath)
         os.symlink(store_fullpath, show_fullpath)
 
