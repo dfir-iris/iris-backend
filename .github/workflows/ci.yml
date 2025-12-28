@@ -163,15 +163,21 @@ jobs:
           docker load --input ${{ runner.temp }}/iriswebapp_app.tar
       - name: Check out iris
         uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Build ui to be mounted in development docker
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build
       - name: Start development server
         run: |
           # Even though, we use --env-file option when running docker compose, this is still necessary, because the compose has a env_file attribute :(
           # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env
           cp tests/data/basic.env .env
-          # This is needed to have the path where icons are store when the volumes are mounted in the docker-compose 
-          # It will map to /iriswebapp/static/assets/img/graph/
-          # Could alternatively build the full ui to be mounted in the development server. Maybe will rather do that in the future
-          mkdir -p ui/dist/assets/img/graph/
           docker compose --file docker-compose.dev.yml up --detach
       - name: Run tests
         working-directory: tests
