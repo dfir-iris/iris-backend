@@ -47,7 +47,7 @@ class TestsRestReports(TestCase):
     def test_generate_docx_report_should_render_variable_case_for_customer(self):
         data = {'report_name': 'name', 'report_type': 1, 'report_language': 1, 'report_description': 'description',
                 'report_name_format': 'report_name_format'}
-        report_identifier = self._subject.create_report(data,'variable_case_for_customer.docx')
+        report_identifier = self._subject.create_report(data, 'variable_case_for_customer.docx')
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
                                      {'cid': case_identifier, 'safe': True})
@@ -58,7 +58,7 @@ class TestsRestReports(TestCase):
     def test_generate_md_report_should_render_variable_case_name(self):
         data = {'report_name': 'name', 'report_type': 1, 'report_language': 1, 'report_description': 'description',
                 'report_name_format': 'report_name_format'}
-        report_identifier = self._subject.create_report(data,'variable_case_name.md')
+        report_identifier = self._subject.create_report(data, 'variable_case_name.md')
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
                                      {'cid': case_identifier, 'safe': True})
@@ -67,7 +67,7 @@ class TestsRestReports(TestCase):
     def test_generate_md_report_should_render_variable_case_for_customer(self):
         data = {'report_name': 'name', 'report_type': 1, 'report_language': 1, 'report_description': 'description',
                 'report_name_format': 'report_name_format'}
-        report_identifier = self._subject.create_report(data,'variable_case_for_customer.md')
+        report_identifier = self._subject.create_report(data, 'variable_case_for_customer.md')
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
                                      {'cid': case_identifier, 'safe': True})
@@ -76,7 +76,7 @@ class TestsRestReports(TestCase):
     def test_generate_md_activities_report_should_render_variable_case_for_customer_when(self):
         data = {'report_name': 'name', 'report_type': 2, 'report_language': 1, 'report_description': 'description',
                 'report_name_format': 'report_name_format'}
-        report_identifier = self._subject.create_report(data,'variable_case_for_customer.md')
+        report_identifier = self._subject.create_report(data, 'variable_case_for_customer.md')
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/case/report/generate-activities/{report_identifier}',
                                      {'cid': case_identifier, 'safe': True})
