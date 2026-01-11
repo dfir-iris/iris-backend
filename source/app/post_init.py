@@ -37,7 +37,7 @@ from sqlalchemy_utils import database_exists
 from app import bc
 from app import celery
 from app import db
-from app.iris_engine.access_control.utils import ac_add_user_effective_access
+from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
 from app.iris_engine.access_control.utils import ac_get_mask_analyst
 from app.iris_engine.access_control.utils import ac_get_mask_full_permissions
@@ -45,7 +45,8 @@ from app.iris_engine.module_handler.module_handler import check_module_health
 from app.iris_engine.module_handler.module_handler import instantiate_module_from_name
 from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.demo_builder import create_demo_users
-from app.models.models import create_safe_limited, AssetsType
+from app.models.models import create_safe_limited
+from app.models.models import AssetsType
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus
@@ -73,8 +74,12 @@ from app.models.models import TaskStatus
 from app.models.iocs import Tlp
 from app.models.models import create_safe
 from app.models.models import create_safe_attr
-from app.business.asset_types import create_asset_type_if_not_exists
 from app.models.models import get_or_create
+from app.business.asset_types import create_asset_type_if_not_exists
+from app.business.customers import customers_get_by_name
+from app.business.customers import customers_create
+from app.business.cases import cases_get_first_with_customer
+from app.business.errors import ObjectNotFoundError
 from app.datamgmt.iris_engine.modules_db import iris_module_disable_by_id
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_group
@@ -82,6 +87,7 @@ from app.datamgmt.manage.manage_users_db import add_user_to_organisation
 from app.datamgmt.manage.manage_groups_db import get_group_by_name
 
 
+_INITIAL_CLIENT_NAME = 'IrisInitialClient'
 _ASSET_TYPES = [
     {'asset_name': 'Account', 'asset_description': 'Generic Account',
      'asset_icon_not_compromised': 'user.png', 'asset_icon_compromised': 'ioc_user.png'},
@@ -696,7 +702,7 @@ def create_safe_assets():
         create_asset_type_if_not_exists(db.session, AssetsType(**asse_type))
 
 
-def create_safe_client():
+def create_safe_client() -> Client:
     """Creates a new Client object if it does not already exist.
 
     This function creates a new Client object with the specified client name
@@ -704,10 +710,12 @@ def create_safe_client():
 
     """
     # Create a new Client object if it does not already exist
-    client = get_or_create(db.session, Client,
-                           name="IrisInitialClient")
-
-    return client
+    try:
+        return customers_get_by_name(_INITIAL_CLIENT_NAME)
+    except ObjectNotFoundError:
+        customer = Client(name=_INITIAL_CLIENT_NAME)
+        customers_create(customer)
+        return customer
 
 
 def create_safe_case(user, client, groups):
@@ -719,9 +727,7 @@ def create_safe_case(user, client, groups):
 
     """
     # Check if a case already exists for the client
-    case = Cases.query.filter(
-        Cases.client_id == client.client_id
-    ).first()
+    case = cases_get_first_with_customer(client)
 
     if not case:
         # Create a new case for the client
@@ -741,14 +747,8 @@ def create_safe_case(user, client, groups):
 
     # Add the specified user and groups to the case with full access level
     for group in groups:
-        add_case_access_to_group(group=group,
-                                 cases_list=[case.case_id],
-                                 access_level=CaseAccessLevel.full_access.value)
-        ac_add_user_effective_access(users_list=[user.id],
-                                     case_id=1,
-                                     access_level=CaseAccessLevel.full_access.value)
-
-    return case
+        add_case_access_to_group(group, [case.case_id], CaseAccessLevel.full_access.value)
+        add_several_user_effective_access([user.id], 1, CaseAccessLevel.full_access.value)
 
 
 def create_safe_report_types():
@@ -1332,8 +1332,8 @@ class PostInit:
 
         """
         # Create new Organisation object
-        def_org = get_or_create(db.session, Organisation, org_name="Default Org",
-                                org_description="Default Organisation")
+        def_org = get_or_create(db.session, Organisation, org_name='Default Org',
+                                org_description='Default Organisation')
 
         # Create new Administrator Group object
         try:
@@ -1658,15 +1658,11 @@ class PostInit:
                     self._logger.info("Registering default modules")
                     self._register_default_modules()
 
-                self._logger.info("Creating initial customer")
+                self._logger.info('Creating initial customer')
                 client = create_safe_client()
 
-                self._logger.info("Creating initial case")
-                create_safe_case(
-                    user=admin,
-                    client=client,
-                    groups=[gadm, ganalysts]
-                )
+                self._logger.info('Creating initial case')
+                create_safe_case(admin, client, [gadm, ganalysts])
 
                 # Setup symlinks for custom_assets
                 self._logger.info('Creating symlinks for custom asset icons')

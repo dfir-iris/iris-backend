@@ -25,11 +25,11 @@ from marshmallow import ValidationError
 from app import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.client.client_db import create_client
+from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
 from app.datamgmt.client.client_db import delete_contact
-from app.datamgmt.client.client_db import get_client
+from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_client_api
 from app.datamgmt.client.client_db import get_client_cases
 from app.datamgmt.client.client_db import get_client_contacts
@@ -62,6 +62,7 @@ def list_customers():
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/customers/{identifier}')
 @ac_api_requires(Permissions.customers_read)
 @ac_api_requires_client_access()
 def view_customer(client_id):
@@ -81,7 +82,7 @@ def customer_update_contact(client_id, contact_id):
     if not request.is_json:
         return response_error("Invalid request")
 
-    if not get_client(client_id):
+    if not get_customer(client_id):
         return response_error(f"Invalid Customer ID {client_id}")
 
     try:
@@ -110,7 +111,7 @@ def customer_add_contact(client_id):
     if not request.is_json:
         return response_error("Invalid request")
 
-    if not get_client(client_id):
+    if not get_customer(client_id):
         return response_error(f"Invalid Customer ID {client_id}")
 
     try:
@@ -250,7 +251,7 @@ def add_customers():
     try:
         customer = customer_schema.load(request.json)
 
-        create_client(customer)
+        create_customer(customer)
     except ValidationError as e:
         return response_error(msg='Error adding customer', data=e.messages)
     except Exception as e:

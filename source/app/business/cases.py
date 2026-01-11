@@ -20,7 +20,6 @@ import datetime
 import traceback
 
 from app import db
-from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app.util import add_obj_history_entry
 from app.models.models import ReviewStatusList
@@ -52,10 +51,12 @@ from app.datamgmt.reporter.report_db import export_case_assets_json
 from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
-from app.models.cases import Cases
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_cases
 from app.datamgmt.dashboard.dashboard_db import list_user_reviews
+from app.datamgmt.case.case_db import get_first_case_with_customer
+from app.models.cases import Cases
+from app.models.models import Client
 
 
 def cases_filter(current_user, pagination_parameters, name, case_identifiers, customer_identifier,
@@ -79,12 +80,12 @@ def cases_filter(current_user, pagination_parameters, name, case_identifiers, cu
             is_open=is_open)
 
 
-def cases_filter_by_user(show_all: bool):
-    return list_user_cases(iris_current_user.id, show_all)
+def cases_filter_by_user(user, show_all: bool):
+    return list_user_cases(user.id, show_all)
 
 
-def cases_filter_by_reviewer():
-    return list_user_reviews(iris_current_user.id)
+def cases_filter_by_reviewer(user):
+    return list_user_reviews(user.id)
 
 
 def cases_get_by_identifier(case_identifier) -> Cases:
@@ -98,12 +99,16 @@ def cases_get_first() -> Cases:
     return get_first_case()
 
 
+def cases_get_first_with_customer(client: Client) -> Cases:
+    return get_first_case_with_customer(client.client_id)
+
+
 def cases_exists(identifier):
     return case_db_exists(identifier)
 
 
-def cases_create(case: Cases, case_template_id) -> Cases:
-    case.owner_id = iris_current_user.id
+def cases_create(user, case: Cases, case_template_id) -> Cases:
+    case.owner_id = user.id
     case.severity_id = 4
 
     if case_template_id and len(case_template_id) > 0:
@@ -125,7 +130,7 @@ def cases_create(case: Cases, case_template_id) -> Cases:
             logger.error(e.__str__())
             raise BusinessProcessingError(f'Unexpected error when loading template {case_template_id} to new case.')
 
-    ac_set_new_case_access(None, case.case_id, case.client_id)
+    ac_set_new_case_access(user, case.case_id, case.client_id)
 
     # TODO remove caseid doesn't seems to be useful for call_modules_hook => remove argument
     case = call_modules_hook('on_postload_case_create', case, None)

@@ -98,6 +98,7 @@ from app.schema.utils import str_to_bool
 from app.business.users import get_primary_organisation
 from app.business.users import get_organisations
 from app.datamgmt.case.assets_type import get_asset_type_by_name_case_insensitive
+from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 
 
 ALLOWED_EXTENSIONS = {'png', 'svg'}
@@ -941,7 +942,8 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     tlp = ma.Nested(TlpSchema)
 
     def get_link(self, ioc):
-        ial = get_ioc_links(ioc.ioc_id)
+        user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
+        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
         return [row._asdict() for row in ial]
 
     link = ma.Method('get_link')
@@ -2182,40 +2184,6 @@ class BasicUserSchema(ma.SQLAlchemyAutoSchema):
         exclude = ['password', 'api_key', 'ctx_case', 'ctx_human_case', 'active', 'external_id', 'in_dark_mode',
                    'id', 'name', 'email', 'user', 'uuid']
         unknown = EXCLUDE
-
-
-def validate_ioc_type(type_id: int) -> None:
-    """Validates the IOC type ID.
-
-    This function validates the IOC type ID by checking if it exists in the database.
-    If the ID is invalid, it raises a validation error.
-
-    Args:
-        type_id: The IOC type ID to validate.
-
-    Raises:
-        ValidationError: If the IOC type ID is invalid.
-
-    """
-    if not IocType.query.get(type_id):
-        raise ValidationError("Invalid ioc_type ID")
-
-
-def validate_ioc_tlp(tlp_id: int) -> None:
-    """Validates the IOC TLP ID.
-
-    This function validates the IOC TLP ID by checking if it exists in the database.
-    If the ID is invalid, it raises a validation error.
-
-    Args:
-        tlp_id: The IOC TLP ID to validate.
-
-    Raises:
-        ValidationError: If the IOC TLP ID is invalid.
-
-    """
-    if not Tlp.query.get(tlp_id):
-        raise ValidationError("Invalid ioc_tlp ID")
 
 
 def validate_asset_type(asset_id: int) -> None:

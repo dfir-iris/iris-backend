@@ -20,12 +20,12 @@ from app import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.manage.manage_cases_db import list_cases_id
-from app.iris_engine.access_control.utils import ac_access_level_mask_from_val_list, ac_ldp_group_removal
+from app.iris_engine.access_control.utils import ac_ldp_group_removal
 from app.iris_engine.access_control.utils import ac_access_level_to_list
 from app.iris_engine.access_control.utils import ac_auto_update_user_effective_access
 from app.iris_engine.access_control.utils import ac_permission_to_list
 from app.models.cases import Cases
-from app.models.authorization import Group
+from app.models.authorization import Group, ac_access_level_mask_from_val_list
 from app.models.authorization import GroupCaseAccess
 from app.models.authorization import User
 from app.models.authorization import UserGroup

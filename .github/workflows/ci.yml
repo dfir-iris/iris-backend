@@ -131,10 +131,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Start development server
         run: |
-          # Even though, we use --env-file option when running docker compose, this is still necessary, because the compose has a env_file attribute :(
-          # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env
-          cp tests/data/basic.env .env
-          docker compose --file docker-compose.dev.yml --env-file tests/data/basic.env up --detach --wait
+          cp .env.tests.model .env
+          docker compose --file docker-compose.dev.yml up --detach --wait
       - name: Generate GraphQL documentation
         run: |
           npx spectaql@^3.0.2 source/spectaql/config.yml
@@ -170,9 +168,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Start development server
         run: |
-          # Even though, we use --env-file option when running docker compose, this is still necessary, because the compose has a env_file attribute :(
-          # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env
-          cp tests/data/basic.env .env
+          cp .env.tests.model .env
           docker compose --file docker-compose.dev.yml up --detach --wait
       - name: Inspect development server start failure
         if: ${{ failure() || cancelled() }}
@@ -226,8 +222,7 @@ jobs:
       - name: Check out iris
         uses: actions/checkout@v4
       - name: Set up .env file
-        # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env?
-        run: cp tests/data/basic.env .env
+        run: cp .env.tests.model .env
       - name: Run tests
         working-directory: tests_database_migration
         run: |
@@ -277,8 +272,7 @@ jobs:
         run: npx playwright install chromium firefox
       - name: Start development server
         run: |
-          # TODO should move basic.env file, which is in directory tests, up. It's used in several places. Maybe, rename it into dev.env
-          cp tests/data/basic.env .env
+          cp .env.tests.model .env
           docker compose --file docker-compose.dev.yml up --detach --wait
       - name: Run end to end tests
         working-directory: e2e

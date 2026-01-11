@@ -44,7 +44,7 @@ def events_create(case_identifier, event: CasesEvent, event_category_id, event_a
     add_obj_history_entry(event, 'created')
 
     db.session.add(event)
-    update_timeline_state(caseid=case_identifier)
+    update_timeline_state(case_identifier)
     db.session.commit()
 
     save_event_category(event.event_id, event_category_id)

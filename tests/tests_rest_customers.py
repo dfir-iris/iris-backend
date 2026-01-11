@@ -21,6 +21,8 @@ from iris import Iris
 from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
 from iris import ADMINISTRATOR_USER_IDENTIFIER
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestCustomers(TestCase):
 
@@ -72,3 +74,23 @@ class TestsRestCustomers(TestCase):
         for customer in response['user_customers']:
             user_customers_identifiers.append(customer['customer_id'])
         self.assertIn(identifier, user_customers_identifiers)
+
+    def test_get_customer_should_return_200(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+        response = self._subject.get(f'/api/v2/manage/customers/{identifier}')
+        self.assertEqual(200, response.status_code)
+
+    def test_get_customer_should_return_404_when_customer_does_not_exist(self):
+        response = self._subject.get(f'/api/v2/manage/customers/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')
+        self.assertEqual(404, response.status_code)
+
+    def test_get_customer_should_return_403_when_user_has_no_permission_to_read_customers(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/manage/customers/{identifier}')
+        self.assertEqual(403, response.status_code)

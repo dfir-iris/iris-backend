@@ -41,6 +41,7 @@ from app.schema.marshables import CaseDetailsSchema
 from app.blueprints.access_controls import ac_api_return_access_denied, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_requires
 from app.blueprints.responses import response_error
+from app.schema.marshables import CaseStateSchema
 
 manage_cases_blueprint = Blueprint('manage_case',
                                    __name__,
@@ -81,6 +82,7 @@ def _details_case(cur_id: int, caseid: int, url_redir: bool) -> Union[str, Respo
 
     case_classifications = get_case_classifications_list()
     case_states = get_case_states_list()
+    dumped_case_states = CaseStateSchema(many=True).dump(case_states)
     user_is_server_administrator = ac_current_user_has_permission(Permissions.server_administrator)
 
     customers = get_client_list(current_user_id=iris_current_user.id,
@@ -92,7 +94,7 @@ def _details_case(cur_id: int, caseid: int, url_redir: bool) -> Union[str, Respo
     form = FlaskForm()
 
     return render_template("modal_case_info_from_case.html", data=res, form=form, protagonists=protagonists,
-                           case_classifications=case_classifications, case_states=case_states, customers=customers,
+                           case_classifications=case_classifications, case_states=dumped_case_states, customers=customers,
                            severities=severities)
 
 

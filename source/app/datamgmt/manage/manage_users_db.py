@@ -29,7 +29,6 @@ from app import bc
 from app import db
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.conversions import convert_sort_direction
-from app.iris_engine.access_control.utils import ac_access_level_mask_from_val_list
 from app.iris_engine.access_control.utils import ac_ldp_group_removal
 from app.iris_engine.access_control.utils import ac_access_level_to_list
 from app.iris_engine.access_control.utils import ac_auto_update_user_effective_access
@@ -38,7 +37,7 @@ from app.iris_engine.access_control.utils import ac_remove_case_access_from_user
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import UserActivity
-from app.models.authorization import CaseAccessLevel
+from app.models.authorization import CaseAccessLevel, ac_access_level_mask_from_val_list
 from app.models.authorization import UserClient
 from app.models.authorization import Group
 from app.models.authorization import Organisation

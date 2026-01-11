@@ -20,7 +20,8 @@ from flask import Blueprint
 from flask import request
 from marshmallow.exceptions import ValidationError
 
-from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -82,7 +83,7 @@ class Events:
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
 
-    def get(self, case_identifier, identifier):
+    def read(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
             return response_api_not_found()
 
@@ -163,7 +164,7 @@ def create_event(case_identifier):
 @case_events_blueprint.get('/<int:identifier>')
 @ac_api_requires()
 def get_event(case_identifier, identifier):
-    return events.get(case_identifier, identifier)
+    return events.read(case_identifier, identifier)
 
 
 @case_events_blueprint.put('/<int:identifier>')

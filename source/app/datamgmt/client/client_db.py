@@ -20,6 +20,7 @@ import marshmallow
 from sqlalchemy import func
 from sqlalchemy import and_
 from typing import List
+from typing import Optional
 
 from app import db
 from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
@@ -59,9 +60,8 @@ def get_client_list(current_user_id: int = None,
     return output
 
 
-def get_client(client_id: int) -> Client:
-    client = Client.query.filter(Client.client_id == client_id).first()
-    return client
+def get_customer(client_id: int) -> Optional[Client]:
+    return Client.query.filter(Client.client_id == client_id).first()
 
 
 def get_client_api(client_id: str) -> Client:
@@ -100,8 +100,7 @@ def get_client_cases(client_id: int):
     return cases_list
 
 
-def create_client(customer: Client):
-
+def create_customer(customer: Client):
     db.session.add(customer)
     db.session.commit()
 
@@ -166,7 +165,7 @@ def update_contact(data, contact_id, customer_id) -> Contact:
 
 def update_client(client_id: int, data) -> Client:
     # TODO: Possible reuse somewhere else ...
-    client = get_client(client_id)
+    client = get_customer(client_id)
 
     if not client:
         raise ElementNotFoundException('No Customer found with this uuid.')
@@ -213,3 +212,7 @@ def get_case_client(case_id: int) -> Client:
     ).first()
 
     return client
+
+
+def get_customer_by_name(name) -> Client:
+    return db.session.query(Client).filter_by(name=name).first()

@@ -257,3 +257,14 @@ class User(UserMixin, db.Model):
 
 def ac_flag_match_mask(flag, mask):
     return (flag & mask) == mask
+
+
+def ac_access_level_mask_from_val_list(access_levels) -> int:
+    """
+    Return an access level mask from a list of access levels
+    """
+    am = 0
+    for acc in access_levels:
+        am |= int(acc)
+
+    return am

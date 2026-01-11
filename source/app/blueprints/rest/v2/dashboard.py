@@ -20,6 +20,7 @@ from flask import Blueprint
 from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.cases import cases_filter_by_user
 from app.business.cases import cases_filter_by_reviewer
@@ -39,7 +40,7 @@ dashboard_blueprint = Blueprint('dashboard',
 @ac_api_requires()
 def list_own_cases():
     show_closed = request.args.get('show_closed', 'false', type=str).lower()
-    cases = cases_filter_by_user(show_closed == 'true')
+    cases = cases_filter_by_user(iris_current_user, show_closed == 'true')
 
     return response_api_success(data=CaseDetailsSchema(many=True).dump(cases))
 
@@ -58,7 +59,7 @@ def list_own_tasks():
 @dashboard_blueprint.route('/reviews/list', methods=['GET'])
 @ac_api_requires()
 def list_own_reviews():
-    reviews = cases_filter_by_reviewer()
+    reviews = cases_filter_by_reviewer(iris_current_user)
     return response_api_success(
         data=CaseSchema(
             many=True,

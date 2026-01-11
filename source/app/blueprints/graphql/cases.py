@@ -115,7 +115,7 @@ class CaseCreate(Mutation):
         schema = CaseSchema()
         case = schema.load(request_data)
         case_template_id = request_data.pop('case_template_id', None)
-        result = cases_create(case, case_template_id)
+        result = cases_create(iris_current_user, case, case_template_id)
         return CaseCreate(case=result)
 
 
