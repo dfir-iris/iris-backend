@@ -25,14 +25,17 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.iris_user import iris_current_user
 
 
 from app.schema.marshables import SavedFilterSchema
+from app.business.errors import BusinessProcessingError
 from app.business.errors import ObjectNotFoundError
 from app.business.alerts_filters import alert_filter_add
 from app.business.alerts_filters import alert_filter_get
 from app.business.alerts_filters import alert_filter_update
+from app.business.alerts_filters import alert_filter_delete
 
 from app.business.alerts_filters import alerts_filters_add
 
@@ -57,12 +60,19 @@ class AlertsFiltersOperations:
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
 
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
     def get(self, identifier):
         try:
             saved_filter = alert_filter_get(identifier)
             return response_api_success(self._schema.dump(saved_filter))
+
         except ObjectNotFoundError:
             return response_api_not_found()
+
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
     def put(self, identifier):
         request_data = request.get_json()
@@ -72,8 +82,27 @@ class AlertsFiltersOperations:
             new_saved_filter = self._load(request_data, instance=saved_filter, partial=True)
             alert_filter_update()
             return response_api_success(self._schema.dump(new_saved_filter))
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
         except ObjectNotFoundError:
             return response_api_not_found()
+
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+    def delete(self, identifier):
+        try:
+            saved_filter = alert_filter_get(identifier)
+            alert_filter_delete(saved_filter)
+            return response_api_deleted()
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
 
 alerts_filters_blueprint = Blueprint('alerts_filters_rest_v2', __name__, url_prefix='/alerts-filters')
@@ -96,3 +125,9 @@ def get_alert_filter(identifier):
 @ac_api_requires()
 def update_alert_filter(identifier):
     return alerts_filters_operations.put(identifier)
+
+
+@alerts_filters_blueprint.delete('/<int:identifier>')
+@ac_api_requires()
+def delete_alert_filter(identifier):
+    return alerts_filters_operations.delete(identifier)
