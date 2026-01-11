@@ -134,6 +134,10 @@ class Iris:
         for alert in response['data']:
             identifier = alert['alert_id']
             self.delete(f'/api/v2/alerts/{identifier}')
+        response = self.get('/global/tasks/list').json()
+        for global_task in response['data']['tasks']:
+            identifier = global_task['task_id']
+            self.create(f'/global/tasks/delete/{identifier}', {})
         users = self.get('/manage/users/list').json()
         for user in users['data']:
             identifier = user['user_id']

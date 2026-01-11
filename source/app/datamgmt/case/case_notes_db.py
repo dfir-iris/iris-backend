@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from flask_sqlalchemy.pagination import Pagination
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.datamgmt.persistence_error import PersistenceError
 from app.blueprints.iris_user import iris_current_user
@@ -160,8 +161,7 @@ def update_note_revision(note: Notes) -> bool:
             note_user=iris_current_user.id,
             revision_timestamp=datetime.utcnow()
         )
-        db.session.add(note_version)
-        db.session.commit()
+        db_create(note_version)
 
         return True
     except IntegrityError as e:
@@ -379,8 +379,7 @@ def add_comment_to_note(note_id, comment_id):
     ec.comment_note_id = note_id
     ec.comment_id = comment_id
 
-    db.session.add(ec)
-    db.session.commit()
+    db_create(ec)
 
 
 def get_case_notes_comments_count(notes_list):

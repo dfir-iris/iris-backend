@@ -18,6 +18,7 @@
 
 from sqlalchemy import and_
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.states import update_timeline_state
@@ -195,8 +196,7 @@ def add_comment_to_event(event_id, comment_id):
     ec.comment_event_id = event_id
     ec.comment_id = comment_id
 
-    db.session.add(ec)
-    db.session.commit()
+    db_create(ec)
 
 
 def delete_event_category(event_id):
@@ -221,8 +221,7 @@ def save_event_category(event_id, category_id):
     cec.event_id = event_id
     cec.category_id = category_id
 
-    db.session.add(cec)
-    db.session.commit()
+    db_create(cec)
 
 
 def get_event_assets_ids(event_id, caseid):

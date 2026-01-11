@@ -200,6 +200,7 @@ def utask_statusupdate(caseid):
 
 
 @dashboard_rest_blueprint.route('/global/tasks/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/global-tasks')
 @ac_api_requires()
 @ac_requires_case_identifier()
 def add_gtask(caseid):

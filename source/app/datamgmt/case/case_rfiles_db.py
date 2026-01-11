@@ -20,6 +20,7 @@ import datetime
 from sqlalchemy import desc
 from flask_sqlalchemy.pagination import Pagination
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
@@ -129,8 +130,7 @@ def add_comment_to_evidence(evidence_id, comment_id):
     ec.comment_evidence_id = evidence_id
     ec.comment_id = comment_id
 
-    db.session.add(ec)
-    db.session.commit()
+    db_create(ec)
 
 
 def get_case_evidence_comments_count(evidences_list):

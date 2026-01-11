@@ -29,7 +29,7 @@ from app.business.iocs import iocs_exports_to_json
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.access_control.utils import ac_set_new_case_access
-from app.datamgmt.case.case_db import case_db_exists
+from app.datamgmt.case.case_db import case_db_exists, case_db_save
 from app.datamgmt.case.case_db import save_case_tags
 from app.datamgmt.case.case_db import register_case_protagonists
 from app.datamgmt.case.case_db import get_review_id_from_name
@@ -118,7 +118,7 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
 
     case.state_id = get_case_state_by_name('Open').state_id
 
-    case.save()
+    case_db_save(case)
 
     if case_template_id and len(case_template_id) > 0:
         try:

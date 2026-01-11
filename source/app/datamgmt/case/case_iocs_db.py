@@ -18,6 +18,7 @@
 
 from sqlalchemy import and_
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.filtering import get_filtered_data
@@ -179,8 +180,7 @@ def add_ioc_type(name: str, description: str, taxonomy: str):
                    type_taxonomy=taxonomy
                 )
 
-    db.session.add(ioct)
-    db.session.commit()
+    db_create(ioct)
     return ioct
 
 
@@ -229,8 +229,7 @@ def add_comment_to_ioc(ioc_id, comment_id):
     ec.comment_ioc_id = ioc_id
     ec.comment_id = comment_id
 
-    db.session.add(ec)
-    db.session.commit()
+    db_create(ec)
 
 
 def get_case_iocs_comments_count(iocs_list):

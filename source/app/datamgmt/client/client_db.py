@@ -33,12 +33,6 @@ from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.filtering import paginate
 
 
-# TODO most probably rename into add (or save?) and make more generic
-def create_contact(contact):
-    db.session.add(contact)
-    db.session.commit()
-
-
 # TODO most probably rename into update (or save?) and make more generic, maybe just use the preceding method?
 def update_contact():
     db.session.commit()
@@ -124,11 +118,6 @@ def get_client_cases(client_id: int):
     ).all()
 
     return cases_list
-
-
-def create_customer(customer: Client):
-    db.session.add(customer)
-    db.session.commit()
 
 
 def get_client_contacts(client_id: int) -> List[Contact]:

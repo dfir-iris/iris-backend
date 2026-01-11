@@ -36,7 +36,8 @@ from sqlalchemy.orm import make_transient
 from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.pagination import Pagination
 
-import app
+from app.logger import logger
+from app.datamgmt.case.case_db import case_db_save
 from app.db import db
 from app.datamgmt.filtering import combine_conditions
 from app.datamgmt.filtering import apply_custom_conditions
@@ -73,6 +74,7 @@ from app.models.alerts import Severity
 from app.models.authorization import User
 from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
+from app.datamgmt.db_operations import db_create
 
 
 relationship_model_map = {
@@ -211,7 +213,7 @@ def get_filtered_alerts(
             try:
                 custom_conditions = json.loads(custom_conditions)
             except:
-                app.app.logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
+                logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
                 return
 
         query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
@@ -235,7 +237,7 @@ def get_filtered_alerts(
         return filtered_alerts
 
     except Exception as e:
-        app.app.logger.exception(f"Error getting alerts: {str(e)}")
+        logger.exception(f"Error getting alerts: {str(e)}")
         return None
 
 
@@ -271,8 +273,7 @@ def add_alert(
     alert.alert_owner_id = owner
 
     # Add the alert to the database
-    db.session.add(alert)
-    db.session.commit()
+    db_create(alert)
 
     return alert
 
@@ -335,6 +336,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
             case_template_title_prefix = case_template.title_prefix
 
     # Create the case
+    # FIXME I think there is a bug, if no template_id is provided
     case = Cases(
         name=f"[ALERT]{case_template_title_prefix} "
              f"Merge of alerts {', '.join([str(alert.alert_id) for alert in alerts])}" if not case_title else
@@ -348,7 +350,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
         state_id=get_case_state_by_name('Open').state_id
     )
 
-    case.save()
+    case_db_save(case)
 
     for tag in case_tags.split(','):
         tag = Tags(tag_title=tag)
@@ -473,7 +475,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         state_id=get_case_state_by_name('Open').state_id
     )
 
-    case.save()
+    case_db_save(case)
 
     for tag in case_tags.split(','):
         tag = Tags(tag_title=tag)
@@ -518,8 +520,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
                     new_alert_ioc.user_id = iris_current_user.id
                     new_alert_ioc.case_id = case.case_id
 
-                    db.session.add(new_alert_ioc)
-                    db.session.commit()
+                    db_create(new_alert_ioc)
 
                     alert_ioc = new_alert_ioc
 
@@ -541,8 +542,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
                     new_alert_asset.asset_id = None
                     new_alert_asset.asset_uuid = asset_uuid
 
-                    db.session.add(new_alert_asset)
-                    db.session.commit()
+                    db_create(new_alert_asset)
 
                     alert_asset = new_alert_asset
 
@@ -1405,7 +1405,7 @@ def delete_alerts(alert_ids: List[int]) -> tuple[bool, str]:
 
     except Exception as e:
         db.session.rollback()
-        app.logger.exception(str(e))
+        logger.exception(str(e))
         return False, "Server side error"
 
     return True, ""

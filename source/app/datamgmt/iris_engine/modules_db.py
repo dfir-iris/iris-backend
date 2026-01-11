@@ -18,6 +18,7 @@
 import base64
 import datetime
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app import app
 from app.blueprints.iris_user import iris_current_user
@@ -57,8 +58,7 @@ def iris_module_add(module_name, module_human_name, module_description,
     im.module_type = module_type
 
     try:
-        db.session.add(im)
-        db.session.commit()
+        db_create(im)
     except Exception:
         return None
 

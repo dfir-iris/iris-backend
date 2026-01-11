@@ -24,6 +24,7 @@ from flask_login import AnonymousUserMixin
 from sqlalchemy import and_
 
 from app.blueprints.iris_user import iris_current_user
+from app.datamgmt.db_operations import db_create
 from app.logger import logger
 from app import bc
 from app.db import db
@@ -149,8 +150,7 @@ def add_user_to_customer(user_id, customer_id):
     user_client.client_id = customer_id
     user_client.access_level = CaseAccessLevel.full_access.value
     user_client.allow_alerts = True
-    db.session.add(user_client)
-    db.session.commit()
+    db_create(user_client)
 
     ac_auto_update_user_effective_access(user_id)
 
@@ -257,7 +257,6 @@ def change_user_primary_org(user_id, old_org_id, new_org_id):
         uo_new.is_primary_org = True
 
     db.session.commit()
-    return
 
 
 def add_user_to_organisation(user_id, org_id, make_primary=False):
@@ -271,8 +270,7 @@ def add_user_to_organisation(user_id, org_id, make_primary=False):
     if uo_exists:
         uo_exists.is_primary_org = make_primary
         db.session.commit()
-
-        return True
+        return
 
     # Check if user has a primary org already
     prim_org = get_user_primary_org(user_id=user_id)
@@ -285,9 +283,7 @@ def add_user_to_organisation(user_id, org_id, make_primary=False):
     uo.user_id = user_id
     uo.org_id = org_id
     uo.is_primary_org = prim_org is None
-    db.session.add(uo)
-    db.session.commit()
-    return True
+    db_create(uo)
 
 
 def get_user_primary_org(user_id):
@@ -323,14 +319,12 @@ def add_user_to_group(user_id, group_id):
     ).scalar()
 
     if exists:
-        return True
+        return
 
     ug = UserGroup()
     ug.user_id = user_id
     ug.group_id = group_id
-    db.session.add(ug)
-    db.session.commit()
-    return True
+    db_create(ug)
 
 
 def get_user_organisations(user_id):

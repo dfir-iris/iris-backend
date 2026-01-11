@@ -581,7 +581,7 @@ def call_modules_hook(hook_name: str, data: any, caseid: int = None, hook_ui_nam
     return data
 
 
-def call_deprecated_on_preload_modules_hook(hook_name: str, data: any, case_identifier) -> any:
+def call_deprecated_on_preload_modules_hook(hook_name: str, data: any, case_identifier=None) -> any:
     hook_name = f'on_preload_{hook_name}'
     logger.warning(f'DEPRECATION WARNING: Hook {hook_name} has been deprecated and will be removed in a future version')
     return call_modules_hook(hook_name, data, caseid=case_identifier)

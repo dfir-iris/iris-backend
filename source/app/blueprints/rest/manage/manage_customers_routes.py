@@ -27,10 +27,9 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
 from app.business.customers import customers_get, customers_update
 from app.business.customers_contacts import customers_contacts_get
+from app.datamgmt.db_operations import db_create
 from app.models.errors import ObjectNotFoundError
 from app.models.errors import ElementInUseError
-from app.datamgmt.client.client_db import create_customer
-from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
 from app.datamgmt.client.client_db import delete_contact
 from app.datamgmt.client.client_db import get_customer
@@ -128,7 +127,7 @@ def customer_add_contact(client_id):
         data['client_id'] = client_id
         contact = contact_schema.load(data)
 
-        create_contact(contact)
+        db_create(contact)
 
     except ValidationError as e:
         return response_error(msg='Error adding contact', data=e.messages)
@@ -268,7 +267,7 @@ def add_customers():
     try:
         customer = customer_schema.load(request.json)
 
-        create_customer(customer)
+        db_create(customer)
     except ValidationError as e:
         return response_error(msg='Error adding customer', data=e.messages)
     except Exception as e:

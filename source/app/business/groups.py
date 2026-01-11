@@ -15,10 +15,9 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
+from app.datamgmt.db_operations import db_create
 from app.models.authorization import Group
 from app.iris_engine.utils.tracker import track_activity
-from app.datamgmt.manage.manage_groups_db import create_group
 from app.datamgmt.manage.manage_groups_db import get_group_details
 from app.datamgmt.manage.manage_groups_db import update_group
 from app.datamgmt.manage.manage_groups_db import delete_group
@@ -28,7 +27,7 @@ from app.iris_engine.access_control.utils import ac_ldp_group_removal
 
 
 def groups_create(group: Group) -> Group:
-    create_group(group)
+    db_create(group)
     track_activity(f'added group {group.group_name}', ctx_less=True)
 
     return group

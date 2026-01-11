@@ -21,6 +21,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+from app.datamgmt.db_operations import db_create
 from app.db import db
 from app.datamgmt.case.case_tasks_db import add_task
 from app.datamgmt.manage.manage_case_classifications_db import get_case_classification_by_name
@@ -262,8 +263,7 @@ def case_template_populate_note_groups(case: Cases, case_template: CaseTemplate)
             }
 
             note_dir = note_dir_schema.load(mapped_note_dir_template)
-            db.session.add(note_dir)
-            db.session.commit()
+            db_create(note_dir)
 
             if not note_dir:
                 logs.append("Unable to add note group for internal reasons")

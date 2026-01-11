@@ -882,9 +882,8 @@ def alerts_batch_escalate_route() -> Response:
             alerts_list.append(alert)
 
         # Merge alerts in the case
-        case = create_case_from_alerts(alerts_list, iocs_list=iocs_import_list, assets_list=assets_import_list,
-                                       note=note, import_as_event=import_as_event, case_tags=case_tags,
-                                       case_title=case_title, template_id=case_template_id)
+        case = create_case_from_alerts(alerts_list, iocs_import_list, assets_import_list, case_title,
+                                       note, import_as_event, case_tags, case_template_id)
 
         if not case:
             return response_error('Failed to create case from alert')
