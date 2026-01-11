@@ -40,7 +40,7 @@ def get_first_case() -> Optional[Cases]:
     return Cases.query.order_by(Cases.case_id).first()
 
 
-def get_first_case_with_customer(customer_identifier) -> Optional[Cases]:
+def get_first_case_with_customer(customer_identifier: int) -> Optional[Cases]:
     case = Cases.query.filter(
         Cases.client_id == customer_identifier
     ).first()
