@@ -85,7 +85,7 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
 
     cache_similar_alert(alert.alert_customer_id, assets, iocs, alert.alert_id, alert.alert_source_event_time)
 
-    alert = call_modules_hook('on_postload_alert_create', data=alert)
+    alert = call_modules_hook('on_postload_alert_create', alert)
 
     track_activity(f"created alert #{alert.alert_id} - {alert.alert_title}", ctx_less=True)
 
@@ -135,13 +135,13 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
     if alert.alert_status_id != updated_alert.alert_status_id:
         do_status_hook = True
 
-    updated_alert = call_modules_hook('on_postload_alert_update', data=updated_alert)
+    updated_alert = call_modules_hook('on_postload_alert_update', updated_alert)
 
     if do_resolution_hook:
-        updated_alert = call_modules_hook('on_postload_alert_resolution_update', data=updated_alert)
+        updated_alert = call_modules_hook('on_postload_alert_resolution_update', updated_alert)
 
     if do_status_hook:
-        updated_alert = call_modules_hook('on_postload_alert_status_update', data=updated_alert)
+        updated_alert = call_modules_hook('on_postload_alert_status_update', updated_alert)
 
     if activity_data:
         activity_data_as_string = ','.join(activity_data)
@@ -161,5 +161,5 @@ def alerts_delete(alert: Alert):
     delete_related_alerts_cache([alert.alert_id])
     delete_alert(alert)
 
-    call_modules_hook('on_postload_alert_delete', data=alert.alert_id)
+    call_modules_hook('on_postload_alert_delete', alert.alert_id)
     track_activity(f'delete alert #{alert.alert_id}', ctx_less=True)

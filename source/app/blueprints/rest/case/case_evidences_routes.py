@@ -189,7 +189,7 @@ def case_comment_evidence_add(cur_id, caseid):
             "comment": comment_schema.dump(comment),
             "evidence": CaseEvidenceSchema().dump(evidence)
         }
-        call_modules_hook('on_postload_evidence_commented', data=hook_data, caseid=caseid)
+        call_modules_hook('on_postload_evidence_commented', hook_data, caseid=caseid)
 
         track_activity(f"evidence \"{evidence.filename}\" commented", caseid=caseid)
         return response_success("Evidence commented", data=comment_schema.dump(comment))
@@ -225,7 +225,7 @@ def case_comment_evidence_delete(cur_id, com_id, caseid):
     if not success:
         return response_error(msg)
 
-    call_modules_hook('on_postload_evidence_comment_delete', data=com_id, caseid=caseid)
+    call_modules_hook('on_postload_evidence_comment_delete', com_id, caseid=caseid)
 
     track_activity(f"comment {com_id} on evidence {cur_id} deleted", caseid=caseid)
     return response_success(msg)

@@ -189,7 +189,7 @@ def case_template_populate_tasks(case: Cases, case_template: CaseTemplate):
                 'task_status_id': 1
             }
 
-            mapped_task_template = call_modules_hook('on_preload_task_create', data=mapped_task_template, caseid=case.case_id)
+            mapped_task_template = call_modules_hook('on_preload_task_create', mapped_task_template, caseid=case.case_id)
 
             task = task_schema.load(mapped_task_template)
             tasks.append(task)
@@ -200,7 +200,7 @@ def case_template_populate_tasks(case: Cases, case_template: CaseTemplate):
     for task in tasks:
         ctask = add_task(task=task, assignee_id_list=[], user_id=case.user_id, caseid=case.case_id)
 
-        ctask = call_modules_hook('on_postload_task_create', data=ctask, caseid=case.case_id)
+        ctask = call_modules_hook('on_postload_task_create', ctask, caseid=case.case_id)
 
         if not ctask:
             logs.append('Unable to create task for internal reasons')
@@ -222,7 +222,7 @@ def case_template_populate_notes(case: Cases, note_dir_template: dict, ng: NoteD
             }
 
             mapped_note_template = call_modules_hook('on_preload_note_create',
-                                                     data=mapped_note_template,
+                                                     mapped_note_template,
                                                      caseid=case.case_id)
 
             note_schema.verify_directory_id(mapped_note_template, caseid=ng.case_id)
@@ -235,7 +235,7 @@ def case_template_populate_notes(case: Cases, note_dir_template: dict, ng: NoteD
 
             db.session.add(note)
 
-            note = call_modules_hook('on_postload_note_create', data=note, caseid=case.case_id)
+            note = call_modules_hook('on_postload_note_create', note, caseid=case.case_id)
 
             if not note:
                 logs.append("Unable to add note for internal reasons")

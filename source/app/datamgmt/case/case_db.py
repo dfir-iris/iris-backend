@@ -247,3 +247,32 @@ def case_db_save(case: Cases):
     update_notes_state(caseid=case.case_id, userid=case.user_id)
 
     db.session.commit()
+
+
+def list_user_reviews(user_identifier):
+    ct = Cases.query.with_entities(
+        Cases.case_id,
+        Cases.name,
+        ReviewStatus.status_name,
+        ReviewStatus.id.label('status_id')
+    ).join(
+        Cases.review_status
+    ).filter(
+        Cases.reviewer_id == user_identifier,
+        ReviewStatus.status_name != 'Reviewed',
+        ReviewStatus.status_name != 'Not reviewed'
+    ).all()
+
+    return ct
+
+
+def list_user_cases(user_identifier, show_all=False):
+    if show_all:
+        return Cases.query.filter(
+            Cases.owner_id == user_identifier
+        ).all()
+
+    return Cases.query.filter(
+        Cases.owner_id == user_identifier,
+        Cases.close_date == None
+    ).all()

@@ -56,7 +56,7 @@ def iocs_create(ioc: Ioc):
 
     add_ioc(ioc, iris_current_user.id, ioc.case_id)
 
-    ioc = call_modules_hook('on_postload_ioc_create', data=ioc, caseid=ioc.case_id)
+    ioc = call_modules_hook('on_postload_ioc_create', ioc, caseid=ioc.case_id)
 
     if ioc:
         track_activity(f'added ioc "{ioc.ioc_value}"', caseid=ioc.case_id)
@@ -81,7 +81,7 @@ def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
         add_obj_history_entry(ioc, 'updated ioc')
         db.session.commit()
 
-        ioc_sc = call_modules_hook('on_postload_ioc_update', data=ioc_sc, caseid=ioc.case_id)
+        ioc_sc = call_modules_hook('on_postload_ioc_update', ioc_sc, caseid=ioc.case_id)
 
         if ioc_sc:
             track_activity(f'updated ioc "{ioc_sc.ioc_value}"', caseid=ioc.case_id)
@@ -94,11 +94,11 @@ def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
 
 
 def iocs_delete(ioc: Ioc):
-    call_modules_hook('on_preload_ioc_delete', data=ioc.ioc_id)
+    call_modules_hook('on_preload_ioc_delete', ioc.ioc_id)
 
     delete_ioc(ioc)
 
-    call_modules_hook('on_postload_ioc_delete', data=ioc.ioc_id, caseid=ioc.case_id)
+    call_modules_hook('on_postload_ioc_delete', ioc.ioc_id, caseid=ioc.case_id)
 
     track_activity(f'deleted IOC "{ioc.ioc_value}"', caseid=ioc.case_id)
     return f'IOC {ioc.ioc_id} deleted'

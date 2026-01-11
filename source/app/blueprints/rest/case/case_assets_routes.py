@@ -44,6 +44,7 @@ from app.datamgmt.case.case_assets_db import get_case_asset_comment
 from app.datamgmt.case.case_assets_db import get_case_asset_comments
 from app.datamgmt.case.case_assets_db import get_similar_assets
 from app.datamgmt.case.case_db import get_case_client_id
+from app.datamgmt.comments import get_comment
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.manage.manage_users_db import get_user_cases_fast
 from app.datamgmt.states import get_assets_state
@@ -166,7 +167,7 @@ def case_assets_state(caseid):
 def deprecated_add_asset(caseid):
     asset_schema = CaseAssetsSchema()
     try:
-        request_data = call_modules_hook('on_preload_asset_create', data=request.get_json(), caseid=caseid)
+        request_data = call_modules_hook('on_preload_asset_create', request.get_json(), caseid=caseid)
         ioc_links = request_data.get('ioc_links')
         asset = asset_schema.load(request_data)
         created_asset = assets_create(iris_current_user, caseid, asset, ioc_links)
@@ -243,7 +244,7 @@ def case_upload_asset(caseid):
 
             row['analysis_status_id'] = analysis_status_id
 
-            request_data = call_modules_hook('on_preload_asset_create', data=row, caseid=caseid)
+            request_data = call_modules_hook('on_preload_asset_create', row, caseid=caseid)
 
             add_asset_schema.is_unique_for_cid(caseid, request_data)
             asset_sc = add_asset_schema.load(request_data)
@@ -253,7 +254,7 @@ def case_upload_asset(caseid):
                                  user_id=iris_current_user.id
                                  )
 
-            asset = call_modules_hook('on_postload_asset_create', data=asset, caseid=caseid)
+            asset = call_modules_hook('on_postload_asset_create', asset, caseid=caseid)
 
             if not asset:
                 errors.append('Unable to add asset for internal reason')
@@ -305,7 +306,7 @@ def asset_update(cur_id, caseid):
         if not asset:
             return response_error("Invalid asset ID for this case")
 
-        request_data = call_modules_hook('on_preload_asset_update', data=request.get_json(), caseid=caseid)
+        request_data = call_modules_hook('on_preload_asset_update', request.get_json(), caseid=caseid)
         request_data['asset_id'] = asset.asset_id
         schema = CaseAssetsSchema()
         updated_asset = schema.load(request_data, instance=asset, partial=True)
@@ -375,7 +376,7 @@ def case_comment_asset_add(cur_id, caseid):
             "comment": comment_schema.dump(comment),
             "asset": CaseAssetsSchema().dump(asset)
         }
-        call_modules_hook('on_postload_asset_commented', data=hook_data, caseid=caseid)
+        call_modules_hook('on_postload_asset_commented', hook_data, caseid=caseid)
 
         track_activity(f"asset \"{asset.asset_name}\" commented", caseid=caseid)
         return response_success("Asset commented", data=comment_schema.dump(comment))
@@ -407,11 +408,13 @@ def case_comment_asset_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_delete(cur_id, com_id, caseid):
-    success, msg = delete_asset_comment(cur_id, com_id)
-    if not success:
-        return response_error(msg)
+    comment = get_comment(iris_current_user, com_id)
+    if not comment:
+        return response_error('You are not allowed to delete this comment')
 
-    call_modules_hook('on_postload_asset_comment_delete', data=com_id, caseid=caseid)
+    delete_asset_comment(cur_id, comment)
+
+    call_modules_hook('on_postload_asset_comment_delete', com_id, caseid=caseid)
 
     track_activity(f'comment {com_id} on asset {cur_id} deleted', caseid=caseid)
-    return response_success(msg)
+    return response_success('Comment deleted')

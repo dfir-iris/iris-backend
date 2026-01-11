@@ -22,6 +22,7 @@ from typing import List
 from typing import Optional
 from flask_sqlalchemy.pagination import Pagination
 
+from app.datamgmt.db_operations import db_delete
 from app.db import db
 from app.models.errors import ElementInUseError
 from app.models.cases import Cases
@@ -140,18 +141,14 @@ def get_client_contact(contact_id: int) -> Contact:
 
 def delete_contact(contact: Contact):
     try:
-
-        db.session.delete(contact)
-        db.session.commit()
-
+        db_delete(contact)
     except Exception:
         raise ElementInUseError('A currently referenced contact cannot be deleted')
 
 
 def delete_client(customer: Client) -> None:
     try:
-        db.session.delete(customer)
-        db.session.commit()
+        db_delete(customer)
     except Exception:
         raise ElementInUseError('Cannot delete a referenced customer')
 

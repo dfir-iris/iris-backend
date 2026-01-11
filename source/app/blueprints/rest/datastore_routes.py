@@ -137,7 +137,7 @@ def datastore_update_file(cur_id: int, caseid: int):
 
         msg_added_as = ''
         if dsf.file_is_ioc:
-            datastore_add_file_as_ioc(dsf, caseid)
+            datastore_add_file_as_ioc(dsf)
             msg_added_as += 'and added in IOC'
 
         if dsf.file_is_evidence:
@@ -262,7 +262,7 @@ def datastore_add_file(cur_id: int, caseid: int):
 
         msg_added_as = ''
         if dsf_sc.file_is_ioc:
-            datastore_add_file_as_ioc(dsf_sc, caseid)
+            datastore_add_file_as_ioc(dsf_sc)
             msg_added_as += 'and added in IOC'
 
         if dsf_sc.file_is_evidence:

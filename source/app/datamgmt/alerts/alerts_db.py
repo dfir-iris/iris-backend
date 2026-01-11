@@ -72,8 +72,7 @@ from app.models.alerts import Severity
 from app.models.authorization import User
 from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
-from app.datamgmt.db_operations import db_create
-
+from app.datamgmt.db_operations import db_create, db_delete
 
 relationship_model_map = {
     'owner': User,
@@ -1283,8 +1282,7 @@ def delete_alert_comment(comment_id: int, alert_id: int) -> Tuple[bool, str]:
     if not comment:
         return False, "You are not allowed to delete this comment"
 
-    db.session.delete(comment)
-    db.session.commit()
+    db_delete(comment)
 
     return True, "Comment deleted successfully"
 
@@ -1423,5 +1421,4 @@ def get_alert_status_by_name(name: str) -> AlertStatus:
 
 
 def delete_alert(alert):
-    db.session.delete(alert)
-    db.session.commit()
+    db_delete(alert)

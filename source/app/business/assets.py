@@ -47,7 +47,7 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
         errors, _ = set_ioc_links(ioc_links, asset.asset_id)
         if errors:
             raise BusinessProcessingError('Encountered errors while linking IOC. Asset has still been created.')
-    asset = call_modules_hook('on_postload_asset_create', data=asset, caseid=case_identifier)
+    asset = call_modules_hook('on_postload_asset_create', asset, caseid=case_identifier)
 
     add_obj_history_entry(asset, 'created')
 
@@ -59,10 +59,10 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
 
 
 def assets_delete(asset: CaseAssets):
-    call_modules_hook('on_preload_asset_delete', data=asset.asset_id)
+    call_modules_hook('on_preload_asset_delete', asset.asset_id)
     # Deletes an asset and the potential links with the IoCs from the database
     delete_asset(asset)
-    call_modules_hook('on_postload_asset_delete', data=asset.asset_id, caseid=asset.case_id)
+    call_modules_hook('on_postload_asset_delete', asset.asset_id, caseid=asset.case_id)
     track_activity(f'removed asset ID {asset.asset_name}', caseid=asset.case_id)
 
 

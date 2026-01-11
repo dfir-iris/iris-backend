@@ -28,7 +28,10 @@ from app.business.iocs import iocs_exports_to_json
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.access_control.utils import ac_set_new_case_access
-from app.datamgmt.case.case_db import case_db_exists, case_db_save
+from app.datamgmt.case.case_db import case_db_exists
+from app.datamgmt.case.case_db import list_user_cases
+from app.datamgmt.case.case_db import case_db_save
+from app.datamgmt.case.case_db import list_user_reviews
 from app.datamgmt.case.case_db import save_case_tags
 from app.datamgmt.case.case_db import register_case_protagonists
 from app.datamgmt.case.case_db import get_review_id_from_name
@@ -51,10 +54,9 @@ from app.datamgmt.reporter.report_db import export_case_tasks_json
 from app.datamgmt.reporter.report_db import export_case_comments_json
 from app.datamgmt.reporter.report_db import export_case_notes_json
 from app.datamgmt.manage.manage_cases_db import get_filtered_cases
-from app.datamgmt.dashboard.dashboard_db import list_user_cases
-from app.datamgmt.dashboard.dashboard_db import list_user_reviews
 from app.datamgmt.case.case_db import get_first_case_with_customer
-from app.models.cases import Cases, ReviewStatusList
+from app.models.cases import Cases
+from app.models.cases import ReviewStatusList
 from app.models.customers import Client
 
 
@@ -131,8 +133,7 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
 
     ac_set_new_case_access(user, case.case_id, case.client_id)
 
-    # TODO remove caseid doesn't seems to be useful for call_modules_hook => remove argument
-    case = call_modules_hook('on_postload_case_create', case, None)
+    case = call_modules_hook('on_postload_case_create', case)
 
     add_obj_history_entry(case, 'created')
     track_activity(f'new case "{case.name}" created', caseid=case.case_id, ctx_less=False)
@@ -148,12 +149,12 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete a primary case to keep consistency')
 
     try:
-        call_modules_hook('on_preload_case_delete', data=case_identifier, caseid=case_identifier)
+        call_modules_hook('on_preload_case_delete', case_identifier, caseid=case_identifier)
         if not delete_case(case_identifier):
             track_activity(f'tried to delete case {case_identifier}, but it doesn\'t exist',
                            caseid=case_identifier, ctx_less=True)
             raise BusinessProcessingError('Tried to delete a non-existing case')
-        call_modules_hook('on_postload_case_delete', data=case_identifier, caseid=case_identifier)
+        call_modules_hook('on_postload_case_delete', case_identifier, caseid=case_identifier)
         track_activity(f'case {case_identifier} deleted successfully', ctx_less=True)
     except Exception as e:
         logger.exception(e)
@@ -182,11 +183,11 @@ def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
                     for alert in updated_case.alerts:
                         if alert.alert_status_id != close_status.status_id:
                             alert.alert_status_id = close_status.status_id
-                            alert = call_modules_hook('on_postload_alert_update', data=alert, caseid=case.case_id)
+                            alert = call_modules_hook('on_postload_alert_update', alert, caseid=case.case_id)
 
                         if alert.alert_resolution_status_id != case_status_id_mapped:
                             alert.alert_resolution_status_id = case_status_id_mapped
-                            alert = call_modules_hook('on_postload_alert_resolution_update', data=alert,
+                            alert = call_modules_hook('on_postload_alert_resolution_update', alert,
                                                       caseid=case.case_id)
 
                             track_activity(

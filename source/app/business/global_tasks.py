@@ -22,7 +22,7 @@ from datetime import datetime
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.db_operations import db_create
-from app.datamgmt.dashboard.dashboard_db import get_global_task_by_identifier
+from app.datamgmt.global_tasks import delete_global_task, get_global_task_by_identifier
 
 
 def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:
@@ -33,7 +33,7 @@ def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:
 
     db_create(global_task)
 
-    global_task = call_modules_hook('on_postload_global_task_create', data=global_task)
+    global_task = call_modules_hook('on_postload_global_task_create', global_task)
     track_activity(f'created new global task "{global_task.task_title}"')
 
     return global_task
@@ -44,3 +44,12 @@ def global_tasks_get(identifier) -> GlobalTasks:
     if not task:
         raise ObjectNotFoundError()
     return task
+
+
+def global_tasks_delete(task: GlobalTasks):
+    call_modules_hook('on_preload_global_task_delete', task.id)
+
+    delete_global_task(task)
+
+    call_modules_hook('on_postload_global_task_delete', task)
+    track_activity(f'deleted global task ID {task.id}')

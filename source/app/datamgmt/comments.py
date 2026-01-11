@@ -15,11 +15,12 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+from typing import Optional
 
 from flask_sqlalchemy.pagination import Pagination
 from sqlalchemy import and_
 
-from app.db import db
+from app.datamgmt.db_operations import db_delete
 from app.models.cases import Cases
 from app.models.comments import Comments
 from app.models.comments import EventComments
@@ -106,8 +107,7 @@ def get_filtered_event_comments(event_identifier, pagination_parameters: Paginat
 
 
 def delete_comment(comment: Comments):
-    db.session.delete(comment)
-    db.session.commit()
+    db_delete(comment)
 
 
 def user_has_comments(user: User):
@@ -136,3 +136,10 @@ def search_comments(search_value):
     ).all()
 
     return [row._asdict() for row in comments]
+
+
+def get_comment(user, identifier) -> Optional[Comments]:
+    return Comments.query.filter(
+        Comments.comment_id == identifier,
+        Comments.comment_user_id == user.id
+    ).first()
