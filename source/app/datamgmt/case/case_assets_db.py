@@ -109,9 +109,11 @@ def get_assets_by_case(case_identifier):
     return CaseAssets.query.with_entities(
         CaseEventsAssets.event_id,
         CaseAssets.asset_name
+    ).join(
+        CaseEventsAssets.asset
     ).filter(
-        CaseEventsAssets.case_id == case_identifier,
-    ).join(CaseEventsAssets.asset).all()
+        CaseEventsAssets.case_id == case_identifier
+    ).all()
 
 
 def filter_assets(case_identifier, pagination_parameters: PaginationParameters, request_parameters: dict) -> Pagination:
