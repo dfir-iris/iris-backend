@@ -34,11 +34,12 @@ from app.datamgmt.manage.manage_case_templates_db import get_case_templates_list
 from app.datamgmt.manage.manage_cases_db import get_case_protagonists
 from app.datamgmt.manage.manage_common import get_severities_list
 from app.forms import AddCaseForm
-from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Permissions
 from app.schema.marshables import CaseDetailsSchema
-from app.blueprints.access_controls import ac_api_return_access_denied, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_requires
 from app.blueprints.responses import response_error
 from app.schema.marshables import CaseStateSchema
@@ -85,15 +86,14 @@ def _details_case(cur_id: int, caseid: int, url_redir: bool) -> Union[str, Respo
     dumped_case_states = CaseStateSchema(many=True).dump(case_states)
     user_is_server_administrator = ac_current_user_has_permission(Permissions.server_administrator)
 
-    customers = get_client_list(current_user_id=iris_current_user.id,
-                                is_server_administrator=user_is_server_administrator)
+    customers = get_client_list(iris_current_user.id, user_is_server_administrator)
 
     severities = get_severities_list()
     protagonists = [r._asdict() for r in get_case_protagonists(cur_id)]
 
     form = FlaskForm()
 
-    return render_template("modal_case_info_from_case.html", data=res, form=form, protagonists=protagonists,
+    return render_template('modal_case_info_from_case.html', data=res, form=form, protagonists=protagonists,
                            case_classifications=case_classifications, case_states=dumped_case_states, customers=customers,
                            severities=severities)
 
@@ -119,9 +119,7 @@ def add_case_modal(caseid: int, url_redir: bool):
     form = AddCaseForm()
 
     # Show only clients that the user has access to
-    client_list = get_client_list(current_user_id=iris_current_user.id,
-                                  is_server_administrator=ac_current_user_has_permission(
-                                      Permissions.server_administrator))
+    client_list = get_client_list(iris_current_user.id, ac_current_user_has_permission(Permissions.server_administrator))
 
     form.case_customer_id.choices = [(c['customer_id'], c['customer_name']) for c in client_list]
 

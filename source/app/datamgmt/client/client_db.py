@@ -20,14 +20,17 @@ from sqlalchemy import func
 from sqlalchemy import and_
 from typing import List
 from typing import Optional
+from flask_sqlalchemy.pagination import Pagination
 
-from app import db
+from app.db import db
 from app.models.errors import ElementInUseError
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import Contact
 from app.models.authorization import User
 from app.models.authorization import UserClient
+from app.models.pagination_parameters import PaginationParameters
+from app.datamgmt.filtering import paginate
 
 
 # TODO most probably rename into add (or save?) and make more generic
@@ -46,8 +49,7 @@ def update_customer():
     db.session.commit()
 
 
-def get_client_list(current_user_id: int = None,
-                    is_server_administrator: bool = False) -> List[dict]:
+def get_client_list(current_user_id: int, is_server_administrator: bool) -> List[dict]:
     if not is_server_administrator:
         filter = and_(
             Client.client_id == UserClient.client_id,
@@ -70,6 +72,18 @@ def get_client_list(current_user_id: int = None,
     output = [c._asdict() for c in client_list]
 
     return output
+
+
+def get_paginated_customers(pagination_parameters: PaginationParameters, current_user_identifier: int, is_server_administrator: bool) -> Pagination:
+    query = Client.query
+
+    if not is_server_administrator:
+        query = query.filter(
+            Client.client_id == UserClient.client_id,
+            UserClient.user_id == current_user_identifier
+                )
+
+    return paginate(Client, pagination_parameters, query)
 
 
 def get_customer(client_id: int) -> Optional[Client]:

@@ -46,12 +46,12 @@ from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
-from app.business.access_controls import access_controls_user_has_customer_access
 
 
 class CasesOperations:
@@ -135,7 +135,7 @@ class CasesOperations:
             customer_identifier = request_data.get('case_customer_id')
             # If user tries to update the customer, check if the user has access to the new customer
             if customer_identifier and customer_identifier != case.client_id:
-                if not access_controls_user_has_customer_access(iris_current_user, customer_identifier):
+                if not ac_current_user_has_customer_access(customer_identifier):
                     raise BusinessProcessingError('Invalid customer ID. Permission denied.')
 
             if 'case_name' in request_data:

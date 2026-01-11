@@ -45,13 +45,14 @@ from app.blueprints.responses import response_error
 from app.business.auth import validate_auth_token
 from app.business.auth import update_session_current_case
 from app.datamgmt.case.case_db import get_case
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
+from app.business.access_controls import access_controls_user_has_customer_access
 from app.datamgmt.manage.manage_users_db import get_user
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import ac_fast_check_user_has_case_access
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
+from app.models.authorization import ac_flag_match_mask
 from app.models.authorization import CaseAccessLevel
 
 
@@ -388,7 +389,7 @@ def ac_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(iris_current_user.id, client_id):
+            if not ac_current_user_has_customer_access(client_id):
                 return _ac_return_access_denied()
 
             return f(*args, **kwargs)
@@ -438,7 +439,7 @@ def ac_api_requires_client_access():
         @wraps(f)
         def wrap(*args, **kwargs):
             client_id = kwargs.get('client_id')
-            if not user_has_client_access(iris_current_user.id, client_id):
+            if not ac_current_user_has_customer_access(client_id):
                 return response_error("Permission denied", status=403)
 
             return f(*args, **kwargs)
@@ -582,3 +583,14 @@ def is_authentication_ldap():
 
 def ac_fast_check_current_user_has_case_access(cid, access_level):
     return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
+
+
+def ac_current_user_has_permission(permission):
+    """
+    Return True if current user has permission
+    """
+    return ac_flag_match_mask(session['permissions'], permission.value)
+
+
+def ac_current_user_has_customer_access(customer_identifier):
+    return access_controls_user_has_customer_access(iris_current_user, session['permissions'], customer_identifier)

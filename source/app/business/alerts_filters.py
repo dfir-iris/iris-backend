@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app import db
+from app.db import db
 from app.datamgmt.filters.filters_db import get_filter_by_id
 from app.models.errors import ObjectNotFoundError
 

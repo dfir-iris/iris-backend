@@ -20,7 +20,7 @@ from datetime import datetime
 
 from flask_sqlalchemy.pagination import Pagination
 
-from app import db
+from app.db import db
 from app.business.alerts import alerts_exists
 from app.business.alerts import alerts_get
 from app.models.errors import ObjectNotFoundError
@@ -67,8 +67,8 @@ from app.datamgmt.alerts.alerts_db import get_alert_comment
 from app.models.alerts import Alert
 
 
-def comments_get_filtered_by_alert(current_user, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    if not alerts_exists(current_user, alert_identifier):
+def comments_get_filtered_by_alert(current_user, permissions, alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
+    if not alerts_exists(current_user, permissions, alert_identifier):
         raise ObjectNotFoundError()
 
     return get_filtered_alert_comments(alert_identifier, pagination_parameters)
@@ -121,8 +121,8 @@ def comments_update_for_case(current_user, comment_text, comment_id, object_type
     return comment
 
 
-def comments_create_for_alert(current_user, comment: Comments, alert_identifier: int):
-    alert = alerts_get(current_user, alert_identifier)
+def comments_create_for_alert(current_user, permissions, comment: Comments, alert_identifier: int):
+    alert = alerts_get(current_user, permissions, alert_identifier)
     comment.comment_alert_id = alert_identifier
     comment.comment_user_id = current_user.id
     comment.comment_date = datetime.now()

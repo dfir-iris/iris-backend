@@ -36,7 +36,7 @@ from sqlalchemy_utils import database_exists
 
 from app import bc
 from app import celery
-from app import db
+from app.db import db
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
 from app.iris_engine.access_control.utils import ac_get_mask_analyst

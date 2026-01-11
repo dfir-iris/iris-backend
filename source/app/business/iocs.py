@@ -17,7 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
-from app import db
+from app.db import db
 from app.blueprints.iris_user import iris_current_user
 from app.models.iocs import Ioc
 from app.datamgmt.case.case_iocs_db import add_ioc

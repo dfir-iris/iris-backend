@@ -26,7 +26,7 @@ from flask_login import login_user
 
 from app import bc
 from app import app
-from app import db
+from app.db import db
 from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_get_first
 from app.logger import logger

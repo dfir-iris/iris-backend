@@ -24,7 +24,7 @@ from sqlalchemy import and_
 from sqlalchemy import exists
 from sqlalchemy import select
 
-from app import db
+from app.db import db
 from app.datamgmt.manage.manage_tags_db import add_db_tag
 from app.models.authorization import User
 from app.models.cases import CaseProtagonist

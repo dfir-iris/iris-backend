@@ -16,15 +16,23 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from flask_sqlalchemy.pagination import Pagination
+
 from app.models.models import Client
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
 from app.datamgmt.client.client_db import create_customer
+from app.datamgmt.client.client_db import get_paginated_customers
 from app.datamgmt.client.client_db import get_customer
 from app.datamgmt.client.client_db import get_customer_by_name
 from app.datamgmt.client.client_db import update_customer
 from app.datamgmt.client.client_db import delete_client
 from app.models.errors import ObjectNotFoundError
+from app.models.pagination_parameters import PaginationParameters
+
+
+def customers_filter(user, pagination_parameters: PaginationParameters, is_server_administrator) -> Pagination:
+    return get_paginated_customers(pagination_parameters, user.id, is_server_administrator)
 
 
 # TODO maybe this method should be removed and always create a customer with at least a user

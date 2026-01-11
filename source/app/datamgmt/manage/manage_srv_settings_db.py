@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from app import db
+from app.db import db
 from app.models.models import ServerSettings
 from app.schema.marshables import ServerSettingsSchema
 

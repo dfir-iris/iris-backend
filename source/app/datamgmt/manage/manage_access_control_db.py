@@ -17,7 +17,7 @@
 from sqlalchemy import and_
 
 from app import ac_current_user_has_permission
-from app import db
+from app.db import db
 from app.models.cases import Cases
 from app.models.authorization import Group
 from app.models.authorization import UserClient
@@ -167,9 +167,6 @@ def user_has_client_access(user_id: int, client_id: int) -> bool:
     Returns:
         bool: True if the user has access to the client
     """
-    if ac_current_user_has_permission(Permissions.server_administrator):
-        return True
-
     result = UserClient.query.filter(
         UserClient.user_id == user_id,
         UserClient.client_id == client_id

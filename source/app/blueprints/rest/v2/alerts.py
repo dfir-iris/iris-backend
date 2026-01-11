@@ -17,11 +17,14 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from flask import Blueprint
+from flask import session
 from flask import request
 from flask import Response
 from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_current_user_has_customer_access
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_error
@@ -43,7 +46,6 @@ from app.business.alerts import alerts_delete
 from app.business.alerts import related_alerts_get
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
-from app.business.access_controls import access_controls_user_has_customer_access
 
 
 class AlertsOperations:
@@ -92,8 +94,11 @@ class AlertsOperations:
         else:
             fields = None
 
+        user_identifier_filter = iris_current_user.id
+        if ac_current_user_has_permission(Permissions.server_administrator):
+            user_identifier_filter = None
+
         filtered_alerts = alerts_search(
-            iris_current_user.id,
             request.args.get('creation_start_date'),
             request.args.get('creation_end_date'),
             request.args.get('source_start_date'),
@@ -114,6 +119,7 @@ class AlertsOperations:
             request.args.get('alert_resolution_id', type=int),
             request.args.get('source_reference'),
             request.args.get('custom_conditions'),
+            user_identifier_filter,
             page,
             per_page,
             request.args.get('sort')
@@ -147,7 +153,7 @@ class AlertsOperations:
             alert = self._schema.load(request_data)
             result = alerts_create(alert, iocs, assets)
 
-            if not access_controls_user_has_customer_access(iris_current_user, result.alert_customer_id):
+            if not ac_current_user_has_customer_access(result.alert_customer_id):
                 return response_api_error('User not entitled to create alerts for the client')
             return response_api_created(self._schema.dump(result))
 
@@ -160,7 +166,7 @@ class AlertsOperations:
     def read(self, identifier):
 
         try:
-            alert = alerts_get(iris_current_user, identifier)
+            alert = alerts_get(iris_current_user, session['permissions'], identifier)
             return response_api_success(self._schema.dump(alert))
 
         except ObjectNotFoundError:
@@ -169,7 +175,7 @@ class AlertsOperations:
     def get_related_alerts(self, identifier):
 
         try:
-            alert = alerts_get(iris_current_user, identifier)
+            alert = alerts_get(iris_current_user, session['permissions'], identifier)
 
             open_alerts = request.args.get('open-alerts', 'false').lower() == 'true'
             open_cases = request.args.get('open-cases', 'false').lower() == 'true'
@@ -192,7 +198,7 @@ class AlertsOperations:
 
     def update(self, identifier):
         try:
-            alert = alerts_get(iris_current_user, identifier)
+            alert = alerts_get(iris_current_user, session['permissions'], identifier)
             request_data = request.get_json()
             updated_alert = self._schema.load(request_data, instance=alert, partial=True)
             activity_data = []
@@ -226,7 +232,7 @@ class AlertsOperations:
 
     def delete(self, identifier):
         try:
-            alert = alerts_get(iris_current_user, identifier)
+            alert = alerts_get(iris_current_user, session['permissions'], identifier)
             alerts_delete(alert)
             return response_api_deleted()
 

@@ -27,7 +27,7 @@ from flask import request
 from flask import redirect
 from flask_login import logout_user
 
-from app import db
+from app.db import db
 from app import app
 from app import oidc_client
 

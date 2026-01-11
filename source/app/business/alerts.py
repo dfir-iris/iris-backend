@@ -20,7 +20,8 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from app import db
+from app.business.access_controls import access_controls_user_has_customer_access
+from app.db import db
 from app import socket_io
 from app.models.alerts import Alert
 from app.models.iocs import Ioc
@@ -36,37 +37,37 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.models.errors import ObjectNotFoundError
-from app.datamgmt.manage.manage_access_control_db import user_has_client_access
 
 
-def alerts_search(user_identifier, start_date, end_date, source_start_date, source_end_date, title, description,
-                  status, severity, owner, source, tags, case_identifier, customer, classification, alert_identifiers,
-                  assets, iocs, resolution_status, source_reference, custom_conditions, page, per_page, sort):
+def alerts_search(start_date, end_date, source_start_date, source_end_date, title, description,
+                  status, severity, owner, source, tags, case_identifier, customer_identifier, classification, alert_identifiers,
+                  assets, iocs, resolution_status, source_reference, custom_conditions, user_identifier_filter, page, per_page, sort):
+
     return get_filtered_alerts(
-        start_date=start_date,
-        end_date=end_date,
-        source_start_date=source_start_date,
-        source_end_date=source_end_date,
-        title=title,
-        description=description,
-        status=status,
-        severity=severity,
-        owner=owner,
-        source=source,
-        tags=tags,
-        case_id=case_identifier,
-        client=customer,
-        classification=classification,
-        alert_ids=alert_identifiers,
-        assets=assets,
-        iocs=iocs,
-        resolution_status=resolution_status,
-        page=page,
-        per_page=per_page,
-        sort=sort,
-        current_user_id=user_identifier,
-        source_reference=source_reference,
-        custom_conditions=custom_conditions
+        start_date,
+        end_date,
+        source_start_date,
+        source_end_date,
+        title,
+        description,
+        status,
+        severity,
+        owner,
+        source,
+        tags,
+        case_identifier,
+        customer_identifier,
+        classification,
+        alert_identifiers,
+        assets,
+        iocs,
+        resolution_status,
+        page,
+        per_page,
+        sort,
+        user_identifier_filter,
+        source_reference,
+        custom_conditions
     )
 
 
@@ -95,17 +96,17 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     return alert
 
 
-def _get(user, identifier) -> Optional[Alert]:
+def _get(user, permissions, identifier) -> Optional[Alert]:
     alert = get_alert_by_id(identifier)
     if not alert:
         return None
-    if not user_has_client_access(user.id, alert.alert_customer_id):
+    if not access_controls_user_has_customer_access(user, permissions, alert.alert_customer_id):
         return None
     return alert
 
 
-def alerts_get(user, identifier) -> Alert:
-    alert = _get(user, identifier)
+def alerts_get(user, permissions, identifier) -> Alert:
+    alert = _get(user, permissions, identifier)
     if not alert:
         raise ObjectNotFoundError()
     return alert
@@ -118,8 +119,8 @@ def related_alerts_get(alert, open_alerts, closed_alerts, open_cases, closed_cas
                                      days_back, number_of_results)
 
 
-def alerts_exists(user, identifier) -> bool:
-    alert = _get(user, identifier)
+def alerts_exists(user, permissions, identifier) -> bool:
+    alert = _get(user, permissions, identifier)
 
     return alert is not None
 

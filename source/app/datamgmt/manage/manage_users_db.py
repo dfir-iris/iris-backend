@@ -26,7 +26,7 @@ from sqlalchemy import and_
 from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app import bc
-from app import db
+from app.db import db
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.conversions import convert_sort_direction
 from app.iris_engine.access_control.utils import ac_ldp_group_removal

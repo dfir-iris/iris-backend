@@ -20,7 +20,8 @@ from copy import deepcopy
 import json
 from datetime import datetime
 from datetime import timedelta
-from typing import List, Optional
+from typing import List
+from typing import Optional
 from typing import Tuple
 
 from sqlalchemy import desc
@@ -36,7 +37,7 @@ from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.pagination import Pagination
 
 import app
-from app import db
+from app.db import db
 from app.datamgmt.filtering import combine_conditions
 from app.datamgmt.filtering import apply_custom_conditions
 from app.datamgmt.case.case_assets_db import create_asset
@@ -51,7 +52,6 @@ from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
 from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
 from app.datamgmt.states import update_timeline_state
 from app.blueprints.iris_user import iris_current_user
-from app.iris_engine.access_control.utils import ac_current_user_has_permission
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.models.cases import Cases
 from app.models.models import EventCategory
@@ -70,7 +70,6 @@ from app.models.alerts import SimilarAlertsCache
 from app.models.alerts import AlertResolutionStatus
 from app.models.alerts import AlertSimilarity
 from app.models.alerts import Severity
-from app.models.authorization import Permissions
 from app.models.authorization import User
 from app.schema.marshables import EventSchema
 from app.util import add_obj_history_entry
@@ -97,67 +96,31 @@ def db_list_all_alerts():
 
 
 def get_filtered_alerts(
-        start_date: str = None,
-        end_date: str = None,
-        source_start_date: str = None,
-        source_end_date: str = None,
-        title: str = None,
-        description: str = None,
-        status: int = None,
-        severity: int = None,
-        owner: int = None,
-        source: str = None,
-        tags: str = None,
-        case_id: int = None,
-        client: int = None,
-        classification: int = None,
-        alert_ids: List[int] = None,
-        assets: List[str] = None,
-        iocs: List[str] = None,
-        resolution_status: List[int] = None,
-        logical_operator: str = 'and',  # Logical operator: 'and', 'or', 'not'
-        page: int = 1,
-        per_page: int = 10,
-        sort: str = 'desc',
-        current_user_id: int = None,
-        source_reference=None,
-        custom_conditions: List[dict] = None) -> Pagination:
-    """
-    Get a list of alerts that match the given filter conditions
-
-    args:
-        start_date (datetime): The start date of the alert creation time
-        end_date (datetime): The end date of the alert creation time
-        title (str): The title of the alert
-        description (str): The description of the alert
-        status (str): The status of the alert
-        severity (str): The severity of the alert
-        owner (str): The owner of the alert
-        source (str): The source of the alert
-        tags (str): The tags of the alert
-        case_id (int): The case id of the alert
-        client (int): The client id of the alert
-        classification (int): The classification id of the alert
-        alert_ids (int): The alert ids
-        assets (list): The assets of the alert
-        iocs (list): The iocs of the alert
-        resolution_status (list): The resolution status of the alert
-        logical_operator (str): Logical operator to combine conditions ('and', 'or', 'not')
-        page (int): The page number
-        per_page (int): The number of alerts per page
-        sort (str): The sort order
-        current_user_id (int): The ID of the current user
-        source_reference (str): Alert source reference
-        custom_conditions (list): Custom conditions to be applied (e.g., NOT client AND owner_id in [1,2,3])
-
-    returns:
-        list: A list of alerts that match the given filter conditions
-        ...
-        fields (List[str]): The list of fields to include in the output
-
-    returns:
-        dict: Dictionary with pagination info and list of serialized alerts
-    """
+        start_date: str,
+        end_date: str,
+        source_start_date: str,
+        source_end_date: str,
+        title: str,
+        description: str,
+        status: int,
+        severity: int,
+        owner: int,
+        source: str,
+        tags: str,
+        case_id: int,
+        client: int,
+        classification: int,
+        alert_ids: List[int],
+        assets: List[str],
+        iocs: List[str],
+        resolution_status: List[int],
+        page: int,
+        per_page: int,
+        sort: str,
+        user_identifier: int | None,
+        source_reference,
+        custom_conditions: List[dict]
+    ) -> Pagination:
     conditions = []
 
     if start_date is not None and end_date is not None:
@@ -226,8 +189,8 @@ def get_filtered_alerts(
         if isinstance(iocs, list):
             conditions.append(Alert.iocs.any(Ioc.ioc_value.in_(iocs)))
 
-    if current_user_id is not None and not ac_current_user_has_permission(Permissions.server_administrator):
-        clients_filters = get_user_clients_id(current_user_id)
+    if user_identifier is not None:
+        clients_filters = get_user_clients_id(user_identifier)
         if clients_filters is not None:
             conditions.append(Alert.alert_customer_id.in_(clients_filters))
 
@@ -254,8 +217,8 @@ def get_filtered_alerts(
         query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
         conditions.extend(conditions_tmp)
 
-        # Combine conditions
-    combined_conditions = combine_conditions(conditions, logical_operator)
+    # Combine conditions
+    combined_conditions = combine_conditions(conditions, 'and')
 
     order_func = desc if sort == "desc" else asc
 

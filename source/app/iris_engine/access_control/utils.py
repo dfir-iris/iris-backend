@@ -1,7 +1,6 @@
-from flask import session
 from sqlalchemy import and_
 
-from app import db
+from app.db import db
 from app.business.access_controls import set_case_effective_access_for_user
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.logger import logger
@@ -835,17 +834,3 @@ def ac_access_level_to_list(access_level):
             })
 
     return access_levels
-
-
-def ac_user_has_permission(user, permission):
-    """
-    Return True if user has permission
-    """
-    return ac_flag_match_mask(ac_get_effective_permissions_of_user(user), permission.value)
-
-
-def ac_current_user_has_permission(permission):
-    """
-    Return True if current user has permission
-    """
-    return ac_flag_match_mask(session['permissions'], permission.value)

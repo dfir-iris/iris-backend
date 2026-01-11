@@ -30,7 +30,7 @@ from app import app
 from app.blueprints.iris_user import iris_current_user
 from app.logger import logger
 from app import celery
-from app import db
+from app.db import db
 from app.datamgmt.iris_engine.modules_db import get_module_config_from_hname
 from app.datamgmt.iris_engine.modules_db import iris_module_add
 from app.datamgmt.iris_engine.modules_db import iris_module_exists

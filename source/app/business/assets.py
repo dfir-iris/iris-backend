@@ -18,7 +18,7 @@
 
 from flask_sqlalchemy.pagination import Pagination
 
-from app import db
+from app.db import db
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
