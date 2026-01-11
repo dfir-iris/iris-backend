@@ -30,7 +30,7 @@ from app.models.comments import EvidencesComments
 from app.models.comments import NotesComments
 from app.models.pagination_parameters import PaginationParameters
 from app.models.authorization import User
-from app.models.models import Client
+from app.models.customers import Client
 
 
 def _get_filtered_comments(query, pagination_parameters: PaginationParameters) -> Pagination:

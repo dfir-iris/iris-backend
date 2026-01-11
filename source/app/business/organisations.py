@@ -16,14 +16,20 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.models.assets import AssetsType
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.manage.manage_organisations import get_organisation_by_name
+from app.models.authorization import Organisation
+from app.models.errors import ObjectNotFoundError
 
-from app.datamgmt.case.assets_type import add_asset_type
-from app.datamgmt.case.assets_type import exists_asset_type_with_name
+
+def organisations_get(name) -> Organisation:
+    organisation = get_organisation_by_name(name)
+    if not organisation:
+        raise ObjectNotFoundError()
+    return organisation
 
 
-def create_asset_type_if_not_exists(session, asset_type: AssetsType):
-    if exists_asset_type_with_name(session, asset_type.asset_name):
-        return
-
-    add_asset_type(session, asset_type)
+def organisations_create(name, description) -> Organisation:
+    organisation = Organisation(org_name=name, org_description=description)
+    db_create(organisation)
+    return organisation

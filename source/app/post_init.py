@@ -29,13 +29,16 @@ import time
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine
-from sqlalchemy import exc
 from sqlalchemy import or_
 from sqlalchemy_utils import create_database
 from sqlalchemy_utils import database_exists
 
 from app import bc
 from app import celery
+from app.business.groups import groups_get_by_name
+from app.business.groups import groups_create
+from app.business.organisations import organisations_get
+from app.business.organisations import organisations_create
 from app.db import db
 from app.datamgmt.manage.manage_access_control_db import add_several_user_effective_access
 from app.iris_engine.demo_builder import create_demo_cases
@@ -46,21 +49,17 @@ from app.iris_engine.module_handler.module_handler import instantiate_module_fro
 from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.demo_builder import create_demo_users
 from app.models.models import create_safe_limited
-from app.models.models import AssetsType
+from app.models.assets import AssetsType, AnalysisStatus
 from app.models.alerts import Severity
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertResolutionStatus
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Group
-from app.models.authorization import Organisation
 from app.models.authorization import User
-from app.models.cases import Cases
+from app.models.cases import Cases, ReviewStatusList, CaseClassification
 from app.models.cases import CaseState
-from app.models.cases import Client
-from app.models.models import AnalysisStatus
-from app.models.models import CaseClassification
+from app.models.customers import Client
 from app.models.models import ReviewStatus
-from app.models.models import ReviewStatusList
 from app.models.models import EvidenceTypes
 from app.models.models import EventCategory
 from app.models.models import IocType
@@ -74,7 +73,6 @@ from app.models.models import TaskStatus
 from app.models.iocs import Tlp
 from app.models.models import create_safe
 from app.models.models import create_safe_attr
-from app.models.models import get_or_create
 from app.business.asset_types import create_asset_type_if_not_exists
 from app.business.customers import customers_get_by_name
 from app.business.customers import customers_create
@@ -84,7 +82,6 @@ from app.datamgmt.iris_engine.modules_db import iris_module_disable_by_id
 from app.datamgmt.manage.manage_groups_db import add_case_access_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_organisation
-from app.datamgmt.manage.manage_groups_db import get_group_by_name
 from app.datamgmt.case.case_db import case_db_save
 
 
@@ -129,6 +126,7 @@ _ASSET_TYPES = [
     {'asset_name': 'Windows Account - AD - Service', 'asset_description': 'Windows Account - AD - krbtgt',
      'asset_icon_not_compromised': 'user.png', 'asset_icon_compromised': 'ioc_user.png'}
 ]
+_DEFAULT_ORGANISATION_NAME = 'Default Org'
 
 
 def connect_to_database(host: str, port: int) -> bool:
@@ -740,8 +738,6 @@ def create_safe_case(user, client, groups):
             client_id=client.client_id
         )
 
-        # Validate the case and save it to the database
-        case.validate_on_build()
         case_db_save(case)
 
         db.session.commit()
@@ -1292,6 +1288,74 @@ def create_safe_server_settings(is_mfa_enabled):
                     password_policy_special_chars="", enforce_mfa=is_mfa_enabled)
 
 
+def create_safe_default_organisation():
+    try:
+        return organisations_get(_DEFAULT_ORGANISATION_NAME)
+    except ObjectNotFoundError:
+        return organisations_create(_DEFAULT_ORGANISATION_NAME, 'Default Organisation')
+
+
+def create_safe_group(name, description, auto_follow, auto_follow_access_level, permissions):
+    try:
+        return groups_get_by_name(name)
+    except ObjectNotFoundError:
+        group = Group(group_name=name, group_description=description,
+                      group_auto_follow=auto_follow, group_auto_follow_access_level=auto_follow_access_level,
+                      group_permissions=permissions)
+        return groups_create(group)
+
+
+# TODO is it really necessary to do all that?
+#   shouldn't the migration upgrade step already have put the database in the expected state?
+#   and shouldn't we protect modifications on initial entries that are not supposed to be modified
+#   (maybe comparing the identifier of the objects that are to be updated with the last identifier after database
+#   initialization)
+def create_safe_auth_model():
+    """Creates new Organisation, Group, and User objects if they do not already exist.
+
+    This function creates a new Organisation object with the specified name and description,
+    and creates new Group objects with the specified name, description, auto-follow status,
+    auto-follow access level, and permissions if they do not already exist in the database.
+    It also updates the attributes of the existing Group objects if they have changed.
+
+    """
+    def_org = create_safe_default_organisation()
+
+    # Create new Administrator Group object
+    gadm = create_safe_group('Administrators', 'Administrators', True,
+                             CaseAccessLevel.full_access.value, ac_get_mask_full_permissions())
+
+    # Update Administrator Group object attributes
+    if gadm.group_permissions != ac_get_mask_full_permissions():
+        gadm.group_permissions = ac_get_mask_full_permissions()
+
+    if gadm.group_auto_follow_access_level != CaseAccessLevel.full_access.value:
+        gadm.group_auto_follow_access_level = CaseAccessLevel.full_access.value
+
+    if gadm.group_auto_follow is not True:
+        gadm.group_auto_follow = True
+
+    db.session.commit()
+
+    # Create new Analysts Group object
+    ganalysts = create_safe_group('Analysts', 'Standard Analysts', False,
+                                  CaseAccessLevel.full_access.value, ac_get_mask_analyst())
+
+    # Update Analysts Group object attributes
+    if ganalysts.group_permissions != ac_get_mask_analyst():
+        ganalysts.group_permissions = ac_get_mask_analyst()
+
+    if ganalysts.group_auto_follow:
+        ganalysts.group_auto_follow = False
+
+    if ganalysts.group_auto_follow_access_level != CaseAccessLevel.full_access.value:
+        ganalysts.group_auto_follow_access_level = CaseAccessLevel.full_access.value
+
+    db.session.commit()
+
+    return def_org, gadm, ganalysts
+
+
 class PostInit:
 
     def __init__(self, app):
@@ -1322,71 +1386,6 @@ class PostInit:
                                 name=f"{predicate}:{entry.get('value')}",
                                 name_expanded=f"{predicate.title()}: {entry.get('expanded')}",
                                 description=entry['description'])
-
-    def _create_safe_auth_model(self):
-        """Creates new Organisation, Group, and User objects if they do not already exist.
-
-        This function creates a new Organisation object with the specified name and description,
-        and creates new Group objects with the specified name, description, auto-follow status,
-        auto-follow access level, and permissions if they do not already exist in the database.
-        It also updates the attributes of the existing Group objects if they have changed.
-
-        """
-        # Create new Organisation object
-        def_org = get_or_create(db.session, Organisation, org_name='Default Org',
-                                org_description='Default Organisation')
-
-        # Create new Administrator Group object
-        try:
-            gadm = get_or_create(db.session, Group, group_name='Administrators', group_description='Administrators',
-                                 group_auto_follow=True,
-                                 group_auto_follow_access_level=CaseAccessLevel.full_access.value,
-                                 group_permissions=ac_get_mask_full_permissions())
-
-        except exc.IntegrityError:
-            db.session.rollback()
-            self._logger.warning('Administrator group integrity error. Group permissions were probably changed. Updating.')
-            gadm = Group.query.filter(
-                Group.group_name == 'Administrators'
-            ).first()
-
-        # Update Administrator Group object attributes
-        if gadm.group_permissions != ac_get_mask_full_permissions():
-            gadm.group_permissions = ac_get_mask_full_permissions()
-
-        if gadm.group_auto_follow_access_level != CaseAccessLevel.full_access.value:
-            gadm.group_auto_follow_access_level = CaseAccessLevel.full_access.value
-
-        if gadm.group_auto_follow is not True:
-            gadm.group_auto_follow = True
-
-        db.session.commit()
-
-        # Create new Analysts Group object
-        try:
-            ganalysts = get_or_create(db.session, Group, group_name='Analysts', group_description='Standard Analysts',
-                                      group_auto_follow=False,
-                                      group_auto_follow_access_level=CaseAccessLevel.full_access.value,
-                                      group_permissions=ac_get_mask_analyst())
-
-        except exc.IntegrityError:
-            db.session.rollback()
-            self._logger.warning('Analysts group integrity error. Group permissions were probably changed. Updating.')
-            ganalysts = get_group_by_name('Analysts')
-
-        # Update Analysts Group object attributes
-        if ganalysts.group_permissions != ac_get_mask_analyst():
-            ganalysts.group_permissions = ac_get_mask_analyst()
-
-        if ganalysts.group_auto_follow is not False:
-            ganalysts.group_auto_follow = False
-
-        if ganalysts.group_auto_follow_access_level != CaseAccessLevel.full_access.value:
-            ganalysts.group_auto_follow_access_level = CaseAccessLevel.full_access.value
-
-        db.session.commit()
-
-        return def_org, gadm, ganalysts
 
     def _create_safe_admin(self, def_org, gadm, admin_username, admin_email, admin_password, api_key):
         """Creates a new admin user if one does not already exist.
@@ -1645,7 +1644,7 @@ class PostInit:
 
                 # Create initial authorization model, administrative user, and customer
                 self._logger.info("Creating initial authorisation model")
-                def_org, gadm, ganalysts = self._create_safe_auth_model()
+                def_org, gadm, ganalysts = create_safe_auth_model()
 
                 self._logger.info("Creating first administrative user")
                 admin_username = self._configuration.get('IRIS_ADM_USERNAME')

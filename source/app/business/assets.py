@@ -23,7 +23,7 @@ from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.business.cases import cases_exists
 from app.datamgmt.states import update_assets_state
-from app.models.models import CaseAssets
+from app.models.assets import CaseAssets
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_assets_db import get_asset
 from app.datamgmt.case.case_assets_db import filter_assets

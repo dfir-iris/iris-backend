@@ -37,7 +37,7 @@ from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.authorization import User
 from app.models.cases import Cases
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.filtering import paginate
 

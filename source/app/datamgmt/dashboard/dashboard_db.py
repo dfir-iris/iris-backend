@@ -79,6 +79,12 @@ def get_global_task(task_id):
     return ct
 
 
+def get_global_task_by_identifier(identifier):
+    return GlobalTasks.query.filter(
+        GlobalTasks.id == identifier
+    ).first()
+
+
 def get_tasks_status():
     return TaskStatus.query.all()
 

@@ -6,8 +6,8 @@ from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_cases_db import user_list_cases_view
 from app.datamgmt.conversions import convert_sort_direction
 from app.models.cases import Cases
-from app.models.models import CaseAssets
-from app.models.models import Client
+from app.models.assets import CaseAssets
+from app.models.customers import Client
 
 
 def get_filtered_assets(case_id=None,

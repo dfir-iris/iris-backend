@@ -33,3 +33,17 @@ class TestsRestGlobalTasks(TestCase):
         body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
         response = self._subject.create('/api/v2/global-tasks', body)
         self.assertEqual(201, response.status_code)
+
+    def test_get_global_task_should_return_200(self):
+        body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
+        response = self._subject.create('/api/v2/global-tasks', body).json()
+        identifier = response['task_id']
+        response = self._subject.get(f'/api/v2/global-tasks/{identifier}')
+        self.assertEqual(200, response.status_code)
+
+    def test_get_global_task_should_return_field_task_id(self):
+        body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
+        response = self._subject.create('/api/v2/global-tasks', body).json()
+        identifier = response['task_id']
+        response = self._subject.get(f'/api/v2/global-tasks/{identifier}').json()
+        self.assertEqual(identifier, response['task_id'])

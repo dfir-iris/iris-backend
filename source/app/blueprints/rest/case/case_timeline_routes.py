@@ -56,12 +56,10 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.collab import collab_notify
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.iris_engine.utils.tracker import track_activity
-from app.models.models import CompromiseStatus
+from app.models.assets import CompromiseStatus, AssetsType, CaseAssets
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import User
 from app.models.cases import CasesEvent
-from app.models.models import AssetsType
-from app.models.models import CaseAssets
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.models import EventCategory

@@ -15,11 +15,13 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 import random
 import string
 
 from app import app
 from app import bc
+from app.business.customers import customers_get_by_name, customers_create
 from app.datamgmt.case.case_db import case_db_save
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
@@ -29,8 +31,8 @@ from app.datamgmt.manage.manage_users_db import add_user_to_organisation
 from app.datamgmt.manage.manage_users_db import user_exists
 from app.iris_engine.access_control.utils import ac_add_users_multi_effective_access
 from app.models.cases import Cases
-from app.models.models import Client
-from app.models.models import get_or_create
+from app.models.errors import ObjectNotFoundError
+from app.models.customers import Client
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import User
 
@@ -136,14 +138,20 @@ def create_demo_users(def_org, gadm, ganalystes, users_count, seed_user, adm_cou
     return users
 
 
+def safe_create_customer(name, description):
+    try:
+        return customers_get_by_name(name)
+    except ObjectNotFoundError:
+        customer = Client(name=name, description=description)
+        customers_create(customer)
+        return customer
+
+
 def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_count: int = 0):
 
     clients = []
     for client_index in range(0, clients_count):
-        client = get_or_create(db.session,
-                      Client,
-                      name=f'Client {client_index}',
-                      description=f'Description for client {client_index}')
+        client = safe_create_customer(f'Client {client_index}', f'Description for client {client_index}')
         clients.append(client.client_id)
 
     cases_list = []
@@ -160,7 +168,6 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
             client_id=random.choice(clients)
         )
 
-        case.validate_on_build()
         case_db_save(case)
 
         db.session.commit()
@@ -197,7 +204,6 @@ def create_demo_cases(users_data: dict = None, cases_count: int = 0, clients_cou
             user=random.choice(users_data['admins']),
             client_id=random.choice(clients)
         )
-        case.validate_on_build()
         case_db_save(case)
 
         db.session.commit()

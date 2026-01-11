@@ -19,7 +19,7 @@
 from flask_sqlalchemy.pagination import Pagination
 
 from app.datamgmt.db_operations import db_create
-from app.models.models import Client
+from app.models.customers import Client
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
 from app.datamgmt.client.client_db import get_paginated_customers

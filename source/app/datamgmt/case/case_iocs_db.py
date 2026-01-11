@@ -26,8 +26,8 @@ from app.datamgmt.states import update_ioc_state
 from app.models.alerts import Alert
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
-from app.models.models import Client
-from app.models.models import CaseAssets
+from app.models.customers import Client
+from app.models.assets import CaseAssets
 from app.models.comments import Comments
 from app.models.comments import IocComments
 from app.models.iocs import Ioc

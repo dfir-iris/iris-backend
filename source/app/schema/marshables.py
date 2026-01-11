@@ -52,24 +52,20 @@ from app.datamgmt.manage.manage_attribute_db import merge_custom_attributes
 from app.datamgmt.manage.manage_tags_db import add_db_tag
 from app.datamgmt.case.case_iocs_db import get_ioc_links
 from app.iris_engine.access_control.utils import ac_mask_from_val_list
-from app.models.models import AnalysisStatus
-from app.models.models import CaseClassification
 from app.models.models import SavedFilter
 from app.models.models import DataStorePath
 from app.models.models import IrisModuleHook
 from app.models.models import Tags
 from app.models.models import ReviewStatus
 from app.models.models import EvidenceTypes
-from app.models.models import CaseStatus
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
-from app.models.models import AssetsType
-from app.models.models import CaseAssets
+from app.models.assets import AssetsType, CaseAssets, AnalysisStatus
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
-from app.models.cases import Cases
+from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.comments import Comments
 from app.models.models import Contact
 from app.models.models import DataStoreFile

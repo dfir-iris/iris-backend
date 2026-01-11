@@ -32,11 +32,8 @@ from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name
 from app.datamgmt.conversions import convert_sort_direction
 from app.datamgmt.authorization import has_deny_all_access_level
 from app.datamgmt.states import delete_case_states
-from app.models.models import CaseAssets
 from app.models.models import NoteRevisions
-from app.models.models import CaseClassification
-from app.models.models import alert_assets_association
-from app.models.models import CaseStatus
+from app.models.assets import alert_assets_association, CaseAssets
 from app.models.models import TaskAssignee
 from app.models.models import NoteDirectory
 from app.models.models import Tags
@@ -45,9 +42,9 @@ from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.models import CaseReceivedFile
 from app.models.models import CaseTasks
-from app.models.cases import Cases
+from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.models import DataStoreFile
 from app.models.models import DataStorePath
 from app.models.models import IocAssetLink

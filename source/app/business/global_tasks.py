@@ -16,11 +16,13 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+from app.models.errors import ObjectNotFoundError
 from app.models.models import GlobalTasks
 from datetime import datetime
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.db_operations import db_create
+from app.datamgmt.dashboard.dashboard_db import get_global_task_by_identifier
 
 
 def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:
@@ -35,3 +37,10 @@ def global_tasks_create(user, global_task: GlobalTasks) -> GlobalTasks:
     track_activity(f'created new global task "{global_task.task_title}"')
 
     return global_task
+
+
+def global_tasks_get(identifier) -> GlobalTasks:
+    task = get_global_task_by_identifier(identifier)
+    if not task:
+        raise ObjectNotFoundError()
+    return task

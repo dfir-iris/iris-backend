@@ -16,14 +16,9 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-from app.models.assets import AssetsType
-
-from app.datamgmt.case.assets_type import add_asset_type
-from app.datamgmt.case.assets_type import exists_asset_type_with_name
+from app.db import db
+from app.models.authorization import Organisation
 
 
-def create_asset_type_if_not_exists(session, asset_type: AssetsType):
-    if exists_asset_type_with_name(session, asset_type.asset_name):
-        return
-
-    add_asset_type(session, asset_type)
+def get_organisation_by_name(name) -> Organisation:
+    return db.session.query(Organisation).filter_by(org_name=name).first()

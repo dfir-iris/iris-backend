@@ -25,7 +25,7 @@ from flask_sqlalchemy.pagination import Pagination
 from app.db import db
 from app.models.errors import ElementInUseError
 from app.models.cases import Cases
-from app.models.models import Client
+from app.models.customers import Client
 from app.models.models import Contact
 from app.models.authorization import User
 from app.models.authorization import UserClient

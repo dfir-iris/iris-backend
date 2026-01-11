@@ -25,7 +25,7 @@ from app.db import db
 from app import socket_io
 from app.models.alerts import Alert
 from app.models.iocs import Ioc
-from app.models.models import CaseAssets
+from app.models.assets import CaseAssets
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.datamgmt.alerts.alerts_db import delete_similar_alert_cache
 from app.datamgmt.alerts.alerts_db import delete_related_alerts_cache
