@@ -37,7 +37,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_name': 'filter name',
             'filter_description': 'filter description',
             'filter_data' : {
-                'alert_tilte': 'filter name',
+                'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
                 'alert_tags': '',
@@ -77,7 +77,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_name': 'filter name',
             'filter_description': 'filter description',
             'filter_data' : {
-                'alert_tilte': 'filter name',
+                'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
                 'alert_tags': '',
@@ -107,7 +107,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_name': filter_name,
             'filter_description': 'filter description',
             'filter_data' : {
-                'alert_tilte': 'filter name',
+                'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
                 'alert_tags': '',
@@ -166,7 +166,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_name': 'filter name',
             'filter_description': 'filter description',
             'filter_data' : {
-                'alert_tilte': 'filter name',
+                'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
                 'alert_tags': '',
@@ -199,7 +199,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_name': filter_name,
             'filter_description': 'filter description',
             'filter_data' : {
-                'alert_tilte': 'filter name',
+                'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
                 'alert_tags': '',
@@ -236,7 +236,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_name': 'filter_name',
             'filter_description': 'filter description',
             'filter_data' : {
-                'alert_tilte': 'filter name',
+                'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
                 'alert_tags': '',
@@ -259,4 +259,217 @@ class TestsRestAlertsFilters(TestCase):
         response = self._subject.create('/api/v2/alerts-filters', body).json()
         identifier = response['filter_id']
         response = user.get(f'/api/v2/alerts-filters/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_update_alert_filter_should_return_200(self):
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'filter name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        body = {
+            'filter_name': 'filter name',
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body)
+        self.assertEqual(200, response.status_code)
+
+    def test_update_alert_filter_should_return_filter_name(self):
+        filter_name = 'new name'
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        body = {
+            'filter_name': filter_name,
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body).json()
+        self.assertEqual(filter_name, response['filter_name'])
+
+    def test_update_alert_filter_should_return_filter_description(self):
+        filter_description = 'new filter description'
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        body = {
+            'filter_description': filter_description,
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body).json()
+        self.assertEqual(filter_description, response['filter_description'])
+
+    def test_update_alert_filter_should_return_filter_type(self):
+        filter_type = 'new filter type'
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        body = {
+            'filter_type': filter_type,
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body).json()
+        self.assertEqual(filter_type, response['filter_type'])
+
+    def test_update_alert_filter_should_return_filter_data_alert_title(self):
+        alert_title = 'new alert title'
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        identifier = response['filter_id']
+        body = {
+            'filter_data':  { 'alert_title' : alert_title },
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body).json()
+        self.assertEqual(alert_title, response['filter_data']['alert_title'])
+
+    def test_update_alert_filter_should_return_404_when_alert_filter_is_not_found(self):
+        body = {
+            'filter_is_private': 'true',
+            'filter_type': 'alerts',
+            'filter_name': 'old name',
+            'filter_description': 'filter description',
+            'filter_data' : {
+                'alert_title': 'filter name',
+                'alert_description': '',
+                'alert_source': '',
+                'alert_tags': '',
+                'alert_severity_id': '',
+                'alert_start_date': '',
+                'source_start_date': '',
+                'source_end_date': '',
+                'creation_end_date': '',
+                'creation_start_date': '',
+                'alert_assets': '',
+                'alert_iocs': '',
+                'alert_ids': '',
+                'source_reference': '',
+                'case_id': '',
+                'custom_conditions': '',
+
+            }
+        }
+
+        response = self._subject.create('/api/v2/alerts-filters', body).json()
+        body = {
+            'filter_data':  { 'alert_title' : 'alert_title' },
+        }
+        response = self._subject.update(f'/api/v2/alerts-filters/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)

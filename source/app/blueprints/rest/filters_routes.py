@@ -68,6 +68,7 @@ def filters_add_route() -> Response:
 
 
 @saved_filters_rest_blueprint.route('/filters/update/<int:filter_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/alerts-filters/{identifier}')
 @ac_api_requires()
 def filters_update_route(filter_id) -> Response:
     """
@@ -130,7 +131,7 @@ def filters_delete_route(filter_id) -> Response:
 
 
 @saved_filters_rest_blueprint.route('/filters/<int:filter_id>', methods=['GET'])
-@endpoint_deprecated('GET', '/api/v2/alerts-filters')
+@endpoint_deprecated('GET', '/api/v2/alerts-filters/{identifier}')
 @ac_api_requires()
 def filters_get_route(filter_id) -> Response:
     """
