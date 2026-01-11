@@ -104,7 +104,7 @@ customers_operations = CustomersOperations()
 
 @customers_blueprint.get('')
 @ac_api_requires(Permissions.customers_read)
-def search_evidences():
+def search_customers():
     return customers_operations.search()
 
 

@@ -77,7 +77,7 @@ def events_get(identifier) -> CasesEvent:
 def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs, event_sync_iocs_assets) -> CasesEvent:
     add_obj_history_entry(event, 'updated')
 
-    update_timeline_state(caseid=event.case_id)
+    update_timeline_state(event.case_id)
     db.session.commit()
 
     save_event_category(event.event_id, event_category_id)
@@ -98,8 +98,8 @@ def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs
     return event
 
 
-def events_delete(event: CasesEvent):
-    delete_event(event)
+def events_delete(user, event: CasesEvent):
+    delete_event(user.id, event)
 
     call_modules_hook('on_postload_event_delete', event.event_id, caseid=event.case_id)
     collab_notify(event.case_id, 'events', 'deletion', event.event_id)

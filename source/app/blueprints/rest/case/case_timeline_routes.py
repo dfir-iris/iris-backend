@@ -631,7 +631,7 @@ def case_delete_event(cur_id, caseid):
     if not event:
         return response_error('Not a valid event ID for this case')
 
-    events_delete(event)
+    events_delete(iris_current_user, event)
 
     return response_success(f'Event ID {cur_id} deleted')
 
@@ -773,7 +773,7 @@ def case_duplicate_event(cur_id, caseid):
             event.event_title = f"[DUPLICATED] - {event.event_title}"
 
         db.session.add(event)
-        update_timeline_state(caseid=caseid)
+        update_timeline_state(caseid)
         db.session.commit()
 
         # Update category
@@ -959,7 +959,7 @@ def case_events_upload_csv(caseid):
             add_obj_history_entry(event, 'created')
 
             db.session.add(event)
-            update_timeline_state(caseid=caseid)
+            update_timeline_state(caseid)
 
             save_event_category(event.event_id, request_data.get('event_category_id'))
 

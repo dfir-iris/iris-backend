@@ -25,9 +25,9 @@ from sqlalchemy import and_
 from sqlalchemy import func
 
 from app import app
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
-from app.blueprints.iris_user import iris_current_user
 from app.models.evidences import CaseReceivedFile
 from app.models.models import DataStoreFile
 from app.models.models import DataStorePath
@@ -71,18 +71,18 @@ def ds_list_tree(cid):
     ).all()
 
     dsp_root = dsp_root
-    droot_id = f"d-{dsp_root.path_id}"
+    droot_id = f'd-{dsp_root.path_id}'
 
     path_tree = {
         droot_id: {
-            "name": dsp_root.path_name,
-            "type": "directory",
-            "is_root": True,
-            "children": {}
+            'name': dsp_root.path_name,
+            'type': 'directory',
+            'is_root': True,
+            'children': {}
         }
     }
 
-    droot_children = path_tree[droot_id]["children"]
+    droot_children = path_tree[droot_id]['children']
 
     files_nodes = {}
 
@@ -90,9 +90,9 @@ def ds_list_tree(cid):
         dfnode = dfile.__dict__
         dfnode.pop('_sa_instance_state')
         dfnode.pop('file_local_name')
-        dfnode['type'] = "file"
-        dnode_id = f"f-{dfile.file_id}"
-        dnode_parent_id = f"d-{dfile.file_parent_id}"
+        dfnode['type'] = 'file'
+        dnode_id = f'f-{dfile.file_id}'
+        dnode_parent_id = f'd-{dfile.file_parent_id}'
 
         if dnode_parent_id == droot_id:
             droot_children.update({
@@ -108,19 +108,19 @@ def ds_list_tree(cid):
             files_nodes[dnode_parent_id] = {dnode_id: dfnode}
 
     for dpath in dsp:
-        dpath_id = f"d-{dpath.path_id}"
-        dpath_parent_id = f"d-{dpath.path_parent_id}"
+        dpath_id = f'd-{dpath.path_id}'
+        dpath_parent_id = f'd-{dpath.path_parent_id}'
         path_node = {
             dpath_id: {
-                "name": dpath.path_name,
-                "type": "directory",
-                "children": {}
+                'name': dpath.path_name,
+                'type': 'directory',
+                'children': {}
             }
         }
 
         path_node_files = files_nodes.get(dpath_id)
         if path_node_files:
-            path_node[dpath_id]["children"].update(path_node_files)
+            path_node[dpath_id]['children'].update(path_node_files)
 
         if dpath_parent_id == droot_id:
             droot_children.update(path_node)
@@ -164,7 +164,7 @@ def init_ds_tree(cid):
 def datastore_iter_tree(path_parent_id, path_node, tree):
     for parent_id, node in tree.items():
         if parent_id == path_parent_id:
-            node["children"].update(path_node)
+            node['children'].update(path_node)
             return tree
 
         if isinstance(node, dict):
@@ -306,12 +306,12 @@ def datastore_get_standard_path(datastore_file, cid):
     else:
         target_path = root_path / 'Regulars'
 
-    target_path = target_path / f"case-{cid}"
+    target_path = target_path / f'case-{cid}'
 
     if not target_path.is_dir():
         target_path.mkdir(parents=True, exist_ok=True)
 
-    return target_path / f"dsf-{datastore_file.file_uuid}"
+    return target_path / f'dsf-{datastore_file.file_uuid}'
 
 
 def datastore_get_file(file_id, cid):
@@ -341,7 +341,7 @@ def datastore_delete_file(cur_id, cid):
     return False, f'File {cur_id} deleted'
 
 
-def datastore_add_file_as_ioc(dsf):
+def datastore_add_file_as_ioc(user_identifier, dsf):
     ioc = Ioc.query.filter(
         Ioc.ioc_value == dsf.file_sha256
     ).first()
@@ -357,16 +357,16 @@ def datastore_add_file_as_ioc(dsf):
     if ioc is None:
         ioc = Ioc()
         ioc.ioc_value = dsf.file_sha256
-        ioc.ioc_description = f"SHA256 of {dsf.file_original_name}. Imported from datastore."
+        ioc.ioc_description = f'SHA256 of {dsf.file_original_name}. Imported from datastore.'
         ioc.ioc_type_id = ioc_type_id.type_id
         ioc.ioc_tlp_id = ioc_tlp_id.tlp_id
-        ioc.ioc_tags = "datastore"
-        ioc.user_id = iris_current_user.id
+        ioc.ioc_tags = 'datastore'
+        ioc.user_id = user_identifier
 
         db_create(ioc)
 
 
-def datastore_add_file_as_evidence(dsf, caseid):
+def datastore_add_file_as_evidence(user_identifier, dsf, caseid):
     crf = CaseReceivedFile.query.filter(
         CaseReceivedFile.file_hash == dsf.file_sha256
     ).first()
@@ -374,12 +374,12 @@ def datastore_add_file_as_evidence(dsf, caseid):
     if crf is None:
         crf = CaseReceivedFile()
         crf.file_hash = dsf.file_sha256
-        crf.file_description = f"Imported from datastore. {dsf.file_description}"
+        crf.file_description = f'Imported from datastore. {dsf.file_description}'
         crf.case_id = caseid
         crf.date_added = datetime.datetime.now()
         crf.filename = dsf.file_original_name
         crf.file_size = dsf.file_size
-        crf.user_id = iris_current_user.id
+        crf.user_id = user_identifier
 
         db_create(crf)
 
@@ -458,7 +458,7 @@ def datastore_filter_tree(filter_d, caseid):
 
     if has_password is not None:
         condition = and_(condition,
-                         (DataStoreFile.file_password != ""))
+                         (DataStoreFile.file_password != ''))
 
     dsp_root = DataStorePath.query.filter(
         and_(DataStorePath.path_case_id == caseid,
@@ -492,18 +492,18 @@ def datastore_filter_tree(filter_d, caseid):
         return None, str(e)
 
     dsp_root = dsp_root
-    droot_id = f"d-{dsp_root.path_id}"
+    droot_id = f'd-{dsp_root.path_id}'
 
     path_tree = {
         droot_id: {
-            "name": dsp_root.path_name,
-            "type": "directory",
-            "is_root": True,
-            "children": {}
+            'name': dsp_root.path_name,
+            'type': 'directory',
+            'is_root': True,
+            'children': {}
         }
     }
 
-    droot_children = path_tree[droot_id]["children"]
+    droot_children = path_tree[droot_id]['children']
 
     files_nodes = {}
 
@@ -511,9 +511,9 @@ def datastore_filter_tree(filter_d, caseid):
         dfnode = dfile.__dict__
         dfnode.pop('_sa_instance_state')
         dfnode.pop('file_local_name')
-        dfnode['type'] = "file"
-        dnode_id = f"f-{dfile.file_id}"
-        dnode_parent_id = f"d-{dfile.file_parent_id}"
+        dfnode['type'] = 'file'
+        dnode_id = f'f-{dfile.file_id}'
+        dnode_parent_id = f'd-{dfile.file_parent_id}'
 
         if dnode_parent_id == droot_id:
             droot_children.update({
@@ -529,19 +529,19 @@ def datastore_filter_tree(filter_d, caseid):
             files_nodes[dnode_parent_id] = {dnode_id: dfnode}
 
     for dpath in dsp:
-        dpath_id = f"d-{dpath.path_id}"
-        dpath_parent_id = f"d-{dpath.path_parent_id}"
+        dpath_id = f'd-{dpath.path_id}'
+        dpath_parent_id = f'd-{dpath.path_parent_id}'
         path_node = {
             dpath_id: {
-                "name": dpath.path_name,
-                "type": "directory",
-                "children": {}
+                'name': dpath.path_name,
+                'type': 'directory',
+                'children': {}
             }
         }
 
         path_node_files = files_nodes.get(dpath_id)
         if path_node_files:
-            path_node[dpath_id]["children"].update(path_node_files)
+            path_node[dpath_id]['children'].update(path_node_files)
 
         if dpath_parent_id == droot_id:
             droot_children.update(path_node)

@@ -135,6 +135,7 @@ def get_cases_charts():
 
 
 @dashboard_rest_blueprint.route('/global/tasks/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/global-tasks')
 @ac_api_requires()
 def get_gtasks():
     tasks_list = list_global_tasks()

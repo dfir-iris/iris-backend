@@ -65,7 +65,7 @@ class AlertsFiltersOperations:
 
     def get(self, identifier):
         try:
-            saved_filter = alert_filter_get(identifier)
+            saved_filter = alert_filter_get(iris_current_user, identifier)
             return response_api_success(self._schema.dump(saved_filter))
 
         except ObjectNotFoundError:
@@ -78,7 +78,7 @@ class AlertsFiltersOperations:
         request_data = request.get_json()
 
         try:
-            saved_filter = alert_filter_get(identifier)
+            saved_filter = alert_filter_get(iris_current_user, identifier)
             new_saved_filter = self._load(request_data, instance=saved_filter, partial=True)
             alert_filter_update()
             return response_api_success(self._schema.dump(new_saved_filter))
@@ -95,7 +95,7 @@ class AlertsFiltersOperations:
     @staticmethod
     def delete(identifier):
         try:
-            saved_filter = alert_filter_get(identifier)
+            saved_filter = alert_filter_get(iris_current_user, identifier)
             alert_filter_delete(saved_filter)
             return response_api_deleted()
 

@@ -365,7 +365,7 @@ def get_case_iocs_for_tm(caseid):
     return iocs
 
 
-def delete_event(event):
+def delete_event(user_identifier, event):
     case_identifier = event.case_id
     delete_event_category(event.event_id)
 
@@ -393,14 +393,14 @@ def delete_event(event):
     db.session.commit()
 
     db.session.delete(event)
-    update_timeline_state(caseid=case_identifier)
+    update_timeline_state(case_identifier, user_identifier)
 
     db.session.commit()
 
 
 def get_category_by_name(cat_name):
     return EventCategory.query.filter(
-        EventCategory.name  == cat_name,
+        EventCategory.name == cat_name,
     ).first()
 
 

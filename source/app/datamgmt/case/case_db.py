@@ -239,12 +239,12 @@ def case_db_save(case: Cases):
     case.name = f'#{case.case_id} - {case.name}'
 
     # Create the states
-    update_timeline_state(caseid=case.case_id, userid=case.user_id)
-    update_tasks_state(caseid=case.case_id, userid=case.user_id)
-    update_evidences_state(caseid=case.case_id, userid=case.user_id)
-    update_ioc_state(caseid=case.case_id, userid=case.user_id)
-    update_assets_state(caseid=case.case_id, userid=case.user_id)
-    update_notes_state(caseid=case.case_id, userid=case.user_id)
+    update_timeline_state(case.case_id, case.user_id)
+    update_tasks_state(case.case_id, case.user_id)
+    update_evidences_state(case.case_id, case.user_id)
+    update_ioc_state(case.case_id, case.user_id)
+    update_assets_state(case.case_id, case.user_id)
+    update_notes_state(case.case_id, case.user_id)
 
     db.session.commit()
 

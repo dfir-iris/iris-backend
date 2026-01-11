@@ -412,7 +412,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
             add_obj_history_entry(event, 'created')
 
             db.session.add(event)
-            update_timeline_state(caseid=case.case_id)
+            update_timeline_state(case.case_id)
 
             event.category = [unspecified_cat]
 
@@ -580,7 +580,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         add_obj_history_entry(event, 'created')
 
         db.session.add(event)
-        update_timeline_state(caseid=case.case_id)
+        update_timeline_state(case.case_id)
 
         event.category = [unspecified_cat]
 
@@ -702,7 +702,7 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
         add_obj_history_entry(event, 'created')
 
         db.session.add(event)
-        update_timeline_state(caseid=case.case_id)
+        update_timeline_state(case.case_id)
 
         event.category = [unspecified_cat]
 
@@ -994,8 +994,7 @@ def get_related_alerts(customer_id, assets, iocs, details=False):
     return similarities
 
 
-def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_alerts, open_cases, closed_cases,
-                               days_back=30, number_of_results=200):
+def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_alerts, days_back, number_of_results):
     """
     Get the details of the related alerts
 
@@ -1013,12 +1012,6 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
     returns:
         dict: The details of the related alerts with matched assets and/or IOCs
     """
-    if not assets and not iocs:
-        return {
-            'nodes': [],
-            'edges': []
-        }
-
     asset_names = [(asset.asset_name, asset.asset_type_id) for asset in assets]
     ioc_values = [(ioc.ioc_value, ioc.ioc_type_id) for ioc in iocs]
 
@@ -1026,16 +1019,10 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
     alert_status_filter = []
 
     if open_alerts:
-        open_alert_status_ids = AlertStatus.query.with_entities(
-            AlertStatus.status_id
-        ).filter(AlertStatus.status_name.in_(['New', 'Assigned', 'In progress', 'Pending', 'Unspecified'])).all()
-        alert_status_filter += [status_id[0] for status_id in open_alert_status_ids]
+        alert_status_filter += _get_open_alerts_status_identifiers()
 
     if closed_alerts:
-        closed_alert_status_ids = AlertStatus.query.with_entities(
-            AlertStatus.status_id
-        ).filter(AlertStatus.status_name.in_(['Closed', 'Merged', 'Escalated'])).all()
-        alert_status_filter += [status_id[0] for status_id in closed_alert_status_ids]
+        alert_status_filter += _get_closed_alerts_status_identifiers()
 
     conditions = and_(
         SimilarAlertsCache.customer_id == customer_id,
@@ -1050,16 +1037,13 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
     if alert_status_filter:
         conditions = and_(conditions, Alert.alert_status_id.in_(alert_status_filter))
 
-    related_alerts = (
-        db.session.query(Alert, SimilarAlertsCache.asset_name, SimilarAlertsCache.ioc_value,
-                         asset_type_alias.asset_icon_not_compromised)
-        .join(SimilarAlertsCache, Alert.alert_id == SimilarAlertsCache.alert_id)
-        .outerjoin(Alert.resolution_status)
-        .outerjoin(asset_type_alias, SimilarAlertsCache.asset_type_id == asset_type_alias.asset_id)
-        .filter(conditions)
-        .limit(number_of_results)
-        .all()
-    )
+    related_alerts = db.session.query(
+        Alert, SimilarAlertsCache.asset_name, SimilarAlertsCache.ioc_value, asset_type_alias.asset_icon_not_compromised
+    ).join(
+        SimilarAlertsCache, Alert.alert_id == SimilarAlertsCache.alert_id
+    ).outerjoin(Alert.resolution_status).outerjoin(
+        asset_type_alias, SimilarAlertsCache.asset_type_id == asset_type_alias.asset_id
+    ).filter(conditions).limit(number_of_results).all()
 
     alerts_dict = {}
 
@@ -1074,167 +1058,77 @@ def get_related_alerts_details(customer_id, assets, iocs, open_alerts, closed_al
         if any(value == ioc_value for value, _ in ioc_values):
             alerts_dict[alert.alert_id]['iocs'].append(ioc_value)
 
-    nodes = []
-    edges = []
+    return alerts_dict
 
-    added_assets = set()
-    added_iocs = set()
-    added_cases = set()
 
-    for alert_id, alert_info in alerts_dict.items():
-        alert_color = '#c95029' if alert_info['alert'].status.status_name in ['Closed', 'Merged', 'Escalated'] else ''
-
-        alert_resolution_title = f'[{alert_info["alert"].resolution_status.resolution_status_name}]\n' if alert_info["alert"].resolution_status else ""
-
-        nodes.append({
-            'id': f'alert_{alert_id}',
-            'label': f'[Closed]{alert_resolution_title} {alert_info["alert"].alert_title}' if alert_color != '' else f'{alert_resolution_title}{alert_info["alert"].alert_title}',
-            'title': f'{alert_info["alert"].alert_description}',
-            'group': 'alert',
-            'shape': 'icon',
-            'icon': {
-                'face': 'FontAwesome',
-                'code': '\uf0f3',
-                'color': alert_color,
-                'weight': "bold"
-            },
-            'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
-        })
-
-        for asset_info in alert_info['assets']:
-            asset_id = asset_info['asset_name']
-
-            if asset_id not in added_assets:
-                nodes.append({
-                    'id': f'asset_{asset_id}',
-                    'label': asset_id,
-                    'group': 'asset',
-                    'shape': 'image',
-                    'image': '/static/assets/img/graph/' + asset_info['icon'],
-                    'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
-                })
-                added_assets.add(asset_id)
-
-            edges.append({
-                'from': f'alert_{alert_id}',
-                'to': f'asset_{asset_id}'
-            })
-
-        for ioc_value in alert_info['iocs']:
-            if ioc_value not in added_iocs:
-                nodes.append({
-                    'id': f'ioc_{ioc_value}',
-                    'label': ioc_value,
-                    'group': 'ioc',
-                    'shape': 'icon',
-                    'icon': {
-                        'face': 'FontAwesome',
-                        'code': '\ue4a8',
-                        'color': 'white' if iris_current_user.in_dark_mode else '',
-                        'weight': "bold"
-                    },
-                    'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
-                })
-                added_iocs.add(ioc_value)
-
-            edges.append({
-                'from': f'alert_{alert_id}',
-                'to': f'ioc_{ioc_value}',
-                'dashes': True
-            })
-
-    if open_cases or closed_cases:
-        close_condition = None
-        if open_cases and not closed_cases:
-            close_condition = Cases.close_date.is_(None)
-        if closed_cases and not open_cases:
-            close_condition = Cases.close_date.isnot(None)
-        if open_cases and closed_cases:
-            close_condition = Cases.close_date.isnot(None) | Cases.close_date.is_(None)
-
-        matching_ioc_cases = (
-            db.session.query(Ioc)
-            .with_entities(Ioc.case_id, Ioc.ioc_value, Cases.name, Cases.close_date, Cases.description)
-            .join(Ioc.case)
-            .filter(
-                and_(
-                    and_(
-                        Ioc.ioc_value.in_(added_iocs),
-                        close_condition,
-                    ),
-                    Cases.client_id == customer_id
-                )
+def get_assets_with_cases(added_assets, customer_id, open_cases, closed_cases):
+    close_condition = _build_cases_closed_filter(open_cases, closed_cases)
+    matching_asset_cases = (
+        db.session.query(CaseAssets)
+        .with_entities(CaseAssets.case_id, CaseAssets.asset_name, Cases.name, Cases.close_date, Cases.description)
+        .join(CaseAssets.case)
+        .filter(
+            and_(
+                CaseAssets.asset_name.in_(added_assets),
+                close_condition,
+                Cases.client_id == customer_id
             )
-            .distinct()
-            .all()
         )
+        .distinct(CaseAssets.case_id)
+        .all()
+    )
+    return matching_asset_cases
 
-        matching_asset_cases = (
-            db.session.query(CaseAssets)
-            .with_entities(CaseAssets.case_id, CaseAssets.asset_name, Cases.name, Cases.close_date, Cases.description)
-            .join(CaseAssets.case)
-            .filter(
-                and_(
-                    and_(
-                        CaseAssets.asset_name.in_(added_assets),
-                        close_condition
-                    ),
-                    Cases.client_id == customer_id
-                )
+
+def get_iocs_with_cases(added_iocs, customer_id, open_cases, closed_cases):
+    close_condition = _build_cases_closed_filter(open_cases, closed_cases)
+
+    matching_ioc_cases = (
+        db.session.query(Ioc)
+        .with_entities(Ioc.case_id, Ioc.ioc_value, Cases.name, Cases.close_date, Cases.description)
+        .join(Ioc.case)
+        .filter(
+            and_(
+                Ioc.ioc_value.in_(added_iocs),
+                close_condition,
+                Cases.client_id == customer_id
             )
-            .distinct(CaseAssets.case_id)
-            .all()
         )
+        .distinct()
+        .all()
+    )
+    return matching_ioc_cases
 
-        cases_data = {}
 
-        for case_id, ioc_value, case_name, close_date, case_desc in matching_ioc_cases:
-            if case_id not in cases_data:
-                cases_data[case_id] = {'name': case_name, 'matching_ioc': [], 'matching_assets': [],
-                                       'close_date': close_date, 'description': case_desc}
-            cases_data[case_id]['matching_ioc'].append(ioc_value)
+def _build_cases_closed_filter(open_cases, closed_cases):
+    # OPEN
+    if open_cases and not closed_cases:
+        return Cases.close_date.is_(None)
+    # CLOSED
+    if closed_cases and not open_cases:
+        return Cases.close_date.isnot(None)
+    # ANY
+    if open_cases and closed_cases:
+        return Cases.close_date.isnot(None) | Cases.close_date.is_(None)
+    return None
 
-        for case_id, asset_name, case_name, close_date, case_desc in matching_asset_cases:
-            if case_id not in cases_data:
-                cases_data[case_id] = {'name': case_name, 'matching_ioc': [], 'matching_assets': [],
-                                       'close_date': close_date, 'description': case_desc}
-            cases_data[case_id]['matching_assets'].append(asset_name)
 
-        for case_id in cases_data:
-            if case_id not in added_cases:
-                nodes.append({
-                    'id': f'case_{case_id}',
-                    'label': f'[Closed] Case #{case_id}' if cases_data[case_id].get('close_date') else f'Case #{case_id}',
-                    'title': cases_data[case_id].get("description"),
-                    'group': 'case',
-                    'shape': 'icon',
-                    'icon': {
-                        'face': 'FontAwesome',
-                        'code': '\uf0b1',
-                        'color': '#c95029' if cases_data[case_id].get('close_date') else '#4cba4f'
-                    },
-                    'font': "12px verdana white" if iris_current_user.in_dark_mode else ''
-                })
-                added_cases.add(case_id)
+def _get_closed_alerts_status_identifiers():
+    return _get_alerts_status_identifiers(['Closed', 'Merged', 'Escalated'])
 
-            for ioc_value in cases_data[case_id]['matching_ioc']:
-                edges.append({
-                    'from': f'ioc_{ioc_value}',
-                    'to': f'case_{case_id}',
-                    'dashes': True
-                })
 
-            for asset_name in cases_data[case_id]['matching_assets']:
-                edges.append({
-                    'from': f'asset_{asset_name}',
-                    'to': f'case_{case_id}',
-                    'dashes': True
-                })
+def _get_open_alerts_status_identifiers():
+    return _get_alerts_status_identifiers(['New', 'Assigned', 'In progress', 'Pending', 'Unspecified'])
 
-    return {
-        'nodes': nodes,
-        'edges': edges
-    }
+
+def _get_alerts_status_identifiers(status_names):
+    open_alert_status_ids = AlertStatus.query.with_entities(
+        AlertStatus.status_id
+    ).filter(AlertStatus.status_name.in_(status_names)).all()
+    result = []
+    for status_id in open_alert_status_ids:
+        result.append(status_id)
+    return result
 
 
 def get_alert_comments(alert_id: int) -> List[Comments]:
@@ -1267,7 +1161,7 @@ def get_alert_comment(alert_id: int, comment_id: int) -> Optional[Comments]:
     ).first()
 
 
-def delete_alert_comment(comment_id: int, alert_id: int) -> Tuple[bool, str]:
+def delete_alert_comment(user_identifier, comment_id: int, alert_id: int) -> Tuple[bool, str]:
     """
     Delete a comment of an alert
 
@@ -1276,7 +1170,7 @@ def delete_alert_comment(comment_id: int, alert_id: int) -> Tuple[bool, str]:
     """
     comment = Comments.query.filter(
         Comments.comment_id == comment_id,
-        Comments.comment_user_id == iris_current_user.id,
+        Comments.comment_user_id == user_identifier,
         Comments.comment_alert_id == alert_id
     ).first()
     if not comment:

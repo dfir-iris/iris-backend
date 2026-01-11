@@ -76,7 +76,7 @@ def get_paginated_customers(pagination_parameters: PaginationParameters, current
         query = query.filter(
             Client.client_id == UserClient.client_id,
             UserClient.user_id == current_user_identifier
-                )
+        )
 
     return paginate(Client, pagination_parameters, query)
 

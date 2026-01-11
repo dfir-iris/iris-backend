@@ -87,3 +87,13 @@ class TestsRestGlobalTasks(TestCase):
                 'task_close_date': closing_date}
         response = self._subject.update(f'/api/v2/global-tasks/{identifier}', body).json()
         self.assertEqual(closing_date, response['task_close_date'])
+
+    def test_search_global_tasks_should_return_200(self):
+        response = self._subject.get('/api/v2/global-tasks')
+        self.assertEqual(200, response.status_code)
+
+    def test_search_global_tasks_should_return_total(self):
+        body = {'task_title': 'dummy title', 'task_status_id': 1, 'task_assignee_id': ADMINISTRATOR_USER_IDENTIFIER}
+        response = self._subject.create('/api/v2/global-tasks', body).json()
+        response = self._subject.get('/api/v2/global-tasks').json()
+        self.assertEqual(1, response['total'])

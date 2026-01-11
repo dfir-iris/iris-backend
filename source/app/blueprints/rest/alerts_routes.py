@@ -36,7 +36,6 @@ from app.datamgmt.alerts.alerts_db import delete_related_alerts_cache
 from app.datamgmt.alerts.alerts_db import merge_alert_in_case
 from app.datamgmt.alerts.alerts_db import unmerge_alert_from_case
 from app.datamgmt.alerts.alerts_db import get_related_alerts
-from app.datamgmt.alerts.alerts_db import get_related_alerts_details
 from app.datamgmt.alerts.alerts_db import get_alert_comments
 from app.datamgmt.alerts.alerts_db import delete_alert_comment
 from app.datamgmt.alerts.alerts_db import get_alert_comment
@@ -63,6 +62,7 @@ from app.util import add_obj_history_entry
 from app.blueprints.responses import response_success
 from app.models.errors import BusinessProcessingError
 from app.business.alerts import alerts_create
+from app.business.alerts import alerts_get_related
 
 alerts_rest_blueprint = Blueprint('alerts_rest', __name__)
 
@@ -297,10 +297,8 @@ def alerts_similarities_route(alert_id) -> Response:
         days_back = 180
 
     # Get similar alerts
-    similar_alerts = get_related_alerts_details(alert.alert_customer_id, alert.assets, alert.iocs,
-                                                open_alerts=open_alerts, open_cases=open_cases,
-                                                closed_cases=closed_cases, closed_alerts=closed_alerts,
-                                                days_back=days_back, number_of_results=number_of_results)
+    similar_alerts = alerts_get_related(iris_current_user, alert, open_alerts, closed_alerts, open_cases, closed_cases,
+                                        days_back, number_of_results)
 
     return response_success(data=similar_alerts)
 
@@ -959,7 +957,7 @@ def alert_comment_delete(alert_id, com_id):
     if not ac_current_user_has_customer_access(alert.alert_customer_id):
         return response_error('User not entitled to read alerts for the client', status=403)
 
-    success, msg = delete_alert_comment(comment_id=com_id, alert_id=alert_id)
+    success, msg = delete_alert_comment(iris_current_user.id, comment_id=com_id, alert_id=alert_id)
     if not success:
         return response_error(msg)
 

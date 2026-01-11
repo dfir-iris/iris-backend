@@ -17,11 +17,14 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from sqlalchemy import desc
+from flask_sqlalchemy.pagination import Pagination
 
 from app.db import db
 from app.models.authorization import User
 from app.models.models import GlobalTasks
 from app.models.models import TaskStatus
+from app.models.pagination_parameters import PaginationParameters
+from app.datamgmt.filtering import paginate
 
 
 def delete_global_task(task: GlobalTasks):
@@ -31,6 +34,12 @@ def delete_global_task(task: GlobalTasks):
 
 def update_global_task():
     db.session.commit()
+
+
+def filter_global_tasks(pagination_parameters: PaginationParameters) -> Pagination:
+    query = GlobalTasks.query
+
+    return paginate(GlobalTasks, pagination_parameters, query)
 
 
 def list_global_tasks():
