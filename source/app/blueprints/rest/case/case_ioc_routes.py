@@ -33,8 +33,8 @@ from app.business.iocs import iocs_create
 from app.business.iocs import iocs_update
 from app.business.iocs import iocs_delete
 from app.business.iocs import iocs_get
-from app.business.errors import BusinessProcessingError
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.datamgmt.case.case_iocs_db import add_comment_to_ioc
 from app.datamgmt.case.case_iocs_db import add_ioc
 from app.datamgmt.case.case_iocs_db import delete_ioc_comment

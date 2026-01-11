@@ -45,7 +45,7 @@ from app.blueprints.responses import response_success
 from app.business.evidences import evidences_create
 from app.business.evidences import evidences_delete
 from app.business.evidences import evidences_update
-from app.business.errors import BusinessProcessingError
+from app.models.errors import BusinessProcessingError
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 
 

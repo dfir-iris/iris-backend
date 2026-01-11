@@ -17,7 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app.models.models import Contact
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.datamgmt.client.client_db import get_client_contact
 
 

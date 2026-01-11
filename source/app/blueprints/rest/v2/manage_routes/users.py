@@ -28,8 +28,8 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.schema.marshables import UserSchemaForAPIV2
 from app.models.authorization import Permissions
-from app.business.errors import ObjectNotFoundError
-from app.business.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
 from app.business.users import users_create
 from app.business.users import users_get
 from app.business.users import users_update

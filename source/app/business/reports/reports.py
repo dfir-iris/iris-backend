@@ -19,7 +19,7 @@
 import base64
 import os
 
-from app.business.errors import ObjectNotFoundError, BusinessProcessingError
+from app.models.errors import ObjectNotFoundError, BusinessProcessingError
 from app.business.reports.reporter import IrisMakeMdReport, IrisMakeDocReport
 from app.datamgmt.case.case_db import get_case
 from app.iris_engine.module_handler.module_handler import call_modules_hook

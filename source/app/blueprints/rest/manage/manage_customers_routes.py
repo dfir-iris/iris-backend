@@ -25,9 +25,10 @@ from marshmallow import ValidationError
 from app import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
-from app.business.customers import customers_get
+from app.business.customers import customers_get, customers_update
 from app.business.customers_contacts import customers_contacts_get
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
+from app.models.errors import ElementInUseError
 from app.datamgmt.client.client_db import create_customer
 from app.datamgmt.client.client_db import create_contact
 from app.datamgmt.client.client_db import delete_client
@@ -38,9 +39,7 @@ from app.datamgmt.client.client_db import get_client_cases
 from app.datamgmt.client.client_db import get_client_contacts
 from app.datamgmt.client.client_db import get_client_list
 from app.datamgmt.client.client_db import get_client_contact
-from app.datamgmt.client.client_db import update_client
 from app.datamgmt.client.client_db import update_contact
-from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
 from app.datamgmt.manage.manage_users_db import add_user_to_customer
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
@@ -50,6 +49,7 @@ from app.blueprints.access_controls import ac_api_requires_client_access
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.blueprints.rest.endpoints import endpoint_deprecated
+from app.business.customers import customers_exists_another_with_same_name
 
 manage_customers_rest_blueprint = Blueprint('manage_customers_rest', __name__)
 
@@ -241,16 +241,20 @@ def view_customers(client_id):
         if not customer:
             raise response_error('Invalid Customer ID')
 
-        update_client(client_schema, customer, request.json)
+        data = request.json
+        if customers_exists_another_with_same_name(client_id, data.get('customer_name')):
+            raise ValidationError('Customer already exists', field_name='customer_name')
+        client_schema.load(data, instance=customer)
+        customers_update()
 
     except ValidationError as e:
-        return response_error("", data=e.messages)
+        return response_error('', data=e.messages)
 
     except Exception as e:
         print(traceback.format_exc())
         return response_error(f'An error occurred during Customer update. {e}')
 
-    return response_success("Customer updated", client_schema.dump(customer))
+    return response_success('Customer updated', client_schema.dump(customer))
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/add', methods=['POST'])
@@ -281,6 +285,7 @@ def add_customers():
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/delete/<int:client_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/customers/{identifier}')
 @ac_api_requires(Permissions.customers_write)
 @ac_api_requires_client_access()
 def delete_customers(client_id):
@@ -290,7 +295,7 @@ def delete_customers(client_id):
     except ObjectNotFoundError:
         return response_error('Invalid Customer ID')
 
-    except ElementInUseException:
+    except ElementInUseError:
         return response_error('Cannot delete a referenced customer')
 
     except Exception:
@@ -313,7 +318,7 @@ def delete_contact_route(client_id, contact_id):
     except ObjectNotFoundError:
         return response_error('Invalid contact ID')
 
-    except ElementInUseException:
+    except ElementInUseError:
         return response_error('Cannot delete a referenced contact')
 
     except Exception:

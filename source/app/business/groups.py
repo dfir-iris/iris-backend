@@ -22,8 +22,8 @@ from app.datamgmt.manage.manage_groups_db import create_group
 from app.datamgmt.manage.manage_groups_db import get_group_details
 from app.datamgmt.manage.manage_groups_db import update_group
 from app.datamgmt.manage.manage_groups_db import delete_group
-from app.business.errors import BusinessProcessingError
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.iris_engine.access_control.utils import ac_ldp_group_removal
 
 

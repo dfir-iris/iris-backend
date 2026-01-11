@@ -18,7 +18,7 @@
 
 from app import db
 from app.datamgmt.filters.filters_db import get_filter_by_id
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 
 
 def alert_filter_add(new_saved_filter):

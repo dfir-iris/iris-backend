@@ -16,14 +16,13 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import marshmallow
 from sqlalchemy import func
 from sqlalchemy import and_
 from typing import List
 from typing import Optional
 
 from app import db
-from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
+from app.models.errors import ElementInUseError
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import Contact
@@ -143,24 +142,7 @@ def delete_contact(contact: Contact):
         db.session.commit()
 
     except Exception:
-        raise ElementInUseException('A currently referenced contact cannot be deleted')
-
-
-def update_client(schema, customer: Client, data):
-    exists = Client.query.filter(
-        Client.client_id != customer.client_id,
-        func.lower(Client.name) == data.get('customer_name').lower()
-    ).first()
-
-    if exists:
-        raise marshmallow.exceptions.ValidationError(
-            'Customer already exists',
-            field_name='customer_name'
-        )
-
-    schema.load(data, instance=customer)
-
-    update_customer()
+        raise ElementInUseError('A currently referenced contact cannot be deleted')
 
 
 def delete_client(customer: Client) -> None:
@@ -168,7 +150,7 @@ def delete_client(customer: Client) -> None:
         db.session.delete(customer)
         db.session.commit()
     except Exception:
-        raise ElementInUseException('A currently referenced customer cannot be deleted')
+        raise ElementInUseError('Cannot delete a referenced customer')
 
 
 def get_case_client(case_id: int) -> Client:

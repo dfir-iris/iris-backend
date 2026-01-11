@@ -49,8 +49,15 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "Do not import marshables from the persistence layer"
 type = "forbidden"
-source_modules = "app.datamgmt.manage.manage_case_state_db"
+source_modules = ["app.datamgmt.manage.manage_case_state_db", "app.datamgmt.manage.manage_groups_db"]
 forbidden_modules = "app.schema.marshables"
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Do not import marshmallow from the persistence layer"
+type = "forbidden"
+source_modules = "app.datamgmt.client"
+forbidden_modules = "marshmallow"
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

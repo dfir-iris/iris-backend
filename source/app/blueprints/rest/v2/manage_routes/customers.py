@@ -24,13 +24,16 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.access_controls import ac_api_requires
 from app.models.authorization import Permissions
 from app.schema.marshables import CustomerSchema
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
+from app.models.errors import ElementInUseError
 from app.business.customers import customers_create_with_user
 from app.business.customers import customers_get
 from app.business.customers import customers_update
+from app.business.customers import customers_delete
 from app.blueprints.iris_user import iris_current_user
 
 
@@ -71,6 +74,17 @@ class Customers:
         except ObjectNotFoundError:
             return response_api_not_found()
 
+    def delete(self, identifier):
+        try:
+            customer = customers_get(identifier)
+            customers_delete(customer)
+            return response_api_deleted()
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except ElementInUseError as e:
+            return response_api_error(e.get_message())
+
 
 customers_blueprint = Blueprint('customers_rest_v2', __name__, url_prefix='/customers')
 
@@ -93,3 +107,9 @@ def get_customer(identifier):
 @ac_api_requires(Permissions.customers_write)
 def put_customer(identifier):
     return customers.update(identifier)
+
+
+@customers_blueprint.delete('/<int:identifier>')
+@ac_api_requires(Permissions.customers_write)
+def delete_user(identifier):
+    return customers.delete(identifier)

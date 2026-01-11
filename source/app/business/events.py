@@ -21,12 +21,12 @@ from datetime import datetime
 from app import db
 from app.blueprints.iris_user import iris_current_user
 from app.models.cases import CasesEvent
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.util import add_obj_history_entry
 from app.datamgmt.states import update_timeline_state
 from app.datamgmt.case.case_events_db import save_event_category
 from app.datamgmt.case.case_events_db import update_event_assets
-from app.business.errors import BusinessProcessingError
+from app.models.errors import BusinessProcessingError
 from app.datamgmt.case.case_events_db import update_event_iocs
 from app.datamgmt.case.case_events_db import get_case_event
 from app.datamgmt.case.case_events_db import delete_event

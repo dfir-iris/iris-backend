@@ -20,7 +20,7 @@ import json
 from sqlalchemy import String, Text, inspect, or_, not_, and_
 
 from app import app
-from app.business.errors import BusinessProcessingError
+from app.models.errors import BusinessProcessingError
 from app.datamgmt.conversions import convert_sort_direction
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.authorization import RESTRICTED_USER_FIELDS

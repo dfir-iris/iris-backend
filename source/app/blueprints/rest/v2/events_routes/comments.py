@@ -35,7 +35,7 @@ from app.business.comments import comments_create_for_event
 from app.business.comments import comments_get_for_event
 from app.business.comments import comments_delete_for_event
 from app.business.events import events_get
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.models.cases import CasesEvent
 from app.schema.marshables import CommentSchema
 from app.models.authorization import CaseAccessLevel

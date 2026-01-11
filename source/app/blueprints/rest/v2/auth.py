@@ -29,7 +29,7 @@ from app import app
 from app import db
 from app import oidc_client
 from app.blueprints.iris_user import iris_current_user
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import ObjectNotFoundError
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc

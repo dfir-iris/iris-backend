@@ -29,8 +29,8 @@ from app.datamgmt.states import update_ioc_state
 from app.schema.marshables import IocSchema
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.business.errors import BusinessProcessingError
-from app.business.errors import ObjectNotFoundError
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.datamgmt.case.case_iocs_db import get_ioc
 from app.util import add_obj_history_entry
 from app.datamgmt.case.case_iocs_db import get_filtered_iocs
