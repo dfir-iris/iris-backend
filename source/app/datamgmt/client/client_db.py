@@ -24,14 +24,27 @@ from typing import Optional
 
 from app import db
 from app.datamgmt.exceptions.ElementExceptions import ElementInUseException
-from app.datamgmt.exceptions.ElementExceptions import ElementNotFoundException
 from app.models.cases import Cases
 from app.models.models import Client
 from app.models.models import Contact
 from app.models.authorization import User
 from app.models.authorization import UserClient
-from app.schema.marshables import ContactSchema
-from app.schema.marshables import CustomerSchema
+
+
+# TODO most probably rename into add (or save?) and make more generic
+def create_contact(contact):
+    db.session.add(contact)
+    db.session.commit()
+
+
+# TODO most probably rename into update (or save?) and make more generic, maybe just use the preceding method?
+def update_contact():
+    db.session.commit()
+
+
+# TODO same
+def update_customer():
+    db.session.commit()
 
 
 def get_client_list(current_user_id: int = None,
@@ -115,23 +128,15 @@ def get_client_contacts(client_id: int) -> List[Contact]:
     return contacts
 
 
-def get_client_contact(client_id: int, contact_id: int) -> Contact:
+def get_client_contact(contact_id: int) -> Contact:
     contact = Contact.query.filter(
-        Contact.client_id == client_id,
         Contact.id == contact_id
     ).first()
 
     return contact
 
 
-def delete_contact(contact_id: int) -> None:
-    contact = Contact.query.filter(
-        Contact.id == contact_id
-    ).first()
-
-    if not contact:
-        raise ElementNotFoundException('No Contact found with this uuid.')
-
+def delete_contact(contact: Contact):
     try:
 
         db.session.delete(contact)
@@ -141,67 +146,27 @@ def delete_contact(contact_id: int) -> None:
         raise ElementInUseException('A currently referenced contact cannot be deleted')
 
 
-def create_contact(data, customer_id) -> Contact:
-    data['client_id'] = customer_id
-    contact_schema = ContactSchema()
-    contact = contact_schema.load(data)
-
-    db.session.add(contact)
-    db.session.commit()
-
-    return contact
-
-
-def update_contact(data, contact_id, customer_id) -> Contact:
-    contact = get_client_contact(customer_id, contact_id)
-    data['client_id'] = customer_id
-    contact_schema = ContactSchema()
-    contact_schema.load(data, instance=contact)
-
-    db.session.commit()
-
-    return contact
-
-
-def update_client(client_id: int, data) -> Client:
-    # TODO: Possible reuse somewhere else ...
-    client = get_customer(client_id)
-
-    if not client:
-        raise ElementNotFoundException('No Customer found with this uuid.')
-
+def update_client(schema, customer: Client, data):
     exists = Client.query.filter(
-        Client.client_id != client_id,
+        Client.client_id != customer.client_id,
         func.lower(Client.name) == data.get('customer_name').lower()
     ).first()
 
     if exists:
         raise marshmallow.exceptions.ValidationError(
-            "Customer already exists",
-            field_name="customer_name"
+            'Customer already exists',
+            field_name='customer_name'
         )
 
-    client_schema = CustomerSchema()
-    client_schema.load(data, instance=client)
+    schema.load(data, instance=customer)
 
-    db.session.commit()
-
-    return client
+    update_customer()
 
 
-def delete_client(client_id: int) -> None:
-    client = Client.query.filter(
-        Client.client_id == client_id
-    ).first()
-
-    if not client:
-        raise ElementNotFoundException('No Customer found with this uuid.')
-
+def delete_client(customer: Client) -> None:
     try:
-
-        db.session.delete(client)
+        db.session.delete(customer)
         db.session.commit()
-
     except Exception:
         raise ElementInUseException('A currently referenced customer cannot be deleted')
 
@@ -214,5 +179,10 @@ def get_case_client(case_id: int) -> Client:
     return client
 
 
-def get_customer_by_name(name) -> Client:
-    return db.session.query(Client).filter_by(name=name).first()
+def get_customer_by_name(name, case_insensitive=False) -> Client:
+    query = db.session.query(Client)
+    if case_insensitive:
+        query = query.filter(func.upper(Client.name) == name.upper())
+    else:
+        query = query.filter_by(name=name)
+    return query.first()

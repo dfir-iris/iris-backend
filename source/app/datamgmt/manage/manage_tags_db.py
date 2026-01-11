@@ -89,4 +89,3 @@ def add_db_tag(tag_title, tag_namespace=None):
         raise e
 
     return tag
-

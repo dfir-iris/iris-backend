@@ -59,6 +59,10 @@ class TestsRestCustomers(TestCase):
         response = self._subject.create('/api/v2/manage/customers', body)
         self.assertEqual(400, response.status_code)
 
+    def test_create_customer_should_return_400_when_field_customer_name_is_not_provided(self):
+        response = self._subject.create('/api/v2/manage/customers', {})
+        self.assertEqual(400, response.status_code)
+
     def test_create_customer_should_add_an_activity(self):
         body = {'customer_name': 'customer_name'}
         self._subject.create('/api/v2/manage/customers', body)
@@ -94,3 +98,33 @@ class TestsRestCustomers(TestCase):
         user = self._subject.create_dummy_user()
         response = user.get(f'/api/v2/manage/customers/{identifier}')
         self.assertEqual(403, response.status_code)
+
+    def test_put_customer_should_return_200(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        body = {'customer_name': 'new name'}
+        response = self._subject.update(f'/api/v2/manage/customers/{identifier}', body)
+        self.assertEqual(200, response.status_code)
+
+    def test_put_customer_should_return_400_when_another_customer_with_the_same_name_already_exists(self):
+        body = {'customer_name': 'already existing name'}
+        self._subject.create('/api/v2/manage/customers', body).json()
+
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        body = {'customer_name': 'already existing name'}
+        response = self._subject.update(f'/api/v2/manage/customers/{identifier}', body)
+        self.assertEqual(400, response.status_code)
+
+    def test_put_customer_should_return_200_when_updating_with_same_name(self):
+        body = {'customer_name': 'customer'}
+        response = self._subject.create('/api/v2/manage/customers', body).json()
+        identifier = response['customer_id']
+
+        body = {'customer_name': 'customer'}
+        response = self._subject.update(f'/api/v2/manage/customers/{identifier}', body)
+        self.assertEqual(200, response.status_code)

@@ -81,7 +81,7 @@ class Groups:
             return response_api_not_found()
 
     def delete(self, identifier):
-        try :
+        try:
             group = groups_get(identifier)
             groups_delete(iris_current_user, group)
             return response_api_deleted()

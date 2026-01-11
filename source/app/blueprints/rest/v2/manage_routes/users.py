@@ -79,7 +79,7 @@ class Users:
             return response_api_not_found()
 
     def delete(self, identifier):
-        try :
+        try:
             user = users_get(identifier)
             users_delete(user)
             return response_api_deleted()

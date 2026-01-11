@@ -36,7 +36,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -76,7 +76,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': filter_type,
             'filter_name': 'filter name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -106,7 +106,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': filter_name,
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -136,7 +136,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter_name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': alert_title,
                 'alert_description': '',
                 'alert_source': '',
@@ -165,7 +165,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -198,7 +198,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': filter_name,
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -235,7 +235,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter_name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -267,7 +267,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -303,7 +303,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -339,7 +339,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -375,7 +375,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -411,7 +411,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -435,7 +435,7 @@ class TestsRestAlertsFilters(TestCase):
         response = self._subject.create('/api/v2/alerts-filters', body).json()
         identifier = response['filter_id']
         body = {
-            'filter_data':  { 'alert_title' : alert_title },
+            'filter_data':  {'alert_title': alert_title},
         }
         response = self._subject.update(f'/api/v2/alerts-filters/{identifier}', body).json()
         self.assertEqual(alert_title, response['filter_data']['alert_title'])
@@ -446,7 +446,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -463,13 +463,12 @@ class TestsRestAlertsFilters(TestCase):
                 'source_reference': '',
                 'case_id': '',
                 'custom_conditions': '',
-
             }
         }
 
         response = self._subject.create('/api/v2/alerts-filters', body).json()
         body = {
-            'filter_data':  { 'alert_title' : 'alert_title' },
+            'filter_data':  {'alert_title': 'alert_title'},
         }
         response = self._subject.update(f'/api/v2/alerts-filters/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}', body)
         self.assertEqual(404, response.status_code)
@@ -480,7 +479,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -516,7 +515,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'old name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',
@@ -549,7 +548,7 @@ class TestsRestAlertsFilters(TestCase):
             'filter_type': 'alerts',
             'filter_name': 'filter name',
             'filter_description': 'filter description',
-            'filter_data' : {
+            'filter_data': {
                 'alert_title': 'filter name',
                 'alert_description': '',
                 'alert_source': '',

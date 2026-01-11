@@ -92,7 +92,8 @@ class AlertsFiltersOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
 
-    def delete(self, identifier):
+    @staticmethod
+    def delete(identifier):
         try:
             saved_filter = alert_filter_get(identifier)
             alert_filter_delete(saved_filter)

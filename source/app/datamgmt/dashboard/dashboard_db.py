@@ -181,5 +181,3 @@ def list_user_cases(user_identifier, show_all=False):
         Cases.owner_id == user_identifier,
         Cases.close_date == None
     ).all()
-
-

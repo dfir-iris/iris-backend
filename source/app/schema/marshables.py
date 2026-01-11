@@ -42,6 +42,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 from werkzeug.datastructures import FileStorage
+from app.business.customers import customers_exists_another_with_same_name
 from app import db
 from app import ma
 from app.blueprints.iris_user import iris_current_user
@@ -629,11 +630,11 @@ class AssetTypeSchema(ma.SQLAlchemyAutoSchema):
         """
 
         assert_type_mml(input_var=data.asset_name,
-                        field_name="asset_name",
+                        field_name='asset_name',
                         type=str)
 
         assert_type_mml(input_var=data.asset_id,
-                        field_name="asset_id",
+                        field_name='asset_id',
                         type=int,
                         allow_none=True)
 
@@ -1786,6 +1787,16 @@ class CustomerSchema(ma.SQLAlchemyAutoSchema):
         exclude = ['name', 'client_id', 'description', 'sla']
         unknown = EXCLUDE
 
+    @pre_load
+    def verify_unique_name(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        if 'customer_name' not in data:
+            return data
+        identifier = data.get('customer_id')
+        name = data['customer_name']
+        if customers_exists_another_with_same_name(identifier, name):
+            raise ValidationError('Customer already exists', field_name='customer_name')
+        return data
+
     @post_load
     def verify_unique(self, data: Client, **kwargs: Any) -> Client:
         """Verifies that the customer name is unique.
@@ -1811,13 +1822,6 @@ class CustomerSchema(ma.SQLAlchemyAutoSchema):
                         field_name='customer_id',
                         type=int,
                         allow_none=True)
-
-        client = Client.query.filter(
-            func.upper(Client.name) == data.name.upper(),
-            Client.client_id != data.client_id
-        ).first()
-        if client:
-            raise ValidationError("Customer already exists", field_name="customer_name")
 
         return data
 
@@ -2159,7 +2163,7 @@ class AuthorizationOrganisationSchema(ma.SQLAlchemyAutoSchema):
 
         for organisation in organisations:
             if data.get('org_id') is None or organisation.org_id != data.get('org_id'):
-                raise ValidationError("Organisation name already exists", field_name="org_name")
+                raise ValidationError('Organisation name already exists', field_name='org_name')
 
         return data
 
@@ -2184,40 +2188,6 @@ class BasicUserSchema(ma.SQLAlchemyAutoSchema):
         exclude = ['password', 'api_key', 'ctx_case', 'ctx_human_case', 'active', 'external_id', 'in_dark_mode',
                    'id', 'name', 'email', 'user', 'uuid']
         unknown = EXCLUDE
-
-
-def validate_asset_type(asset_id: int) -> None:
-    """Validates the asset type ID.
-
-    This function validates the asset type ID by checking if it exists in the database.
-    If the ID is invalid, it raises a validation error.
-
-    Args:
-        asset_id: The asset type ID to validate.
-
-    Raises:
-        ValidationError: If the asset type ID is invalid.
-
-    """
-    if not AssetsType.query.get(asset_id):
-        raise ValidationError("Invalid asset_type ID")
-
-
-def validate_asset_tlp(tlp_id: int) -> None:
-    """Validates the asset TLP ID.
-
-    This function validates the asset TLP ID by checking if it exists in the database.
-    If the ID is invalid, it raises a validation error.
-
-    Args:
-        tlp_id: The asset TLP ID to validate.
-
-    Raises:
-        ValidationError: If the asset TLP ID is invalid.
-
-    """
-    if not Tlp.query.get(tlp_id):
-        raise ValidationError("Invalid asset_tlp ID")
 
 
 class SeveritySchema(ma.SQLAlchemyAutoSchema):
