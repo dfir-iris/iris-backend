@@ -31,6 +31,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.business.global_tasks import global_tasks_create
 from app.business.global_tasks import global_tasks_get
+from app.business.global_tasks import global_tasks_update
 from app.business.global_tasks import global_tasks_delete
 from app.models.errors import ObjectNotFoundError
 
@@ -49,6 +50,21 @@ class GlobalTasksOperations:
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', data=e.messages)
+
+    def update(self, identifier):
+        try:
+            task = global_tasks_get(identifier)
+            request_data = call_deprecated_on_preload_modules_hook('global_task_update', request.get_json())
+            task = self._schema.load(request_data, instance=task)
+            task = global_tasks_update(iris_current_user, task)
+            result = self._schema.dump(task)
+            return response_api_success(result)
+
+        except ValidationError as e:
+            return response_api_error('Data error', data=e.messages)
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
 
     def read(self, identifier):
         try:
@@ -84,6 +100,12 @@ def create_global_task():
 @ac_api_requires()
 def get_global_task(identifier):
     return global_tasks_operations.read(identifier)
+
+
+@global_tasks_blueprint.put('/<int:identifier>')
+@ac_api_requires()
+def put_glboal_task(identifier):
+    return global_tasks_operations.update(identifier)
 
 
 @global_tasks_blueprint.delete('/<int:identifier>')

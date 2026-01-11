@@ -26,7 +26,7 @@ from app.models.assets import CompromiseStatus, AssetsType, CaseAssets, Analysis
 from app.models.models import TaskAssignee
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
@@ -176,8 +176,7 @@ def export_case_evidences_json(case_id):
 
         return [row._asdict() for row in evidences]
 
-    else:
-        return []
+    return []
 
 
 def export_case_notes_json(case_id):

@@ -23,7 +23,7 @@ from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_rfiles_db import add_rfile
 from app.datamgmt.case.case_rfiles_db import delete_rfile

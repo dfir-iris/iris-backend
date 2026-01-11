@@ -80,9 +80,9 @@ def notes_get(identifier) -> Notes:
     return note
 
 
-def notes_update(note: Notes):
+def notes_update(user, note: Notes):
     try:
-        if not update_note_revision(note):
+        if not update_note_revision(user.id, note):
             logger.debug(f'Note {note.note_id} has not changed, skipping versioning')
 
         note.update_date = datetime.utcnow()

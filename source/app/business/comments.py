@@ -56,7 +56,7 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.comments import Comments
 from app.models.assets import CaseAssets
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.iocs import Ioc
 from app.models.models import Notes
 from app.models.models import CaseTasks
@@ -309,36 +309,36 @@ def comments_delete_for_asset(asset: CaseAssets, comment: Comments):
     track_activity(f'comment {comment.comment_id} on asset {asset.asset_id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_evidence(evidence: CaseReceivedFile, comment: Comments):
-    delete_evidence_comment(evidence.id, comment.comment_id)
+def comments_delete_for_evidence(user, evidence: CaseReceivedFile, comment: Comments):
+    delete_evidence_comment(user.id, evidence.id, comment.comment_id)
 
     call_modules_hook('on_postload_evidence_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on evidence {evidence.id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_ioc(ioc: Ioc, comment: Comments):
-    delete_ioc_comment(ioc.ioc_id, comment.comment_id)
+def comments_delete_for_ioc(user, ioc: Ioc, comment: Comments):
+    delete_ioc_comment(user.id, ioc.ioc_id, comment.comment_id)
 
     call_modules_hook('on_postload_ioc_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on ioc {ioc.ioc_id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_note(note: Notes, comment: Comments):
-    delete_note_comment(note.note_id, comment.comment_id)
+def comments_delete_for_note(user, note: Notes, comment: Comments):
+    delete_note_comment(user.id, note.note_id, comment.comment_id)
 
     call_modules_hook('on_postload_note_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on note {note.note_id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_task(task: CaseTasks, comment: Comments):
-    delete_task_comment(task.id, comment.comment_id)
+def comments_delete_for_task(user, task: CaseTasks, comment: Comments):
+    delete_task_comment(user.id, task.id, comment.comment_id)
 
     call_modules_hook('on_postload_task_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on task {task.id} deleted', caseid=comment.comment_case_id)
 
 
-def comments_delete_for_event(event: CasesEvent, comment: Comments):
-    delete_event_comment(event.event_id, comment.comment_id)
+def comments_delete_for_event(user, event: CasesEvent, comment: Comments):
+    delete_event_comment(user.id, event.event_id, comment.comment_id)
 
     call_modules_hook('on_postload_event_comment_delete', comment.comment_id, caseid=comment.comment_case_id)
     track_activity(f'comment {comment.comment_id} on event {event.event_id} deleted', caseid=comment.comment_case_id)

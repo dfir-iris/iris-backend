@@ -404,18 +404,17 @@ def ac_socket_requires(*access_level):
             if not is_user_authenticated(request):
                 return redirect(not_authenticated_redirection_url(request.full_path))
 
+            chan_id = args[0].get('channel')
+            if chan_id:
+                case_id = int(chan_id.replace('case-', '').split('-')[0])
             else:
-                chan_id = args[0].get('channel')
-                if chan_id:
-                    case_id = int(chan_id.replace('case-', '').split('-')[0])
-                else:
-                    return _ac_return_access_denied(caseid=0)
+                return _ac_return_access_denied(caseid=0)
 
-                access = ac_fast_check_user_has_case_access(iris_current_user.id, case_id, access_level)
-                if not access:
-                    return _ac_return_access_denied(caseid=case_id)
+            access = ac_fast_check_user_has_case_access(iris_current_user.id, case_id, access_level)
+            if not access:
+                return _ac_return_access_denied(caseid=case_id)
 
-                return f(*args, **kwargs)
+            return f(*args, **kwargs)
 
         return wrap
     return inner_wrap
@@ -491,9 +490,8 @@ def _oidc_proxy_authentication_process(incoming_request: Request):
                 user_email = response_json.get("sub")
                 return _authenticate_with_email(user_email=user_email)
 
-            else:
-                log.info("USER IS NOT AUTHENTICATED")
-                return False
+            log.info("USER IS NOT AUTHENTICATED")
+            return False
 
     elif app.config.get("AUTHENTICATION_TOKEN_VERIFY_MODE") == 'signature':
         # Use the JWKS urls provided by the OIDC discovery to fetch the signing keys

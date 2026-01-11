@@ -18,11 +18,12 @@
 
 from sqlalchemy import and_
 
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.states import update_timeline_state
-from app.models.assets import AssetsType, CaseAssets
+from app.models.assets import AssetsType
+from app.models.assets import CaseAssets
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
@@ -158,10 +159,10 @@ def get_case_event_comment(event_id, comment_id):
     ).first()
 
 
-def delete_event_comment(event_id, comment_id):
+def delete_event_comment(user_identifier, event_id, comment_id):
     comment = Comments.query.filter(
         Comments.comment_id == comment_id,
-        Comments.comment_user_id == iris_current_user.id
+        Comments.comment_user_id == user_identifier
     ).first()
     if not comment:
         return False, "You are not allowed to delete this comment"

@@ -22,9 +22,9 @@ from typing import Optional
 from sqlalchemy import desc
 from sqlalchemy import and_
 
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.conversions import convert_sort_direction
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.manage.manage_users_db import get_users_list_restricted_from_case
@@ -300,10 +300,10 @@ def delete_task(task_id):
         ).delete()
 
 
-def delete_task_comment(task_id, comment_id):
+def delete_task_comment(user_identifier, task_id, comment_id):
     comment = Comments.query.filter(
         Comments.comment_id == comment_id,
-        Comments.comment_user_id == iris_current_user.id
+        Comments.comment_user_id == user_identifier
     ).first()
     if not comment:
         return False, "You are not allowed to delete this comment"

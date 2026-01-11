@@ -24,6 +24,16 @@ def db_create(element):
     db.session.commit()
 
 
+def create_safe(session, model, **kwargs):
+    instance = session.query(model).filter_by(**kwargs).first()
+    if instance:
+        return False
+    instance = model(**kwargs)
+    session.add(instance)
+    session.commit()
+    return True
+
+
 def db_delete(element):
     db.session.delete(element)
     db.session.commit()

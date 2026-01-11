@@ -24,7 +24,7 @@ from app.models.models import IrisHook
 from app.models.models import IrisModule
 from app.models.models import IrisModuleHook
 from app.models.assets import CaseAssets
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.models import CaseTasks
 from app.models.cases import Cases
 from app.models.cases import CasesEvent

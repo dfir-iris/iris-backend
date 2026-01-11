@@ -176,8 +176,7 @@ def get_module_config_from_hname(module_name):
 
     if data:
         return data[0]
-    else:
-        return None
+    return None
 
 
 def get_pipelines_args_from_name(module_name):

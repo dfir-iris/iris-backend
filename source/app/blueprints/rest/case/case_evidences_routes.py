@@ -221,7 +221,7 @@ def case_comment_evidence_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_delete(cur_id, com_id, caseid):
-    success, msg = delete_evidence_comment(cur_id, com_id)
+    success, msg = delete_evidence_comment(iris_current_user.id, cur_id, com_id)
     if not success:
         return response_error(msg)
 

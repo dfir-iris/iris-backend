@@ -266,7 +266,7 @@ def case_comment_task_edit(cur_id: int, com_id: int, caseid: int):
 @ac_api_requires()
 def case_comment_task_delete(cur_id: int, com_id: int, caseid: int):
 
-    success, msg = delete_task_comment(task_id=cur_id, comment_id=com_id)
+    success, msg = delete_task_comment(iris_current_user.id, cur_id, com_id)
     if not success:
         return response_error(msg)
 

@@ -82,11 +82,10 @@ def task_case_update(module, pipeline, pipeline_args, caseid):
 
         return IStatus.I2UnexpectedResult("Unable to build path")
 
-    else:
-        # The user do not have any context so we cannot update
-        # Return an error
-        errors.append('Current user does not have a valid case in context')
-        return IStatus.I2UnexpectedResult("Invalid context")
+    # The user do not have any context so we cannot update
+    # Return an error
+    errors.append('Current user does not have a valid case in context')
+    return IStatus.I2UnexpectedResult("Invalid context")
 
 
 def chunks(lst, n):

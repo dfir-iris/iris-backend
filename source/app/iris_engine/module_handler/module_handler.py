@@ -385,8 +385,7 @@ def register_hook(module_id: int, iris_hook_name: str, manual_hook_name: str = N
 
         return True, [f"Hook {iris_hook_name} registered"]
 
-    else:
-        return True, [f"Hook {iris_hook_name} already registered"]
+    return True, [f"Hook {iris_hook_name} already registered"]
 
 
 def deregister_from_hook(module_id: int, iris_hook_name: str):

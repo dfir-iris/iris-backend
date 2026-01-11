@@ -20,12 +20,12 @@ import datetime
 from sqlalchemy import desc
 from flask_sqlalchemy.pagination import Pagination
 
-from app.datamgmt.db_operations import db_create, db_delete
+from app.datamgmt.db_operations import db_create
+from app.datamgmt.db_operations import db_delete
 from app.db import db
-from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.datamgmt.states import update_evidences_state
-from app.models.models import CaseReceivedFile
+from app.models.evidences import CaseReceivedFile
 from app.models.comments import Comments
 from app.models.comments import EvidencesComments
 from app.models.authorization import User
@@ -166,10 +166,10 @@ def get_case_evidence_comment(evidence_id, comment_id):
     ).first()
 
 
-def delete_evidence_comment(evidence_id, comment_id):
+def delete_evidence_comment(user_identifier, evidence_id, comment_id):
     comment = Comments.query.filter(
         Comments.comment_id == comment_id,
-        Comments.comment_user_id == iris_current_user.id
+        Comments.comment_user_id == user_identifier
     ).first()
     if not comment:
         return False, "You are not allowed to delete this comment"

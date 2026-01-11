@@ -20,7 +20,8 @@ from marshmallow import ValidationError
 from flask import Blueprint
 from flask import request
 
-from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
@@ -38,6 +39,7 @@ from app.business.cases import cases_exists
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.blueprints.iris_user import iris_current_user
 
 
 class NotesOperations:
@@ -109,7 +111,7 @@ class NotesOperations:
                                                                    note.note_case_id)
             request_data['note_id'] = note.note_id
             self._schema.load(request_data, partial=True, instance=note)
-            note = notes_update(note)
+            note = notes_update(iris_current_user, note)
 
             schema = CaseNoteSchema()
             result = schema.dump(note)
