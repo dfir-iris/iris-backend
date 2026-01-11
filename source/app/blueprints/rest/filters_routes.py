@@ -130,6 +130,7 @@ def filters_delete_route(filter_id) -> Response:
 
 
 @saved_filters_rest_blueprint.route('/filters/<int:filter_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/alerts-filters')
 @ac_api_requires()
 def filters_get_route(filter_id) -> Response:
     """

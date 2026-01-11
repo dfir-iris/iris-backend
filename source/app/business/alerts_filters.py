@@ -17,9 +17,17 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app import db
+from app.datamgmt.filters.filters_db import get_filter_by_id
+from app.business.errors import ObjectNotFoundError
 
 
-def alerts_filters_add(new_saved_filter):
+def alert_filter_add(new_saved_filter):
     db.session.add(new_saved_filter)
     db.session.commit()
 
+
+def alert_filter_get(identifier):
+    alert_filter = get_filter_by_id(identifier)
+    if not alert_filter:
+        raise ObjectNotFoundError()
+    return alert_filter
