@@ -69,8 +69,15 @@ class Iris:
     def delete(self, path):
         return self._api.delete(path)
 
-    def post_multipart_encoded_file(self, path, data, file_path):
-        return self._api.post_multipart_encoded_file(path, data, file_path)
+    def create_report(self, data, template_name):
+        file_path = f'data/report_templates/{template_name}'
+        with open(file_path, 'rb') as file:
+            files = {'file': file}
+            response = self._api.post_multipart_encoded_files('/manage/templates/add', data, files).json()
+            return response['data']['report_id']
+
+    def post_multipart_encoded_files(self, path, data, files):
+        return self._api.post_multipart_encoded_files(path, data, files)
 
     def create_user(self, user_name, user_password):
         body = {
