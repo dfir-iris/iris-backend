@@ -177,12 +177,25 @@ if is_authentication_oidc():
         session["oidc_state"] = rndstr()
         session["oidc_nonce"] = rndstr()
 
+        xf_proto = request.headers.get("X-Forwarded-Proto")
+        xf_host = request.headers.get("X-Forwarded-Host")
+
+        if xf_proto:
+            xf_proto = xf_proto.split(",")[0].strip()
+        if xf_host:
+            xf_host = xf_host.split(",")[0].strip()
+
+        redirect_uri = url_for("login.oidc_authorise", _external=True)
+
+        if xf_proto and xf_host:
+            redirect_uri = f"{xf_proto}://{xf_host}/oidc-authorize"
+
         args = {
             "client_id": oidc_client.client_id,
             "response_type": "code",
             "scope": app.config.get("OIDC_SCOPES"),
             "nonce": session["oidc_nonce"],
-            "redirect_uri": url_for("login.oidc_authorise", _external=True),
+            "redirect_uri": redirect_uri,
             "state": session["oidc_state"],
         }
 
@@ -212,6 +225,18 @@ if is_authentication_oidc():
             "code": auth_resp["code"],
         }
 
+        xf_proto = request.headers.get("X-Forwarded-Proto")
+        xf_host = request.headers.get("X-Forwarded-Host")
+
+        if xf_proto:
+            xf_proto = xf_proto.split(",")[0].strip()
+        if xf_host:
+            xf_host = xf_host.split(",")[0].strip()
+
+        if xf_proto and xf_host:
+            public_base = f"{xf_proto}://{xf_host}"
+            args["redirect_uri"] = f"{public_base}/oidc-authorize"
+
         access_token_resp = oidc_client.do_access_token_request(
             state=auth_resp["state"], request_args=args
         )
@@ -223,25 +248,32 @@ if is_authentication_oidc():
         usergroup_field = app.config.get("OIDC_MAPPING_USERGROUP")
         userroles_mapping_field = app.config.get("OIDC_MAPPING_ROLES")
         try:
-            if "id_token" not in access_token_resp:
-                log.error(
-                    "OIDC authentication failed: 'id_token' not found in access token response"
-                )
-                track_activity(
-                    "OIDC authentication failed: missing id_token in response",
-                    ctx_less=True,
-                    display_in_ui=False,
-                )
-                return redirect(url_for("login.login"))
+            if "id_token" in access_token_resp and access_token_resp["id_token"]:
+                claims = access_token_resp["id_token"]
+            else:
+                if "access_token" not in access_token_resp:
+                    err = access_token_resp.get("error")
+                    desc = access_token_resp.get("error_description")
+                    log.error(
+                        f"OIDC authentication failed: token response missing access_token (error={err}, desc={desc})"
+                    )
+                    track_activity(
+                        f"OIDC authentication failed: token response missing access_token (error={err}, desc={desc})",
+                        ctx_less=True,
+                        display_in_ui=False,
+                    )
+                    return redirect(url_for("login.login"))
 
-            user_login = access_token_resp["id_token"].get(
-                username_field
-            ) or access_token_resp["id_token"].get(email_field)
-            user_name = access_token_resp["id_token"].get(
-                email_field
-            ) or access_token_resp["id_token"].get(username_field)
+                claims = oidc_client.do_user_info_request(
+                    state=auth_resp["state"],
+                    access_token=access_token_resp["access_token"],
+                )
+
+            user_login = claims.get(username_field) or claims.get(email_field)
+            user_name = claims.get(email_field) or claims.get(username_field)
+
             if usergroup_field is not None:
-                user_group = access_token_resp["id_token"].get(usergroup_field)
+                user_group = claims.get(usergroup_field)
             else:
                 user_group = None
 
