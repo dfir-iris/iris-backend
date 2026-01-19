@@ -86,6 +86,28 @@ def login():
     return response_api_success(data=user_data)
 
 
+@auth_blueprint.get('/whoami')
+def whoami():
+    """
+    Returns current authenticated user info (based on the existing session) and API tokens.
+    Output shape matches the frontend's existing local-login handler:
+      { responseData, tokenInfo, redirectTo }
+    """
+    if not iris_current_user.is_authenticated:
+        return response_api_error('Unauthorized', 401)
+
+    user = users_get_active(iris_current_user.id)
+    response_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
+
+    token_info = generate_auth_tokens(user)
+
+    return response_api_success(data={
+        'responseData': response_data,
+        'tokenInfo': token_info,
+        'redirectTo': '/'
+    })
+
+
 @auth_blueprint.post('/logout')
 def logout():
     """
