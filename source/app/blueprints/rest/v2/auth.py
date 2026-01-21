@@ -24,6 +24,7 @@ from flask import session
 from flask import redirect
 from flask import url_for
 from flask import request
+from flask import g
 from flask_login import logout_user
 from oic.oauth2.exception import GrantError
 
@@ -37,6 +38,7 @@ from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
+from app.blueprints.rest.api_auth import api_auth
 from app.blueprints.rest.endpoints import response_api_error, response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.auth import validate_ldap_login
@@ -65,8 +67,9 @@ def login():
     if is_authentication_oidc() and app.config.get('AUTHENTICATION_LOCAL_FALLBACK') is False:
         return redirect(url_for('login.oidc_login'))
 
-    username = request.json.get('username')
-    password = request.json.get('password')
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    password = data.get('password')
 
     if is_authentication_ldap() is True:
         authed_user = validate_ldap_login(username, password, app.config.get('AUTHENTICATION_LOCAL_FALLBACK'))
@@ -207,7 +210,9 @@ def mfa_verify():
             display_in_ui=False,
         )
 
-        return response_api_success({'mfa_verified': True})
+        tokens = generate_auth_tokens(user, mfa_verified=True)
+
+        return response_api_success({'mfa_verified': True, 'tokens': tokens})
 
     except ObjectNotFoundError:
         return response_api_not_found()
@@ -218,35 +223,35 @@ def mfa_verify():
 
 
 @auth_blueprint.get('/whoami')
+@api_auth()
 def whoami():
     """
     Returns current authenticated user info (based on the existing session) and API tokens.
     Output shape matches the frontend's existing local-login handler:
       { responseData, tokenInfo, redirectTo }
     """
-    if not iris_current_user.is_authenticated:
-        return response_api_error('Unauthorized', 401)
+    user = g.api_user
 
-    user = users_get_active(iris_current_user.id)
-    response_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(user)
-
-    token_info = generate_auth_tokens(user)
+    response_data = UserSchema(
+        exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']
+    ).dump(user)
 
     return response_api_success(data={
         'responseData': response_data,
-        'tokenInfo': token_info,
+        'tokenInfo': None,
         'redirectTo': '/'
     })
 
 
 @auth_blueprint.post('/logout')
+@api_auth()
 def logout():
     """
     Logout function. Erase its session and redirect to index i.e login
     :return: Page
     """
 
-    if session['current_case']:
+    if session.get('current_case'):
         iris_current_user.ctx_case = session['current_case']['case_id']
         db.session.commit()
 
@@ -282,7 +287,8 @@ def refresh_token_endpoint():
     """
     Refresh authentication tokens using a valid refresh token
     """
-    refresh_token = request.json.get('refresh_token')
+    data = request.get_json(silent=True) or {}
+    refresh_token = data.get('refresh_token')
     if not refresh_token:
         return response_api_error('Refresh token is required')
 
