@@ -583,12 +583,39 @@ def ac_fast_check_current_user_has_case_access(cid, access_level):
     return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
 
 
+def _get_current_permissions_mask():
+    # Token-based authentication
+    if hasattr(g, 'auth_token_user_id'):
+        if hasattr(g, 'auth_user_permissions'):
+            return g.auth_user_permissions
+
+        user = get_user(g.auth_token_user_id)
+        if not user:
+            return 0
+
+        perms = ac_get_effective_permissions_of_user(user)
+        g.auth_user_permissions = perms
+        return perms
+
+    # Session-based authentication
+    perms = session.get('permissions')
+    if perms is None and current_user.is_authenticated:
+        perms = ac_get_effective_permissions_of_user(current_user)
+        session['permissions'] = perms
+
+    return perms or 0
+
+
 def ac_current_user_has_permission(permission):
     """
     Return True if current user has permission
     """
-    return ac_flag_match_mask(session['permissions'], permission.value)
+    return ac_flag_match_mask(_get_current_permissions_mask(), permission.value)
 
 
 def ac_current_user_has_customer_access(customer_identifier):
-    return access_controls_user_has_customer_access(iris_current_user, session['permissions'], customer_identifier)
+    return access_controls_user_has_customer_access(
+        iris_current_user,
+        _get_current_permissions_mask(),
+        customer_identifier
+    )
