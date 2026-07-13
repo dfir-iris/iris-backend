@@ -1,0 +1,119 @@
+#  Minimal backend-only stack for CI.
+#
+#  Brings up rabbitmq + db + app + worker, no nginx, no frontend.
+#  The tests/ REST suite hits app:8000 directly at http://127.0.0.1:8000
+#  from the runner host, so the app service publishes that port.
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: iris_rabbitmq
+    user: rabbitmq
+    networks:
+      - iris_backend
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity || exit 1
+      start_period: 60s
+      start_interval: 1s
+
+  db:
+    image: iris-db:ci
+    build:
+      context: docker/db
+    container_name: iris_db
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_ADMIN_USER
+      - POSTGRES_ADMIN_PASSWORD
+      - POSTGRES_DB
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    networks:
+      - iris_backend
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U postgres -d iris_db || exit 1
+      start_period: 60s
+      start_interval: 1s
+
+  app:
+    image: iris-backend:ci
+    build:
+      context: .
+      dockerfile: docker/webApp/Dockerfile
+    container_name: iris_app
+    command: ["./iris-entrypoint.sh", "iriswebapp"]
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_ADMIN_USER
+      - POSTGRES_ADMIN_PASSWORD
+      - POSTGRES_SERVER
+      - POSTGRES_PORT
+      - IRIS_SECRET_KEY
+      - IRIS_SECURITY_PASSWORD_SALT
+    ports:
+      # tests/iris.py hits http://127.0.0.1:8000 from the runner host
+      - "127.0.0.1:8000:8000"
+    networks:
+      - iris_backend
+    healthcheck:
+      test: curl --head --fail http://localhost:8000 || exit 1
+      start_period: 60s
+      start_interval: 1s
+
+  worker:
+    image: iris-backend:ci
+    build:
+      context: .
+      dockerfile: docker/webApp/Dockerfile
+    container_name: iris_worker
+    command:
+      [
+        "./wait-for-iriswebapp.sh",
+        "app:8000",
+        "./iris-entrypoint.sh",
+        "iris-worker",
+      ]
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_ADMIN_USER
+      - POSTGRES_ADMIN_PASSWORD
+      - POSTGRES_SERVER
+      - POSTGRES_PORT
+      - IRIS_SECRET_KEY
+      - IRIS_SECURITY_PASSWORD_SALT
+      - IRIS_WORKER
+      - LOG_LEVEL
+    networks:
+      - iris_backend
+    healthcheck:
+      test: celery -A app.celery inspect ping || exit 1
+      start_period: 60s
+      start_interval: 1s
+
+volumes:
+  db_data:
+
+networks:
+  iris_backend:
+    name: iris_backend

@@ -6,29 +6,6 @@
 #  modify it under the terms of the GNU Lesser General Public
 #  License as published by the Free Software Foundation; either
 #  version 3 of the License, or (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#  Lesser General Public License for more details.
-#
-#  You should have received a copy of the GNU Lesser General Public License
-#  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
-####################
-# COMPILE JS IMAGE #
-####################
-FROM node:20-alpine AS compile-js-image
-
-COPY ui/ /ui
-
-RUN rm -rf /ui/{node_modules,dist}
-
-WORKDIR /ui
-
-RUN npm ci
-RUN npm run build
 
 #################
 # COMPILE IMAGE #
@@ -59,9 +36,6 @@ COPY --from=compile-image /opt/venv /opt/venv
 # Make sure we use the virtualenv:
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Define specific admin password at creation
-#ENV IRIS_ADM_PASSWORD="MySuperFirstPasswordIWant"
-
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends p7zip-full pgp rsync postgresql-client \
@@ -83,8 +57,5 @@ COPY docker/webApp/iris-entrypoint.sh .
 COPY docker/webApp/wait-for-iriswebapp.sh .
 COPY ./source .
 
-COPY --from=compile-js-image /ui/dist/ /iriswebapp/static/
-
 RUN chmod +x iris-entrypoint.sh
 RUN chmod +x wait-for-iriswebapp.sh
-#ENTRYPOINT [ "./iris-entrypoint.sh" ]

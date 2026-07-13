@@ -2,30 +2,24 @@ name: Build and push Nginx image
 
 on:
   push:
-    # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    branches: [develop, master, main]
+    tags: ['v*.*.*']
   pull_request:
-    branches: [ "main" ]
+    branches: [develop, master, main]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: dfir-iris/iris-nginx
 
 jobs:
-  build-db:
+  build-nginx:
     runs-on: ubuntu-latest
-
     permissions:
       packages: write
       contents: read
 
     steps:
-      - run: |
-          echo "The job was automatically triggered by a ${{ github.event_name }} event."
-          echo "This job is now running on a ${{ runner.os }} server hosted by github!"
-          echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-
       - name: Check out repository code
         uses: actions/checkout@v4
 
@@ -39,11 +33,13 @@ jobs:
 
       - name: Check if beta tag
         id: check_beta
+        env:
+          REF: ${{ github.ref }}
         run: |
-          if [[ "${{ github.ref }}" == *"beta"* ]]; then
-            echo "is_beta=true" >> $GITHUB_OUTPUT
+          if [[ "$REF" == *"beta"* ]]; then
+            echo "is_beta=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_beta=false" >> $GITHUB_OUTPUT
+            echo "is_beta=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Log into registry ${{ env.REGISTRY }}
@@ -58,15 +54,16 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/dfir-iris/iriswebapp_nginx
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: |
-            latest=${{ steps.check_beta.outputs.is_beta != 'true' }}
+            latest=${{ github.ref == 'refs/tags/v*' && steps.check_beta.outputs.is_beta != 'true' }}
           tags: |
             type=semver,pattern=v{{version}}
+            type=ref,event=branch
             type=raw,value=beta,enable=${{ steps.check_beta.outputs.is_beta == 'true' }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: docker/nginx
           platforms: linux/amd64,linux/arm64
@@ -77,4 +74,4 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NGINX_CONF_GID=1234
-            NGINX_CONF_FILE=nginx.conf
+            NGINX_CONF_FILE=nginx-newui.conf
