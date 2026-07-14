@@ -9,11 +9,10 @@
 # manual copy step.
 #
 # Install (host, one-time):
-#   sudo cp iris-web/scripts/certbot-deploy-hook.sh /etc/letsencrypt/renewal-hooks/deploy/iris.sh
+#   sudo cp iris-backend/scripts/certbot-deploy-hook.sh /etc/letsencrypt/renewal-hooks/deploy/iris.sh
 #   sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/iris.sh
 #   # Point IRIS_WEB_CERT_DIR at your absolute path to certificates/web_certificates/
-#   sudo sed -i 's|__IRIS_WEB_CERT_DIR__|/opt/iris/iris-web/certificates/web_certificates|' \
-#       /etc/letsencrypt/renewal-hooks/deploy/iris.sh
+#   sudo sed -i 's|__IRIS_WEB_CERT_DIR__|/opt/iris/iris-web/certificates/web_certificates|' /etc/letsencrypt/renewal-hooks/deploy/iris.sh
 #
 # Certbot will invoke this after every successful renewal.  Set
 # RENEWED_LINEAGE (certbot does this automatically) or pass it in
