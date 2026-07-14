@@ -24,7 +24,9 @@
 
             {% if auth_type == "oidc" %}
                 <a href="{{ url_for('login.oidc_login') }}" class="btn btn-primary login__submit_button login__form_title">OIDC Sign In</a>
-            {% else %}
+            {% endif %}
+
+            {% if auth_type != "oidc" or local_fallback_enabled %}
                 <form method="post" action="" class="login__form">
                     {{ form.hidden_tag() }}
                     <div class="login__form">

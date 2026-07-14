@@ -101,6 +101,7 @@ class ServerOperations:
             auth_requirements = {
                 "oidc_enabled": app.config.get("AUTHENTICATION_TYPE") == "oidc",
                 "mfa_enabled": app.config.get("MFA_ENABLED"),
+                "local_fallback_enabled": bool(app.config.get("AUTHENTICATION_LOCAL_FALLBACK")),
             }
             return response_api_success(auth_requirements)
         except Exception as e:

@@ -66,6 +66,7 @@ def _render_template_login(form, msg):
     login_banner = app.config.get("LOGIN_BANNER_TEXT")
     ptfm_contact = app.config.get("LOGIN_PTFM_CONTACT")
     auth_type = app.config.get("AUTHENTICATION_TYPE")
+    local_fallback_enabled = bool(app.config.get("AUTHENTICATION_LOCAL_FALLBACK"))
 
     return render_template(
         "login.html",
@@ -75,6 +76,7 @@ def _render_template_login(form, msg):
         login_banner=login_banner,
         ptfm_contact=ptfm_contact,
         auth_type=auth_type,
+        local_fallback_enabled=local_fallback_enabled,
     )
 
 
