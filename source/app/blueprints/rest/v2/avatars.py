@@ -213,7 +213,7 @@ def get_mentionable_users() -> Response:
     q_raw = request.args.get('q', default='', type=str) or ''
     q = q_raw.strip().lower()
 
-    query = User.query.filter(User.active == True)  # noqa: E712
+    query = User.query.filter(User.active == True)  # SQLAlchemy needs `==`
     if q:
         # Prefix match first (cheap on indexed columns), fall back to
         # substring match. Kept as one query so a single row-scan

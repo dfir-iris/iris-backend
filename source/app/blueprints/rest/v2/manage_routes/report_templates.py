@@ -61,7 +61,6 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
-from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.reports.reports import generate_activities_report

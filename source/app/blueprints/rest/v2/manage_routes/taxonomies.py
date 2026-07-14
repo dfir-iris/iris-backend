@@ -49,7 +49,6 @@ from app.models.alerts import AlertResolutionStatus
 from app.models.alerts import AlertStatus
 from app.models.alerts import Severity
 from app.models.assets import AnalysisStatus
-from app.models.authorization import Permissions
 from app.models.alert_clusters import AlertClusterStatus
 from app.models.iocs import Tlp
 from app.models.models import EventCategory

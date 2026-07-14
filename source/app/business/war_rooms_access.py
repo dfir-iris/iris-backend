@@ -25,7 +25,6 @@ from app.models.authorization import UserWarRoomAccess
 from app.models.authorization import UserWarRoomEffectiveAccess
 from app.models.authorization import WarRoomAccessLevel
 from app.models.authorization import ac_flag_match_mask
-from app.models.authorization import ac_has_permission_server_administrator
 
 
 def _get_effective_access_level(user_id, war_room_id):

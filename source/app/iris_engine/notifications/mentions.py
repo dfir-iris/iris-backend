@@ -132,7 +132,7 @@ def resolve_user_handles(handles: Iterable[str]) -> Set[int]:
                 func.lower(User.name).in_(normalised),
             )
         )
-        .filter(User.active == True)  # noqa: E712 — SQLAlchemy needs `==`
+        .filter(User.active == True)  # SQLAlchemy needs `==`
         .all()
     )
     return {r.id for r in rows}

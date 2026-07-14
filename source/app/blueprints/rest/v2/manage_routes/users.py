@@ -61,7 +61,6 @@ from app.business.users import users_reset_mfa
 from app.business.users import users_update
 from app.business.groups import groups_exist
 from app.datamgmt.manage.manage_users_db import add_case_access_to_user
-from app.datamgmt.manage.manage_users_db import get_filtered_users
 from app.datamgmt.manage.manage_users_db import get_user
 from app.datamgmt.manage.manage_users_db import get_user_details
 from app.datamgmt.manage.manage_users_db import remove_cases_access_from_user

@@ -30,7 +30,6 @@ from __future__ import annotations
 import json
 from typing import Any
 from typing import Dict
-from typing import List
 
 from flask import Blueprint
 from flask import Response

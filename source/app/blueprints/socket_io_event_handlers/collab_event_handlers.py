@@ -463,4 +463,4 @@ def register_collab_socket_handlers():
     by the notification and case-notes handlers.
     """
     logger.debug('collab: /collab namespace registered')
-    return None
+    return

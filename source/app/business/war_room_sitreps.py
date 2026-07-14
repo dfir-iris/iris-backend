@@ -5,7 +5,6 @@
 """Versioned situational reports."""
 
 import datetime
-import json
 
 from sqlalchemy import desc, func
 

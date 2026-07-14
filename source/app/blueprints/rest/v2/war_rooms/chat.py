@@ -122,7 +122,7 @@ def _serialize(row, reactions=None, viewer_id=None):
                 payload['poll'] = get_poll_state(
                     row.war_room_id, poll.poll_id, viewer_id
                 )
-        except Exception:  # noqa: BLE001 — poll hydration must not 500 the stream
+        except Exception:  # poll hydration must not 500 the stream
             payload['poll'] = None
 
     return payload
@@ -373,7 +373,7 @@ def _resolve_slash(war_room_id, cmd, rest):
         snap = _snapshot(war_room_id)
         body_md_lines = [
             '## Snapshot',
-            f'- Attached cases: ' + (
+            '- Attached cases: ' + (
                 ', '.join(f'#{c}' for c in (snap.get('attached_case_ids') or [])) or '—'
             ),
             f'- Open tasks: {snap.get("tasks_open", 0)}',
@@ -532,7 +532,7 @@ def post_chat(war_room_id):
             return response_api_error(
                 'Command unavailable in this build.'
             )
-        except Exception:  # noqa: BLE001 — generic catch with correlation id
+        except Exception:  # generic catch with correlation id
             # Any unexpected error inside a slash handler used to bubble
             # up as a 500 with no body, which made `/summary` and the
             # like look like silent failures. Log full traceback

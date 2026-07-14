@@ -13,7 +13,6 @@ operator wrote inline OR a reference to an existing case event.
 import re
 from typing import Iterable
 from typing import List
-from typing import Optional
 
 from sqlalchemy import func
 

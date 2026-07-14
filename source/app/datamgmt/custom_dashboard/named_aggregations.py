@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from flask_login import current_user
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import func, or_, select
 
 from app import db
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id

@@ -27,8 +27,6 @@ elided so the sidebar doesn't advertise their existence.
 """
 
 from typing import Iterable
-from typing import List
-from typing import Optional
 from typing import Set
 
 from sqlalchemy import func

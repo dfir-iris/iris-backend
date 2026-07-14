@@ -4,7 +4,7 @@
 
 """SitRep REST routes + export endpoints."""
 
-from flask import Blueprint, Response, request, send_file, current_app
+from flask import Blueprint, Response, request, send_file
 import io
 
 from app.blueprints.access_controls import ac_api_requires

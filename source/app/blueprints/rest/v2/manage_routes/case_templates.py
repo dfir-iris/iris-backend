@@ -29,6 +29,7 @@ Differences from the legacy `/manage/case-templates/...` surface:
 
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 
 from flask import Blueprint
@@ -445,5 +446,3 @@ def get_case_template_schema() -> Response:
             'note': _NOTE_TEMPLATE_FIELDS,
         },
     })
-
-

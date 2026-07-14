@@ -168,6 +168,6 @@ def downgrade():
         op.drop_table('mail_ingest_rule')
 
     if _has_table('server_settings'):
-        for name, _type_, _default in _MAIL_COLUMNS:
+        for name, _, __ in _MAIL_COLUMNS:
             if _table_has_column('server_settings', name):
                 op.drop_column('server_settings', name)

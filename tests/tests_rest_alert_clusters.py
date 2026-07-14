@@ -19,8 +19,6 @@
 from unittest import TestCase
 
 from iris import Iris
-from iris import IRIS_PERMISSION_ALERTS_WRITE
-from iris import IRIS_PERMISSION_ALERT_CLUSTERS_READ
 from iris import IRIS_PERMISSION_ALERT_CLUSTERS_WRITE
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789

@@ -54,7 +54,7 @@ def _fire_mention_notifications(note, actor_id, is_update):
         notify_many(
             user_ids=list(member_ids),
             event_type='mention',
-            title=f'You were mentioned in a war-room note',
+            title='You were mentioned in a war-room note',
             body=f'{verb}: {note.title}',
             link=f'/war-rooms/{note.war_room_id}/notes?note={note.note_id}',
             source_type='war_room_note',

@@ -24,8 +24,6 @@ from app.db import db
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import (
-    GroupWarRoomAccess,
-    UserWarRoomAccess,
     UserWarRoomEffectiveAccess,
     WarRoomAccessLevel,
 )
@@ -408,7 +406,7 @@ def war_room_cases_list(war_room_id):
     from app.models.cases import CaseState
     from app.models.customers import Client
     from app.models.models import CaseTasks, TaskStatus
-    from sqlalchemy import case as sa_case, func, and_
+    from sqlalchemy import case as sa_case, func
 
     open_status_clause = func.lower(TaskStatus.status_name).notin_(
         ['done', 'closed', 'cancelled']
@@ -602,7 +600,7 @@ def war_room_people(war_room_id):
                 UserCaseEffectiveAccess.case_id.in_(attached_case_ids),
                 UserCaseEffectiveAccess.access_level
                 != WarRoomAccessLevel.deny_all.value,
-                User.active == True,  # noqa: E712 — SQL identity comparison
+                User.active == True,  # SQL identity comparison
             )
             .all()
         )

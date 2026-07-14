@@ -112,12 +112,12 @@ class TestsRestInvestigationFlows(TestCase):
     def test_deploy_backfills_matching_alerts(self):
         # Create an alert first, THEN a flow that matches it, then deploy
         # — the alert should get the flow_id back-filled.
-        alert = self._subject.create('/api/v2/alerts', {
+        self._subject.create('/api/v2/alerts', {
             'alert_title': 'brute force login attempt',
             'alert_severity_id': 4,
             'alert_status_id': 3,
             'alert_customer_id': 1,
-        }).json()
+        })
         create_res = self._subject.create('/api/v2/investigation-flows', _flow_body(
             flow_target='alert',
             flow_conditions={
@@ -199,12 +199,12 @@ class TestsRestInvestigationFlows(TestCase):
     def test_deploy_skips_alerts_already_attached(self):
         # Once attached, deploy shouldn't overwrite — analyst may have
         # chosen the current flow deliberately.
-        alert = self._subject.create('/api/v2/alerts', {
+        self._subject.create('/api/v2/alerts', {
             'alert_title': 'brute force login attempt',
             'alert_severity_id': 4,
             'alert_status_id': 3,
             'alert_customer_id': 1,
-        }).json()
+        })
         create_res = self._subject.create('/api/v2/investigation-flows', _flow_body(
             flow_conditions={
                 'logic': 'and',

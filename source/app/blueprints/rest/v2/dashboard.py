@@ -20,7 +20,6 @@ import datetime
 
 from flask import Blueprint
 from flask import request
-from sqlalchemy import and_
 from sqlalchemy import func
 
 from app.blueprints.access_controls import ac_api_requires

@@ -377,7 +377,7 @@ def flush_to_source(doc_name):
             return
         case.description = new_content
         db.session.commit()
-        track_activity(f'updated case summary', caseid=case.case_id)
+        track_activity('updated case summary', caseid=case.case_id)
         return
 
     if kind == 'war-room-note':
@@ -396,7 +396,7 @@ def flush_to_source(doc_name):
             return
         room.description = new_content
         db.session.commit()
-        track_activity(f'updated war room summary',
+        track_activity('updated war room summary',
                        war_room_id=room.war_room_id)
         return
 

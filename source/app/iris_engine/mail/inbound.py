@@ -26,7 +26,6 @@ import logging
 from datetime import datetime
 from typing import List
 from typing import Optional
-from typing import Sequence
 from typing import Tuple
 
 from sqlalchemy.exc import IntegrityError

@@ -1846,4 +1846,4 @@ def ingest_case_activity(case_id, activity_text, ref_activity_id=None):
     history with zero duplication. This shim stays so external test
     callers don't break; new code should not call it.
     """
-    return None
+    return

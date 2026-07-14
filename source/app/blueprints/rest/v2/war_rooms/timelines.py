@@ -26,7 +26,6 @@ from app.business.war_room_timelines import (
     event_asset_ids,
     event_children_count,
     event_ioc_ids,
-    get_timeline,
     list_timeline_events,
     list_timelines,
     set_event_assets,

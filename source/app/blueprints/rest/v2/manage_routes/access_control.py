@@ -165,7 +165,7 @@ def get_access_control_schema() -> Response:
         })
 
     access_levels = []
-    for level in sorted(CaseAccessLevel, key=lambda l: l.value):
+    for level in sorted(CaseAccessLevel, key=lambda lvl: lvl.value):
         meta = _CASE_ACCESS_LABELS.get(level.name, {})
         access_levels.append({
             'name': level.name,

@@ -340,7 +340,7 @@ def _fire_mention_notifications(task, actor_id, is_update):
         notify_many(
             user_ids=list(member_ids),
             event_type='mention',
-            title=f'You were mentioned in a war-room task',
+            title='You were mentioned in a war-room task',
             body=f'{verb}: {task.title}',
             link=f'/war-rooms/{task.war_room_id}/tasks?task={task.task_id}',
             source_type='war_room_task',

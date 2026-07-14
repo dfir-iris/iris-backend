@@ -138,4 +138,4 @@ def register_notification_socket_handlers():
     to be imported (which triggers those decorators). Mirrors the
     pattern used by the case / notes / update handlers.
     """
-    return None
+    return

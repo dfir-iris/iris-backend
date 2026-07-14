@@ -121,7 +121,7 @@ def _enqueue_rule_evaluation(alert_id: int) -> None:
     try:
         from app.iris_engine.cluster_rules.tasks import evaluate_alert_rules
         evaluate_alert_rules.delay(alert_id)
-    except Exception:  # noqa: BLE001 — rule evaluation must never block alert ingestion
+    except Exception:  # rule evaluation must never block alert ingestion
         from app.logger import logger
         logger.exception('Failed to enqueue rule evaluation for alert #%s', alert_id)
 

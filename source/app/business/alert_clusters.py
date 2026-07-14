@@ -18,7 +18,6 @@
 
 from datetime import datetime
 from typing import Iterable
-from typing import List
 from typing import Optional
 
 from app.blueprints.iris_user import iris_current_user
@@ -160,7 +159,7 @@ def _enqueue_flow_evaluation(cluster_id: int) -> None:
     try:
         from app.iris_engine.cluster_rules.tasks import evaluate_alert_cluster_flows
         evaluate_alert_cluster_flows.delay(cluster_id)
-    except Exception:  # noqa: BLE001
+    except Exception:
         from app.logger import logger
         logger.exception('Failed to enqueue flow evaluation for alert cluster #%s', cluster_id)
 
@@ -438,7 +437,7 @@ def alert_cluster_merge_to_case(cluster: AlertCluster, target_case_id: int,
                           {'cluster_id': cluster.cluster_id,
                            'case_id': case.case_id},
                           caseid=case.case_id)
-    except Exception:  # noqa: BLE001
+    except Exception:
         from app.logger import logger
         logger.exception('on_postload_alert_cluster_merge hook failed; merge already committed')
     return case

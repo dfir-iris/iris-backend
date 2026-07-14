@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 import math
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Set
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Set
 
 from flask_login import current_user
 from sqlalchemy import func, or_, select, cast, Integer, case, literal
@@ -1152,7 +1152,7 @@ def format_widget_payload(
         group_labels = list(result.group_labels)
         value_labels = list(result.value_labels)
 
-        effective_group_labels = group_labels[:]
+        effective_group_labels = group_labels.copy()
         time_axis_enabled = False
         if expected_time_alias and expected_time_alias in effective_group_labels:
             time_axis_enabled = True
@@ -1254,7 +1254,7 @@ def format_widget_payload(
             chart_labels = label_order_keys if time_axis_enabled else display_labels
 
             formatted_datasets: List[Dict[str, Any]] = []
-            for dataset_key, entry in dataset_map.items():
+            for _dataset_key, entry in dataset_map.items():
                 data_points = [entry['data'].get(label_key, 0) for label_key in label_order_keys]
                 dataset_total = sum(entry['data'].values()) if entry.get('has_values') else None
                 series_components = [component for component in entry['series_values'] if component]

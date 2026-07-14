@@ -46,17 +46,17 @@ logger = logging.getLogger(__name__)
 # opt-out-light for email (no email spam by default — the admin has to
 # turn it on).
 _DEFAULT_CHANNEL_STATE = {
-    'mention':               {'in_app': True,  'email': False},
-    'task_assigned':         {'in_app': True,  'email': False},
-    'case_state_change':     {'in_app': True,  'email': False},
-    'case_assigned':         {'in_app': True,  'email': False},
-    'alert_assigned':        {'in_app': True,  'email': False},
-    'alert_escalated':       {'in_app': True,  'email': False},
-    'war_room_message':      {'in_app': True,  'email': False},
-    'war_room_thread_reply': {'in_app': True,  'email': False},
+    'mention':               {'in_app': True, 'email': False},
+    'task_assigned':         {'in_app': True, 'email': False},
+    'case_state_change':     {'in_app': True, 'email': False},
+    'case_assigned':         {'in_app': True, 'email': False},
+    'alert_assigned':        {'in_app': True, 'email': False},
+    'alert_escalated':       {'in_app': True, 'email': False},
+    'war_room_message':      {'in_app': True, 'email': False},
+    'war_room_thread_reply': {'in_app': True, 'email': False},
     # Modules opt in per-invocation — see `notify(..., default_channels)`
     # for the override knob. Default here is in-app only.
-    'module_custom':         {'in_app': True,  'email': False},
+    'module_custom':         {'in_app': True, 'email': False},
 }
 
 
