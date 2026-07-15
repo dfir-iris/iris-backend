@@ -35,7 +35,7 @@ from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 from app.blueprints.rest.v2.alerts_routes.comments import alerts_comments_blueprint
 from app.blueprints.rest.v2.alerts_routes.investigation_progress import alerts_investigation_progress_blueprint
 from app.blueprints.iris_user import iris_current_user
-from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
+from app.business.access_controls import check_ua_case_client
 from app.business.alerts import alerts_search
 from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
@@ -52,7 +52,7 @@ from app.business.alerts_filters import alert_filter_get
 from app.business.alerts_filters import alert_filter_update
 from app.business.alerts_filters import alert_filter_delete
 from app.business.alerts_filters import alert_filter_list
-from app.datamgmt.alerts.alerts_db import get_alert_by_id
+from app.business.alerts import get_alert_by_id
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
 from app.schema.marshables import CaseSchema

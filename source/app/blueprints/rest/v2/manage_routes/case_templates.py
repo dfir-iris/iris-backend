@@ -47,10 +47,10 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.datamgmt.filtering import paginate
-from app.datamgmt.manage.manage_case_templates_db import delete_case_template_by_id
-from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
-from app.datamgmt.manage.manage_case_templates_db import validate_case_template
+from app.business.pagination import paginate
+from app.business.case_templates import delete_case_template_by_id
+from app.business.case_templates import get_case_template_by_id
+from app.business.case_templates import validate_case_template
 from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions

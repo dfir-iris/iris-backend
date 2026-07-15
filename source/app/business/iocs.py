@@ -25,6 +25,7 @@ from app.datamgmt.case.case_iocs_db import case_iocs_db_exists
 from app.datamgmt.case.case_iocs_db import check_ioc_type_id
 from app.datamgmt.case.case_iocs_db import get_iocs
 from app.datamgmt.case.case_iocs_db import delete_ioc
+from app.datamgmt.case.case_iocs_db import get_ioc_links
 from app.datamgmt.states import update_ioc_state
 from app.schema.marshables import IocSchema
 from app.iris_engine.module_handler.module_handler import call_modules_hook

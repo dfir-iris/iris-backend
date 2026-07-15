@@ -17,10 +17,13 @@ status column reuses the shared `task_status` taxonomy.
 
 import datetime
 
-from sqlalchemy import func, or_
-from sqlalchemy.orm import aliased
-
 from app.db import db
+from app.datamgmt.war_rooms.war_room_tasks_db import apply_assignee_filter
+from app.datamgmt.war_rooms.war_room_tasks_db import apply_due_range_filter
+from app.datamgmt.war_rooms.war_room_tasks_db import apply_search_filter
+from app.datamgmt.war_rooms.war_room_tasks_db import apply_tag_filter
+from app.datamgmt.war_rooms.war_room_tasks_db import base_task_query
+from app.datamgmt.war_rooms.war_room_tasks_db import subtasks_supported as _subtasks_supported
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.errors import BusinessProcessingError
@@ -29,42 +32,6 @@ from app.models.war_rooms import WarRoomTask
 
 
 _TITLE_MAX_LEN = 1024
-
-
-# Cache for the once-per-process check of whether the `parent_task_id`
-# column exists on the live database. Same rolling-upgrade rationale
-# as `_threads_supported` in war_room_chat: an install that hasn't
-# applied the subtasks migration should still be able to render the
-# tasks page; subtasks features just go dark until the migration
-# lands.
-_SUBTASKS_SUPPORTED = None
-
-
-def _subtasks_supported():
-    global _SUBTASKS_SUPPORTED
-    if _SUBTASKS_SUPPORTED is True:
-        return True
-    try:
-        from sqlalchemy import text as _text
-        with db.engine.connect() as conn:
-            conn.execute(
-                _text('SELECT parent_task_id FROM war_room_task LIMIT 0')
-            )
-        supported = True
-    except Exception as e:
-        from app.logger import logger
-        pgcode = getattr(getattr(e, 'orig', None), 'pgcode', None)
-        if pgcode == '42703':
-            logger.info('Subtasks disabled: parent_task_id column missing')
-        else:
-            logger.exception(
-                'Subtasks support probe failed unexpectedly (pgcode=%s)',
-                pgcode,
-            )
-        return False
-    if supported:
-        _SUBTASKS_SUPPORTED = True
-    return supported
 
 
 def _validate_title(title):
@@ -111,61 +78,6 @@ def _normalize_tags(tags):
     return ','.join(out) if out else None
 
 
-def _base_task_query(war_room_id):
-    """Build the joined-row query used by list/get-with-actors.
-
-    Three independent outer-joins on `User` (aliased) so a single row
-    carries the display name for every actor. Also joins `TaskStatus`
-    so the SPA can render the status pill without a per-row lookup.
-    """
-    from app.models.authorization import User
-    from app.models.models import TaskStatus
-
-    Assignee = aliased(User)
-    Creator = aliased(User)
-    Closer = aliased(User)
-
-    columns = [
-        WarRoomTask.task_id,
-        WarRoomTask.war_room_id,
-        WarRoomTask.title,
-        WarRoomTask.description,
-        WarRoomTask.status_id,
-        WarRoomTask.assignee_id,
-        WarRoomTask.due_at,
-        WarRoomTask.source_case_id,
-        WarRoomTask.source_case_task_id,
-        WarRoomTask.created_at,
-        WarRoomTask.created_by_id,
-        WarRoomTask.closed_at,
-        WarRoomTask.closed_by_id,
-        WarRoomTask.tags,
-        Assignee.user.label('assignee_login'),
-        Assignee.name.label('assignee_name'),
-        Creator.user.label('created_by_login'),
-        Creator.name.label('created_by_name'),
-        Closer.user.label('closed_by_login'),
-        Closer.name.label('closed_by_name'),
-        TaskStatus.status_name.label('status_name'),
-        TaskStatus.status_bscolor.label('status_bscolor'),
-    ]
-    # parent_task_id is only exposed if the migration has landed; on
-    # pre-migration DBs we return NULL so downstream serialisers see
-    # a consistent shape.
-    if _subtasks_supported():
-        columns.append(WarRoomTask.parent_task_id.label('parent_task_id'))
-
-    q = (
-        db.session.query(*columns)
-        .outerjoin(Assignee, Assignee.id == WarRoomTask.assignee_id)
-        .outerjoin(Creator, Creator.id == WarRoomTask.created_by_id)
-        .outerjoin(Closer, Closer.id == WarRoomTask.closed_by_id)
-        .outerjoin(TaskStatus, TaskStatus.id == WarRoomTask.status_id)
-        .filter(WarRoomTask.war_room_id == war_room_id)
-    )
-    return q
-
-
 def war_room_task_list(war_room_id, q=None, status_ids=None, tags=None,
                        assignee_ids=None, parent_task_id=None,
                        due_from=None, due_to=None, include_no_due=True,
@@ -192,43 +104,19 @@ def war_room_task_list(war_room_id, q=None, status_ids=None, tags=None,
     `include_no_due=True`, so a filter like "due this week" doesn't
     silently drop the untriaged backlog.
     """
-    query = _base_task_query(war_room_id)
+    query = base_task_query(war_room_id)
 
     if q:
-        needle = f'%{q.strip().lower()}%'
-        query = query.filter(or_(
-            func.lower(WarRoomTask.title).like(needle),
-            func.lower(func.coalesce(WarRoomTask.description, '')).like(needle),
-        ))
+        query = apply_search_filter(query, q.strip().lower())
 
     if status_ids:
         query = query.filter(WarRoomTask.status_id.in_(status_ids))
 
     if assignee_ids:
-        conds = []
-        real_ids = [aid for aid in assignee_ids if aid and aid != 0]
-        if 0 in assignee_ids or None in assignee_ids:
-            conds.append(WarRoomTask.assignee_id.is_(None))
-        if real_ids:
-            conds.append(WarRoomTask.assignee_id.in_(real_ids))
-        if conds:
-            query = query.filter(or_(*conds))
+        query = apply_assignee_filter(query, assignee_ids)
 
     if tags:
-        tag_conds = []
-        # Match whole-tag: bracket the CSV with commas so the needle
-        # ",foo," can't match a substring of ",foobar,". Portable
-        # across Postgres via `func.concat`.
-        tag_expr = func.lower(
-            func.concat(',', func.coalesce(WarRoomTask.tags, ''), ',')
-        )
-        for t in tags:
-            if not isinstance(t, str) or not t.strip():
-                continue
-            needle = f'%,{t.strip().lower()},%'
-            tag_conds.append(tag_expr.like(needle))
-        if tag_conds:
-            query = query.filter(or_(*tag_conds))
+        query = apply_tag_filter(query, tags)
 
     if parent_task_id is not None and parent_task_id != -1:
         if parent_task_id == 0 and _subtasks_supported():
@@ -239,16 +127,7 @@ def war_room_task_list(war_room_id, q=None, status_ids=None, tags=None,
             )
 
     if due_from is not None or due_to is not None:
-        range_conds = []
-        if due_from is not None and due_to is not None:
-            range_conds.append(WarRoomTask.due_at.between(due_from, due_to))
-        elif due_from is not None:
-            range_conds.append(WarRoomTask.due_at >= due_from)
-        else:
-            range_conds.append(WarRoomTask.due_at <= due_to)
-        if include_no_due:
-            range_conds.append(WarRoomTask.due_at.is_(None))
-        query = query.filter(or_(*range_conds))
+        query = apply_due_range_filter(query, due_from, due_to, include_no_due)
 
     if not include_closed:
         query = query.filter(WarRoomTask.closed_at.is_(None))

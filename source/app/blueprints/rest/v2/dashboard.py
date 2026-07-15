@@ -28,8 +28,8 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.business.cases import cases_filter_by_user
 from app.business.cases import cases_filter_by_reviewer
 from app.business.tasks import tasks_filter_by_user
-from app.datamgmt.activities.activities_db import get_recent_activities_for_user
-from app.datamgmt.activities.activities_db import get_recent_major_case_activities_for_user
+from app.business.activity import get_recent_activities_for_user
+from app.business.activity import get_recent_major_case_activities_for_user
 from app.models.alerts import Alert
 from app.models.alerts import AlertStatus
 from app.models.cases import Cases

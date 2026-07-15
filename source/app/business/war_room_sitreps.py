@@ -6,8 +6,6 @@
 
 import datetime
 
-from sqlalchemy import desc, func
-
 from app.db import db
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -19,12 +17,15 @@ from app.models.war_rooms import WarRoomTask
 
 
 def _next_version(war_room_id):
-    latest = (
-        db.session.query(func.max(WarRoomSitRep.version))
+    latest_row = (
+        WarRoomSitRep.query
+        .with_entities(WarRoomSitRep.version)
         .filter(WarRoomSitRep.war_room_id == war_room_id)
-        .scalar()
+        .order_by(WarRoomSitRep.version.desc())
+        .first()
     )
-    return (latest or 0) + 1
+    latest = latest_row.version if latest_row else 0
+    return latest + 1
 
 
 def _snapshot(war_room_id):
@@ -40,16 +41,16 @@ def _snapshot(war_room_id):
         .all()
     )
     open_tasks = (
-        db.session.query(func.count(WarRoomTask.task_id))
+        WarRoomTask.query
         .filter(WarRoomTask.war_room_id == war_room_id,
                 WarRoomTask.closed_at == None)
-        .scalar() or 0
+        .count()
     )
     closed_tasks = (
-        db.session.query(func.count(WarRoomTask.task_id))
+        WarRoomTask.query
         .filter(WarRoomTask.war_room_id == war_room_id,
                 WarRoomTask.closed_at != None)
-        .scalar() or 0
+        .count()
     )
     return {
         'attached_case_ids': [a.case_id for a in attached],
@@ -63,7 +64,7 @@ def sitrep_list(war_room_id):
     return (
         WarRoomSitRep.query
         .filter(WarRoomSitRep.war_room_id == war_room_id)
-        .order_by(desc(WarRoomSitRep.version))
+        .order_by(WarRoomSitRep.version.desc())
         .all()
     )
 

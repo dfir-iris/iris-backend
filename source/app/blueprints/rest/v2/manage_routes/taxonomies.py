@@ -43,7 +43,7 @@ from sqlalchemy import or_
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_success
-from app.datamgmt.filtering import paginate
+from app.business.pagination import paginate
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.models.alerts import AlertResolutionStatus
 from app.models.alerts import AlertStatus

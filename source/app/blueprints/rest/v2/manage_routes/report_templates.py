@@ -65,7 +65,7 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.business.reports.reports import generate_activities_report
 from app.business.reports.reports import generate_investigation_report
-from app.datamgmt.filtering import paginate
+from app.business.pagination import paginate
 from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel

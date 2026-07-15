@@ -38,7 +38,7 @@ from app.business.iocs import iocs_get
 from app.business.iocs import iocs_delete
 from app.business.iocs import iocs_update
 from app.business.iocs import iocs_filter
-from app.datamgmt.case.case_iocs_db import get_ioc_links
+from app.business.iocs import get_ioc_links
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 from app.blueprints.iris_user import iris_current_user
 from app.models.authorization import CaseAccessLevel

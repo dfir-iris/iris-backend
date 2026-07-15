@@ -18,8 +18,9 @@ mocking Flask.
 import datetime
 import re
 
-from sqlalchemy import and_, case, or_
-
+from app.datamgmt.war_rooms.war_rooms_db import apply_search_filter as _apply_search_filter
+from app.datamgmt.war_rooms.war_rooms_db import state_priority_expr as _state_priority_expr_builder
+from app.datamgmt.war_rooms.war_rooms_db import war_room_case_attachments_rows
 from app.db import db
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -114,16 +115,7 @@ _STATE_SORT_ORDER = {
 
 
 def _state_priority_expr():
-    """SQLAlchemy CASE that maps the state string to a sort integer.
-
-    Anything unrecognised falls to the end so a future state added
-    without updating this table still sorts predictably.
-    """
-    return case(
-        _STATE_SORT_ORDER,
-        value=WarRoom.state,
-        else_=len(_STATE_SORT_ORDER),
-    )
+    return _state_priority_expr_builder(_STATE_SORT_ORDER)
 
 
 def war_room_list_for_user(user_id, is_admin=False, state=None, search=None,
@@ -150,10 +142,10 @@ def war_room_list_for_user(user_id, is_admin=False, state=None, search=None,
             query
             .join(UserWarRoomEffectiveAccess,
                   UserWarRoomEffectiveAccess.war_room_id == WarRoom.war_room_id)
-            .filter(and_(
+            .filter(
                 UserWarRoomEffectiveAccess.user_id == user_id,
                 UserWarRoomEffectiveAccess.access_level != WarRoomAccessLevel.deny_all.value,
-            ))
+            )
         )
 
     if state is not None:
@@ -171,10 +163,7 @@ def war_room_list_for_user(user_id, is_admin=False, state=None, search=None,
 
     if search:
         needle = f'%{search.strip()}%'
-        query = query.filter(or_(
-            WarRoom.name.ilike(needle),
-            WarRoom.description.ilike(needle),
-        ))
+        query = _apply_search_filter(query, needle)
 
     return (
         query
@@ -402,62 +391,7 @@ def war_room_cases_list(war_room_id):
     by `task_status.status_name not in ('done','closed','cancelled')`
     case-insensitively — matches what the case dashboard considers open.
     """
-    from app.models.authorization import User
-    from app.models.cases import CaseState
-    from app.models.customers import Client
-    from app.models.models import CaseTasks, TaskStatus
-    from sqlalchemy import case as sa_case, func
-
-    open_status_clause = func.lower(TaskStatus.status_name).notin_(
-        ['done', 'closed', 'cancelled']
-    )
-
-    task_total_sq = (
-        db.session.query(
-            CaseTasks.task_case_id.label('case_id'),
-            func.count(CaseTasks.id).label('task_count'),
-            func.sum(
-                sa_case((open_status_clause, 1), else_=0)
-            ).label('task_open_count'),
-        )
-        .outerjoin(TaskStatus, TaskStatus.id == CaseTasks.task_status_id)
-        .group_by(CaseTasks.task_case_id)
-        .subquery()
-    )
-
-    rows = (
-        db.session.query(
-            WarRoomCase.war_room_id,
-            WarRoomCase.case_id,
-            WarRoomCase.attached_at,
-            WarRoomCase.note,
-            Cases.name.label('case_name'),
-            Cases.client_id.label('customer_id'),
-            Client.name.label('customer_name'),
-            Cases.owner_id,
-            User.name.label('owner_name'),
-            User.user.label('owner_login'),
-            Cases.open_date,
-            Cases.close_date,
-            Cases.state_id,
-            CaseState.state_name,
-            func.coalesce(task_total_sq.c.task_count, 0).label('task_count'),
-            func.coalesce(task_total_sq.c.task_open_count, 0).label(
-                'task_open_count'
-            ),
-        )
-        .join(Cases, Cases.case_id == WarRoomCase.case_id)
-        .outerjoin(Client, Client.client_id == Cases.client_id)
-        .outerjoin(User, User.id == Cases.owner_id)
-        .outerjoin(CaseState, CaseState.state_id == Cases.state_id)
-        .outerjoin(
-            task_total_sq, task_total_sq.c.case_id == WarRoomCase.case_id
-        )
-        .filter(WarRoomCase.war_room_id == war_room_id)
-        .order_by(WarRoomCase.attached_at.asc())
-        .all()
-    )
-    return rows
+    return war_room_case_attachments_rows(war_room_id)
 
 
 def war_room_attach_case(war_room_id, case_id, attached_by_id=None, note=None):

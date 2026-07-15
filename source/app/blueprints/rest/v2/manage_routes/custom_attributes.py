@@ -39,8 +39,8 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.datamgmt.manage.manage_attribute_db import update_all_attributes
-from app.datamgmt.manage.manage_attribute_db import validate_attribute
+from app.business.custom_attributes import update_all_attributes
+from app.business.custom_attributes import validate_attribute
 from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions

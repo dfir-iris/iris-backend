@@ -14,7 +14,6 @@ import re
 from typing import Iterable
 from typing import List
 
-from sqlalchemy import func
 
 from app.db import db
 from app.iris_engine.module_handler.module_handler import call_modules_hook
@@ -433,10 +432,9 @@ def event_ioc_ids(event_id: int) -> List[int]:
 
 def event_children_count(event_id: int) -> int:
     return (
-        db.session.query(func.count(WarRoomTimelineEvent.id))
+        WarRoomTimelineEvent.query
         .filter(WarRoomTimelineEvent.parent_id == event_id)
-        .scalar()
-        or 0
+        .count()
     )
 
 

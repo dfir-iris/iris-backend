@@ -28,7 +28,8 @@ from app.models.alerts import AlertStatus
 from app.models.cases import Cases
 from app.models.iocs import Ioc
 from app.models.assets import CaseAssets
-from app.blueprints.iris_user import iris_current_user
+from flask import g, has_request_context
+from flask_login import current_user as _flask_current_user
 from app.datamgmt.alerts.alerts_db import cache_similar_alert
 from app.datamgmt.alerts.alerts_db import delete_similar_alert_cache
 from app.datamgmt.alerts.alerts_db import delete_related_alerts_cache
@@ -49,6 +50,23 @@ from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
+
+
+class _TokenUserView:
+    def __init__(self, user_data):
+        self.id = user_data['user_id']
+        self.user = user_data['user_login']
+        self.name = user_data['user_name']
+        self.email = user_data['user_email']
+        self.is_authenticated = True
+        self.is_active = True
+        self.is_anonymous = False
+
+
+def _resolve_caller():
+    if has_request_context() and hasattr(g, 'auth_user'):
+        return _TokenUserView(g.auth_user)
+    return _flask_current_user
 
 
 def alerts_search(start_date, end_date, source_start_date, source_end_date, title, description,
@@ -404,7 +422,7 @@ def alerts_escalate(alert: Alert, iocs_import_list: Optional[list] = None,
     if not case:
         raise BusinessProcessingError('Failed to create case from alert')
 
-    ac_set_new_case_access(iris_current_user, case.case_id, case.client_id)
+    ac_set_new_case_access(_resolve_caller(), case.case_id, case.client_id)
     case = call_modules_hook('on_postload_case_create', case)
 
     add_obj_history_entry(case, 'created')
@@ -543,7 +561,7 @@ def alerts_batch_escalate(alert_ids: list,
     if not case:
         raise BusinessProcessingError('Failed to create case from alerts')
 
-    ac_set_new_case_access(iris_current_user, case.case_id, case.client_id)
+    ac_set_new_case_access(_resolve_caller(), case.case_id, case.client_id)
     case = call_modules_hook('on_postload_case_create', case)
 
     add_obj_history_entry(case, 'created')

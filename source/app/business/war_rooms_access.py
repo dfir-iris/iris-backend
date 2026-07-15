@@ -15,8 +15,6 @@ generic case ACL plumbing in `business.access_controls` stays focused
 on its existing surface.
 """
 
-from sqlalchemy import and_
-
 from app.db import db
 from app.models.authorization import GroupWarRoomAccess
 from app.models.authorization import Permissions
@@ -30,10 +28,10 @@ from app.models.authorization import ac_flag_match_mask
 def _get_effective_access_level(user_id, war_room_id):
     row = (
         UserWarRoomEffectiveAccess.query
-        .filter(and_(
+        .filter(
             UserWarRoomEffectiveAccess.user_id == user_id,
             UserWarRoomEffectiveAccess.war_room_id == war_room_id,
-        ))
+        )
         .with_entities(UserWarRoomEffectiveAccess.access_level)
         .first()
     )
@@ -51,11 +49,11 @@ def _recompute_effective_access_level(user_id, war_room_id):
     group_row = (
         GroupWarRoomAccess.query
         .with_entities(GroupWarRoomAccess.access_level)
-        .filter(and_(
+        .filter(
             UserGroup.user_id == user_id,
             UserGroup.group_id == GroupWarRoomAccess.group_id,
             GroupWarRoomAccess.war_room_id == war_room_id,
-        ))
+        )
         .first()
     )
     if group_row:
@@ -64,10 +62,10 @@ def _recompute_effective_access_level(user_id, war_room_id):
     user_row = (
         UserWarRoomAccess.query
         .with_entities(UserWarRoomAccess.access_level)
-        .filter(and_(
+        .filter(
             UserWarRoomAccess.user_id == user_id,
             UserWarRoomAccess.war_room_id == war_room_id,
-        ))
+        )
         .first()
     )
     if user_row:
@@ -77,10 +75,10 @@ def _recompute_effective_access_level(user_id, war_room_id):
 
 
 def set_war_room_effective_access_for_user(user_id, war_room_id, access_level):
-    existing = UserWarRoomEffectiveAccess.query.filter(and_(
+    existing = UserWarRoomEffectiveAccess.query.filter(
         UserWarRoomEffectiveAccess.user_id == user_id,
         UserWarRoomEffectiveAccess.war_room_id == war_room_id,
-    )).all()
+    ).all()
 
     if len(existing) > 1:
         for row in existing:
@@ -102,10 +100,10 @@ def set_war_room_effective_access_for_user(user_id, war_room_id, access_level):
 
 def set_user_war_room_access(user_id, war_room_id, access_level):
     """Grant explicit per-user access to a war room and refresh the cache."""
-    rows = UserWarRoomAccess.query.filter(and_(
+    rows = UserWarRoomAccess.query.filter(
         UserWarRoomAccess.user_id == user_id,
         UserWarRoomAccess.war_room_id == war_room_id,
-    )).all()
+    ).all()
 
     if len(rows) > 1:
         for r in rows:
@@ -133,10 +131,10 @@ def remove_user_war_room_access(user_id, war_room_id):
     After removal, the user's access falls back to the group level if a
     matching group grant exists, otherwise to deny_all.
     """
-    UserWarRoomAccess.query.filter(and_(
+    UserWarRoomAccess.query.filter(
         UserWarRoomAccess.user_id == user_id,
         UserWarRoomAccess.war_room_id == war_room_id,
-    )).delete()
+    ).delete()
     db.session.commit()
 
     effective = _recompute_effective_access_level(user_id, war_room_id)
@@ -195,10 +193,10 @@ def ac_get_fast_user_war_rooms_access(user_id):
     rows = (
         UserWarRoomEffectiveAccess.query
         .with_entities(UserWarRoomEffectiveAccess.war_room_id)
-        .filter(and_(
+        .filter(
             UserWarRoomEffectiveAccess.user_id == user_id,
             UserWarRoomEffectiveAccess.access_level != WarRoomAccessLevel.deny_all.value,
-        ))
+        )
         .all()
     )
     return [r.war_room_id for r in rows]

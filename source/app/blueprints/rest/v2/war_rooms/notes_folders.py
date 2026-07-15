@@ -30,7 +30,7 @@ from app.business.war_room_note_folders import war_room_note_folders_create
 from app.business.war_room_note_folders import war_room_note_folders_delete
 from app.business.war_room_note_folders import war_room_note_folders_get
 from app.business.war_room_note_folders import war_room_note_folders_update
-from app.datamgmt.war_rooms.war_room_notes_db import list_folders
+from app.business.war_room_note_folders import list_folders
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.models.war_rooms import WarRoomNoteFolder

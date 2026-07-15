@@ -29,7 +29,6 @@ elided so the sidebar doesn't advertise their existence.
 from typing import Iterable
 from typing import Set
 
-from sqlalchemy import func
 
 from app.business.case_timelines import case_timeline_list
 from app.db import db
@@ -253,9 +252,9 @@ def _serialize_case_event(event: CasesEvent, source_timeline_id: int) -> dict:
         .with_entities(CaseEventsIoc.ioc_id).all()
     ]
     children_count = (
-        db.session.query(func.count(CasesEvent.event_id))
+        CasesEvent.query
         .filter(CasesEvent.parent_event_id == event.event_id)
-        .scalar() or 0
+        .count()
     )
 
     return {

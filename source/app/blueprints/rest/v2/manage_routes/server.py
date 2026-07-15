@@ -41,8 +41,8 @@ from app import celery
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
-from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
-from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
+from app.business.server_settings import get_server_settings_as_dict
+from app.business.server_settings import get_srv_settings
 from app.db import db
 from app.iris_engine.backup.backup import backup_iris_db
 from app.iris_engine.mail.outbound import mail_send_system
@@ -123,7 +123,7 @@ class ServerOperations:
         fields.
         """
         settings = get_srv_settings()
-        from app.datamgmt.manage.manage_srv_settings_db import get_alembic_revision
+        from app.business.server_settings import get_alembic_revision
 
         settings_dump = self._schema.dump(settings)
         settings_dump.update(_mail_password_flags(settings))

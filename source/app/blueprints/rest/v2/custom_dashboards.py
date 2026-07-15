@@ -30,29 +30,25 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.datamgmt.custom_dashboard.custom_dashboard_db import (
+from app.business.custom_dashboards import (
+    ComputedFilters,
+    CustomDashboardSchema,
     DashboardAccessError,
     DashboardNotFoundError,
     DashboardSystemReadOnlyError,
+    NamedAggregationError,
+    QueryExecutionError,
+    WidgetQueryExecutor,
+    compute_named_aggregation,
     create_dashboard_for_user,
     delete_dashboard_for_user,
+    format_widget_payload,
     get_dashboard_for_user,
     list_dashboards_for_user,
+    list_named_aggregations,
     serialize_dashboard,
     update_dashboard_for_user,
 )
-from app.datamgmt.custom_dashboard.named_aggregations import (
-    ComputedFilters,
-    NamedAggregationError,
-    compute_named_aggregation,
-    list_named_aggregations,
-)
-from app.datamgmt.custom_dashboard.query_engine import (
-    QueryExecutionError,
-    WidgetQueryExecutor,
-    format_widget_payload,
-)
-from app.datamgmt.custom_dashboard.schema import CustomDashboardSchema
 from app.blueprints.access_controls import ac_current_user_has_permission
 from app.models.authorization import Permissions
 

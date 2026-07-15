@@ -53,9 +53,9 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
-from app.datamgmt.db_operations import db_create
-from app.datamgmt.db_operations import db_delete
-from app.datamgmt.filtering import paginate
+from app.business.db_operations import db_create
+from app.business.db_operations import db_delete
+from app.business.pagination import paginate
 from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.assets import AssetsType

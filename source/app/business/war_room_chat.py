@@ -18,8 +18,13 @@ stream so the audit trail stays in one place.
 import datetime
 import re
 
-from sqlalchemy import and_, desc
-
+from app.datamgmt.war_rooms.war_room_chat_db import apply_topic_filter as _apply_topic_filter
+from app.datamgmt.war_rooms.war_room_chat_db import build_case_activity_query as _build_case_activity_query
+from app.datamgmt.war_rooms.war_room_chat_db import build_threads_query as _build_threads_query
+from app.datamgmt.war_rooms.war_room_chat_db import order_by_message_id_desc as _order_by_message_id_desc
+from app.datamgmt.war_rooms.war_room_chat_db import poll_option_vote_counts as _poll_option_vote_counts
+from app.datamgmt.war_rooms.war_room_chat_db import probe_column_exists as _probe_column_exists
+from app.datamgmt.war_rooms.war_room_chat_db import trace_pin_filter as _trace_pin_filter
 from app.db import db
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.models.authorization import User
@@ -69,24 +74,10 @@ def _threads_supported():
     global _THREADS_SUPPORTED
     if _THREADS_SUPPORTED is True:
         return True
-    try:
-        from sqlalchemy import text as _text
-        # Fresh connection so a poisoned session can't taint the probe.
-        # We `SELECT parent_message_id LIMIT 0` so it works on an empty
-        # table — and Postgres still validates the column reference at
-        # plan time, so the missing-column case raises immediately.
-        with db.engine.connect() as conn:
-            conn.execute(
-                _text(
-                    'SELECT parent_message_id '
-                    'FROM war_room_chat_message LIMIT 0'
-                )
-            )
-        supported = True
-    except Exception as e:
-        # Distinguish "column doesn't exist" from any other DB error so
-        # operators have a fighting chance of debugging the probe when
-        # it goes wrong. The `pgcode` for UndefinedColumn is '42703'.
+    ok, e = _probe_column_exists(
+        'SELECT parent_message_id FROM war_room_chat_message LIMIT 0'
+    )
+    if not ok:
         from app.logger import logger
         pgcode = getattr(getattr(e, 'orig', None), 'pgcode', None)
         if pgcode == '42703':
@@ -97,9 +88,8 @@ def _threads_supported():
                 '(pgcode=%s)', pgcode
             )
         return False
-    if supported:
-        _THREADS_SUPPORTED = True
-    return supported
+    _THREADS_SUPPORTED = True
+    return True
 
 
 _PIN_SUPPORTED = None
@@ -115,14 +105,10 @@ def _pin_supported():
     global _PIN_SUPPORTED
     if _PIN_SUPPORTED is True:
         return True
-    try:
-        from sqlalchemy import text as _text
-        with db.engine.connect() as conn:
-            conn.execute(
-                _text('SELECT is_pinned FROM war_room_chat_message LIMIT 0')
-            )
-        supported = True
-    except Exception as e:
+    ok, e = _probe_column_exists(
+        'SELECT is_pinned FROM war_room_chat_message LIMIT 0'
+    )
+    if not ok:
         from app.logger import logger
         pgcode = getattr(getattr(e, 'orig', None), 'pgcode', None)
         if pgcode == '42703':
@@ -132,9 +118,8 @@ def _pin_supported():
                 'Pin support probe failed unexpectedly (pgcode=%s)', pgcode
             )
         return False
-    if supported:
-        _PIN_SUPPORTED = True
-    return supported
+    _PIN_SUPPORTED = True
+    return True
 
 
 _TOPICS_SUPPORTED = None
@@ -150,17 +135,14 @@ def _topics_supported():
     global _TOPICS_SUPPORTED
     if _TOPICS_SUPPORTED is True:
         return True
-    try:
-        from sqlalchemy import text as _text
-        with db.engine.connect() as conn:
-            conn.execute(
-                _text('SELECT topic_id FROM war_room_chat_message LIMIT 0')
-            )
-            conn.execute(
-                _text('SELECT topic_id FROM war_room_topic LIMIT 0')
-            )
-        supported = True
-    except Exception as e:
+    ok, e = _probe_column_exists(
+        'SELECT topic_id FROM war_room_chat_message LIMIT 0'
+    )
+    if ok:
+        ok, e = _probe_column_exists(
+            'SELECT topic_id FROM war_room_topic LIMIT 0'
+        )
+    if not ok:
         from app.logger import logger
         pgcode = getattr(getattr(e, 'orig', None), 'pgcode', None)
         if pgcode in ('42703', '42P01'):
@@ -170,9 +152,8 @@ def _topics_supported():
                 'Topics support probe failed unexpectedly (pgcode=%s)', pgcode
             )
         return False
-    if supported:
-        _TOPICS_SUPPORTED = True
-    return supported
+    _TOPICS_SUPPORTED = True
+    return True
 
 
 _VALID_KINDS = {
@@ -334,10 +315,7 @@ def _fetch_live_case_activities(war_room_id, before_dt, limit,
     (intersected with the caller's `case_ids` filter if provided), so
     case_id mismatches just no-op.
     """
-    from app.models.authorization import User
-    from app.models.models import UserActivity
     from app.models.war_rooms import WarRoomCase
-    from sqlalchemy import and_
 
     attached = (
         WarRoomCase.query
@@ -353,40 +331,7 @@ def _fetch_live_case_activities(war_room_id, before_dt, limit,
         if not attached_ids:
             return []
 
-    q = (
-        db.session.query(
-            UserActivity.id,
-            UserActivity.user_id,
-            UserActivity.case_id,
-            UserActivity.activity_date,
-            UserActivity.activity_desc,
-            User.user.label('user_login'),
-            User.name.label('user_name'),
-        )
-        .outerjoin(User, User.id == UserActivity.user_id)
-        .filter(and_(
-            UserActivity.case_id.in_(attached_ids),
-            UserActivity.display_in_ui == True,
-            # Filter out the noise the case activity panel also drops —
-            # same exclusion list as `get_auto_activities`.
-            UserActivity.activity_desc.notlike('[Unbound]%'),
-            UserActivity.activity_desc.notlike('Started a search for %'),
-            UserActivity.activity_desc.notlike('Updated global task %'),
-            UserActivity.activity_desc.notlike('Created new global task %'),
-            UserActivity.activity_desc.notlike('Started a new case creation %'),
-        ))
-    )
-    if before_dt is not None:
-        q = q.filter(UserActivity.activity_date < before_dt)
-    needle = search.strip() if isinstance(search, str) else None
-    if needle:
-        q = q.filter(UserActivity.activity_desc.ilike(f'%{needle}%'))
-
-    rows = (
-        q.order_by(desc(UserActivity.activity_date))
-        .limit(limit)
-        .all()
-    )
+    rows = _build_case_activity_query(attached_ids, before_dt, search, limit)
     return [_virtual_activity_row(r, war_room_id) for r in rows]
 
 
@@ -533,12 +478,7 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
             .first()
         )
         main_id = main.topic_id if main else None
-        wants_main = main_id is not None and main_id in topic_ids
-        from sqlalchemy import or_ as _or
-        clauses = [WarRoomChatMessage.topic_id.in_(list(topic_ids))]
-        if wants_main:
-            clauses.append(WarRoomChatMessage.topic_id.is_(None))
-        q = q.filter(_or(*clauses))
+        q = _apply_topic_filter(q, topic_ids, main_id)
     # Free-text filter: ILIKE against the message body. Soft-deleted
     # rows drop out here too, because their body is nulled at delete
     # time and NULL doesn't match `LIKE`. Overfetch is fine — the merge
@@ -547,7 +487,7 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
     if needle:
         q = q.filter(WarRoomChatMessage.body.ilike(f'%{needle}%'))
 
-    chat_rows = q.order_by(desc(WarRoomChatMessage.message_id)).limit(limit).all()
+    chat_rows = q.order_by(WarRoomChatMessage.message_id.desc()).limit(limit).all()
 
     if not want_case_activity:
         return chat_rows
@@ -1066,7 +1006,6 @@ def list_trace_log(war_room_id, limit=None):
     if topics_on:
         columns.append(WarRoomChatMessage.topic_id)
 
-    from sqlalchemy import or_
     filters = [
         WarRoomChatMessage.war_room_id == war_room_id,
         WarRoomChatMessage.deleted_at.is_(None),
@@ -1076,10 +1015,7 @@ def list_trace_log(war_room_id, limit=None):
         # (decisions/pins/notes) OR any regular message an analyst
         # explicitly pinned. Union rather than two queries to keep
         # the ORDER BY LIMIT correct across both sources.
-        filters.append(or_(
-            WarRoomChatMessage.kind.in_(_TRACE_KINDS),
-            WarRoomChatMessage.is_pinned.is_(True),
-        ))
+        filters.append(_trace_pin_filter(_TRACE_KINDS))
     else:
         # Pre-migration DBs: only the system-row kinds count as trace-worthy.
         filters.append(WarRoomChatMessage.kind.in_(_TRACE_KINDS))
@@ -1088,7 +1024,7 @@ def list_trace_log(war_room_id, limit=None):
         db.session.query(*columns)
         .outerjoin(User, User.id == WarRoomChatMessage.author_id)
         .filter(*filters)
-        .order_by(desc(WarRoomChatMessage.created_at), desc(WarRoomChatMessage.message_id))
+        .order_by(WarRoomChatMessage.created_at.desc(), WarRoomChatMessage.message_id.desc())
         .limit(limit)
     )
     return q.all()
@@ -1125,53 +1061,7 @@ def list_thread_roots(war_room_id, limit=None):
         limit = _PAGE_DEFAULT
     limit = min(int(limit), _PAGE_MAX)
 
-    from sqlalchemy import func
-    # Aggregate replies per root.
-    reply_stats = (
-        db.session.query(
-            WarRoomChatMessage.parent_message_id.label('root_id'),
-            func.count(WarRoomChatMessage.message_id).label('reply_count'),
-            func.max(WarRoomChatMessage.created_at).label('last_reply_at'),
-        )
-        .filter(WarRoomChatMessage.war_room_id == war_room_id)
-        .filter(WarRoomChatMessage.parent_message_id.isnot(None))
-        .group_by(WarRoomChatMessage.parent_message_id)
-        .subquery()
-    )
-
-    q = (
-        db.session.query(
-            WarRoomChatMessage.message_id,
-            WarRoomChatMessage.war_room_id,
-            WarRoomChatMessage.author_id,
-            WarRoomChatMessage.body,
-            WarRoomChatMessage.kind,
-            WarRoomChatMessage.thread_title,
-            WarRoomChatMessage.created_at,
-            WarRoomChatMessage.deleted_at,
-            User.user.label('author_login'),
-            User.name.label('author_name'),
-            reply_stats.c.reply_count,
-            reply_stats.c.last_reply_at,
-        )
-        .outerjoin(User, User.id == WarRoomChatMessage.author_id)
-        .outerjoin(reply_stats,
-                   reply_stats.c.root_id == WarRoomChatMessage.message_id)
-        .filter(WarRoomChatMessage.war_room_id == war_room_id)
-        .filter(WarRoomChatMessage.parent_message_id.is_(None))
-        # Either has replies OR a name — naked unnamed roots aren't
-        # treated as threads.
-        .filter(and_(
-            (reply_stats.c.reply_count.isnot(None)) |
-            (WarRoomChatMessage.thread_title.isnot(None))
-        ))
-        .order_by(
-            func.coalesce(reply_stats.c.last_reply_at,
-                          WarRoomChatMessage.created_at).desc()
-        )
-        .limit(limit)
-    )
-    return q.all()
+    return _build_threads_query(war_room_id, limit)
 
 
 def follow_thread(war_room_id, message_id, user_id):
@@ -1600,18 +1490,7 @@ def get_poll_state(war_room_id, poll_id, viewer_id):
 
     # One join per option to fetch its votes + voter identity in a
     # single query. Cheap because polls have at most 20 options each.
-    from sqlalchemy import func
-    counts = dict(
-        db.session.query(
-            WarRoomChatPollOption.option_id,
-            func.count(WarRoomChatPollVote.option_id),
-        )
-        .outerjoin(WarRoomChatPollVote,
-                   WarRoomChatPollVote.option_id == WarRoomChatPollOption.option_id)
-        .filter(WarRoomChatPollOption.poll_id == poll.poll_id)
-        .group_by(WarRoomChatPollOption.option_id)
-        .all()
-    )
+    counts = _poll_option_vote_counts(poll.poll_id)
 
     # Viewer's own selections — anonymous polls still show these
     # (a user always knows what they clicked).
@@ -1751,7 +1630,7 @@ def list_topics(war_room_id, include_archived=True):
         WarRoomTopic.query
         .filter_by(war_room_id=war_room_id)
         .order_by(
-            desc(WarRoomTopic.is_main),
+            WarRoomTopic.is_main.desc(),
             WarRoomTopic.archived_at.isnot(None),
             WarRoomTopic.name,
         )

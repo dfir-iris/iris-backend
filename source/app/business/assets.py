@@ -28,6 +28,9 @@ from app.models.pagination_parameters import PaginationParameters
 from app.datamgmt.case.case_assets_db import get_asset
 from app.datamgmt.case.case_assets_db import filter_assets
 from app.datamgmt.case.case_assets_db import case_assets_db_exists
+from app.datamgmt.case.case_assets_db import get_similar_assets
+from app.datamgmt.case.case_db import get_case_client_id
+from app.datamgmt.manage.manage_users_db import get_user_cases_fast
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
 from app.datamgmt.case.case_assets_db import delete_asset

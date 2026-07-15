@@ -12,12 +12,12 @@ from sqlalchemy.orm import Query, aliased
 
 from app import db
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
-from app.blueprints.access_controls import ac_current_user_has_permission
+from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 from app.models.alerts import Alert, AlertResolutionStatus, AlertStatus, Severity
 from app.models.alerts import AlertCaseAssociation
 from app.models.cases import Cases, CaseTags, CaseState, CasesEvent, CaseClassification
-from app.models.authorization import Permissions, User
+from app.models.authorization import Permissions, User, ac_flag_match_mask
 from app.models.assets import CaseAssets, AssetsType
 from app.models.customers import Client
 from app.models.iocs import Ioc
@@ -919,8 +919,10 @@ class WidgetQueryExecutor:
         self._promote_time_group()
 
     def _apply_access_filters(self):
-        if ac_current_user_has_permission(Permissions.server_administrator):
-            return
+        if getattr(current_user, 'is_authenticated', False):
+            _perms = ac_get_effective_permissions_of_user(current_user)
+            if ac_flag_match_mask(_perms, Permissions.server_administrator.value):
+                return
 
         user_id = getattr(current_user, 'id', None)
         if not user_id:

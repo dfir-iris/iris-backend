@@ -28,6 +28,14 @@ from app.datamgmt.manage.manage_users_db import update_user
 from app.datamgmt.manage.manage_users_db import delete_user
 from app.datamgmt.manage.manage_users_db import get_user_organisations
 from app.datamgmt.manage.manage_users_db import get_user_primary_org
+from app.datamgmt.manage.manage_users_db import get_users_list_restricted_from_case
+from app.datamgmt.manage.manage_users_db import get_user_cases_fast
+from app.datamgmt.manage.manage_users_db import add_case_access_to_user
+from app.datamgmt.manage.manage_users_db import get_user
+from app.datamgmt.manage.manage_users_db import get_user_details
+from app.datamgmt.manage.manage_users_db import remove_cases_access_from_user
+from app.datamgmt.manage.manage_users_db import update_user_customers
+from app.datamgmt.manage.manage_users_db import update_user_groups
 from app.datamgmt.comments import user_has_comments
 from app.iris_engine.utils.tracker import track_activity
 

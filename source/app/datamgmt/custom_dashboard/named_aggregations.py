@@ -30,11 +30,18 @@ from sqlalchemy import func, or_, select
 
 from app import db
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
-from app.blueprints.access_controls import ac_current_user_has_permission
+from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
 from app.models.alerts import Alert, AlertCaseAssociation, AlertResolutionStatus, AlertStatus
-from app.models.authorization import Permissions
+from app.models.authorization import Permissions, ac_flag_match_mask
 from app.models.cases import Cases
+
+
+def _current_user_is_server_admin() -> bool:
+    if not getattr(current_user, 'is_authenticated', False):
+        return False
+    perms = ac_get_effective_permissions_of_user(current_user)
+    return ac_flag_match_mask(perms, Permissions.server_administrator.value)
 
 
 class NamedAggregationError(Exception):
@@ -95,7 +102,7 @@ def _average_seconds(deltas: Iterable[timedelta]) -> Optional[float]:
 
 
 def _apply_access_filter_to_alert_query(stmt):
-    if ac_current_user_has_permission(Permissions.server_administrator):
+    if _current_user_is_server_admin():
         return stmt
     user_id = getattr(current_user, 'id', None)
     if not user_id:
@@ -116,7 +123,7 @@ def _apply_access_filter_to_alert_query(stmt):
 
 
 def _apply_access_filter_to_case_query(stmt):
-    if ac_current_user_has_permission(Permissions.server_administrator):
+    if _current_user_is_server_admin():
         return stmt
     user_id = getattr(current_user, 'id', None)
     if not user_id:

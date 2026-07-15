@@ -54,8 +54,8 @@ from app.business.cases import cases_exists
 from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_reopen
 from app.business.cases import cases_update
-from app.datamgmt.manage.manage_users_db import get_users_list_restricted_from_case
-from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
+from app.business.users import get_users_list_restricted_from_case
+from app.business.access_controls import get_case_effective_access
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2

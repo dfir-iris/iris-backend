@@ -36,9 +36,9 @@ from app.business.assets import assets_filter
 from app.business.assets import assets_get
 from app.business.assets import assets_update
 from app.business.assets import assets_delete
-from app.datamgmt.case.case_assets_db import get_similar_assets
-from app.datamgmt.case.case_db import get_case_client_id
-from app.datamgmt.manage.manage_users_db import get_user_cases_fast
+from app.business.assets import get_similar_assets
+from app.business.assets import get_case_client_id
+from app.business.assets import get_user_cases_fast
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
