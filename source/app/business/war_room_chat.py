@@ -21,7 +21,6 @@ import re
 from app.datamgmt.war_rooms.war_room_chat_db import apply_topic_filter as _apply_topic_filter
 from app.datamgmt.war_rooms.war_room_chat_db import build_case_activity_query as _build_case_activity_query
 from app.datamgmt.war_rooms.war_room_chat_db import build_threads_query as _build_threads_query
-from app.datamgmt.war_rooms.war_room_chat_db import order_by_message_id_desc as _order_by_message_id_desc
 from app.datamgmt.war_rooms.war_room_chat_db import poll_option_vote_counts as _poll_option_vote_counts
 from app.datamgmt.war_rooms.war_room_chat_db import probe_column_exists as _probe_column_exists
 from app.datamgmt.war_rooms.war_room_chat_db import trace_pin_filter as _trace_pin_filter

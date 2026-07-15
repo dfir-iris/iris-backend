@@ -17,8 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from app.business.war_rooms_access import ac_get_fast_user_war_rooms_access
-from app.datamgmt.activities.activities_db import get_recent_activities_for_user
-from app.datamgmt.activities.activities_db import get_recent_major_case_activities_for_user
+from app.datamgmt.activities.activities_db import get_recent_activities_for_user as get_recent_activities_for_user
+from app.datamgmt.activities.activities_db import get_recent_major_case_activities_for_user as get_recent_major_case_activities_for_user
 from app.datamgmt.activities.activities_db import list_activities_paginated
 from app.datamgmt.activities.activities_db import search_users_activity_in_case
 from app.datamgmt.manage.manage_cases_db import user_list_cases_view

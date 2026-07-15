@@ -31,7 +31,6 @@ from typing import Set
 
 
 from app.business.case_timelines import case_timeline_list
-from app.db import db
 from app.models.authorization import CaseAccessLevel
 from app.models.cases import CaseEventTimeline
 from app.models.cases import CaseTimeline

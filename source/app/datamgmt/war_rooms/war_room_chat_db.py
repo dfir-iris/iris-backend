@@ -74,10 +74,6 @@ def apply_topic_filter(query, topic_ids, main_id):
     return query.filter(or_(*clauses))
 
 
-def order_by_message_id_desc(query, limit):
-    return query.order_by(desc(WarRoomChatMessage.message_id)).limit(limit).all()
-
-
 def trace_pin_filter(pin_kinds):
     """Build the OR clause used when the pin column exists.
 
@@ -88,16 +84,6 @@ def trace_pin_filter(pin_kinds):
         WarRoomChatMessage.kind.in_(pin_kinds),
         WarRoomChatMessage.is_pinned.is_(True),
     )
-
-
-def build_trace_query(war_room_id, columns, filters, order_column_expr, limit):
-    q = (
-        db.session.query(*columns)
-        .filter(*filters)
-        .order_by(order_column_expr)
-        .limit(limit)
-    )
-    return q
 
 
 def build_threads_query(war_room_id, limit):
