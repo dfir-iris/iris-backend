@@ -216,7 +216,21 @@ def _resolve_slash(war_room_id, cmd, rest):
     falls through to a normal message).
     """
     if cmd == 'note':
-        return ('note', rest, 'war_room_chat', None, None)
+        if not rest:
+            raise BusinessProcessingError('Usage: /note <text>')
+        # Persist a real WarRoomNote so the operator can find and edit
+        # it later from the Notes section. The chat row stamps a link
+        # to the note via ref_type/ref_id so the sidebar entry is
+        # clickable. Title = first line (or first 80 chars); content =
+        # full body so nothing typed is lost.
+        from app.business.war_room_notes import war_room_note_create
+        first_line = rest.split('\n', 1)[0].strip() or rest.strip()
+        title = first_line[:80]
+        note = war_room_note_create(
+            war_room_id, title=title, content=rest,
+            created_by_id=iris_current_user.id,
+        )
+        return ('note', rest, 'war_room_note', note.note_id, None)
     if cmd == 'pin':
         return ('pin', rest, 'war_room_chat', None, None)
 
