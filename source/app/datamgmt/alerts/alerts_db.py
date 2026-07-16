@@ -18,11 +18,15 @@
 
 from copy import deepcopy
 import json
+import re
 from datetime import datetime
 from datetime import timedelta
 from typing import List
 from typing import Optional
 from typing import Tuple
+
+
+_DATE_ONLY_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 from sqlalchemy import desc
 from sqlalchemy import asc
@@ -95,6 +99,33 @@ def db_list_all_alerts():
     return db.session.query(Alert).all()
 
 
+def _parse_inclusive_date_range(start_raw, end_raw):
+    """Parse a `[start, end]` filter pair and make the end bound inclusive
+    when the caller sent a bare date (``YYYY-MM-DD`` with no time part).
+
+    Historically the frontend appended ``T23:59:59`` to end dates before
+    hitting the API so the underlying ``BETWEEN`` was inclusive of the
+    terminal day. Direct API callers who send ``creation_end_date=2026-07-15``
+    without that suffix were silently getting a zero-width range at
+    midnight and thus no rows for the last day of their window. Here we
+    detect the date-only shape and roll the end bound to the last
+    microsecond of the day so both callers see the same result.
+
+    Returns ``(None, None)`` when either bound is missing or fails to
+    parse — matches the previous "silently drop the filter" behavior so
+    callers who only pass one bound keep working.
+    """
+    if start_raw is None or end_raw is None:
+        return None, None
+    start_dt = parse_bf_date_format(start_raw)
+    end_dt = parse_bf_date_format(end_raw)
+    if not start_dt or not end_dt:
+        return None, None
+    if isinstance(end_raw, str) and _DATE_ONLY_RE.match(end_raw.strip()):
+        end_dt = end_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return start_dt, end_dt
+
+
 def get_filtered_alerts(
         start_date: str,
         end_date: str,
@@ -129,17 +160,13 @@ def get_filtered_alerts(
     ) -> Pagination:
     conditions = []
 
-    if start_date is not None and end_date is not None:
-        start_date = parse_bf_date_format(start_date)
-        end_date = parse_bf_date_format(end_date)
-        if start_date and end_date:
-            conditions.append(Alert.alert_creation_time.between(start_date, end_date))
+    start_date_dt, end_date_dt = _parse_inclusive_date_range(start_date, end_date)
+    if start_date_dt and end_date_dt:
+        conditions.append(Alert.alert_creation_time.between(start_date_dt, end_date_dt))
 
-    if source_start_date is not None and source_end_date is not None:
-        source_start_date = parse_bf_date_format(source_start_date)
-        source_end_date = parse_bf_date_format(source_end_date)
-        if source_start_date and source_end_date:
-            conditions.append(Alert.alert_source_event_time.between(source_start_date, source_end_date))
+    source_start_dt, source_end_dt = _parse_inclusive_date_range(source_start_date, source_end_date)
+    if source_start_dt and source_end_dt:
+        conditions.append(Alert.alert_source_event_time.between(source_start_dt, source_end_dt))
 
     if title is not None:
         conditions.append(Alert.alert_title.ilike(f'%{title}%'))
