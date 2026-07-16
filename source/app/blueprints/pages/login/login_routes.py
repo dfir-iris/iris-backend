@@ -48,6 +48,7 @@ from app.datamgmt.manage.manage_users_db import update_user_groups
 from app.datamgmt.manage.manage_users_db import get_user
 from app.forms import LoginForm, MFASetupForm
 from app.blueprints.iris_user import iris_current_user
+from app.iris_engine.demo_builder import is_demo_seeded_user
 from app.iris_engine.utils.tracker import track_activity
 from app.datamgmt.manage.manage_groups_db import get_groups_list
 from app.business.auth import generate_auth_tokens
@@ -441,6 +442,13 @@ def _register_mfa_failure(user, reason):
 def mfa_setup():
     user = _get_pre_mfa_user()
     if user is None:
+        return redirect(url_for("login.login"))
+
+    # Demo mode: seeded demo accounts (adm_*, user_std_*) publish their
+    # credentials on the demo landing page. Letting one visitor enroll
+    # MFA on a shared account would lock every other visitor out.
+    if is_demo_seeded_user(user):
+        flash("MFA setup is disabled in demo mode.", "danger")
         return redirect(url_for("login.login"))
 
     # mfa_setup is only for users who haven't completed MFA yet (fresh

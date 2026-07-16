@@ -48,6 +48,7 @@ from app.business.auth import validate_ldap_login
 from app.business.auth import validate_local_login
 from app.business.users import users_get_active
 from app.business.auth import generate_auth_tokens
+from app.iris_engine.demo_builder import is_demo_seeded_user
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
 
@@ -257,6 +258,19 @@ def mfa_setup():
             )
 
         user = users_get_active(user_id)
+
+        # Demo mode: refuse to bind an MFA secret to a seeded demo
+        # account. The demo landing page publishes those credentials
+        # for every visitor — letting the first visitor enroll their
+        # own authenticator would lock everyone else out of the shared
+        # account.
+        if is_demo_seeded_user(user):
+            track_activity(
+                f"Refused MFA setup for user {user.user}: demo mode.",
+                ctx_less=True,
+                display_in_ui=False,
+            )
+            return response_api_error('MFA setup is disabled in demo mode')
 
         # Refuse to overwrite an existing enrollment from this endpoint.
         # Re-running setup with a fresh secret would silently invalidate

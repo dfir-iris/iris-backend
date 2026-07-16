@@ -37,6 +37,7 @@ from app.blueprints.access_controls import ac_fast_check_current_user_has_case_a
 from app.business.cases import cases_exists
 from app.business.users import users_get
 from app.business.users import users_update
+from app.iris_engine.demo_builder import protect_demo_mode_user
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
 from app.models.authorization import CaseAccessLevel
@@ -74,6 +75,9 @@ class ProfileOperations:
                 raw = {}
             new_password = raw.get('user_password')
             current_password = raw.get('user_current_password')
+
+            if new_password and protect_demo_mode_user(user):
+                return response_api_error('Password changes are disabled in demo mode')
 
             if new_password:
                 if not current_password:

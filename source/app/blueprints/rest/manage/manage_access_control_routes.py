@@ -19,12 +19,15 @@
 from flask import Blueprint
 
 from app.business.users import users_reset_mfa
+from app.datamgmt.manage.manage_users_db import get_user
 from app.iris_engine.access_control.utils import ac_recompute_all_users_effective_ac
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
 from app.iris_engine.access_control.utils import ac_trace_effective_user_permissions
 from app.iris_engine.access_control.utils import ac_trace_user_effective_cases_access_2
+from app.iris_engine.demo_builder import protect_demo_mode_user
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_success
 
 manage_ac_rest_blueprint = Blueprint('access_control_rest', __name__)
@@ -51,6 +54,10 @@ def manage_ac_compute_effective_ac(cur_id):
 @manage_ac_rest_blueprint.route('/manage/access-control/reset-mfa/<int:cur_id>', methods=['GET'])
 @ac_api_requires(Permissions.server_administrator)
 def manage_ac_reset_mfa(cur_id):
+
+    user = get_user(cur_id)
+    if user is not None and protect_demo_mode_user(user):
+        return ac_api_return_access_denied()
 
     users_reset_mfa(cur_id)
 

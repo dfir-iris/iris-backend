@@ -39,8 +39,52 @@ from app.models.authorization import User
 log = app.logger
 
 
+DEMO_MODE_DS_UPLOAD_MAX_BYTES = 10 * 1024
+
+
+def is_demo_mode_enabled():
+    return app.config.get('DEMO_MODE_ENABLED') == 'True'
+
+
+def demo_mode_over_upload_cap(file_storage):
+    """Return True when demo mode is on and the pending upload exceeds
+    `DEMO_MODE_DS_UPLOAD_MAX_BYTES` (10 KB).
+
+    The size is read from the underlying stream by seeking to end and
+    then rewinding. `FileStorage.content_length` is only populated when
+    the client sent a per-part Content-Length header (rare), so relying
+    on it would let large uploads slip past the cap.
+    """
+    if not is_demo_mode_enabled():
+        return False
+    if file_storage is None:
+        return False
+    stream = file_storage.stream
+    try:
+        stream.seek(0, 2)
+        size = stream.tell()
+    finally:
+        stream.seek(0)
+    return size > DEMO_MODE_DS_UPLOAD_MAX_BYTES
+
+
+def is_demo_seeded_user(user):
+    """True when `user` is one of the seeded demo accounts (adm_* / user_std_*).
+
+    Unlike `protect_demo_mode_user`, this does not depend on
+    `iris_current_user` — safe to call from pre-auth flows (e.g. the
+    legacy `/auth/mfa-setup` page where flask-login has not yet
+    promoted the user).
+    """
+    if not is_demo_mode_enabled():
+        return False
+    users_p = [f'user_std_{i}' for i in range(1, int(app.config.get('DEMO_USERS_COUNT', 10)))]
+    users_p += [f'adm_{i}' for i in range(1, int(app.config.get('DEMO_ADM_COUNT', 4)))]
+    return user is not None and getattr(user, 'user', None) in users_p
+
+
 def protect_demo_mode_user(user):
-    if app.config.get('DEMO_MODE_ENABLED') != 'True':
+    if not is_demo_mode_enabled():
         return False
 
     users_p = [f'user_std_{i}' for i in range(1, int(app.config.get('DEMO_USERS_COUNT', 10)))]
@@ -56,7 +100,7 @@ def protect_demo_mode_user(user):
 
 
 def protect_demo_mode_group(group):
-    if app.config.get('DEMO_MODE_ENABLED') != 'True':
+    if not is_demo_mode_enabled():
         return False
 
     if iris_current_user.id != 1 and group.group_id in [1, 2]:

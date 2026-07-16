@@ -70,6 +70,7 @@ from app.db import db
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
 from app.iris_engine.access_control.utils import ac_trace_effective_user_permissions
 from app.iris_engine.access_control.utils import ac_trace_user_effective_cases_access_2
+from app.iris_engine.demo_builder import protect_demo_mode_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError
@@ -168,6 +169,8 @@ class Users:
             user = users_get(identifier)
             request_data = _filter_admin_user_payload(request.get_json())
             request_data['user_id'] = identifier
+            if request_data.get('user_password') and protect_demo_mode_user(user):
+                return response_api_error('Password changes are disabled in demo mode for this user')
             new_user = self._schema.load(request_data, instance=user, partial=True)
             user_updated = users_update(new_user, request_data.get('user_password'))
             result = self._schema.dump(user_updated)
@@ -461,6 +464,11 @@ def reset_user_mfa(identifier: int) -> Response:
     helper raises `BusinessProcessingError` when the user can't be
     found (rather than a typed not-found) — surface both paths
     cleanly."""
+    user, err = _require_user(identifier)
+    if err is not None:
+        return err
+    if protect_demo_mode_user(user):
+        return response_api_error('MFA reset is disabled in demo mode for this user')
     try:
         users_reset_mfa(identifier)
     except BusinessProcessingError as exc:
