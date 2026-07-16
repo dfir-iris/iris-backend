@@ -370,13 +370,6 @@ def poll_inbound_mail(self) -> dict:
     return {'skipped': False, 'processed': processed}
 
 
-def _fetch_unseen_for_testing(cfg: ImapConfig) -> List[ParsedMail]:
-    """Public wrapper for tests that want to exercise the fetch path
-    against a stubbed mailbox. Kept trivially thin so the production
-    path stays untouched."""
-    return _fetch_unseen(cfg)
-
-
 # ---------------------------------------------------------------------
 # Beat schedule registration
 # ---------------------------------------------------------------------

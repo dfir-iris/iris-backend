@@ -26,7 +26,6 @@ from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.cases import CaseEventTimeline
 from app.models.cases import CaseTimeline
-from app.models.cases import CasesEvent
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 
@@ -266,21 +265,3 @@ def get_event_timeline_ids(event_id):
         .all()
     )
     return [r.timeline_id for r in rows]
-
-
-def filter_events_by_timelines(case_id, timeline_ids):
-    """Return event ids on the case that are attached to any of the
-    given timelines. `timeline_ids=None` or empty means "no filter"
-    (caller gets all event ids for the case).
-    """
-    if not timeline_ids:
-        return None
-    rows = (
-        db.session.query(CaseEventTimeline.event_id)
-        .join(CasesEvent, CasesEvent.event_id == CaseEventTimeline.event_id)
-        .filter(CasesEvent.case_id == case_id)
-        .filter(CaseEventTimeline.timeline_id.in_(timeline_ids))
-        .distinct()
-        .all()
-    )
-    return [r.event_id for r in rows]

@@ -1126,11 +1126,6 @@ class WidgetQueryExecutor:
         return func.date_trunc(bucket, column)
 
 
-def execute_widget(definition: Dict[str, Any], timeframe: Tuple[Optional[datetime], Optional[datetime]]) -> WidgetQueryResult:
-    executor = WidgetQueryExecutor(definition)
-    return executor.execute(timeframe)
-
-
 def format_widget_payload(
     result: WidgetQueryResult,
     definition: Optional[Dict[str, Any]] = None,

@@ -16,18 +16,11 @@ from typing import Optional
 from app.datamgmt.war_rooms.war_room_notes_db import delete_folder
 from app.datamgmt.war_rooms.war_room_notes_db import get_folder
 from app.datamgmt.war_rooms.war_room_notes_db import list_folders as list_folders
-from app.datamgmt.war_rooms.war_room_notes_db import paginate_folders
 from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
-from app.models.pagination_parameters import PaginationParameters
 from app.models.war_rooms import WarRoomNoteFolder
-
-
-def war_room_note_folders_filter(war_room_id: int,
-                                 pagination_parameters: PaginationParameters):
-    return paginate_folders(war_room_id, pagination_parameters)
 
 
 def war_room_note_folders_get(identifier: int) -> WarRoomNoteFolder:

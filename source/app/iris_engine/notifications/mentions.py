@@ -12,7 +12,7 @@ HTML spans:
 That form is unambiguous — we pull `data-id` directly, no handle
 resolution needed. For legacy content authored before the mention node
 existed (or pasted from external sources), we also match plain
-`@handle` tokens and resolve them via `resolve_user_handle` below.
+`@handle` tokens and resolve them via `resolve_user_handles` below.
 
 Both parsers are defensive: no HTML parser is loaded — a regex over the
 persisted content is fast, sufficient for the strictly-shaped span the
@@ -211,18 +211,3 @@ def resolve_mentions_to_user_ids(content: Optional[str],
         from app.business.war_room_teams import war_room_team_member_user_ids
         user_ids = user_ids | war_room_team_member_user_ids(war_room_id, team_ids)
     return user_ids
-
-
-def resolve_user_handle(handle: str) -> Optional[int]:
-    """Single-handle lookup returning `user_id` or None.
-
-    Convenience wrapper around `resolve_user_handles` for call sites
-    that want scalar semantics without importing sets.
-    """
-    ids = resolve_user_handles([handle])
-    if not ids:
-        return None
-    # Ambiguity (a login and a display name both matching) picks one
-    # arbitrarily — mirrors war-room chat's `_resolve_user_handle`
-    # behaviour which also picks first.
-    return next(iter(ids))

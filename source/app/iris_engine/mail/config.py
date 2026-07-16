@@ -92,11 +92,3 @@ def get_imap_config() -> Optional[ImapConfig]:
         poll_interval_sec=int(srv.mail_imap_poll_interval_sec or 300),
         max_attachment_mb=int(srv.mail_imap_max_attachment_mb or 20),
     )
-
-
-def smtp_is_configured() -> bool:
-    return get_smtp_config() is not None
-
-
-def imap_is_configured() -> bool:
-    return get_imap_config() is not None

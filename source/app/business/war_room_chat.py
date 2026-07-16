@@ -1711,17 +1711,3 @@ def unarchive_topic(war_room_id, topic_id):
         row.archived_at = None
         db.session.commit()
     return row
-
-
-# ----- Activity ingest -----------------------------------------------------
-
-def ingest_case_activity(case_id, activity_text, ref_activity_id=None):
-    """DEPRECATED — no-op kept for backwards compatibility.
-
-    Earlier versions mirrored case-activity rows into the chat table.
-    `list_messages` now pulls `UserActivity` rows live at render time
-    so a case attached after-the-fact instantly surfaces its full
-    history with zero duplication. This shim stays so external test
-    callers don't break; new code should not call it.
-    """
-    return

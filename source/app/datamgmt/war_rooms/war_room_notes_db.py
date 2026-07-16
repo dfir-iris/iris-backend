@@ -14,9 +14,7 @@ from typing import List
 
 from app.datamgmt.db_operations import db_create
 from app.datamgmt.db_operations import db_delete
-from app.datamgmt.filtering import paginate
 from app.db import db
-from app.models.pagination_parameters import PaginationParameters
 from app.models.war_rooms import WarRoomNote
 from app.models.war_rooms import WarRoomNoteFolder
 from app.models.war_rooms import WarRoomNoteRevision
@@ -30,12 +28,6 @@ def get_note(war_room_id: int, note_id: int) -> WarRoomNote:
 
 def get_folder(folder_id: int) -> WarRoomNoteFolder:
     return WarRoomNoteFolder.query.filter_by(id=folder_id).first()
-
-
-def paginate_folders(war_room_id: int,
-                     pagination_parameters: PaginationParameters):
-    query = WarRoomNoteFolder.query.filter_by(war_room_id=war_room_id)
-    return paginate(WarRoomNoteFolder, pagination_parameters, query)
 
 
 def list_folders(war_room_id: int) -> List[WarRoomNoteFolder]:
