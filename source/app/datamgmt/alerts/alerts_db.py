@@ -258,6 +258,16 @@ def get_filtered_alerts(
                 logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
                 return
 
+        # `apply_custom_conditions` expects a *list* of nodes. Historically
+        # legacy callers passed a flat list of leaves. The tree-shaped
+        # payload the frontend condition builder produces has a group at
+        # the root (`{"logic": "and"|"or", "conditions": [...]}`); wrap
+        # it so the group's recursive branch fires and its `logic` is
+        # honored, rather than iterating a dict and yielding stringified
+        # keys.
+        if isinstance(custom_conditions, dict) and 'conditions' in custom_conditions:
+            custom_conditions = [custom_conditions]
+
         query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
         conditions.extend(conditions_tmp)
 
