@@ -194,9 +194,16 @@ def get_user_avatar(identifier: int) -> Response:
 # user can list active users so mention chips work without needing the
 # admin-only /manage/users endpoint. The payload is intentionally minimal
 # (id, login, name) — no email, no roles, no permissions — so it can't
-# be repurposed as a permission-info leak. Bounded by `_MENTION_LIMIT`
-# because the mention popup only shows a handful of results.
-_MENTION_LIMIT = 50
+# be repurposed as a permission-info leak.
+#
+# `_MENTION_LIMIT` bounds each response. It has to comfortably cover a
+# whole tenant when the client fetches with `q=""` (used by the alerts
+# reassign dropdown, which relies on a single up-front list) — 200
+# leaves room for orgs several times larger than today's without
+# blowing up the payload (name+login is a few KB per 100 users). The
+# @-mention popup in the editor also passes the typed prefix through
+# as `q`, so it doesn't rely on the full list being cached client-side.
+_MENTION_LIMIT = 200
 
 
 @users_public_blueprint.get('/mentionable')
