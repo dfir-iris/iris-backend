@@ -44,6 +44,7 @@ from app.blueprints.rest.v2.case_routes.evidences import case_evidences_blueprin
 from app.blueprints.rest.v2.case_routes.events import case_events_blueprint
 from app.blueprints.rest.v2.case_routes.timelines import case_timelines_blueprint
 from app.blueprints.rest.v2.case_routes.datastore import case_datastore_blueprint
+from app.blueprints.rest.v2.case_routes.dim_hooks import case_dim_hooks_blueprint
 from app.blueprints.iris_user import iris_current_user
 from app.business.cases import case_unlink_alert
 from app.business.cases import case_unlink_alert_cluster
@@ -64,6 +65,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.models.authorization import Permissions
 from app.models.authorization import CaseAccessLevel
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
@@ -399,13 +401,22 @@ cases_blueprint.register_blueprint(case_evidences_blueprint)
 cases_blueprint.register_blueprint(case_events_blueprint)
 cases_blueprint.register_blueprint(case_timelines_blueprint)
 cases_blueprint.register_blueprint(case_datastore_blueprint)
+cases_blueprint.register_blueprint(case_dim_hooks_blueprint)
 
 cases_operations = CasesOperations()
 
 
 @cases_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CaseSchemaForAPIV2, response_shape='paginated', tags=['Cases'],
+         summary='List cases')
 def get_cases() -> Response:
+    """Return a paginated list of cases visible to the caller.
+
+    Supports the same query parameters as the case list UI: name,
+    customer, classification, owner, state, severity, date ranges,
+    and a `quick_search` free-text filter used by the context switcher.
+    """
     return cases_operations.search()
 
 
@@ -417,37 +428,51 @@ def filter_cases() -> Response:
 
 @cases_blueprint.post('')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(request=CaseSchemaForAPIV2, response=CaseSchemaForAPIV2,
+         response_shape='created', tags=['Cases'], summary='Create a case')
 def create_case():
+    """Create a new case owned by the caller."""
     return cases_operations.create()
 
 
 @cases_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseSchemaForAPIV2, tags=['Cases'], summary='Get a case')
 def case_routes_get(identifier):
+    """Return one case by identifier."""
     return cases_operations.read(identifier)
 
 
 @cases_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(request=CaseSchemaForAPIV2, response=CaseSchemaForAPIV2,
+         tags=['Cases'], summary='Update a case')
 def rest_v2_cases_update(identifier):
+    """Partially update a case."""
     return cases_operations.update(identifier)
 
 
 @cases_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(response_shape='deleted', tags=['Cases'], summary='Delete a case')
 def case_routes_delete(identifier):
+    """Delete a case."""
     return cases_operations.delete(identifier)
 
 
 @cases_blueprint.post('/<int:identifier>/close')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(response=CaseDetailsSchema, tags=['Cases'], summary='Close a case')
 def case_routes_close(identifier):
+    """Close a case; returns the updated case details."""
     return cases_operations.close(identifier)
 
 
 @cases_blueprint.post('/<int:identifier>/reopen')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(response=CaseDetailsSchema, tags=['Cases'], summary='Reopen a case')
 def case_routes_reopen(identifier):
+    """Reopen a previously closed case."""
     return cases_operations.reopen(identifier)
 
 

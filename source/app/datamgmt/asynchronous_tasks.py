@@ -22,13 +22,6 @@ from sqlalchemy import or_
 from app.models.models import CeleryTaskMeta
 
 
-def search_asynchronous_tasks(count):
-    tasks = CeleryTaskMeta.query.filter(
-        ~ CeleryTaskMeta.name.like('app.iris_engine.updater.updater.%')
-    ).order_by(desc(CeleryTaskMeta.date_done)).limit(count).all()
-    return tasks
-
-
 def search_asynchronous_tasks_paginated(
         page=1,
         per_page=25,
@@ -37,10 +30,8 @@ def search_asynchronous_tasks_paginated(
 ):
     """Paginated listing of CeleryTaskMeta rows for the Dim Tasks page.
 
-    Same row source as ``search_asynchronous_tasks`` but with proper
-    pagination + optional filters. We filter out updater tasks (same as
-    the legacy listing) and offer a coarse ``search`` over the task name
-    plus a ``status`` exact-match filter.
+    We filter out updater tasks and offer a coarse ``search`` over the
+    task name plus a ``status`` exact-match filter.
 
     ``args`` / ``kwargs`` / ``result`` are LargeBinary (pickled) columns
     — we deliberately do NOT filter on them, because that would either

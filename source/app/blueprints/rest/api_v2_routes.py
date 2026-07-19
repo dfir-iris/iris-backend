@@ -28,6 +28,7 @@ from app.blueprints.rest.v2.auth import auth_blueprint
 from app.blueprints.rest.v2.cases import cases_blueprint
 from app.blueprints.rest.v2.custom_dashboards import custom_dashboards_blueprint
 from app.blueprints.rest.v2.dashboard import dashboard_blueprint
+from app.blueprints.rest.v2.dim_hooks import dim_hooks_blueprint
 from app.blueprints.rest.v2.dim_tasks import dim_tasks_blueprint
 from app.blueprints.rest.v2.global_tasks import global_tasks_blueprint
 from app.blueprints.rest.v2.iocs import iocs_blueprint
@@ -74,6 +75,7 @@ rest_v2_blueprint.register_blueprint(users_public_blueprint)
 rest_v2_blueprint.register_blueprint(me_avatar_blueprint)
 rest_v2_blueprint.register_blueprint(admin_avatar_blueprint)
 rest_v2_blueprint.register_blueprint(activities_blueprint)
+rest_v2_blueprint.register_blueprint(dim_hooks_blueprint)
 rest_v2_blueprint.register_blueprint(dim_tasks_blueprint)
 rest_v2_blueprint.register_blueprint(war_rooms_blueprint)
 rest_v2_blueprint.register_blueprint(notifications_blueprint)

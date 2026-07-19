@@ -20,7 +20,6 @@ import json
 import pickle
 
 from app import celery
-from app.datamgmt.asynchronous_tasks import search_asynchronous_tasks
 from app.datamgmt.asynchronous_tasks import search_asynchronous_tasks_paginated
 from app.datamgmt.asynchronous_tasks import get_asynchronous_task_by_id
 from iris_interface.IrisInterfaceStatus import IIStatus
@@ -94,15 +93,12 @@ def _project_row(row):
     """Turn one CeleryTaskMeta record into a flat dict suitable for the
     Dim Tasks listing page.
 
-    Same shape as the legacy ``asynchronous_tasks_search`` projection,
-    but:
-      * ``date_done`` is an ISO 8601 string (or ``None``) so the frontend
-        doesn't have to know about Python datetimes;
-      * ``case_id`` is split out from the human ``case`` label, so the
-        UI can build a `/case/<id>` link without parsing a string;
-      * we never propagate exceptions raised by pickle.loads — a corrupt
-        result blob just leaves the row labelled as a failure rather
-        than 500-ing the whole page.
+    ``date_done`` is an ISO 8601 string (or ``None``) so the frontend
+    doesn't have to know about Python datetimes; ``case_id`` is split
+    out from the human ``case`` label so the UI can build a
+    `/case/<id>` link without parsing a string; and we never propagate
+    exceptions raised by pickle.loads — a corrupt result blob just
+    leaves the row labelled as a failure rather than 500-ing the page.
     """
     tkp = {
         'task_id': row.task_id,
@@ -193,59 +189,3 @@ def asynchronous_task_get_by_id(task_id):
     if row is None:
         return None
     return _project_row(row)
-
-
-def asynchronous_tasks_search(count):
-    tasks = search_asynchronous_tasks(count)
-
-    data = []
-
-    for row in tasks:
-
-        tkp = {'state': row.status, 'case': 'Unknown', 'module': row.name, 'task_id': row.task_id,
-               'date_done': row.date_done, 'user': 'Unknown'}
-
-        try:
-            _ = row.result
-        except AttributeError:
-            # Legacy task
-            data.append(tkp)
-            continue
-
-        if row.name is not None and 'task_hook_wrapper' in row.name:
-            task_name = f'{row.kwargs}::{row.kwargs}'
-        else:
-            task_name = row.name
-
-        user = None
-        case_name = None
-        if row.kwargs and row.kwargs != b'{}':
-            kwargs = json.loads(row.kwargs.decode('utf-8'))
-            if kwargs:
-                user = kwargs.get('init_user')
-                case_identifier = kwargs.get('caseid')
-                case_name = f'Case #{case_identifier}'
-                module_name = kwargs.get('module_name')
-                hook_name = kwargs.get('hook_name')
-                task_name = f'{module_name}::{hook_name}'
-
-        try:
-            result = pickle.loads(row.result)
-        except:
-            result = None
-
-        if isinstance(result, IIStatus):
-            try:
-                success = result.is_success()
-            except:
-                success = None
-        else:
-            success = None
-
-        tkp['state'] = 'success' if success else str(row.result)
-        tkp['user'] = user if user else 'Shadow Iris'
-        tkp['module'] = task_name
-        tkp['case'] = case_name if case_name else ''
-
-        data.append(tkp)
-    return data

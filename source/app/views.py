@@ -65,7 +65,6 @@ from app.blueprints.rest.case.case_timeline_routes import case_timeline_rest_blu
 from app.blueprints.rest.context_routes import context_rest_blueprint
 from app.blueprints.rest.dashboard_routes import dashboard_rest_blueprint
 from app.blueprints.rest.datastore_routes import datastore_rest_blueprint
-from app.blueprints.rest.dim_tasks_routes import dim_tasks_rest_blueprint
 from app.blueprints.rest.filters_routes import saved_filters_rest_blueprint
 from app.blueprints.rest.manage.manage_access_control_routes import manage_ac_rest_blueprint
 from app.blueprints.rest.manage.manage_alerts_status_routes import manage_alerts_status_rest_blueprint
@@ -171,7 +170,6 @@ def register_blueprints(app):
     app.register_blueprint(activities_blueprint)
     app.register_blueprint(activities_rest_blueprint)
     app.register_blueprint(dim_tasks_blueprint)
-    app.register_blueprint(dim_tasks_rest_blueprint)
     app.register_blueprint(datastore_blueprint)
     app.register_blueprint(datastore_rest_blueprint)
     app.register_blueprint(alerts_blueprint)
