@@ -39,6 +39,7 @@ from app.iris_engine.module_handler.module_handler import register_module
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.schema.marshables import IrisModuleSchema
@@ -47,6 +48,7 @@ manage_modules_rest_blueprint = Blueprint('manage_module_rest', __name__)
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/modules')
 @ac_api_requires(Permissions.server_administrator)
 def manage_modules_list():
     output = iris_modules_list()
@@ -55,6 +57,7 @@ def manage_modules_list():
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/modules')
 @ac_api_requires(Permissions.server_administrator)
 def add_module():
     if request.json is None:
@@ -93,6 +96,7 @@ def add_module():
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/set-parameter/<param_name>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/modules/{identifier}/parameters/{param_name}')
 @ac_api_requires(Permissions.server_administrator)
 def update_module_param(param_name):
     if request.json is None:
@@ -119,6 +123,7 @@ def update_module_param(param_name):
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/enable/<int:mod_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/modules/{identifier}/enable')
 @ac_api_requires(Permissions.server_administrator)
 def enable_module(mod_id):
     module_name = iris_module_name_from_id(mod_id)
@@ -138,6 +143,7 @@ def enable_module(mod_id):
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/disable/<int:module_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/modules/{identifier}/disable')
 @ac_api_requires(Permissions.server_administrator)
 def disable_module(module_id):
     if iris_module_disable_by_id(module_id):
@@ -148,6 +154,7 @@ def disable_module(module_id):
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/remove/<int:module_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/modules/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def view_delete_module(module_id):
     try:
@@ -162,6 +169,7 @@ def view_delete_module(module_id):
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/export-config/<int:module_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/modules/{identifier}/export-config')
 @ac_api_requires(Permissions.server_administrator)
 def export_mod_config(module_id):
     mod_config, mod_name, _ = get_module_config_from_id(module_id)
@@ -176,6 +184,7 @@ def export_mod_config(module_id):
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/import-config/<int:module_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/modules/{identifier}/import-config')
 @ac_api_requires(Permissions.server_administrator)
 def import_mod_config(module_id):
     mod_config, _, _ = get_module_config_from_id(module_id)
@@ -207,6 +216,7 @@ def import_mod_config(module_id):
 
 
 @manage_modules_rest_blueprint.route('/manage/modules/hooks/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/modules/hooks')
 @ac_api_requires(Permissions.server_administrator)
 def view_modules_hook():
     output = module_list_hooks_view()
@@ -216,6 +226,7 @@ def view_modules_hook():
 
 
 # TODO is this endpoint still useful?
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_modules_rest_blueprint.route('/sitemap', methods=['GET'])
 @ac_api_requires()
 def site_map():

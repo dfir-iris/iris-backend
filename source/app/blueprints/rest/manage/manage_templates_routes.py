@@ -37,6 +37,7 @@ from app.models.models import CaseTemplateReport
 from app.models.models import Languages
 from app.models.models import ReportType
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 
@@ -53,6 +54,7 @@ def _get_random_string(length):
 
 
 @manage_templates_rest_blueprint.route('/manage/templates/list')
+@endpoint_deprecated('GET', '/api/v2/manage/report-templates')
 @ac_api_requires(Permissions.server_administrator)
 def report_templates_list():
     # Get all templates
@@ -85,6 +87,7 @@ def _allowed_file(filename):
 
 
 @manage_templates_rest_blueprint.route('/manage/templates/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/report-templates')
 @ac_api_requires(Permissions.server_administrator)
 def add_template():
 
@@ -138,6 +141,7 @@ def add_template():
 
 
 @manage_templates_rest_blueprint.route('/manage/templates/download/<report_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/report-templates/{identifier}/download')
 @ac_api_requires(Permissions.server_administrator)
 def download_template(report_id):
     if report_id != 0:
@@ -152,6 +156,7 @@ def download_template(report_id):
 
 
 @manage_templates_rest_blueprint.route('/manage/templates/delete/<report_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/report-templates/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def delete_template(report_id):
     error = None

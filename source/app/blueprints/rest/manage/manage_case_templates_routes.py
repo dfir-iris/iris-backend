@@ -33,6 +33,7 @@ from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import CaseTemplateSchema
 from app.blueprints.access_controls import ac_requires_case_identifier
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 
@@ -40,6 +41,7 @@ manage_case_templates_rest_blueprint = Blueprint('manage_case_templates_rest', _
 
 
 @manage_case_templates_rest_blueprint.route('/manage/case-templates/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-templates')
 @ac_api_requires()
 def list_case_templates():
     """Show a list of case templates
@@ -54,6 +56,7 @@ def list_case_templates():
 
 
 @manage_case_templates_rest_blueprint.route('/manage/case-templates/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/case-templates')
 @ac_api_requires(Permissions.case_templates_write)
 @ac_requires_case_identifier()
 def add_case_template(caseid):
@@ -92,6 +95,7 @@ def add_case_template(caseid):
 
 
 @manage_case_templates_rest_blueprint.route('/manage/case-templates/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/case-templates/{identifier}')
 @ac_api_requires(Permissions.case_templates_write)
 def update_case_template(cur_id):
     if not request.is_json:
@@ -134,6 +138,7 @@ def update_case_template(cur_id):
 
 
 @manage_case_templates_rest_blueprint.route('/manage/case-templates/delete/<int:case_template_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/case-templates/{identifier}')
 @ac_api_requires(Permissions.case_templates_write)
 @ac_requires_case_identifier()
 def delete_case_template(case_template_id, caseid):
