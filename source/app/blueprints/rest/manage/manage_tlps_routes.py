@@ -22,11 +22,13 @@ from app.models.iocs import Tlp
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_tlp_type_rest_blueprint = Blueprint('manage_tlp_types_rest', __name__)
 
 
 @manage_tlp_type_rest_blueprint.route('/manage/tlp/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/tlp')
 @ac_api_requires()
 def list_tlp_types():
     lstatus = Tlp.query.all()

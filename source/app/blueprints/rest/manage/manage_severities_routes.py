@@ -26,11 +26,13 @@ from app.schema.marshables import SeveritySchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_severities_rest_blueprint = Blueprint('manage_severities_rest', __name__)
 
 
 @manage_severities_rest_blueprint.route('/manage/severities/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/severities')
 @ac_api_requires()
 def list_severities() -> Response:
     """
@@ -45,6 +47,7 @@ def list_severities() -> Response:
     return response_success("", data=schema.dump(l_cl, many=True))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_severities_rest_blueprint.route('/manage/severities/<int:severity_id>', methods=['GET'])
 @ac_api_requires()
 def get_case_alert_status(severity_id: int) -> Response:
@@ -60,6 +63,7 @@ def get_case_alert_status(severity_id: int) -> Response:
     return response_success("", data=schema.dump(cl))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_severities_rest_blueprint.route('/manage/severities/search', methods=['POST'])
 @ac_api_requires()
 def search_analysis_status():

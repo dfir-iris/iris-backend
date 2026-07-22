@@ -31,6 +31,7 @@ from app.schema.marshables import IocTypeSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_ioc_type_rest_blueprint = Blueprint('manage_ioc_types_rest', __name__)
 
@@ -55,6 +56,7 @@ def _filter_ioc_type_payload(jsdata):
 
 
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/ioc-types')
 @ac_api_requires()
 def list_ioc_types():
     lstatus = get_ioc_types_list()
@@ -63,6 +65,7 @@ def list_ioc_types():
 
 
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/ioc-types/{identifier}')
 @ac_api_requires()
 def get_ioc_type(cur_id):
 
@@ -74,6 +77,7 @@ def get_ioc_type(cur_id):
 
 
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/case-objects/ioc-types')
 @ac_api_requires(Permissions.server_administrator)
 def add_ioc_type_api():
     if not request.is_json:
@@ -96,6 +100,7 @@ def add_ioc_type_api():
 
 
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/case-objects/ioc-types/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def remove_ioc_type(cur_id):
     type_id = IocType.query.filter(
@@ -117,6 +122,7 @@ def remove_ioc_type(cur_id):
 
 
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/case-objects/ioc-types/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def update_ioc(cur_id):
     if not request.is_json:
@@ -142,6 +148,7 @@ def update_ioc(cur_id):
     return response_error("Unexpected error server-side. Nothing updated", data=ioc_type)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/search', methods=['POST'])
 @ac_api_requires()
 def search_ioc_type():

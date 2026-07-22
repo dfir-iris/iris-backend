@@ -32,11 +32,13 @@ from app.schema.marshables import EvidenceTypeSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_evidence_types_rest_blueprint = Blueprint('manage_evidence_types_rest', __name__)
 
 
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/evidence-types')
 @ac_api_requires()
 def list_evidence_types() -> Response:
     """Get the list of evidence types
@@ -51,6 +53,7 @@ def list_evidence_types() -> Response:
 
 
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/<int:evidence_type_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/evidence-types/{identifier}')
 @ac_api_requires()
 def get_evidence_type(evidence_type_id: int) -> Response:
     """Get an evidence type
@@ -72,6 +75,7 @@ def get_evidence_type(evidence_type_id: int) -> Response:
 
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/update/<int:evidence_type_id>',
                                             methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/case-objects/evidence-types/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def update_case_classification(evidence_type_id: int) -> Response:
     """Update an evidence type
@@ -106,6 +110,7 @@ def update_case_classification(evidence_type_id: int) -> Response:
 
 
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/case-objects/evidence-types')
 @ac_api_requires(Permissions.server_administrator)
 def add_evidence_type() -> Response:
     """Add an evidence type
@@ -137,6 +142,7 @@ def add_evidence_type() -> Response:
 
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/delete/<int:evidence_type_id>',
                                             methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/case-objects/evidence-types/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def delete_evidence_type(evidence_type_id: int) -> Response:
     """Delete an evidence type
@@ -161,6 +167,7 @@ def delete_evidence_type(evidence_type_id: int) -> Response:
     return response_success("Evidence type deleted")
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/search', methods=['POST'])
 @ac_api_requires()
 def search_evidence_type():

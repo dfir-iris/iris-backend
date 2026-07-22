@@ -32,11 +32,13 @@ from app.schema.marshables import CaseStateSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_case_state_rest_blueprint = Blueprint('manage_case_state_rest', __name__)
 
 
 @manage_case_state_rest_blueprint.route('/manage/case-states/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/case-states')
 @ac_api_requires()
 def list_case_state() -> Response:
     """Get the list of case state
@@ -52,6 +54,7 @@ def list_case_state() -> Response:
 
 
 @manage_case_state_rest_blueprint.route('/manage/case-states/<int:state_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/case-states/{identifier}')
 @ac_api_requires()
 def get_case_state(state_id: int) -> Response:
     """Get a case state
@@ -72,6 +75,7 @@ def get_case_state(state_id: int) -> Response:
 
 @manage_case_state_rest_blueprint.route('/manage/case-states/update/<int:state_id>',
                                         methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/case-objects/case-states/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def update_case_state(state_id: int) -> Response:
     """Update a case state
@@ -109,6 +113,7 @@ def update_case_state(state_id: int) -> Response:
 
 
 @manage_case_state_rest_blueprint.route('/manage/case-states/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/case-objects/case-states')
 @ac_api_requires(Permissions.server_administrator)
 def add_case_state() -> Response:
     """Add a case state
@@ -139,6 +144,7 @@ def add_case_state() -> Response:
 
 
 @manage_case_state_rest_blueprint.route('/manage/case-states/delete/<int:state_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/case-objects/case-states/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def delete_case_state(state_id: int) -> Response:
     """Delete a case state

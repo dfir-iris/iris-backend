@@ -32,11 +32,13 @@ from app.schema.marshables import CaseClassificationSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_case_classification_rest_blueprint = Blueprint('manage_case_classifications_rest', __name__)
 
 
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/case-classifications')
 @ac_api_requires()
 def list_case_classifications() -> Response:
     """Get the list of case classifications
@@ -54,6 +56,7 @@ def list_case_classifications() -> Response:
 
 
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/<int:classification_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/case-classifications/{identifier}')
 @ac_api_requires()
 def get_case_classification(classification_id: int) -> Response:
     """Get a case classification
@@ -75,6 +78,7 @@ def get_case_classification(classification_id: int) -> Response:
 
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/update/<int:classification_id>',
                                                  methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/case-objects/case-classifications/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def update_case_classification(classification_id: int) -> Response:
     """Update a case classification
@@ -110,6 +114,7 @@ def update_case_classification(classification_id: int) -> Response:
 
 
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/case-objects/case-classifications')
 @ac_api_requires(Permissions.server_administrator)
 def add_case_classification() -> Response:
     """Add a case classification
@@ -141,6 +146,7 @@ def add_case_classification() -> Response:
 
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/delete/<int:classification_id>',
                                                  methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/case-objects/case-classifications/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def delete_case_classification(classification_id: int) -> Response:
     """Delete a case classification
@@ -163,6 +169,7 @@ def delete_case_classification(classification_id: int) -> Response:
     return response_success("Case classification deleted")
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/search', methods=['POST'])
 @ac_api_requires()
 def search_alert_status():

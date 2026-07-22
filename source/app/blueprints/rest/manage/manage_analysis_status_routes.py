@@ -27,11 +27,13 @@ from app.schema.marshables import AnalysisStatusSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_analysis_status_rest_blueprint = Blueprint('manage_analysis_status_rest', __name__)
 
 
 @manage_analysis_status_rest_blueprint.route('/manage/analysis-status/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/analysis-statuses')
 @ac_api_requires()
 def list_anastatus():
     lstatus = AnalysisStatus.query.with_entities(
@@ -44,6 +46,7 @@ def list_anastatus():
     return response_success("", data=data)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_analysis_status_rest_blueprint.route('/manage/compromise-status/list', methods=['GET'])
 @ac_api_requires()
 def list_compr_status():
@@ -52,6 +55,7 @@ def list_compr_status():
     return response_success("", data=compro_status)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_analysis_status_rest_blueprint.route('/manage/outcome-status/list', methods=['GET'])
 @ac_api_requires()
 def list_outcome_status() -> Response:
@@ -69,6 +73,7 @@ def list_outcome_status() -> Response:
     return response_success("", data=outcome_status)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_analysis_status_rest_blueprint.route('/manage/analysis-status/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def view_anastatus(cur_id):
@@ -85,6 +90,7 @@ def view_anastatus(cur_id):
     return response_success("", data=lstatus._asdict())
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_analysis_status_rest_blueprint.route('/manage/analysis-status/search', methods=['POST'])
 @ac_api_requires()
 def search_analysis_status():

@@ -28,11 +28,13 @@ from app.schema.marshables import AlertResolutionSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_alerts_status_rest_blueprint = Blueprint('manage_alerts_status_rest', __name__)
 
 
 @manage_alerts_status_rest_blueprint.route('/manage/alert-status/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/alert-statuses')
 @ac_api_requires()
 def list_alert_status() -> Response:
     """
@@ -50,6 +52,7 @@ def list_alert_status() -> Response:
     return response_success("", data=schema.dump(l_cl, many=True))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_alerts_status_rest_blueprint.route('/manage/alert-status/<int:classification_id>', methods=['GET'])
 @ac_api_requires()
 def get_case_alert_status(classification_id: int) -> Response:
@@ -66,6 +69,7 @@ def get_case_alert_status(classification_id: int) -> Response:
     return response_success("", data=schema.dump(cl))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_alerts_status_rest_blueprint.route('/manage/alert-status/search', methods=['POST'])
 @ac_api_requires()
 def search_alert_status():
@@ -89,6 +93,7 @@ def search_alert_status():
 
 
 @manage_alerts_status_rest_blueprint.route('/manage/alert-resolutions/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/alert-resolutions')
 @ac_api_requires()
 def list_alert_resolution() -> Response:
     """
@@ -106,6 +111,7 @@ def list_alert_resolution() -> Response:
     return response_success("", data=schema.dump(l_cl, many=True))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_alerts_status_rest_blueprint.route('/manage/alert-resolutions/<int:resolution_id>', methods=['GET'])
 @ac_api_requires()
 def get_case_alert_resolution(resolution_id: int) -> Response:
@@ -122,6 +128,7 @@ def get_case_alert_resolution(resolution_id: int) -> Response:
     return response_success("", data=schema.dump(cl))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_alerts_status_rest_blueprint.route('/manage/alert-resolutions/search', methods=['POST'])
 @ac_api_requires()
 def search_alert_resolution():

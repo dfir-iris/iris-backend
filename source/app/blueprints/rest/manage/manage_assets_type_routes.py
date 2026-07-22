@@ -33,6 +33,7 @@ from app.schema.marshables import AssetTypeSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_assets_type_rest_blueprint = Blueprint('manage_assets_type_rest', __name__)
 
@@ -55,6 +56,7 @@ def _filter_asset_type_form(form):
 
 
 @manage_assets_type_rest_blueprint.route('/manage/asset-type/list')
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/asset-types')
 @ac_api_requires()
 def list_assets():
     # Get all assets
@@ -78,6 +80,7 @@ def list_assets():
 
 
 @manage_assets_type_rest_blueprint.route('/manage/asset-type/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/case-objects/asset-types/{identifier}')
 @ac_api_requires()
 def view_asset_api(cur_id):
     # Get all assets
@@ -97,6 +100,7 @@ def view_asset_api(cur_id):
 
 
 @manage_assets_type_rest_blueprint.route('/manage/asset-type/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/case-objects/asset-types/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def view_assets(cur_id):
     asset_type = AssetsType.query.filter(AssetsType.asset_id == cur_id).first()
@@ -128,6 +132,7 @@ def view_assets(cur_id):
 
 
 @manage_assets_type_rest_blueprint.route('/manage/asset-type/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/case-objects/asset-types')
 @ac_api_requires(Permissions.server_administrator)
 def add_assets():
     asset_schema = AssetTypeSchema()
@@ -158,6 +163,7 @@ def add_assets():
 
 
 @manage_assets_type_rest_blueprint.route('/manage/asset-type/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/case-objects/asset-types/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def delete_assets(cur_id):
     asset = AssetsType.query.filter(AssetsType.asset_id == cur_id).first()
@@ -188,6 +194,7 @@ def delete_assets(cur_id):
     return response_success(f"Deleted asset type ID {cur_id} successfully")
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_assets_type_rest_blueprint.route('/manage/asset-types/search', methods=['POST'])
 @ac_api_requires()
 def search_assets_type():

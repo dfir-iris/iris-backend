@@ -24,11 +24,13 @@ from app.schema.marshables import EventCategorySchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_event_categories_rest_blueprint = Blueprint('manage_event_categories_rest', __name__)
 
 
 @manage_event_categories_rest_blueprint.route('/manage/event-categories/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/event-categories')
 @ac_api_requires()
 def list_event_categories():
     lcat = EventCategory.query.with_entities(
@@ -41,6 +43,7 @@ def list_event_categories():
     return response_success("", data=data)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_event_categories_rest_blueprint.route('/manage/event-categories/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def get_event_category(cur_id):
@@ -59,6 +62,7 @@ def get_event_category(cur_id):
     return response_success("", data=data)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_event_categories_rest_blueprint.route('/manage/event-categories/search', methods=['POST'])
 @ac_api_requires()
 def search_event_category():

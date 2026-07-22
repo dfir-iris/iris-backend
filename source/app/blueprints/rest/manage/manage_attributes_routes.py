@@ -27,11 +27,13 @@ from app.models.models import CustomAttribute
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_attributes_rest_blueprint = Blueprint('manage_attributes_rest', __name__)
 
 
 @manage_attributes_rest_blueprint.route('/manage/attributes/list')
+@endpoint_deprecated('GET', '/api/v2/manage/custom-attributes')
 @ac_api_requires(Permissions.server_administrator)
 def list_attributes():
     # Get all attributes
@@ -50,6 +52,7 @@ def list_attributes():
 
 
 @manage_attributes_rest_blueprint.route('/manage/attributes/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/custom-attributes/{identifier}')
 @ac_api_requires(Permissions.server_administrator)
 def update_attribute(cur_id):
     if not request.is_json:
