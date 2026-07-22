@@ -2203,6 +2203,12 @@ class AuthorizationGroupSchema(ma.SQLAlchemyAutoSchema):
             untouched if the caller didn't send it.
         """
         if 'group_permissions' not in data:
+            # On CREATE (`partial=False`) the column is NOT NULL and has
+            # no server-side default, so we must inject 0 ourselves.
+            # On PATCH (`partial=True`) leave the key absent so the
+            # persisted value survives.
+            if not self.partial:
+                data['group_permissions'] = 0
             return data
 
         permissions = data['group_permissions']
