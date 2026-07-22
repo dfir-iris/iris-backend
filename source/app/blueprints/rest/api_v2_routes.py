@@ -20,6 +20,7 @@ from flask import Blueprint
 
 from app.blueprints.rest.v2.activities import activities_blueprint
 from app.blueprints.rest.v2.alerts import alerts_blueprint
+from app.blueprints.rest.v2.api import api_blueprint
 from app.blueprints.rest.v2.assets import assets_blueprint
 from app.blueprints.rest.v2.events import events_blueprint
 from app.blueprints.rest.v2.evidences import evidences_blueprint
@@ -84,3 +85,4 @@ rest_v2_blueprint.register_blueprint(mail_blueprint)
 rest_v2_blueprint.register_blueprint(alert_clusters_blueprint)
 rest_v2_blueprint.register_blueprint(cluster_rules_blueprint)
 rest_v2_blueprint.register_blueprint(investigation_flows_blueprint)
+rest_v2_blueprint.register_blueprint(api_blueprint)

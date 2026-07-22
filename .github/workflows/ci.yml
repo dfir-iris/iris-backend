@@ -34,6 +34,19 @@ jobs:
         run: |
           pip install vulture
           vulture
+      - name: OpenAPI spec drift check
+        run: |
+          # The generator is pure-AST (no app boot, no DB) so it runs
+          # in the static-checks lane. If it produces something
+          # different from the checked-in file, print the diff and
+          # fail with a hint to regenerate.
+          pip install pyyaml
+          cd source
+          python -m scripts.generate_openapi --output /tmp/openapi.generated.yaml
+          if ! diff -u app/blueprints/rest/openapi.generated.yaml /tmp/openapi.generated.yaml; then
+            echo '::error::OpenAPI spec is out of date. Run `cd source && python -m scripts.generate_openapi --output app/blueprints/rest/openapi.generated.yaml` and commit.'
+            exit 1
+          fi
 
   build-docker-db:
     name: Build docker db

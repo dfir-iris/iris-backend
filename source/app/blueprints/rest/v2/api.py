@@ -1,6 +1,6 @@
 #  IRIS Source Code
-#  Copyright (C) 2021 - Airbus CyberSecurity (SAS)
-#  ir@cyberactionlab.net
+#  Copyright (C) 2026 - DFIR-IRIS
+#  contact@dfir-iris.org
 #
 #  This program is free software; you can redistribute it and/or
 #  modify it under the terms of the GNU Lesser General Public
@@ -20,27 +20,23 @@ from flask import Blueprint
 
 from app import app
 from app.blueprints.access_controls import ac_api_requires
-from app.blueprints.responses import response_success
-from app.blueprints.rest.endpoints import endpoint_deprecated
-
-rest_api_blueprint = Blueprint('rest_api', __name__)
+from app.blueprints.rest.endpoints import response_api_success
 
 
-@rest_api_blueprint.route('/api/ping', methods=['GET'])
-@endpoint_deprecated('GET', '/api/v2/ping')
+api_blueprint = Blueprint('api_rest_v2', __name__)
+
+
+@api_blueprint.get('/ping')
 @ac_api_requires()
 def api_ping():
-    return response_success('pong')
+    return response_api_success('pong')
 
 
-@rest_api_blueprint.route('/api/versions', methods=['GET'])
-@endpoint_deprecated('GET', '/api/v2/versions')
+@api_blueprint.get('/versions')
 @ac_api_requires()
-def api_version():
-    versions = {
-        "iris_current": app.config.get('IRIS_VERSION'),
-        "api_min": app.config.get('API_MIN_VERSION'),
-        "api_current": app.config.get('API_MAX_VERSION')
-    }
-
-    return response_success(data=versions)
+def api_versions():
+    return response_api_success({
+        'iris_current': app.config.get('IRIS_VERSION'),
+        'api_min': app.config.get('API_MIN_VERSION'),
+        'api_current': app.config.get('API_MAX_VERSION'),
+    })

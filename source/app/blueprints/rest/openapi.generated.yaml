@@ -1,0 +1,245 @@
+openapi: 3.1.0
+info:
+  title: IRIS
+  version: 2.1.0
+  description: "IRIS REST API \u2014 automatically generated from the Flask backend."
+  contact:
+    name: DFIR-IRIS
+    email: contact@dfir-iris.org
+  license:
+    name: LGPLv3
+    url: https://www.gnu.org/licenses/lgpl-3.0.txt
+security:
+- ApiKey: []
+paths:
+  /api/v2/cases:
+    get:
+      operationId: get_cases_get
+      summary: List cases
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'Supports the same query parameters as the case list UI: name,
+
+        customer, classification, owner, state, severity, date ranges,
+
+        and a `quick_search` free-text filter used by the context switcher.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseSchemaForAPIV2'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_case_post
+      summary: Create a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseSchemaForAPIV2'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/cases/{identifier}:
+    delete:
+      operationId: case_routes_delete_delete
+      summary: Delete a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: case_routes_get_get
+      summary: Get a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: rest_v2_cases_update_put
+      summary: Update a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseSchemaForAPIV2'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/close:
+    post:
+      operationId: case_routes_close_post
+      summary: Close a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDetails'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/reopen:
+    post:
+      operationId: case_routes_reopen_post
+      summary: Reopen a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseDetails'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Bearer <api-key> \u2014 the key from your profile."
+  responses:
+    ApiError:
+      description: Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              data: {}
+            required:
+            - message
+    Forbidden:
+      description: Insufficient permissions to access resource
+    NotFound:
+      description: Resource not found
+    Deleted:
+      description: Resource successfully deleted
+  schemas:
+    CaseDetails:
+      type: object
+      description: "Auto-generated placeholder \u2014 see marshables.py::CaseDetailsSchema."
+    CaseSchemaForAPIV2:
+      type: object
+      description: "Auto-generated placeholder \u2014 see marshables.py::CaseSchemaForAPIV2."
