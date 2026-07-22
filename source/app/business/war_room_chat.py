@@ -121,6 +121,40 @@ def _pin_supported():
     return True
 
 
+_ATTACHMENTS_SUPPORTED = None
+
+
+def _attachments_supported():
+    """Probe whether the `attachments` column exists on this DB.
+
+    Same rolling-upgrade rationale as `_threads_supported` — an install
+    that hasn't run the chat-attachments migration still gets a
+    working chat stream; inline file attachments just go dark until
+    the migration lands.
+    """
+    global _ATTACHMENTS_SUPPORTED
+    if _ATTACHMENTS_SUPPORTED is True:
+        return True
+    ok, e = _probe_column_exists(
+        'SELECT attachments FROM war_room_chat_message LIMIT 0'
+    )
+    if not ok:
+        from app.logger import logger
+        pgcode = getattr(getattr(e, 'orig', None), 'pgcode', None)
+        if pgcode == '42703':
+            logger.info(
+                'Chat attachments disabled: attachments column missing'
+            )
+        else:
+            logger.exception(
+                'Attachments support probe failed unexpectedly '
+                '(pgcode=%s)', pgcode
+            )
+        return False
+    _ATTACHMENTS_SUPPORTED = True
+    return True
+
+
 _TOPICS_SUPPORTED = None
 
 
@@ -413,6 +447,7 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
     threads_on = _threads_supported()
     pin_on = _pin_supported()
     topics_on = _topics_supported()
+    attachments_on = _attachments_supported()
     columns = [
         WarRoomChatMessage.message_id,
         WarRoomChatMessage.war_room_id,
@@ -432,6 +467,8 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
         columns.append(WarRoomChatMessage.is_pinned)
     if topics_on:
         columns.append(WarRoomChatMessage.topic_id)
+    if attachments_on:
+        columns.append(WarRoomChatMessage.attachments)
     columns += [
         WarRoomChatMessage.created_at,
         WarRoomChatMessage.edited_at,
@@ -924,6 +961,7 @@ def list_replies(war_room_id, root_message_id, limit=None):
     limit = min(int(limit), _PAGE_MAX)
     root = _get_root_message(war_room_id, root_message_id)
     pin_on = _pin_supported()
+    attachments_on = _attachments_supported()
     columns = [
         WarRoomChatMessage.message_id,
         WarRoomChatMessage.war_room_id,
@@ -943,6 +981,8 @@ def list_replies(war_room_id, root_message_id, limit=None):
     ]
     if pin_on:
         columns.append(WarRoomChatMessage.is_pinned)
+    if attachments_on:
+        columns.append(WarRoomChatMessage.attachments)
     q = (
         db.session.query(*columns)
         .outerjoin(User, User.id == WarRoomChatMessage.author_id)
@@ -975,6 +1015,7 @@ def list_trace_log(war_room_id, limit=None):
     threads_on = _threads_supported()
     pin_on = _pin_supported()
     topics_on = _topics_supported()
+    attachments_on = _attachments_supported()
     columns = [
         WarRoomChatMessage.message_id,
         WarRoomChatMessage.war_room_id,
@@ -1004,6 +1045,8 @@ def list_trace_log(war_room_id, limit=None):
     # currently viewing looks like a dead click.
     if topics_on:
         columns.append(WarRoomChatMessage.topic_id)
+    if attachments_on:
+        columns.append(WarRoomChatMessage.attachments)
 
     filters = [
         WarRoomChatMessage.war_room_id == war_room_id,
