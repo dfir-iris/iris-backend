@@ -73,6 +73,7 @@ dashboard_rest_blueprint = Blueprint(
 # (RFC 7231 §4.2.1: GET must be safe; CWE-650; GHSA-8hwq-v6vm-9grr;
 # SBA-ADV-20260128-03).
 @dashboard_rest_blueprint.route('/logout', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/auth/logout')
 def logout():
     """
     Logout function. Erase its session and redirect to index i.e login
@@ -108,6 +109,9 @@ def logout():
     return redirect(not_authenticated_redirection_url('/'))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
+# (v2 /api/v2/dashboard/kpis exists but returns a different shape — counts, not
+# a per-day open_date histogram)
 @dashboard_rest_blueprint.route('/dashboard/case_charts', methods=['GET'])
 @ac_api_requires()
 def get_cases_charts():
@@ -312,6 +316,7 @@ def list_own_cases():
 
 
 @dashboard_rest_blueprint.route('/user/tasks/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/dashboard/tasks/list')
 @ac_api_requires()
 def get_utasks():
     ct = list_user_tasks(iris_current_user.id)
@@ -330,6 +335,7 @@ def get_utasks():
 
 
 @dashboard_rest_blueprint.route('/user/reviews/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/dashboard/reviews/list')
 @ac_api_requires()
 def get_reviews():
     ct = list_user_reviews(iris_current_user.id)

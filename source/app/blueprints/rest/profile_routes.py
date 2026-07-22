@@ -47,6 +47,7 @@ profile_rest_blueprint = Blueprint('profile_rest', __name__)
 
 
 @profile_rest_blueprint.route('/user/token/renew', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/me/api-key/renew')
 @ac_api_requires()
 def user_renew_api():
 
@@ -58,6 +59,7 @@ def user_renew_api():
     return response_success("Token renewed")
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @profile_rest_blueprint.route('/user/has-permission', methods=['POST'])
 @ac_api_requires()
 def user_has_permission():
@@ -171,6 +173,7 @@ def profile_set_minisidebar(val):
 
 
 @profile_rest_blueprint.route('/user/refresh-permissions', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/me/permissions/refresh')
 @ac_api_requires()
 def profile_refresh_permissions_and_ac():
 

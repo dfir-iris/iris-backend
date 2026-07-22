@@ -54,6 +54,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.util import add_obj_history_entry
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 datastore_rest_blueprint = Blueprint('datastore_rest', __name__)
 
@@ -80,6 +81,7 @@ def _filter_ds_file_form(form):
 
 
 @datastore_rest_blueprint.route('/datastore/list/tree', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/datastore/tree')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_list_tree(caseid):
@@ -88,6 +90,7 @@ def datastore_list_tree(caseid):
     return response_success("", data=data)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @datastore_rest_blueprint.route('/datastore/list/filter', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -113,6 +116,7 @@ def datastore_list_filter(caseid):
 
 
 @datastore_rest_blueprint.route('/datastore/file/info/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/datastore/files/{identifier}/info')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_info_file(cur_id: int, caseid: int):
@@ -127,6 +131,7 @@ def datastore_info_file(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/file/update/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/files/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_update_file(cur_id: int, caseid: int):
@@ -180,6 +185,7 @@ def datastore_update_file(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/file/move/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/files/{identifier}/move')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_move_file(cur_id: int, caseid: int):
@@ -202,6 +208,7 @@ def datastore_move_file(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/folder/move/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/folders/{identifier}/move')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_move_folder(cur_id: int, caseid: int):
@@ -230,6 +237,7 @@ def datastore_move_folder(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/file/view/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/datastore/files/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_view_file(cur_id: int, caseid: int):
@@ -262,6 +270,7 @@ def datastore_view_file(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/file/add/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/folders/{folder_identifier}/files')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_add_file(cur_id: int, caseid: int):
@@ -318,6 +327,7 @@ def datastore_add_file(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/file/add-interactive', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/files/interactive')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_add_interactive_file(caseid: int):
@@ -356,6 +366,7 @@ def datastore_add_interactive_file(caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/folder/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/folders')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_add_folder(caseid: int):
@@ -380,6 +391,7 @@ def datastore_add_folder(caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/folder/rename/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/cases/{case_identifier}/datastore/folders/{identifier}/rename')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_rename_folder(cur_id: int, caseid: int):
@@ -407,6 +419,7 @@ def datastore_rename_folder(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/folder/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/datastore/folders/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_delete_folder_route(cur_id: int, caseid: int):
@@ -419,6 +432,7 @@ def datastore_delete_folder_route(cur_id: int, caseid: int):
 
 
 @datastore_rest_blueprint.route('/datastore/file/delete/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/datastore/files/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def datastore_delete_file_route(cur_id: int, caseid: int):

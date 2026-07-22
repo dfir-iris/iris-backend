@@ -38,6 +38,9 @@ reports_rest_blueprint = Blueprint('reports_rest', __name__)
 file_remover = FileRemover()
 
 
+# TODO: no v2 equivalent yet — port before deprecating
+# (v2 POST /api/v2/manage/report-templates/{id}/render dispatches by template's
+# report_type, needs case_id in body, and streams differently)
 @reports_rest_blueprint.route('/case/report/generate-activities/<int:report_id>', methods=['GET'])
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
@@ -65,6 +68,9 @@ def download_case_activity(report_id, caseid):
     return resp
 
 
+# TODO: no v2 equivalent yet — port before deprecating
+# (v2 POST /api/v2/manage/report-templates/{id}/render dispatches by template's
+# report_type, needs case_id in body, and streams differently)
 @reports_rest_blueprint.route('/case/report/generate-investigation/<int:report_id>', methods=['GET'])
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
