@@ -58,6 +58,7 @@ log = app.logger
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/groups')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_index():
     groups = get_groups_list()
@@ -169,6 +170,7 @@ def manage_groups_view(cur_id):
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/<int:cur_id>/members/update', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/groups/{identifier}/members')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_members_update(cur_id):
 
@@ -196,6 +198,7 @@ def manage_groups_members_update(cur_id):
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/<int:cur_id>/members/delete/<int:cur_id_2>', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/groups/{identifier}/members/{user_id}')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_members_delete(cur_id, cur_id_2):
 
@@ -221,6 +224,7 @@ def manage_groups_members_delete(cur_id, cur_id_2):
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/<int:cur_id>/cases-access', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/groups/{identifier}/cases-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_cac_list_cases(cur_id):
 
@@ -232,6 +236,7 @@ def manage_groups_cac_list_cases(cur_id):
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/<int:cur_id>/cases-access/update', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/groups/{identifier}/cases-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_cac_add_case(cur_id):
     if not request.is_json:
@@ -278,6 +283,7 @@ def manage_groups_cac_add_case(cur_id):
 
 
 @manage_groups_rest_blueprint.route('/manage/groups/<int:cur_id>/cases-access/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/groups/{identifier}/cases-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_groups_cac_delete_case(cur_id):
 

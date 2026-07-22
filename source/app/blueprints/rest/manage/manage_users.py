@@ -85,6 +85,7 @@ def _filter_admin_user_payload(jsdata):
 
 
 @manage_users_rest_blueprint.route('/manage/users/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/users')
 @ac_api_requires(Permissions.server_administrator)
 def manage_users_list():
 
@@ -93,6 +94,7 @@ def manage_users_list():
     return response_success('', data=users)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_users_rest_blueprint.route('/manage/users/filter', methods=['GET'])
 @ac_api_requires(Permissions.server_administrator)
 def manage_users_filter():
@@ -180,6 +182,7 @@ def view_user(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>/groups/update', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/users/{identifier}/groups')
 @ac_api_requires(Permissions.server_administrator)
 def manage_user_group_(cur_id):
 
@@ -209,6 +212,7 @@ def manage_user_group_(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>/customers/update', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/users/{identifier}/customers')
 @ac_api_requires(Permissions.server_administrator)
 def manage_user_customers_(cur_id):
 
@@ -233,6 +237,7 @@ def manage_user_customers_(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>/cases-access', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/users/{identifier}/cases-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_user_cac_list_cases(cur_id):
 
@@ -248,6 +253,7 @@ def manage_user_cac_list_cases(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>/cases-access/update', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/users/{identifier}/cases-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_user_cac_add_case(cur_id):
 
@@ -284,6 +290,7 @@ def manage_user_cac_add_case(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/<int:cur_id>/cases-access/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/users/{identifier}/cases-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_user_cac_delete_cases(cur_id):
 
@@ -354,6 +361,7 @@ def update_user_api(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/deactivate/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/manage/users/{identifier}/deactivate')
 @ac_api_requires(Permissions.server_administrator)
 def deactivate_user_api(cur_id):
 
@@ -376,6 +384,7 @@ def deactivate_user_api(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/activate/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/manage/users/{identifier}/activate')
 @ac_api_requires(Permissions.server_administrator)
 def activate_user_api(cur_id):
 
@@ -395,6 +404,7 @@ def activate_user_api(cur_id):
 
 
 @manage_users_rest_blueprint.route('/manage/users/renew-api-key/<int:cur_id>', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/users/{identifier}/api-key/renew')
 @ac_api_requires(Permissions.server_administrator)
 def renew_user_api_key(cur_id):
 
@@ -445,6 +455,7 @@ def view_delete_user(cur_id):
 
 
 # Unrestricted section - non admin available
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_users_rest_blueprint.route('/manage/users/lookup/id/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def exists_user_restricted(cur_id):
@@ -462,6 +473,7 @@ def exists_user_restricted(cur_id):
     return response_success(data=output)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_users_rest_blueprint.route('/manage/users/lookup/login/<string:login>', methods=['GET'])
 @ac_api_requires()
 def lookup_name_restricted(login):
@@ -481,6 +493,7 @@ def lookup_name_restricted(login):
     return response_success(data=output)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_users_rest_blueprint.route('/manage/users/restricted/list', methods=['GET'])
 @ac_api_requires()
 def manage_users_list_restricted():

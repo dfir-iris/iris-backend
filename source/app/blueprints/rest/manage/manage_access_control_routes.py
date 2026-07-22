@@ -29,11 +29,13 @@ from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 manage_ac_rest_blueprint = Blueprint('access_control_rest', __name__)
 
 
 @manage_ac_rest_blueprint.route('/manage/access-control/recompute-effective-users-ac', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/manage/access-control/recompute-all')
 @ac_api_requires(Permissions.server_administrator)
 def manage_ac_compute_effective_all_ac():
 
@@ -43,6 +45,7 @@ def manage_ac_compute_effective_all_ac():
 
 
 @manage_ac_rest_blueprint.route('/manage/access-control/recompute-effective-user-ac/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/manage/users/{identifier}/recompute-access')
 @ac_api_requires(Permissions.server_administrator)
 def manage_ac_compute_effective_ac(cur_id):
 
@@ -52,6 +55,7 @@ def manage_ac_compute_effective_ac(cur_id):
 
 
 @manage_ac_rest_blueprint.route('/manage/access-control/reset-mfa/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('POST', '/api/v2/manage/users/{identifier}/mfa/reset')
 @ac_api_requires(Permissions.server_administrator)
 def manage_ac_reset_mfa(cur_id):
 
@@ -65,6 +69,7 @@ def manage_ac_reset_mfa(cur_id):
 
 
 @manage_ac_rest_blueprint.route('/manage/access-control/audit/users/<int:cur_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/manage/users/{identifier}/audit')
 @ac_api_requires(Permissions.server_administrator)
 def manage_ac_audit_user(cur_id):
     user_audit = {

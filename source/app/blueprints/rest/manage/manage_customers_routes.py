@@ -77,6 +77,7 @@ def view_customer(client_id):
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>/contacts/<int:contact_id>/update', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/manage/customers/{identifier}/contacts/{contact_id}')
 @ac_api_requires(Permissions.customers_write)
 @ac_api_requires_client_access()
 def customer_update_contact(client_id, contact_id):
@@ -111,6 +112,7 @@ def customer_update_contact(client_id, contact_id):
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>/contacts/add', methods=['POST'])
+@endpoint_deprecated('POST', '/api/v2/manage/customers/{identifier}/contacts')
 @ac_api_requires(Permissions.customers_write)
 @ac_api_requires_client_access()
 def customer_add_contact(client_id):
@@ -142,6 +144,7 @@ def customer_add_contact(client_id):
     return response_success("Added successfully", data=contact_schema.dump(contact))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>/cases', methods=['GET'])
 @ac_api_requires(Permissions.customers_read)
 @ac_api_requires_client_access()
@@ -306,6 +309,7 @@ def delete_customers(client_id):
 
 
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>/contacts/<int:contact_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/manage/customers/{identifier}/contacts/{contact_id}')
 @ac_api_requires(Permissions.customers_write)
 @ac_api_requires_client_access()
 def delete_contact_route(client_id, contact_id):
