@@ -68,6 +68,7 @@ def case_routes_exists(caseid):
     return response_error('Case does not exist', 404)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/summary/update', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -94,6 +95,7 @@ def desc_fetch(caseid):
     return response_success('Summary updated', data=crc)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/summary/fetch', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -104,6 +106,7 @@ def summary_fetch(caseid):
 
 
 @case_rest_blueprint.route('/case/activities/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{identifier}/activities')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def activity_fetch(caseid):
@@ -112,6 +115,7 @@ def activity_fetch(caseid):
     return response_success('', data=output)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/export', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -119,6 +123,7 @@ def export_case(caseid):
     return response_success('', data=cases_export_to_json(caseid))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/meta', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -127,6 +132,7 @@ def meta_case(caseid):
     return response_success('', data=CaseDetailsSchema().dump(case_details))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/tasklog/add', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -147,6 +153,7 @@ def case_add_tasklog(caseid):
 
 
 @case_rest_blueprint.route('/case/users/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{identifier}/access/users')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_get_users(caseid):
@@ -156,6 +163,7 @@ def case_get_users(caseid):
     return response_success(data=users)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/access/set-group', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -199,6 +207,7 @@ def group_cac_set_case(caseid):
     return response_error(msg=logs)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/access/set-user', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -249,6 +258,7 @@ def user_cac_set_case(caseid):
         return response_error(str(e))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/update-status', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -279,6 +289,7 @@ def case_update_status(caseid):
     return response_success('Case status updated', data=case.status_id)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_rest_blueprint.route('/case/review/update', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

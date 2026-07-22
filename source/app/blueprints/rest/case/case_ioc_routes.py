@@ -90,6 +90,7 @@ def case_list_ioc(caseid):
     return response_success('', data=ret)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_ioc_rest_blueprint.route('/case/ioc/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -119,6 +120,7 @@ def deprecated_case_add_ioc(caseid):
         return response_error(e.get_message(), data=e.get_data())
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_ioc_rest_blueprint.route('/case/ioc/upload', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -328,6 +330,7 @@ def case_comment_ioc_get(cur_id, com_id, caseid):
 
 
 @case_ioc_rest_blueprint.route('/case/ioc/<int:cur_id>/comments/<int:com_id>/edit', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/iocs/{ioc_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_edit(cur_id, com_id, caseid):
@@ -335,6 +338,7 @@ def case_comment_ioc_edit(cur_id, com_id, caseid):
 
 
 @case_ioc_rest_blueprint.route('/case/ioc/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/iocs/{ioc_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_delete(cur_id, com_id, caseid):

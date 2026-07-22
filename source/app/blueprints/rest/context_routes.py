@@ -36,6 +36,7 @@ context_rest_blueprint = Blueprint('context_rest', __name__)
 
 
 @context_rest_blueprint.route('/context/search-cases', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases?quick_search=<q>')
 @ac_api_requires()
 def cases_context_search():
     search = request.args.get('q')

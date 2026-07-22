@@ -153,6 +153,7 @@ def case_note_save(cur_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/<int:cur_id>/revisions/list', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/notes/{identifier}/revisions')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_note_list_history(cur_id, caseid):
@@ -169,6 +170,7 @@ def case_note_list_history(cur_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/<int:cur_id>/revisions/<int:revision_id>', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/notes/{identifier}/revisions/{revision_number}')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_note_revision(cur_id, revision_id, caseid):
@@ -185,6 +187,7 @@ def case_note_revision(cur_id, revision_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/<int:cur_id>/revisions/<int:revision_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/notes/{identifier}/revisions/{revision_number}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_note_revision_delete(cur_id, revision_id, caseid):
@@ -317,6 +320,7 @@ def case_load_notes_groups(caseid):
     pass
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_notes_rest_blueprint.route('/case/notes/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -328,6 +332,7 @@ def case_notes_state(caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/search', methods=['GET', 'POST'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/notes/search')
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_search_notes(caseid):
@@ -448,6 +453,7 @@ def case_comment_note_get(cur_id, com_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/<int:cur_id>/comments/<int:com_id>/edit', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/notes/{note_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_edit(cur_id, com_id, caseid):
@@ -455,6 +461,7 @@ def case_comment_note_edit(cur_id, com_id, caseid):
 
 
 @case_notes_rest_blueprint.route('/case/notes/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/notes/{note_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_delete(cur_id, com_id, caseid):

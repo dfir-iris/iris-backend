@@ -71,6 +71,8 @@ def manage_tags_filter() -> Response:
     return response_success('', data=tags)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
+# (v2 /api/v2/tags is a plain list; no typeahead-style term filter)
 @manage_tags_rest_blueprint.route('/manage/tags/suggest', methods=['GET'])
 @ac_api_requires()
 def manage_tags_suggest() -> Response:

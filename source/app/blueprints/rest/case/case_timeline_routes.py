@@ -94,6 +94,7 @@ def case_comments_get(cur_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/events/{event_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_delete(cur_id, com_id, caseid):
@@ -120,6 +121,7 @@ def case_comment_get(cur_id, com_id, caseid):
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/<int:cur_id>/comments/<int:com_id>/edit', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/events/{event_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_edit(cur_id, com_id, caseid):
@@ -165,6 +167,7 @@ def case_comment_add(cur_id, caseid):
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -175,6 +178,7 @@ def case_get_timeline_state(caseid):
     return response_error('No timeline state for this case. Add an event to begin')
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/visualize/data/by-asset', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -202,6 +206,7 @@ def case_getgraph_assets(caseid):
     return response_success("", data=res)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/visualize/data/by-category', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -233,6 +238,7 @@ def case_getgraph(caseid):
     return response_success("", data=res)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/events/list', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -240,6 +246,7 @@ def case_gettimeline_api_nofilter(caseid):
     return case_gettimeline_api(0)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/events/list/filter/<int:asset_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -327,6 +334,7 @@ def case_gettimeline_api(asset_id, caseid):
     return response_success("", data=resp)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/advanced-filter', methods=['GET'])
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
@@ -749,6 +757,7 @@ def case_delete_event(cur_id, caseid):
     return response_success(f'Event ID {cur_id} deleted')
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/events/flag/<int:cur_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -857,6 +866,7 @@ def case_add_event(caseid):
         return response_error(e.get_message(), data=e.get_data())
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/events/duplicate/<int:cur_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -915,6 +925,7 @@ def case_duplicate_event(cur_id, caseid):
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/events/convert-date', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -940,6 +951,7 @@ def case_event_date_convert(caseid):
 
 
 # BEGIN_RS_CODE
+# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/events/csv_upload', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

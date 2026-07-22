@@ -75,6 +75,7 @@ def case_get_tasks(caseid: int):
     return response_success("", data=ret)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_tasks_rest_blueprint.route('/case/tasks/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -85,6 +86,7 @@ def case_get_tasks_state(caseid: int):
     return response_error('No tasks state for this case.')
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_tasks_rest_blueprint.route('/case/tasks/status/update/<int:cur_id>', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -254,6 +256,7 @@ def case_comment_task_get(cur_id: int, com_id: int, caseid: int):
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/<int:cur_id>/comments/<int:com_id>/edit', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/tasks/{task_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_task_edit(cur_id: int, com_id: int, caseid: int):
@@ -262,6 +265,7 @@ def case_comment_task_edit(cur_id: int, com_id: int, caseid: int):
 
 
 @case_tasks_rest_blueprint.route('/case/tasks/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/tasks/{task_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_task_delete(cur_id: int, com_id: int, caseid: int):

@@ -67,6 +67,7 @@ def case_list_rfiles(caseid):
     return response_success("", data=ret)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_evidences_rest_blueprint.route('/case/evidences/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -136,7 +137,7 @@ def case_edit_rfile(cur_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/delete/<int:cur_id>', methods=['POST'])
-@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/assets/{identifier}')
+@endpoint_deprecated('DELETE', '/api/v2/cases/{case_identifier}/evidences/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_delete_rfile(cur_id, caseid):
@@ -211,6 +212,7 @@ def case_comment_evidence_get(cur_id, com_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>/comments/<int:com_id>/edit', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/evidences/{evidence_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_edit(cur_id, com_id, caseid):
@@ -218,6 +220,7 @@ def case_comment_evidence_edit(cur_id, com_id, caseid):
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/evidences/{evidence_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_delete(cur_id, com_id, caseid):

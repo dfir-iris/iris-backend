@@ -64,6 +64,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 case_assets_rest_blueprint = Blueprint('case_assets_rest', __name__)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_assets_rest_blueprint.route('/case/assets/filter', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def case_filter_assets(caseid):
@@ -151,6 +152,7 @@ def case_list_assets(caseid):
     return response_success("", data=ret)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_assets_rest_blueprint.route('/case/assets/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -179,6 +181,7 @@ def deprecated_add_asset(caseid):
         return response_error(e.get_message(), e.get_data())
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_assets_rest_blueprint.route('/case/assets/upload', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -411,6 +414,7 @@ def case_comment_asset_get(cur_id, com_id, caseid):
 
 
 @case_assets_rest_blueprint.route('/case/assets/<int:cur_id>/comments/<int:com_id>/edit', methods=['POST'])
+@endpoint_deprecated('PUT', '/api/v2/assets/{asset_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_edit(cur_id, com_id, caseid):
@@ -418,6 +422,7 @@ def case_comment_asset_edit(cur_id, com_id, caseid):
 
 
 @case_assets_rest_blueprint.route('/case/assets/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
+@endpoint_deprecated('DELETE', '/api/v2/assets/{asset_identifier}/comments/{identifier}')
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_delete(cur_id, com_id, caseid):

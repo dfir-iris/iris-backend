@@ -31,6 +31,7 @@ from app.blueprints.responses import response_success
 case_graph_rest_blueprint = Blueprint('case_graph_rest', __name__)
 
 
+# TODO: no v2 equivalent yet — port before deprecating
 @case_graph_rest_blueprint.route('/case/graph/getdata', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
