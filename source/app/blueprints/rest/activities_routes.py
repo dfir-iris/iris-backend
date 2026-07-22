@@ -23,11 +23,13 @@ from app.datamgmt.activities.activities_db import get_users_activities
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 
 activities_rest_blueprint = Blueprint('activities_rest', __name__)
 
 
 @activities_rest_blueprint.get('/activities/list')
+@endpoint_deprecated('GET', '/api/v2/activities')
 @ac_api_requires(Permissions.activities_read, Permissions.all_activities_read)
 def list_activities():
     # Get User activities from database
@@ -41,6 +43,7 @@ def list_activities():
 
 
 @activities_rest_blueprint.route('/activities/list-all', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/activities')
 @ac_api_requires(Permissions.all_activities_read)
 def list_all_activities():
     # Get User activities from database

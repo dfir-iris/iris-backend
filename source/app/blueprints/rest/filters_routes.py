@@ -34,7 +34,7 @@ saved_filters_rest_blueprint = Blueprint('saved_filters_rest', __name__)
 
 
 @saved_filters_rest_blueprint.route('/filters/add', methods=['POST'])
-@endpoint_deprecated('POST', '/api/v2/alerts-filters')
+@endpoint_deprecated('POST', '/api/v2/alerts/filters')
 @ac_api_requires()
 def filters_add_route() -> Response:
     """
@@ -68,7 +68,7 @@ def filters_add_route() -> Response:
 
 
 @saved_filters_rest_blueprint.route('/filters/update/<int:filter_id>', methods=['POST'])
-@endpoint_deprecated('PUT', '/api/v2/alerts-filters/{identifier}')
+@endpoint_deprecated('PUT', '/api/v2/alerts/filters/{identifier}')
 @ac_api_requires()
 def filters_update_route(filter_id) -> Response:
     """
@@ -102,7 +102,7 @@ def filters_update_route(filter_id) -> Response:
 
 
 @saved_filters_rest_blueprint.route('/filters/delete/<int:filter_id>', methods=['POST'])
-@endpoint_deprecated('DELETE', '/api/v2/alerts-filters/{identifier}')
+@endpoint_deprecated('DELETE', '/api/v2/alerts/filters/{identifier}')
 @ac_api_requires()
 def filters_delete_route(filter_id) -> Response:
     """
@@ -132,7 +132,7 @@ def filters_delete_route(filter_id) -> Response:
 
 
 @saved_filters_rest_blueprint.route('/filters/<int:filter_id>', methods=['GET'])
-@endpoint_deprecated('GET', '/api/v2/alerts-filters/{identifier}')
+@endpoint_deprecated('GET', '/api/v2/alerts/filters/{identifier}')
 @ac_api_requires()
 def filters_get_route(filter_id) -> Response:
     """
@@ -158,6 +158,9 @@ def filters_get_route(filter_id) -> Response:
         return response_error(str(e))
 
 
+# TODO: no v2 equivalent yet — port before deprecating
+# (v2 splits list by filter_type: /api/v2/alerts/filters for alerts,
+# /api/v2/cases-filters for cases — no single v2 URL matches this v1 shape)
 @saved_filters_rest_blueprint.route('/filters/<string:filter_type>/list', methods=['GET'])
 @ac_api_requires()
 def filters_list_route(filter_type) -> Response:

@@ -22,12 +22,14 @@ from flask import request
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.responses import response_success
+from app.blueprints.rest.endpoints import endpoint_deprecated
 from app.business.search import search
 
 search_rest_blueprint = Blueprint('search_rest', __name__)
 
 
 @search_rest_blueprint.route('/search', methods=['POST'])
+@endpoint_deprecated('GET', '/api/v2/search')
 @ac_api_requires(Permissions.search_across_cases)
 def search_file_post():
 
