@@ -24,6 +24,7 @@ from app.db import db
 from app.datamgmt.states import update_timeline_state
 from app.models.assets import AssetsType
 from app.models.assets import CaseAssets
+from app.models.cases import CaseEventTimeline
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
@@ -423,6 +424,172 @@ def get_events_by_case(case_identifier):
     )).order_by(
         CasesEvent.event_date
     ).all()
+
+
+def get_filtered_case_events(case_identifier, filters):
+    condition = (CasesEvent.case_id == case_identifier)
+
+    assets = filters.get('assets')
+    assets_id = filters.get('assets_id')
+    iocs = filters.get('iocs')
+    iocs_id = filters.get('iocs_id')
+    tags = filters.get('tags')
+    titles = filters.get('titles')
+    sources = filters.get('sources')
+    descriptions = filters.get('descriptions')
+    raws = filters.get('raws')
+    categories = filters.get('categories')
+    event_ids = filters.get('event_ids')
+    start_date = filters.get('start_date')
+    end_date = filters.get('end_date')
+    flag = filters.get('flag')
+
+    if assets:
+        assets = [asset.lower() for asset in assets]
+
+    if assets_id:
+        assets_id = [int(asset) for asset in assets_id]
+
+    if iocs:
+        iocs = [ioc.lower() for ioc in iocs]
+
+    if iocs_id:
+        iocs_id = [int(ioc) for ioc in iocs_id]
+
+    if flag is not None:
+        condition = and_(condition, CasesEvent.event_is_flagged == bool(flag))
+
+    if tags:
+        for tag in tags:
+            condition = and_(condition,
+                             CasesEvent.event_tags.ilike(f'%{tag}%'))
+
+    if titles:
+        for title in titles:
+            condition = and_(condition,
+                             CasesEvent.event_title.ilike(f'%{title}%'))
+
+    if sources:
+        for source in sources:
+            condition = and_(condition,
+                             CasesEvent.event_source.ilike(f'%{source}%'))
+
+    if descriptions:
+        for description in descriptions:
+            condition = and_(condition,
+                             CasesEvent.event_content.ilike(f'%{description}%'))
+
+    if raws:
+        for raw in raws:
+            condition = and_(condition,
+                             CasesEvent.event_raw.ilike(f'%{raw}%'))
+
+    if start_date is not None:
+        condition = and_(condition, CasesEvent.event_date >= start_date)
+
+    if end_date is not None:
+        condition = and_(condition, CasesEvent.event_date <= end_date)
+
+    if categories:
+        for category in categories:
+            condition = and_(condition,
+                             EventCategory.name == category)
+
+    if event_ids:
+        condition = and_(condition,
+                         CasesEvent.event_id.in_(event_ids))
+
+    timeline = CasesEvent.query.with_entities(
+        CasesEvent.event_id,
+        CasesEvent.event_uuid,
+        CasesEvent.event_date,
+        CasesEvent.event_date_wtz,
+        CasesEvent.event_tz,
+        CasesEvent.event_title,
+        CasesEvent.event_color,
+        CasesEvent.event_tags,
+        CasesEvent.event_content,
+        CasesEvent.event_in_summary,
+        CasesEvent.event_in_graph,
+        CasesEvent.event_is_flagged,
+        CasesEvent.parent_event_id,
+        User.user,
+        CasesEvent.event_added,
+        EventCategory.name.label('category_name')
+    ).filter(condition).order_by(
+        CasesEvent.event_date
+    ).outerjoin(
+        CasesEvent.category
+    ).join(
+        CasesEvent.user
+    ).all()
+
+    assets_cache_condition = (CaseEventsAssets.case_id == case_identifier)
+    if assets_id:
+        assets_cache_condition = and_(
+            assets_cache_condition,
+            CaseEventsAssets.asset_id.in_(assets_id)
+        )
+
+    assets_cache = (CaseAssets.query.with_entities(
+        CaseEventsAssets.event_id,
+        CaseAssets.asset_id,
+        CaseAssets.asset_name,
+        AssetsType.asset_name.label('type'),
+        CaseAssets.asset_ip,
+        CaseAssets.asset_description,
+        CaseAssets.asset_compromise_status_id
+    ).filter(
+        assets_cache_condition
+    ).join(CaseEventsAssets.asset)
+                    .join(CaseAssets.asset_type).all())
+
+    iocs_cache_condition = (CaseEventsIoc.case_id == case_identifier)
+    if iocs_id:
+        iocs_cache_condition = and_(
+            iocs_cache_condition,
+            CaseEventsIoc.ioc_id.in_(iocs_id)
+        )
+
+    iocs_cache = CaseEventsIoc.query.with_entities(
+        CaseEventsIoc.event_id,
+        CaseEventsIoc.ioc_id,
+        Ioc.ioc_value,
+        Ioc.ioc_description
+    ).filter(
+        iocs_cache_condition
+    ).join(
+        CaseEventsIoc.ioc
+    ).all()
+
+    return timeline, assets_cache, iocs_cache
+
+
+def get_case_iocs_light(case_identifier):
+    return Ioc.query.with_entities(
+        Ioc.ioc_id,
+        Ioc.ioc_value,
+        Ioc.ioc_description,
+    ).filter(
+        Ioc.case_id == case_identifier
+    ).all()
+
+
+def get_case_event_timelines_map(event_ids):
+    if not event_ids:
+        return {}
+
+    rows = (
+        CaseEventTimeline.query
+        .with_entities(CaseEventTimeline.event_id, CaseEventTimeline.timeline_id)
+        .filter(CaseEventTimeline.event_id.in_(event_ids))
+        .all()
+    )
+
+    timelines_by_event: dict[int, list[int]] = {}
+    for r in rows:
+        timelines_by_event.setdefault(r.event_id, []).append(r.timeline_id)
+    return timelines_by_event
 
 
 def search_events(search_value, accessible_case_ids=None):

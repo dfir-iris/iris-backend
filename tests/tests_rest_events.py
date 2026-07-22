@@ -426,3 +426,78 @@ class TestsRestEvents(TestCase):
         case_identifier2 = self._subject.create_dummy_case()
         response = self._subject.delete(f'/api/v2/cases/{case_identifier2}/events/{identifier}')
         self.assertEqual(400, response.status_code)
+
+    def test_list_events_should_return_200_and_v2_envelope(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events')
+        self.assertEqual(200, response.status_code)
+        payload = response.json()
+        # The v2 envelope is the SPA-friendly one: tim, pagination, state,
+        # comments_map, assets, iocs, categories — never the legacy `timeline`
+        # or `data`-wrapped shapes.
+        for expected_key in ('tim', 'pagination', 'state', 'comments_map', 'assets', 'iocs', 'categories'):
+            self.assertIn(expected_key, payload)
+        self.assertNotIn('timeline', payload)
+
+    def test_list_events_should_include_created_event(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'first', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events').json()
+        titles = [ev['event_title'] for ev in response['tim']]
+        self.assertIn('first', titles)
+
+    def test_list_events_should_filter_by_title_query_param(self):
+        case_identifier = self._subject.create_dummy_case()
+        for title in ('alpha match', 'beta only'):
+            body = {'event_title': title, 'event_category_id': 1,
+                    'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                    'event_assets': [], 'event_iocs': []}
+            self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events',
+                                     query_parameters={'title': 'alpha'}).json()
+        titles = [ev['event_title'] for ev in response['tim']]
+        self.assertEqual(['alpha match'], titles)
+
+    def test_list_events_should_return_404_when_case_is_missing(self):
+        response = self._subject.get(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/events')
+        self.assertEqual(404, response.status_code)
+
+    def test_list_events_should_return_403_when_user_has_no_permission(self):
+        case_identifier = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/cases/{case_identifier}/events')
+        self.assertEqual(403, response.status_code)
+
+    def test_list_events_should_paginate_with_per_page(self):
+        case_identifier = self._subject.create_dummy_case()
+        for i in range(3):
+            body = {'event_title': f'event-{i}', 'event_category_id': 1,
+                    'event_date': f'2025-03-{20 + i:02d}T00:00:00.000', 'event_tz': '+00:00',
+                    'event_assets': [], 'event_iocs': []}
+            self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events',
+                                     query_parameters={'per_page': 2, 'page': 1}).json()
+        pagination = response['pagination']
+        self.assertEqual(3, pagination['total'])
+        self.assertEqual(2, pagination['last_page'])
+        self.assertEqual(1, pagination['current_page'])
+        self.assertEqual(2, pagination['next_page'])
+
+    def test_v1_advanced_filter_should_still_work_with_deprecation_header(self):
+        # External integrations hitting v1 must keep working; the server just
+        # advertises the v2 alternative via response headers.
+        case_identifier = self._subject.create_dummy_case()
+        body = {'event_title': 'legacy path', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/events', body)
+        # v1 requires cid + q (JSON-encoded filter dict).
+        response = self._subject.get('/case/timeline/advanced-filter',
+                                     query_parameters={'cid': case_identifier, 'q': '{}'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('true', response.headers.get('Deprecation'))
+        link = response.headers.get('Link', '')
+        self.assertIn('/api/v2/cases/', link)

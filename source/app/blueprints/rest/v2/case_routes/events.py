@@ -30,6 +30,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
 from app.business.events import events_get
+from app.business.events import events_list_filtered
 from app.business.events import events_update
 from app.business.events import events_delete
 from app.models.cases import CasesEvent
@@ -58,6 +59,28 @@ class Events:
         event.event_date, event.event_date_wtz = self._schema.validate_date(request_data.get(u'event_date'),
                                                                             request_data.get(u'event_tz'))
         return event
+
+    def list(self, case_identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+        if not ac_fast_check_current_user_has_case_access(
+                case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        filters = _read_filter_args(request.args)
+
+        try:
+            page = max(1, int(request.args.get('page', 1)))
+        except (TypeError, ValueError):
+            page = 1
+
+        try:
+            per_page = int(request.args.get('per_page', 0))
+        except (TypeError, ValueError):
+            per_page = 0
+
+        payload = events_list_filtered(case_identifier, filters, page=page, per_page=per_page)
+        return response_api_success(payload)
 
     def create(self, case_identifier):
         if not cases_exists(case_identifier):
@@ -165,8 +188,70 @@ class Events:
             return response_api_error(e.get_message(), data=e.get_data())
 
 
+_MULTI_VALUE_FILTER_KEYS = (
+    ('asset', 'assets'),
+    ('ioc', 'iocs'),
+    ('tag', 'tags'),
+    ('title', 'titles'),
+    ('source', 'sources'),
+    ('description', 'descriptions'),
+    ('raw', 'raws'),
+    ('category', 'categories'),
+)
+
+
+def _read_filter_args(args):
+    filters: dict = {}
+
+    for query_key, filter_key in _MULTI_VALUE_FILTER_KEYS:
+        values = args.getlist(query_key)
+        if values:
+            filters[filter_key] = values
+
+    asset_ids = args.getlist('asset_id')
+    if asset_ids:
+        try:
+            filters['assets_id'] = [int(v) for v in asset_ids]
+        except (TypeError, ValueError):
+            pass
+
+    ioc_ids = args.getlist('ioc_id')
+    if ioc_ids:
+        try:
+            filters['iocs_id'] = [int(v) for v in ioc_ids]
+        except (TypeError, ValueError):
+            pass
+
+    event_ids = args.getlist('event_id')
+    if event_ids:
+        try:
+            filters['event_ids'] = [int(v) for v in event_ids]
+        except (TypeError, ValueError):
+            pass
+
+    start_date = args.get('start_date')
+    if start_date:
+        filters['start_date'] = start_date
+
+    end_date = args.get('end_date')
+    if end_date:
+        filters['end_date'] = end_date
+
+    flag = args.get('flag')
+    if flag is not None:
+        filters['flag'] = flag.lower() == 'true'
+
+    return filters
+
+
 events = Events()
 case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/<int:case_identifier>/events')
+
+
+@case_events_blueprint.get('')
+@ac_api_requires()
+def list_events(case_identifier):
+    return events.list(case_identifier)
 
 
 @case_events_blueprint.post('')

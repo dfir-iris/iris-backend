@@ -45,7 +45,6 @@ from app.datamgmt.case.case_events_db import get_case_events_comments_count
 from app.datamgmt.case.case_events_db import get_event_assets_ids
 from app.datamgmt.case.case_events_db import get_event_category
 from app.datamgmt.case.case_events_db import get_event_iocs_ids
-from app.datamgmt.case.case_events_db import get_events_categories
 from app.datamgmt.case.case_events_db import save_event_category
 from app.datamgmt.case.case_events_db import update_event_assets
 from app.datamgmt.case.case_events_db import update_event_iocs
@@ -56,11 +55,9 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.collab import collab_notify
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.iris_engine.utils.tracker import track_activity
-from app.models.assets import CompromiseStatus, AssetsType, CaseAssets
+from app.models.assets import CaseAssets
 from app.models.authorization import CaseAccessLevel
-from app.models.authorization import User
 from app.models.cases import CasesEvent
-from app.models.cases import CaseEventTimeline
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
 from app.models.models import EventCategory
@@ -74,6 +71,7 @@ from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.models.errors import BusinessProcessingError
 from app.business.events import events_create
+from app.business.events import events_list_filtered
 from app.business.events import events_update
 from app.business.events import events_delete
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
@@ -334,8 +332,8 @@ def case_gettimeline_api(asset_id, caseid):
     return response_success("", data=resp)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
 @case_timeline_rest_blueprint.route('/case/timeline/advanced-filter', methods=['GET'])
+@endpoint_deprecated('GET', '/api/v2/cases/{case_identifier}/events')
 @ac_api_requires()
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def case_filter_timeline(caseid):
@@ -343,31 +341,41 @@ def case_filter_timeline(caseid):
     query_filter = args.get('q')
 
     try:
-
         filter_d = dict(json.loads(urllib.parse.unquote_plus(query_filter)))
-
-    except Exception as _:
+    except Exception:
         return response_error('Invalid query string')
 
-    assets = filter_d.get('asset')
-    assets_id = filter_d.get('asset_id')
     event_ids = filter_d.get('event_id')
     if event_ids:
         try:
             event_ids = [int(event_id) for event_id in event_ids]
-        except Exception as _:
+        except Exception:
             return response_error('Invalid event id')
-    iocs = filter_d.get('ioc')
-    iocs_id = filter_d.get('ioc_id')
-    tags = filter_d.get('tag')
-    descriptions = filter_d.get('description')
-    categories = filter_d.get('category')
-    raws = filter_d.get('raw')
-    start_date = filter_d.get('startDate')
-    end_date = filter_d.get('endDate')
-    titles = filter_d.get('title')
-    sources = filter_d.get('source')
-    flag = filter_d.get('flag')
+
+    flag_raw = filter_d.get('flag')
+    flag = None
+    if flag_raw:
+        # Legacy shape: `["true"]` or `["false"]`.
+        flag = flag_raw[0].lower() == 'true'
+
+    filters = {
+        'assets': filter_d.get('asset'),
+        'assets_id': filter_d.get('asset_id'),
+        'iocs': filter_d.get('ioc'),
+        'iocs_id': filter_d.get('ioc_id'),
+        'tags': filter_d.get('tag'),
+        'titles': filter_d.get('title'),
+        'sources': filter_d.get('source'),
+        'descriptions': filter_d.get('description'),
+        'raws': filter_d.get('raw'),
+        'categories': filter_d.get('category'),
+        'event_ids': event_ids,
+        # `_extract_timeline` used to index into `start_date[0]` / `end_date[0]`
+        # because the frontend still ships single-element lists.
+        'start_date': filter_d.get('startDate', [None])[0] if filter_d.get('startDate') else None,
+        'end_date': filter_d.get('endDate', [None])[0] if filter_d.get('endDate') else None,
+        'flag': flag,
+    }
 
     try:
         page = max(1, int(args.get('page', 1)))
@@ -378,367 +386,19 @@ def case_filter_timeline(caseid):
         per_page = int(args.get('per_page', 0))
     except (TypeError, ValueError):
         per_page = 0
-    if per_page < 0:
-        per_page = 0
-    if per_page > 500:
-        per_page = 500
 
-    cache, events_list, tim = _extract_timeline(assets, assets_id, caseid, categories, descriptions, end_date, event_ids,
-                                                flag, iocs, iocs_id, raws, sources, start_date, tags, titles)
+    payload = events_list_filtered(caseid, filters, page=page, per_page=per_page)
 
-    total = len(tim)
-    if per_page > 0:
-        last_page = max(1, (total + per_page - 1) // per_page)
-        if page > last_page:
-            page = last_page
-        start = (page - 1) * per_page
-        end = start + per_page
-        tim_page = tim[start:end]
-        next_page = page + 1 if page < last_page else None
-
-        # Drag in descendants that live on later pages AND ancestors that
-        # live on earlier pages, so any event on this slice ships with its
-        # full lineage. Without this:
-        #   - a child whose parent is on a later page would appear as a
-        #     spurious root until pagination catches up (the frontend
-        #     promotes events with unknown parent_event_id to roots).
-        #   - a child whose parent is on the current page but whose own
-        #     event_date falls into a later slice would be missing from
-        #     the parent's children until later.
-        # Ancestors that arrived on a previous page are already cached
-        # client-side, but re-sending them is cheap and keeps each page
-        # self-consistent if loaded out of order.
-        all_by_id: dict[int, dict] = {event['event_id']: event for event in tim}
-        children_by_parent: dict[int, list[dict]] = {}
-        for event in tim:
-            parent_id = event.get('parent_event_id')
-            if parent_id is None:
-                continue
-            children_by_parent.setdefault(parent_id, []).append(event)
-
-        page_ids = {event['event_id'] for event in tim_page}
-
-        # Descendants
-        queue = list(page_ids)
-        while queue:
-            parent_id = queue.pop()
-            for child in children_by_parent.get(parent_id, ()):
-                cid = child['event_id']
-                if cid in page_ids:
-                    continue
-                page_ids.add(cid)
-                tim_page.append(child)
-                queue.append(cid)
-
-        # Ancestors
-        queue = list(page_ids)
-        while queue:
-            event_id = queue.pop()
-            event = all_by_id.get(event_id)
-            if not event:
-                continue
-            parent_id = event.get('parent_event_id')
-            if parent_id is None or parent_id in page_ids:
-                continue
-            parent = all_by_id.get(parent_id)
-            if parent is None:
-                continue
-            page_ids.add(parent_id)
-            tim_page.append(parent)
-            queue.append(parent_id)
-    else:
-        last_page = 1
-        page = 1
-        tim_page = tim
-        next_page = None
-
-    pagination = {
-        "total": total,
-        "per_page": per_page if per_page > 0 else total,
-        "current_page": page,
-        "last_page": last_page,
-        "next_page": next_page
-    }
-
-    if request.cookies.get('session'):
-
-        iocs = Ioc.query.with_entities(
-            Ioc.ioc_id,
-            Ioc.ioc_value,
-            Ioc.ioc_description,
-        ).filter(
-            Ioc.case_id == caseid
-        ).all()
-
-        events_comments_map = {}
-        events_comments_set = get_case_events_comments_count(events_list)
-        for k, v in events_comments_set:
-            events_comments_map.setdefault(k, []).append(v)
-
-        resp = {
-            "tim": tim_page,
-            "comments_map": events_comments_map,
-            "assets": cache,
-            "iocs": [ioc._asdict() for ioc in iocs],
-            "categories": [cat.name for cat in get_events_categories()],
-            "state": get_timeline_state(caseid=caseid),
-            "pagination": pagination
+    if not request.cookies.get('session'):
+        # Legacy non-SPA shape — external API consumers see `timeline` +
+        # `state` + `pagination` only.
+        payload = {
+            'timeline': payload['tim'],
+            'state': payload['state'],
+            'pagination': payload['pagination']
         }
 
-    else:
-        resp = {
-            "timeline": tim_page,
-            "state": get_timeline_state(caseid=caseid),
-            "pagination": pagination
-        }
-
-    return response_success("ok", data=resp)
-
-
-def _extract_timeline(assets: str | None, assets_id: str | None, caseid, categories: str | None,
-                      descriptions: str | None, end_date: str | None, event_ids: list[int] | None,
-                      flag: str | None, iocs: str | None, iocs_id: str | None, raws: str | None, sources: str | None,
-                      start_date: str | None, tags: str | None, titles: str | None):
-    condition = (CasesEvent.case_id == caseid)
-
-    if assets:
-        assets = [asset.lower() for asset in assets]
-
-    if assets_id:
-        assets_id = [int(asset) for asset in assets_id]
-
-    if flag:
-        flags = (flag[0].lower() == 'true')
-        condition = and_(condition, CasesEvent.event_is_flagged == flags)
-
-    if iocs:
-        iocs = [ioc.lower() for ioc in iocs]
-
-    if iocs_id:
-        iocs_id = [int(ioc) for ioc in iocs_id]
-
-    if tags:
-        for tag in tags:
-            condition = and_(condition,
-                             CasesEvent.event_tags.ilike(f'%{tag}%'))
-
-    if titles:
-        for title in titles:
-            condition = and_(condition,
-                             CasesEvent.event_title.ilike(f'%{title}%'))
-
-    if sources:
-        for source in sources:
-            condition = and_(condition,
-                             CasesEvent.event_source.ilike(f'%{source}%'))
-
-    if descriptions:
-        for description in descriptions:
-            condition = and_(condition,
-                             CasesEvent.event_content.ilike(f'%{description}%'))
-
-    if raws:
-        for raw in raws:
-            condition = and_(condition,
-                             CasesEvent.event_raw.ilike(f'%{raw}%'))
-
-    if start_date:
-        try:
-            parsed_start_date = parse_bf_date_format(start_date[0])
-            condition = and_(condition,
-                             CasesEvent.event_date >= parsed_start_date)
-
-        except Exception as e:
-            print(e)
-
-    if end_date:
-        try:
-            parsed_end_date = parse_bf_date_format(end_date[0])
-            condition = and_(condition,
-                             CasesEvent.event_date <= parsed_end_date)
-        except Exception as _:
-            pass
-
-    if categories:
-        for category in categories:
-            condition = and_(condition,
-                             EventCategory.name == category)
-
-    if event_ids:
-        condition = and_(condition,
-                         CasesEvent.event_id.in_(event_ids))
-
-    timeline = CasesEvent.query.with_entities(
-        CasesEvent.event_id,
-        CasesEvent.event_uuid,
-        CasesEvent.event_date,
-        CasesEvent.event_date_wtz,
-        CasesEvent.event_tz,
-        CasesEvent.event_title,
-        CasesEvent.event_color,
-        CasesEvent.event_tags,
-        CasesEvent.event_content,
-        CasesEvent.event_in_summary,
-        CasesEvent.event_in_graph,
-        CasesEvent.event_is_flagged,
-        CasesEvent.parent_event_id,
-        User.user,
-        CasesEvent.event_added,
-        EventCategory.name.label("category_name")
-    ).filter(condition).order_by(
-        CasesEvent.event_date
-    ).outerjoin(
-        CasesEvent.category
-    ).join(
-        CasesEvent.user
-    ).all()
-
-    assets_cache_condition = and_(
-        CaseEventsAssets.case_id == caseid
-    )
-
-    if assets_id:
-        assets_cache_condition = and_(
-            assets_cache_condition,
-            CaseEventsAssets.asset_id.in_(assets_id)
-        )
-
-    assets_cache = (CaseAssets.query.with_entities(
-        CaseEventsAssets.event_id,
-        CaseAssets.asset_id,
-        CaseAssets.asset_name,
-        AssetsType.asset_name.label('type'),
-        CaseAssets.asset_ip,
-        CaseAssets.asset_description,
-        CaseAssets.asset_compromise_status_id
-    ).filter(
-        assets_cache_condition
-    ).join(CaseEventsAssets.asset)
-                    .join(CaseAssets.asset_type).all())
-
-    iocs_cache_condition = and_(
-        CaseEventsIoc.case_id == caseid
-    )
-
-    if iocs_id:
-        iocs_cache_condition = and_(
-            iocs_cache_condition,
-            CaseEventsIoc.ioc_id.in_(iocs_id)
-        )
-
-    iocs_cache = CaseEventsIoc.query.with_entities(
-        CaseEventsIoc.event_id,
-        CaseEventsIoc.ioc_id,
-        Ioc.ioc_value,
-        Ioc.ioc_description
-    ).filter(
-        iocs_cache_condition
-    ).join(
-        CaseEventsIoc.ioc
-    ).all()
-
-    assets_map = {}
-    cache = {}
-
-    for asset in assets_cache:
-        if asset.asset_id not in cache:
-            cache[asset.asset_id] = [asset.asset_name, asset.type]
-
-        if (assets and asset.asset_name.lower() in assets) or (assets_id and asset.asset_id in assets_id):
-            if asset.event_id in assets_map:
-                assets_map[asset.event_id] += 1
-            else:
-                assets_map[asset.event_id] = 1
-
-    assets_filter = []
-    len_assets = 0
-    if assets:
-        len_assets += len(assets)
-    if assets_id:
-        len_assets += len(assets_id)
-
-    for event_id in assets_map:
-        if assets_map[event_id] == len_assets:
-            assets_filter.append(event_id)
-
-    # Build {event_id -> [timeline_id, ...]} for every event we're
-    # about to ship so the SPA sidebar can filter on-the-fly without a
-    # second round-trip. Pre-computing once per request keeps this O(N)
-    # instead of one query per event in the hot loop below.
-    event_ids_in_scope = [row.event_id for row in timeline]
-    timelines_by_event: dict[int, list[int]] = {}
-    if event_ids_in_scope:
-        rows = (
-            CaseEventTimeline.query
-            .with_entities(CaseEventTimeline.event_id, CaseEventTimeline.timeline_id)
-            .filter(CaseEventTimeline.event_id.in_(event_ids_in_scope))
-            .all()
-        )
-        for r in rows:
-            timelines_by_event.setdefault(r.event_id, []).append(r.timeline_id)
-
-    iocs_filter = []
-    if iocs:
-        for ioc in iocs_cache:
-            if ioc.event_id not in iocs_filter and ioc.ioc_value.lower() in iocs:
-                iocs_filter.append(ioc.event_id)
-
-    tim = []
-    events_list = []
-    for row in timeline:
-        if (assets is not None or assets_id is not None) and row.event_id not in assets_filter:
-            continue
-
-        if iocs is not None and row.event_id not in iocs_filter:
-            continue
-
-        ras = row._asdict()
-
-        ras['event_date'] = ras['event_date'].strftime('%Y-%m-%dT%H:%M:%S.%f')
-        ras['event_date_wtz'] = ras['event_date_wtz'].strftime('%Y-%m-%dT%H:%M:%S.%f') if ras[
-            'event_date_wtz'] else None
-        ras['event_added'] = ras['event_added'].strftime('%Y-%m-%dT%H:%M:%S')
-
-        if row.event_id not in events_list:
-            events_list.append(row.event_id)
-
-        alki = []
-        for asset in assets_cache:
-
-            if asset.event_id == ras['event_id']:
-                alki.append(
-                    {
-                        "id": asset.asset_id,
-                        "name": f"{asset.asset_name} ({asset.type})",
-                        "asset_name": asset.asset_name,
-                        "asset_type": asset.type,
-                        "ip": asset.asset_ip,
-                        "description": asset.asset_description,
-                        "compromised": asset.asset_compromise_status_id == CompromiseStatus.compromised.value
-                    }
-                )
-        ras['assets'] = alki
-
-        alki = []
-        for ioc in iocs_cache:
-            if ioc.event_id == ras['event_id']:
-                if ioc.ioc_id not in cache:
-                    cache[ioc.ioc_id] = [ioc.ioc_value]
-
-                alki.append(
-                    {
-                        "id": ioc.ioc_id,
-                        "name": f"{ioc.ioc_value}",
-                        "ioc_value": ioc.ioc_value,
-                        "description": ioc.ioc_description
-                    }
-                )
-
-        ras['iocs'] = alki
-        ras['timeline_ids'] = timelines_by_event.get(ras['event_id'], [])
-
-        tim.append(ras)
-    return cache, events_list, tim
+    return response_success('ok', data=payload)
 
 
 @case_timeline_rest_blueprint.route('/case/timeline/events/delete/<int:cur_id>', methods=['POST'])
