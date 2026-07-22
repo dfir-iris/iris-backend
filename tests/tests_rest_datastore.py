@@ -37,7 +37,7 @@ class TestsRestDatastore(TestCase):
     def _get_root_folder_id(self, case_identifier):
         tree = self._subject.get(f'/api/v2/cases/{case_identifier}/datastore/tree').json()
         # Tree shape: {'d-<root_id>': {...}}
-        root_key = next(iter(tree['data']))
+        root_key = next(iter(tree))
         return int(root_key.split('-')[1])
 
     def _create_folder(self, case_identifier, name='Folder', parent=None):
@@ -79,7 +79,7 @@ class TestsRestDatastore(TestCase):
 
     def test_get_tree_should_include_root_directory(self):
         case_identifier = self._subject.create_dummy_case()
-        tree = self._subject.get(f'/api/v2/cases/{case_identifier}/datastore/tree').json()['data']
+        tree = self._subject.get(f'/api/v2/cases/{case_identifier}/datastore/tree').json()
         root_key = next(iter(tree))
         self.assertTrue(tree[root_key].get('is_root'))
 
@@ -115,14 +115,14 @@ class TestsRestDatastore(TestCase):
 
     def test_rename_folder_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
-        created = self._create_folder(case_identifier, 'Folder1').json()['data']
+        created = self._create_folder(case_identifier, 'Folder1').json()
         folder_id = created['path_id']
         response = self._subject.create(
             f'/api/v2/cases/{case_identifier}/datastore/folders/{folder_id}/rename',
             {'folder_name': 'Renamed'}
         )
         self.assertEqual(200, response.status_code)
-        self.assertEqual('Renamed', response.json()['data']['path_name'])
+        self.assertEqual('Renamed', response.json()['path_name'])
 
     def test_rename_folder_should_return_404_when_folder_missing(self):
         case_identifier = self._subject.create_dummy_case()
@@ -135,8 +135,8 @@ class TestsRestDatastore(TestCase):
     def test_move_folder_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        folder_a = self._create_folder(case_identifier, 'A', parent=root).json()['data']
-        folder_b = self._create_folder(case_identifier, 'B', parent=root).json()['data']
+        folder_a = self._create_folder(case_identifier, 'A', parent=root).json()
+        folder_b = self._create_folder(case_identifier, 'B', parent=root).json()
         response = self._subject.create(
             f'/api/v2/cases/{case_identifier}/datastore/folders/{folder_a["path_id"]}/move',
             {'destination_node': folder_b['path_id']}
@@ -145,7 +145,7 @@ class TestsRestDatastore(TestCase):
 
     def test_move_folder_should_return_400_when_same_destination(self):
         case_identifier = self._subject.create_dummy_case()
-        folder = self._create_folder(case_identifier, 'A').json()['data']
+        folder = self._create_folder(case_identifier, 'A').json()
         response = self._subject.create(
             f'/api/v2/cases/{case_identifier}/datastore/folders/{folder["path_id"]}/move',
             {'destination_node': folder['path_id']}
@@ -154,7 +154,7 @@ class TestsRestDatastore(TestCase):
 
     def test_delete_folder_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()
-        folder = self._create_folder(case_identifier, 'Folder1').json()['data']
+        folder = self._create_folder(case_identifier, 'Folder1').json()
         response = self._subject.delete(
             f'/api/v2/cases/{case_identifier}/datastore/folders/{folder["path_id"]}'
         )
@@ -180,7 +180,7 @@ class TestsRestDatastore(TestCase):
 
     def test_get_folder_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
-        folder = self._create_folder(case_identifier, 'Folder1').json()['data']
+        folder = self._create_folder(case_identifier, 'Folder1').json()
         response = self._subject.get(
             f'/api/v2/cases/{case_identifier}/datastore/folders/{folder["path_id"]}'
         )
@@ -226,7 +226,7 @@ class TestsRestDatastore(TestCase):
     def test_get_file_info_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        created = self._upload_file(case_identifier, root).json()['data']
+        created = self._upload_file(case_identifier, root).json()
         response = self._subject.get(
             f'/api/v2/cases/{case_identifier}/datastore/files/{created["file_id"]}/info'
         )
@@ -242,7 +242,7 @@ class TestsRestDatastore(TestCase):
     def test_view_file_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        created = self._upload_file(case_identifier, root).json()['data']
+        created = self._upload_file(case_identifier, root).json()
         response = self._subject.get(
             f'/api/v2/cases/{case_identifier}/datastore/files/{created["file_id"]}'
         )
@@ -256,7 +256,7 @@ class TestsRestDatastore(TestCase):
     def test_list_files_should_return_total_zero_for_new_case(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/datastore/files').json()
-        self.assertEqual(0, response['data']['total'])
+        self.assertEqual(0, response['total'])
 
     def test_list_files_should_return_400_when_order_by_invalid(self):
         case_identifier = self._subject.create_dummy_case()
@@ -270,13 +270,13 @@ class TestsRestDatastore(TestCase):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
         self._upload_file(case_identifier, root, filename='abc.txt')
-        response = self._subject.get(f'/api/v2/cases/{case_identifier}/datastore/files').json()['data']
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/datastore/files').json()
         self.assertEqual(1, response['total'])
 
     def test_update_file_should_change_description(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        created = self._upload_file(case_identifier, root).json()['data']
+        created = self._upload_file(case_identifier, root).json()
         data = {'file_description': 'updated'}
         response = self._subject.post_multipart_encoded_files(
             f'/api/v2/cases/{case_identifier}/datastore/files/{created["file_id"]}',
@@ -284,7 +284,7 @@ class TestsRestDatastore(TestCase):
             {}
         )
         self.assertEqual(200, response.status_code)
-        self.assertEqual('updated', response.json()['data']['file_description'])
+        self.assertEqual('updated', response.json()['file_description'])
 
     def test_update_file_should_return_404_when_missing(self):
         case_identifier = self._subject.create_dummy_case()
@@ -298,8 +298,8 @@ class TestsRestDatastore(TestCase):
     def test_move_file_should_return_200(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        folder = self._create_folder(case_identifier, 'Dest', parent=root).json()['data']
-        created = self._upload_file(case_identifier, root).json()['data']
+        folder = self._create_folder(case_identifier, 'Dest', parent=root).json()
+        created = self._upload_file(case_identifier, root).json()
         response = self._subject.create(
             f'/api/v2/cases/{case_identifier}/datastore/files/{created["file_id"]}/move',
             {'destination_node': folder['path_id']}
@@ -317,7 +317,7 @@ class TestsRestDatastore(TestCase):
     def test_delete_file_should_return_204(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        created = self._upload_file(case_identifier, root).json()['data']
+        created = self._upload_file(case_identifier, root).json()
         response = self._subject.delete(
             f'/api/v2/cases/{case_identifier}/datastore/files/{created["file_id"]}'
         )
@@ -333,7 +333,7 @@ class TestsRestDatastore(TestCase):
     def test_delete_file_should_return_403_when_user_has_no_access(self):
         case_identifier = self._subject.create_dummy_case()
         root = self._get_root_folder_id(case_identifier)
-        created = self._upload_file(case_identifier, root).json()['data']
+        created = self._upload_file(case_identifier, root).json()
         user = self._subject.create_dummy_user()
         response = user.delete(
             f'/api/v2/cases/{case_identifier}/datastore/files/{created["file_id"]}'

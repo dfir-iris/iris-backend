@@ -52,32 +52,31 @@ class TestsRestCustomDashboards(TestCase):
 
     def test_list_dashboards_returns_seeded_statistics(self):
         response = self._subject.get('/api/v2/custom-dashboards').json()
-        self.assertIn('data', response)
-        uuids = [d['dashboard_uuid'] for d in response['data']]
+        uuids = [d['dashboard_uuid'] for d in response]
         self.assertIn(STATISTICS_DASHBOARD_UUID, uuids)
 
     def test_seeded_statistics_dashboard_is_system(self):
         response = self._subject.get(f'/api/v2/custom-dashboards/{STATISTICS_DASHBOARD_UUID}').json()
-        self.assertTrue(response['data'].get('is_system'))
+        self.assertTrue(response.get('is_system'))
 
     def test_create_dashboard_returns_201(self):
         response = self._subject.create('/api/v2/custom-dashboards', _minimal_dashboard('mine'))
         self.assertEqual(201, response.status_code)
         body = response.json()
-        self.assertEqual('mine', body['data']['name'])
-        self.assertFalse(body['data']['is_system'])
+        self.assertEqual('mine', body['name'])
+        self.assertFalse(body['is_system'])
 
     def test_update_dashboard_returns_200(self):
         created = self._subject.create('/api/v2/custom-dashboards', _minimal_dashboard('first')).json()
-        uuid = created['data']['dashboard_uuid']
+        uuid = created['dashboard_uuid']
         renamed = _minimal_dashboard('renamed')
         response = self._subject.update(f'/api/v2/custom-dashboards/{uuid}', renamed)
         self.assertEqual(200, response.status_code)
-        self.assertEqual('renamed', response.json()['data']['name'])
+        self.assertEqual('renamed', response.json()['name'])
 
     def test_delete_dashboard_succeeds(self):
         created = self._subject.create('/api/v2/custom-dashboards', _minimal_dashboard('todelete')).json()
-        uuid = created['data']['dashboard_uuid']
+        uuid = created['dashboard_uuid']
         response = self._subject.delete(f'/api/v2/custom-dashboards/{uuid}')
         self.assertIn(response.status_code, (200, 204))
         follow_up = self._subject.get(f'/api/v2/custom-dashboards/{uuid}')
@@ -108,7 +107,7 @@ class TestsRestCustomDashboards(TestCase):
             f'/api/v2/custom-dashboards/{STATISTICS_DASHBOARD_UUID}/render', body,
         )
         self.assertEqual(200, response.status_code)
-        widgets = response.json()['data']['widgets']
+        widgets = response.json()['widgets']
         self.assertTrue(any('error' in w for w in widgets))
 
     def test_render_rejects_unknown_named_aggregation(self):
@@ -126,7 +125,7 @@ class TestsRestCustomDashboards(TestCase):
             f'/api/v2/custom-dashboards/{STATISTICS_DASHBOARD_UUID}/render', body,
         )
         self.assertEqual(200, response.status_code)
-        widgets = response.json()['data']['widgets']
+        widgets = response.json()['widgets']
         self.assertTrue(any('error' in w for w in widgets))
 
     def test_render_pie_chart_executes(self):
@@ -148,7 +147,7 @@ class TestsRestCustomDashboards(TestCase):
             f'/api/v2/custom-dashboards/{STATISTICS_DASHBOARD_UUID}/render', body,
         )
         self.assertEqual(200, response.status_code)
-        widgets = response.json()['data']['widgets']
+        widgets = response.json()['widgets']
         self.assertEqual(1, len(widgets))
         self.assertNotIn('error', widgets[0])
 
@@ -167,12 +166,12 @@ class TestsRestCustomDashboards(TestCase):
             f'/api/v2/custom-dashboards/{STATISTICS_DASHBOARD_UUID}/render', body,
         )
         self.assertEqual(200, response.status_code)
-        widgets = response.json()['data']['widgets']
+        widgets = response.json()['widgets']
         self.assertEqual('mttd_seconds', widgets[0].get('computed'))
 
     def test_schema_endpoint_lists_named_aggregations(self):
         response = self._subject.get('/api/v2/custom-dashboards/schema').json()
-        agg_names = [a['name'] for a in response['data']['named_aggregations']]
+        agg_names = [a['name'] for a in response['named_aggregations']]
         self.assertIn('mttd_seconds', agg_names)
         self.assertIn('mttr_seconds', agg_names)
         self.assertIn('false_positive_rate', agg_names)
@@ -181,7 +180,7 @@ class TestsRestCustomDashboards(TestCase):
 
     def test_presets_endpoint_returns_entries(self):
         response = self._subject.get('/api/v2/custom-dashboards/presets').json()
-        self.assertGreater(len(response['data']), 0)
+        self.assertGreater(len(response), 0)
 
     def test_unauthenticated_user_without_read_cannot_list(self):
         user = self._subject.create_dummy_user(permissions=0)
@@ -192,7 +191,7 @@ class TestsRestCustomDashboards(TestCase):
         alice = self._subject.create_dummy_user(permissions=_CUSTOM_DASHBOARDS_READ | _CUSTOM_DASHBOARDS_WRITE)
         bob = self._subject.create_dummy_user(permissions=_CUSTOM_DASHBOARDS_READ | _CUSTOM_DASHBOARDS_WRITE)
         created = alice.create('/api/v2/custom-dashboards', _minimal_dashboard('alice-private')).json()
-        uuid = created['data']['dashboard_uuid']
+        uuid = created['dashboard_uuid']
         response = bob.get(f'/api/v2/custom-dashboards/{uuid}')
         self.assertIn(response.status_code, (403, 404))
 
@@ -204,6 +203,6 @@ class TestsRestCustomDashboards(TestCase):
         payload = _minimal_dashboard('alice-shared')
         payload['is_shared'] = True
         created = alice.create('/api/v2/custom-dashboards', payload).json()
-        uuid = created['data']['dashboard_uuid']
+        uuid = created['dashboard_uuid']
         response = bob.get(f'/api/v2/custom-dashboards/{uuid}')
         self.assertEqual(200, response.status_code)
