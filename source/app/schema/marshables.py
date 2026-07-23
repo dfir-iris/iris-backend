@@ -27,6 +27,7 @@ import string
 import tempfile
 from flask import current_app
 from marshmallow import EXCLUDE
+from marshmallow import Schema
 from marshmallow import fields
 from marshmallow import post_dump
 from marshmallow import post_load
@@ -237,6 +238,16 @@ class CaseNoteDirectorySchema(ma.SQLAlchemyAutoSchema):
         return data
 
 
+class NoteSummarySchema(Schema):
+    # Compact {id, title} projection of a Notes row, used by the directory
+    # listing so clients can address individual notes without a second
+    # round-trip. Mirrors the v1 shape emitted by
+    # get_directories_with_note_count(); we can't reuse CaseNoteSchema
+    # here because it drags nested comments + directory back-references.
+    id = fields.Integer(attribute='note_id')
+    title = fields.String(attribute='note_title')
+
+
 class SearchCaseNoteDirectorySchema(CaseNoteDirectorySchema):
     """Schema for serializing and deserializing SearchCaseNoteDirectory objects.
 
@@ -248,7 +259,19 @@ class SearchCaseNoteDirectorySchema(CaseNoteDirectorySchema):
 
     note_count: int = fields.Integer(required=False)
     subdirectories: List[str] = fields.List(fields.String, required=False)
-    notes:  List[str] = fields.List(fields.String, required=False)
+    # Was `List(String)` which fell back to `str(Notes instance)` and
+    # emitted the ORM repr ("<Notes 208>"). Nest the summary schema so
+    # clients get the {id, title} objects the v1 endpoint already returns.
+    notes = fields.Nested(NoteSummarySchema, many=True)
+
+    @post_dump
+    def _sort_notes(self, data, **kwargs):
+        # Match v1's ordering (case-insensitive by title) so consumers
+        # can render the tree deterministically without a second sort.
+        notes = data.get('notes')
+        if notes:
+            data['notes'] = sorted(notes, key=lambda n: (n.get('title') or '').lower())
+        return data
 
 
 class UserSchema(ma.SQLAlchemyAutoSchema):
