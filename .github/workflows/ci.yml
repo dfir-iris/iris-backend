@@ -63,12 +63,13 @@ jobs:
           tags: iris-db:ci
           outputs: type=docker,dest=${{ runner.temp }}/iris-db.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: iris-db
           path: ${{ runner.temp }}/iris-db.tar
+          retention-days: 1
 
   build-docker-app:
     name: Build docker backend
@@ -86,12 +87,13 @@ jobs:
           tags: iris-backend:ci
           outputs: type=docker,dest=${{ runner.temp }}/iris-backend.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: iris-backend
           path: ${{ runner.temp }}/iris-backend.tar
+          retention-days: 1
 
   test-api:
     name: Test API
@@ -144,6 +146,7 @@ jobs:
         with:
           name: Test API logs
           path: ${{ runner.temp }}/iris-backend.log
+          retention-days: 7
 
   test-database-migration:
     name: Database migration tests
