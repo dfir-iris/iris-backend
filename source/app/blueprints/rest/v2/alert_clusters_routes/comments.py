@@ -25,6 +25,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -49,6 +50,8 @@ _schema = CommentSchema()
 
 @alert_clusters_comments_blueprint.get('')
 @ac_api_requires(Permissions.alert_clusters_read)
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['AlertClusters'],
+         summary='List alert cluster comments')
 def list_cluster_comments(cluster_identifier):
     pagination = parse_pagination_parameters(request)
     try:
@@ -66,6 +69,8 @@ def list_cluster_comments(cluster_identifier):
 
 @alert_clusters_comments_blueprint.post('')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['AlertClusters'], summary='Add a comment to an alert cluster')
 def create_cluster_comment(cluster_identifier):
     try:
         comment = _schema.load(request.get_json() or {})
@@ -86,6 +91,8 @@ def create_cluster_comment(cluster_identifier):
 
 @alert_clusters_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.alert_clusters_read)
+@api_doc(response=CommentSchema, tags=['AlertClusters'],
+         summary='Get an alert cluster comment')
 def read_cluster_comment(cluster_identifier, identifier):
     # Verify caller can see the parent cluster before returning the
     # comment — otherwise an authorised-by-comment-id lookup would leak
@@ -106,6 +113,8 @@ def read_cluster_comment(cluster_identifier, identifier):
 
 @alert_clusters_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(response_shape='deleted', tags=['AlertClusters'],
+         summary='Delete an alert cluster comment')
 def delete_cluster_comment(cluster_identifier, identifier):
     try:
         # Access check on the parent cluster.

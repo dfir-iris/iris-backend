@@ -23,6 +23,7 @@ from flask import session
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -55,6 +56,7 @@ def _load_alert(identifier):
 
 @alerts_investigation_progress_blueprint.get('/<int:identifier>/investigation-progress')
 @ac_api_requires(Permissions.alerts_read)
+@api_doc(tags=['Alerts'], summary="List an alert's investigation progress")
 def list_progress(identifier):
     try:
         alert = _load_alert(identifier)
@@ -81,6 +83,8 @@ def list_progress(identifier):
 
 @alerts_investigation_progress_blueprint.post('/<int:identifier>/investigation-progress/<int:step_id>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response=AlertInvestigationProgressSchema, tags=['Alerts'],
+         summary='Record an alert investigation step')
 def record_progress(identifier, step_id):
     try:
         alert = _load_alert(identifier)
@@ -100,6 +104,8 @@ def record_progress(identifier, step_id):
 
 @alerts_investigation_progress_blueprint.delete('/<int:identifier>/investigation-progress/<int:step_id>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response_shape='deleted', tags=['Alerts'],
+         summary='Uncheck an alert investigation step')
 def uncheck_progress(identifier, step_id):
     try:
         alert = _load_alert(identifier)

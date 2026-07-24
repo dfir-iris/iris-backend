@@ -25,6 +25,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -86,6 +87,8 @@ _schema = AlertClusterSchema()
 
 @alert_clusters_blueprint.get('')
 @ac_api_requires(Permissions.alert_clusters_read)
+@api_doc(response=AlertClusterSchema, response_shape='paginated', tags=['AlertClusters'],
+         summary='List alert clusters')
 def list_clusters():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
@@ -108,6 +111,8 @@ def list_clusters():
 
 @alert_clusters_blueprint.post('')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(request=AlertClusterSchema, response=AlertClusterSchema, response_shape='created',
+         tags=['AlertClusters'], summary='Create an alert cluster')
 def create_cluster():
     payload = request.get_json() or {}
     try:
@@ -126,6 +131,8 @@ def create_cluster():
 
 @alert_clusters_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.alert_clusters_read)
+@api_doc(response=AlertClusterSchema, tags=['AlertClusters'],
+         summary='Get an alert cluster')
 def read_cluster(identifier):
     try:
         cluster = alert_clusters_get(
@@ -141,6 +148,8 @@ def read_cluster(identifier):
 
 @alert_clusters_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(request=AlertClusterSchema, response=AlertClusterSchema, tags=['AlertClusters'],
+         summary='Update an alert cluster')
 def update_cluster(identifier):
     try:
         cluster = alert_clusters_get(
@@ -163,6 +172,8 @@ def update_cluster(identifier):
 
 @alert_clusters_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.alert_clusters_delete)
+@api_doc(response_shape='deleted', tags=['AlertClusters'],
+         summary='Delete an alert cluster')
 def delete_cluster(identifier):
     try:
         cluster = alert_clusters_get(
@@ -179,6 +190,8 @@ def delete_cluster(identifier):
 
 @alert_clusters_blueprint.post('/<int:identifier>/alerts')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(response=AlertClusterSchema, tags=['AlertClusters'],
+         summary='Add alerts to a cluster')
 def add_alerts(identifier):
     try:
         cluster = alert_clusters_get(
@@ -199,6 +212,8 @@ def add_alerts(identifier):
 
 @alert_clusters_blueprint.delete('/<int:identifier>/alerts/<int:alert_id>')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(response=AlertClusterSchema, tags=['AlertClusters'],
+         summary='Remove an alert from a cluster')
 def remove_alert(identifier, alert_id):
     try:
         cluster = alert_clusters_get(
@@ -215,6 +230,7 @@ def remove_alert(identifier, alert_id):
 
 @alert_clusters_blueprint.post('/<int:identifier>/escalate')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(tags=['AlertClusters'], summary='Escalate an alert cluster to a case')
 def escalate(identifier):
     try:
         cluster = alert_clusters_get(
@@ -245,6 +261,7 @@ def escalate(identifier):
 
 @alert_clusters_blueprint.post('/<int:identifier>/merge')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(tags=['AlertClusters'], summary='Merge an alert cluster into a case')
 def merge(identifier):
     """Merge a cluster's alerts into an already-existing case.
 
@@ -296,6 +313,7 @@ def merge(identifier):
 
 @alert_clusters_blueprint.delete('/<int:identifier>/case')
 @ac_api_requires(Permissions.alert_clusters_write)
+@api_doc(tags=['AlertClusters'], summary='Unlink an alert cluster from its case')
 def unlink_case(identifier):
     """Reverse a cluster->case escalation/merge from the cluster side.
 
@@ -339,6 +357,7 @@ def unlink_case(identifier):
 
 @alert_clusters_blueprint.get('/<int:identifier>/graph')
 @ac_api_requires()
+@api_doc(tags=['AlertClusters'], summary='Get an alert cluster correlation graph')
 def graph(identifier):
     """Correlation graph for an alert cluster.
 

@@ -25,6 +25,7 @@ from marshmallow.exceptions import ValidationError
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_current_user_has_permission
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_error
@@ -329,42 +330,52 @@ alerts_operations = AlertsOperations()
 
 @alerts_blueprint.get('')
 @ac_api_requires(Permissions.alerts_read)
+@api_doc(response=AlertSchema, response_shape='paginated', tags=['Alerts'],
+         summary='List alerts')
 def alerts_list_route() -> Response:
     return alerts_operations.search()
 
 
 @alerts_blueprint.post('')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(request=AlertSchema, response=AlertSchema, response_shape='created',
+         tags=['Alerts'], summary='Create an alert')
 def create_alert():
     return alerts_operations.create()
 
 
 @alerts_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_read)
+@api_doc(response=AlertSchema, tags=['Alerts'], summary='Get an alert')
 def get_alert(identifier):
     return alerts_operations.read(identifier)
 
 
 @alerts_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(request=AlertSchema, response=AlertSchema, tags=['Alerts'],
+         summary='Update an alert')
 def update_alert(identifier):
     return alerts_operations.update(identifier)
 
 
 @alerts_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_delete)
+@api_doc(response_shape='deleted', tags=['Alerts'], summary='Delete an alert')
 def delete_alert(identifier):
     return alerts_operations.delete(identifier)
 
 
 @alerts_blueprint.get('/<int:identifier>/related-alerts')
 @ac_api_requires(Permissions.alerts_read)
+@api_doc(tags=['Alerts'], summary='List related alerts')
 def get_related_alerts(identifier):
     return alerts_operations.get_related_alerts(identifier)
 
 
 @alerts_blueprint.post('/escalate/<int:identifier>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response=CaseSchema, tags=['Alerts'], summary='Escalate an alert to a case')
 def escalate_alert(identifier):
     alert = get_alert_by_id(identifier)
     if not alert:
@@ -392,6 +403,7 @@ def escalate_alert(identifier):
 
 @alerts_blueprint.post('/merge/<int:identifier>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response=CaseSchema, tags=['Alerts'], summary='Merge an alert into a case')
 def merge_alert(identifier):
     data = request.get_json() or {}
     target_case_id = data.get('target_case_id')
@@ -426,6 +438,7 @@ def merge_alert(identifier):
 
 @alerts_blueprint.post('/unmerge/<int:identifier>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response=AlertSchema, tags=['Alerts'], summary='Unmerge an alert from a case')
 def unmerge_alert(identifier):
     data = request.get_json() or {}
     target_case_id = data.get('target_case_id')
@@ -452,6 +465,7 @@ def unmerge_alert(identifier):
 
 @alerts_blueprint.post('/batch/escalate')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response=CaseSchema, tags=['Alerts'], summary='Escalate a batch of alerts to a case')
 def batch_escalate_alerts():
     data = request.get_json() or {}
     alert_ids_raw = data.get('alert_ids')
@@ -489,6 +503,7 @@ def batch_escalate_alerts():
 
 @alerts_blueprint.post('/batch/merge')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response=CaseSchema, tags=['Alerts'], summary='Merge a batch of alerts into a case')
 def batch_merge_alerts():
     data = request.get_json() or {}
     target_case_id = data.get('target_case_id')
@@ -620,30 +635,37 @@ alerts_filters_operations = AlertsFiltersOperations()
 
 @alerts_filters_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=SavedFilterSchema, response=SavedFilterSchema, response_shape='created',
+         tags=['Alerts'], summary='Create a saved alert filter')
 def create_alert_filter():
     return alerts_filters_operations.create()
 
 
 @alerts_filters_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=SavedFilterSchema, tags=['Alerts'], summary='List saved alert filters')
 def list_alert_filters():
     return alerts_filters_operations.list()
 
 
 @alerts_filters_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=SavedFilterSchema, tags=['Alerts'], summary='Get a saved alert filter')
 def get_alert_filter(identifier):
     return alerts_filters_operations.get(identifier)
 
 
 @alerts_filters_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=SavedFilterSchema, response=SavedFilterSchema, tags=['Alerts'],
+         summary='Update a saved alert filter')
 def update_alert_filter(identifier):
     return alerts_filters_operations.put(identifier)
 
 
 @alerts_filters_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Alerts'], summary='Delete a saved alert filter')
 def delete_alert_filter(identifier):
     return alerts_filters_operations.delete(identifier)
 

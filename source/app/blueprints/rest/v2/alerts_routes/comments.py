@@ -24,6 +24,7 @@ from marshmallow.exceptions import ValidationError
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.models.authorization import Permissions
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -125,29 +126,37 @@ comments_operations = CommentsOperations()
 
 @alerts_comments_blueprint.get('')
 @ac_api_requires(Permissions.alerts_read)
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Alerts'],
+         summary='List alert comments')
 def get_alerts_comments(alert_identifier):
     return comments_operations.search(alert_identifier)
 
 
 @alerts_comments_blueprint.post('')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Alerts'], summary='Add a comment to an alert')
 def create_alerts_comment(alert_identifier):
     return comments_operations.create(alert_identifier)
 
 
 @alerts_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_read)
+@api_doc(response=CommentSchema, tags=['Alerts'], summary='Get an alert comment')
 def read_alerts_comment(alert_identifier, identifier):
     return comments_operations.read(alert_identifier, identifier)
 
 
 @alerts_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Alerts'],
+         summary='Update an alert comment')
 def update_alerts_comment(alert_identifier, identifier):
     return comments_operations.update(alert_identifier, identifier)
 
 
 @alerts_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.alerts_write)
+@api_doc(response_shape='deleted', tags=['Alerts'], summary='Delete an alert comment')
 def delete_alerts_comment(alert_identifier, identifier):
     return comments_operations.delete(alert_identifier, identifier)

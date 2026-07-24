@@ -12,6 +12,1181 @@ info:
 security:
 - ApiKey: []
 paths:
+  /api/v2/alert-clusters:
+    get:
+      operationId: list_clusters_get
+      summary: List alert clusters
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AlertCluster'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_cluster_post
+      summary: Create an alert cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertCluster'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertCluster'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/alert-clusters/{cluster_identifier}/comments:
+    get:
+      operationId: list_cluster_comments_get
+      summary: List alert cluster comments
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: cluster_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_cluster_comment_post
+      summary: Add a comment to an alert cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: cluster_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{cluster_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_cluster_comment_delete
+      summary: Delete an alert cluster comment
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: cluster_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_cluster_comment_get
+      summary: Get an alert cluster comment
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: cluster_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}:
+    delete:
+      operationId: delete_cluster_delete
+      summary: Delete an alert cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_cluster_get
+      summary: Get an alert cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertCluster'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_cluster_put
+      summary: Update an alert cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertCluster'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertCluster'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/alerts:
+    post:
+      operationId: add_alerts_post
+      summary: Add alerts to a cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertCluster'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/alerts/{alert_id}:
+    delete:
+      operationId: remove_alert_delete
+      summary: Remove an alert from a cluster
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertCluster'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/case:
+    delete:
+      operationId: unlink_case_delete
+      summary: Unlink an alert cluster from its case
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      description: "Same behaviour as `DELETE /api/v2/cases/{case_id}/source-cluster`\nbut rooted at the\
+        \ cluster URL so the cluster-detail page's\n\"Unlink from case\" menu can hit it without knowing\
+        \ the case id.\nRequires the caller to have write access to the target case \u2014 a\nuser who\
+        \ can't touch the case shouldn't be able to strip its\nsource-cluster link either."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/escalate:
+    post:
+      operationId: escalate_post
+      summary: Escalate an alert cluster to a case
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/graph:
+    get:
+      operationId: graph_get
+      summary: Get an alert cluster correlation graph
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      description: "Returns `{nodes, edges}` linking every member alert to its IOCs and\nassets, with\
+        \ IOC/asset nodes deduplicated across alerts so shared\nindicators show as junction points \u2014\
+        \ the analyst's whole reason for\nlooking at this view. Read-only, gated by cluster (customer)\n\
+        access; the payload only carries labels/titles/ids that a reader\nalready sees on the alerts tab,\
+        \ so no extra ACL is needed."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/investigation-progress:
+    get:
+      operationId: list_progress_get
+      summary: List an alert cluster's investigation progress
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/investigation-progress/{step_id}:
+    delete:
+      operationId: uncheck_progress_delete
+      summary: Uncheck an alert cluster investigation step
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: record_progress_post
+      summary: Record an alert cluster investigation step
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertClusterInvestigationProgress'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alert-clusters/{identifier}/merge:
+    post:
+      operationId: merge_post
+      summary: Merge an alert cluster into a case
+      tags:
+      - AlertClusters
+      security:
+      - ApiKey: []
+      description: "Mirrors the alert-merge endpoint (`POST /alerts/merge/<alert_id>`) but\nfanned across\
+        \ every alert on the cluster. `target_case_id` in the body\npicks the destination case; the caller\
+        \ must have full case access to\nit (read-only isn't enough \u2014 merging mutates the case description,\n\
+        IOCs, assets, and optionally the timeline)."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts:
+    get:
+      operationId: alerts_list_route_get
+      summary: List alerts
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alert'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_alert_post
+      summary: Create an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alert'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/alerts/{alert_identifier}/comments:
+    get:
+      operationId: get_alerts_comments_get
+      summary: List alert comments
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_alerts_comment_post
+      summary: Add a comment to an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/{alert_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_alerts_comment_delete
+      summary: Delete an alert comment
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_alerts_comment_get
+      summary: Get an alert comment
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_alerts_comment_put
+      summary: Update an alert comment
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/{identifier}:
+    delete:
+      operationId: delete_alert_delete
+      summary: Delete an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_alert_get
+      summary: Get an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_alert_put
+      summary: Update an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alert'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/{identifier}/investigation-progress:
+    get:
+      operationId: list_progress_get
+      summary: List an alert's investigation progress
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/{identifier}/investigation-progress/{step_id}:
+    delete:
+      operationId: uncheck_progress_delete
+      summary: Uncheck an alert investigation step
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: record_progress_post
+      summary: Record an alert investigation step
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertInvestigationProgress'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/{identifier}/related-alerts:
+    get:
+      operationId: get_related_alerts_get
+      summary: List related alerts
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/batch/escalate:
+    post:
+      operationId: batch_escalate_alerts_post
+      summary: Escalate a batch of alerts to a case
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/alerts/batch/merge:
+    post:
+      operationId: batch_merge_alerts_post
+      summary: Merge a batch of alerts into a case
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/alerts/escalate/{identifier}:
+    post:
+      operationId: escalate_alert_post
+      summary: Escalate an alert to a case
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/filters:
+    get:
+      operationId: list_alert_filters_get
+      summary: List saved alert filters
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_alert_filter_post
+      summary: Create a saved alert filter
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilter'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/alerts/filters/{identifier}:
+    delete:
+      operationId: delete_alert_filter_delete
+      summary: Delete a saved alert filter
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_alert_filter_get
+      summary: Get a saved alert filter
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_alert_filter_put
+      summary: Update a saved alert filter
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilter'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/merge/{identifier}:
+    post:
+      operationId: merge_alert_post
+      summary: Merge an alert into a case
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Case'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/unmerge/{identifier}:
+    post:
+      operationId: unmerge_alert_post
+      summary: Unmerge an alert from a case
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases:
     get:
       operationId: get_cases_get
@@ -2634,6 +3809,33 @@ components:
         clusters: {}
         investigation_flow: {}
       description: Schema for serializing and deserializing Alert objects.
+    AlertCluster:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/AlertClusterStatus'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        customer:
+          $ref: '#/components/schemas/Customer'
+        owner:
+          $ref: '#/components/schemas/User'
+        alert_ids: {}
+        investigation_flow: {}
+        source_rule: {}
+    AlertClusterInvestigationProgress:
+      type: object
+      properties:
+        completed_by:
+          $ref: '#/components/schemas/User'
+    AlertClusterStatus:
+      type: object
+      properties: {}
+    AlertInvestigationProgress:
+      type: object
+      properties:
+        completed_by:
+          $ref: '#/components/schemas/User'
     AlertResolution:
       type: object
       properties: {}
@@ -2985,6 +4187,10 @@ components:
     ReviewStatus:
       type: object
       properties: {}
+    SavedFilter:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing SavedFilter objects.
     SearchCaseNoteDirectory:
       type: object
       properties:
