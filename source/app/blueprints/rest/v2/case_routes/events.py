@@ -22,6 +22,7 @@ from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -250,29 +251,36 @@ case_events_blueprint = Blueprint('case_events_rest_v2', __name__, url_prefix='/
 
 @case_events_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['CaseEvents'], summary='List case events')
 def list_events(case_identifier):
     return events.list(case_identifier)
 
 
 @case_events_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=EventSchema, response=EventSchema, response_shape='created',
+         tags=['CaseEvents'], summary='Create a case event')
 def create_event(case_identifier):
     return events.create(case_identifier)
 
 
 @case_events_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=EventSchema, tags=['CaseEvents'], summary='Get a case event')
 def get_event(case_identifier, identifier):
     return events.read(case_identifier, identifier)
 
 
 @case_events_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=EventSchema, response=EventSchema, tags=['CaseEvents'],
+         summary='Update a case event')
 def update_event(case_identifier, identifier):
     return events.update(case_identifier, identifier)
 
 
 @case_events_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseEvents'], summary='Delete a case event')
 def delete_event(case_identifier, identifier):
     return events.delete(case_identifier, identifier)

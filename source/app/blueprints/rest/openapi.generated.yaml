@@ -200,6 +200,1972 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/cases/{case_identifier}/assets:
+    get:
+      operationId: case_list_assets_get
+      summary: List case assets
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseAssets'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: add_asset_post
+      summary: Create a case asset
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseAssets'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssets'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/assets/{identifier}:
+    delete:
+      operationId: delete_asset_delete
+      summary: Delete a case asset
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_asset_get
+      summary: Get a case asset
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssets'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_asset_put
+      summary: Update a case asset
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseAssets'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssets'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/assets/{identifier}/links:
+    get:
+      operationId: get_asset_other_case_links_get
+      summary: List other cases sharing this asset
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      description: "\"Same asset\" matches the legacy v2.4.x heuristic: same name + same type\non a case\
+        \ belonging to the same customer that the current user has at\nleast read access to. The customer-scoping\
+        \ is important \u2014 it stops a\ngeneric name like `localhost` from lighting up across every\
+        \ tenant on\nthe instance."
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/files:
+    get:
+      operationId: datastore_list_files_get
+      summary: List datastore files
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/files/{identifier}:
+    delete:
+      operationId: datastore_delete_file_route_delete
+      summary: Delete a datastore file
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: datastore_view_file_get
+      summary: Download or view a datastore file
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: datastore_update_file_post
+      summary: Update a datastore file
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSFile'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/files/{identifier}/info:
+    get:
+      operationId: datastore_file_info_get
+      summary: Get datastore file info
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSFile'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/files/{identifier}/move:
+    post:
+      operationId: datastore_move_file_post
+      summary: Move a datastore file
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSFile'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/files/interactive:
+    post:
+      operationId: datastore_add_interactive_file_post
+      summary: Upload a base64 file from the rich-text editor
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/folders:
+    get:
+      operationId: datastore_list_folders_get
+      summary: List datastore folders
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSPath'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: datastore_add_folder_post
+      summary: Create a datastore folder
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSPath'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/folders/{folder_identifier}/files:
+    post:
+      operationId: datastore_add_file_post
+      summary: Upload a file to a datastore folder
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: folder_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSFile'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/folders/{identifier}:
+    delete:
+      operationId: datastore_delete_folder_delete
+      summary: Delete a datastore folder
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: datastore_get_folder_get
+      summary: Get a datastore folder
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSPath'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/folders/{identifier}/move:
+    post:
+      operationId: datastore_move_folder_post
+      summary: Move a datastore folder
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSPath'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/folders/{identifier}/rename:
+    post:
+      operationId: datastore_rename_folder_post
+      summary: Rename a datastore folder
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSPath'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/datastore/tree:
+    get:
+      operationId: datastore_tree_get
+      summary: Get the datastore tree
+      tags:
+      - CaseDatastore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/dim-hooks/invoke:
+    post:
+      operationId: invoke_dim_hook_post
+      summary: Invoke a DIM hook for a case
+      tags:
+      - CaseDimHooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events:
+    get:
+      operationId: list_events_get
+      summary: List case events
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_event_post
+      summary: Create a case event
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events/{identifier}:
+    delete:
+      operationId: delete_event_delete
+      summary: Delete a case event
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_event_get
+      summary: Get a case event
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_event_put
+      summary: Update a case event
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/evidences:
+    get:
+      operationId: search_evidences_get
+      summary: List case evidences
+      tags:
+      - CaseEvidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseEvidence'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_evidence_post
+      summary: Create an evidence
+      tags:
+      - CaseEvidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseEvidence'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEvidence'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/evidences/{identifier}:
+    delete:
+      operationId: delete_evidence_delete
+      summary: Delete an evidence
+      tags:
+      - CaseEvidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_evidence_get
+      summary: Get an evidence
+      tags:
+      - CaseEvidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEvidence'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_evidence_put
+      summary: Update an evidence
+      tags:
+      - CaseEvidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseEvidence'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseEvidence'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/iocs:
+    get:
+      operationId: get_case_iocs_get
+      summary: List case IOCs
+      tags:
+      - CaseIocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IocSchemaForAPIV2'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: add_ioc_to_case_post
+      summary: Create a case IOC
+      tags:
+      - CaseIocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IocSchemaForAPIV2'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IocSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/iocs/{identifier}:
+    delete:
+      operationId: delete_case_ioc_delete
+      summary: Delete a case IOC
+      tags:
+      - CaseIocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_ioc_get
+      summary: Get a case IOC
+      tags:
+      - CaseIocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IocSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_ioc_put
+      summary: Update a case IOC
+      tags:
+      - CaseIocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IocSchemaForAPIV2'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IocSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/iocs/{identifier}/links:
+    get:
+      operationId: get_ioc_other_case_links_get
+      summary: List other cases sharing this IOC
+      tags:
+      - CaseIocs
+      security:
+      - ApiKey: []
+      description: "Mirrors the v2.4.x analyst affordance: when working a new case, surfacing\nthat an\
+        \ IOC has been seen on a previous one (and which one) is one of\nthe highest-signal pivots an\
+        \ analyst gets. The legacy UI lit a small\nbadge on each IOC row and exposed the same data through\
+        \ a tooltip; we\nkeep that semantic and let the SPA decide how to render it.\n\nThe lookup is\
+        \ gated by the same per-user case-access filter the legacy\n`/case/ioc/list` route used, so analysts\
+        \ only see hits in cases they're\nalready allowed to read \u2014 no information leakage across\
+        \ access\nboundaries."
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes:
+    get:
+      operationId: list_notes_get
+      summary: List case notes
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNote'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_note_post
+      summary: Create a case note
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseNote'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNote'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes-directories:
+    get:
+      operationId: get_note_directory_filter_get
+      summary: List note directories
+      tags:
+      - CaseNotesDirectories
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchCaseNoteDirectory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_note_directory_post
+      summary: Create a note directory
+      tags:
+      - CaseNotesDirectories
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseNoteDirectory'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNoteDirectory'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes-directories/{identifier}:
+    get:
+      operationId: get_note_directory_get
+      summary: Get a note directory
+      tags:
+      - CaseNotesDirectories
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNoteDirectory'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_note_directory_put
+      summary: Update a note directory
+      tags:
+      - CaseNotesDirectories
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseNoteDirectory'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNoteDirectory'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes-directories{identifier}:
+    delete:
+      operationId: delete_note_directory_delete
+      summary: Delete a note directory
+      tags:
+      - CaseNotesDirectories
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes/{identifier}:
+    delete:
+      operationId: delete_note_delete
+      summary: Delete a case note
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_note_get
+      summary: Get a case note
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNote'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_note_put
+      summary: Update a case note
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseNote'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNote'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes/{identifier}/revisions:
+    get:
+      operationId: list_note_revisions_get
+      summary: List note revisions
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNoteRevision'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes/{identifier}/revisions/{revision_number}:
+    delete:
+      operationId: delete_note_revision_delete
+      summary: Delete a note revision
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: revision_number
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_note_revision_get
+      summary: Get a note revision
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: revision_number
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNoteRevision'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes/{identifier}/revisions/{revision_number}/restore:
+    post:
+      operationId: restore_note_revision_post
+      summary: Restore a note revision
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: revision_number
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNote'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/notes/search:
+    get:
+      operationId: search_notes_get
+      summary: Search case notes
+      tags:
+      - CaseNotes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseNote'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/tasks:
+    get:
+      operationId: case_get_tasks_get
+      summary: List case tasks
+      tags:
+      - CaseTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseTask'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: add_case_task_post
+      summary: Create a case task
+      tags:
+      - CaseTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseTask'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTask'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/tasks/{identifier}:
+    delete:
+      operationId: delete_case_task_delete
+      summary: Delete a case task
+      tags:
+      - CaseTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_task_get
+      summary: Get a case task
+      tags:
+      - CaseTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTask'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_task_put
+      summary: Update a case task
+      tags:
+      - CaseTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseTask'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTask'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/timelines:
+    get:
+      operationId: list_timelines_get
+      summary: List case timelines
+      tags:
+      - CaseTimelines
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_timeline_post
+      summary: Create a case timeline
+      tags:
+      - CaseTimelines
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/timelines/{timeline_id}:
+    delete:
+      operationId: delete_timeline_delete
+      summary: Delete a case timeline
+      tags:
+      - CaseTimelines
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: timeline_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_timeline_get
+      summary: Get a case timeline
+      tags:
+      - CaseTimelines
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: timeline_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_timeline_put
+      summary: Update a case timeline
+      tags:
+      - CaseTimelines
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: timeline_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{identifier}:
     delete:
       operationId: case_routes_delete_delete
@@ -281,6 +2247,134 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/access/me:
+    get:
+      operationId: get_case_access_me_get
+      summary: Get the caller's access level for a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'The SPA reads this once per case load to gate edit/delete affordances
+
+        before the user can attempt a 403. The integer matches `CaseAccessLevel`
+
+        (1 = deny_all, 2 = read_only, 4 = full_access). A user with no row in
+
+        `UserCaseEffectiveAccess` is treated as deny_all so the frontend can
+
+        still render a coherent "no access" state.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/access/users:
+    get:
+      operationId: list_case_access_users_get
+      summary: List users with access to a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'their access level. Used by the frontend to populate task-assignee
+
+        pickers and to surface who can see a given case.
+
+
+        Access level is the integer enum from `CaseAccessLevel` (1 = deny,
+
+        2 = read_only, 4 = full_access). Callers that need only assignable
+
+        users typically filter on full_access (4) client-side, matching the
+
+        legacy iris-web behaviour.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/activities:
+    get:
+      operationId: list_case_activities_get
+      summary: List the activity log of a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'Mirrors the legacy `/case/activities/list` endpoint, which the frontend
+
+        uses to surface "people involved" on a case. Each row carries the user
+
+        name, the activity date, the description and whether the entry was
+
+        produced by an API caller.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/alerts/{alert_id}:
+    delete:
+      operationId: rest_v2_case_unlink_alert_delete
+      summary: Detach an alert from a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: "Case-scoped ACL: the caller must have full access to the case, which\nis the object\
+        \ being mutated (alert.cases). We don't recheck alert\npermissions \u2014 the case-membership\
+        \ relationship is symmetric, so\nwrite on the case is enough to prune its own list."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{identifier}/close:
     post:
       operationId: case_routes_close_post
@@ -302,6 +2396,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseDetails'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/followers:
+    get:
+      operationId: list_case_followers_get
+      summary: List users following a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'Each entry is `{user_id, user_name, user_login}`. The dashboard
+
+        "Follow" toggle on the case header reads this list to render the
+
+        current follower count and to highlight whether *you* are
+
+        following.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
         '400':
           $ref: '#/components/responses/ApiError'
         '403':
@@ -335,6 +2459,127 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/source-alert-cluster:
+    delete:
+      operationId: rest_v2_case_unlink_alert_cluster_delete
+      summary: Unlink the source alert cluster from a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'Clears the cluster''s back-reference, moves it back to Investigating,
+
+        and detaches every member alert from the case. Alerts get their
+
+        status rolled back to Assigned so they re-appear in the analyst
+
+        queue. No-op (200 with `{unlinked: false}`) when the case wasn''t
+
+        sourced from a cluster.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_source_alert_cluster_get
+      summary: Get the source alert cluster of a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: "Mirrors the \"linked alerts\" chip in the case topbar: an analyst who\ncan read the\
+        \ case can see which cluster it was escalated / merged\nfrom. Read-only, gated by case read access\
+        \ \u2014 the cluster row is\nalready visible to anyone with customer access, so exposing the\n\
+        lookup by case id doesn't broaden the surface.\n\nReturns 200 with `null` when the case has no\
+        \ source cluster so the\nfrontend can conditionally render the chip without a 404."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/war-rooms:
+    get:
+      operationId: list_case_war_rooms_get
+      summary: List war rooms attached to a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: "Used by the case detail topbar to render the \"in war room\" badge +\nquick-jump menu.\
+        \ Read-only \u2014 gated by case read access."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/filter:
+    get:
+      operationId: filter_cases_get
+      summary: Filter cases with a nested logic tree
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: '`?logic=`). Preferred over `GET /cases` when composing complex `and`/`or`
+
+        conditions across multiple fields.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseSchemaForAPIV2'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     ApiKey:
@@ -362,6 +2607,109 @@ components:
     Deleted:
       description: Resource successfully deleted
   schemas:
+    Alert:
+      type: object
+      properties:
+        severity:
+          $ref: '#/components/schemas/Severity'
+        status:
+          $ref: '#/components/schemas/AlertStatus'
+        customer:
+          $ref: '#/components/schemas/Customer'
+        classification:
+          $ref: '#/components/schemas/CaseClassification'
+        owner:
+          $ref: '#/components/schemas/User'
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ioc'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseAssets'
+        resolution_status:
+          $ref: '#/components/schemas/AlertResolution'
+        cases: {}
+        clusters: {}
+        investigation_flow: {}
+      description: Schema for serializing and deserializing Alert objects.
+    AlertResolution:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing AlertResolution objects.
+    AlertStatus:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing AlertStatus objects.
+    AnalysisStatus:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing AnalysisStatus objects.
+    AssetType:
+      type: object
+      properties:
+        asset_name: {}
+        asset_description: {}
+        asset_icon_compromised: {}
+        asset_icon_not_compromised: {}
+      required:
+      - asset_name
+      - asset_description
+      description: Schema for serializing and deserializing AssetsType objects.
+    Case:
+      type: object
+      properties:
+        case_name: {}
+        case_description: {}
+        case_soc_id: {}
+        case_customer: {}
+        case_organisations:
+          type: array
+          items:
+            type: integer
+        protagonists:
+          type: array
+          items:
+            type: object
+        case_tags:
+          type: string
+        classification_id: {}
+        reviewer_id: {}
+        review_status: {}
+        severity_id: {}
+      required:
+      - case_name
+      - case_description
+      - case_soc_id
+      - case_customer
+      description: Schema for serializing and deserializing Case objects.
+    CaseAssets:
+      type: object
+      properties:
+        asset_name: {}
+        asset_type_id: {}
+        ioc_links:
+          type: array
+          items:
+            type: integer
+        asset_enrichment: {}
+        asset_type:
+          $ref: '#/components/schemas/AssetType'
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        analysis_status:
+          $ref: '#/components/schemas/AnalysisStatus'
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/IocSchemaForAPIV2'
+      required:
+      - asset_name
+      - asset_type_id
+      description: Schema for serializing and deserializing CaseAssets objects.
     CaseClassification:
       type: object
       properties:
@@ -399,6 +2747,37 @@ components:
         status_name: {}
         protagonists: {}
       description: Schema for serializing and deserializing Case objects in details.
+    CaseEvidence:
+      type: object
+      properties:
+        filename: {}
+        type:
+          $ref: '#/components/schemas/EvidenceType'
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - filename
+      description: Schema for serializing and deserializing CaseEvidence objects.
+    CaseNote:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        directory:
+          $ref: '#/components/schemas/CaseNoteDirectory'
+      description: Schema for serializing and deserializing CaseNote objects.
+    CaseNoteDirectory:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing CaseNoteDirectory objects.
+    CaseNoteRevision:
+      type: object
+      properties:
+        user_name:
+          type: string
+      description: Schema for serializing and deserializing CaseNoteVersion objects.
     CaseSchemaForAPIV2:
       type: object
       properties:
@@ -456,6 +2835,37 @@ components:
         state_description:
           type: string
       description: Schema for serializing and deserializing CaseState objects.
+    CaseTask:
+      type: object
+      properties:
+        task_title: {}
+        task_status_id: {}
+        task_assignees_id:
+          type:
+          - array
+          - 'null'
+          items:
+            type: integer
+        task_assignees:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        case:
+          $ref: '#/components/schemas/Case'
+      required:
+      - task_title
+      - task_status_id
+      description: Schema for serializing and deserializing CaseTask objects.
+    Comment:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      description: Schema for serializing and deserializing Comment objects.
     Customer:
       type: object
       properties:
@@ -466,14 +2876,141 @@ components:
       required:
       - customer_name
       description: Schema for serializing and deserializing Customer objects.
+    DSFile:
+      type: object
+      properties:
+        file_original_name: {}
+        file_description: {}
+        file_content: {}
+        file_local_name: {}
+      required:
+      - file_original_name
+      description: Schema for serializing and deserializing DataStoreFile objects.
+    DSPath:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing DataStorePath objects.
+    Event:
+      type: object
+      properties:
+        event_title: {}
+        event_assets:
+          type: array
+          items:
+            type: integer
+        event_iocs:
+          type: array
+          items:
+            type: integer
+        event_date:
+          type: string
+          format: date-time
+        event_tz:
+          type: string
+        event_category_id: {}
+        event_date_wtz:
+          type: string
+          format: date-time
+        modification_history: {}
+        event_comments_map:
+          type:
+          - array
+          - 'null'
+          items:
+            type: integer
+        event_sync_iocs_assets:
+          type: boolean
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+      required:
+      - event_title
+      - event_assets
+      - event_iocs
+      - event_date
+      - event_tz
+      description: Schema for serializing and deserializing Event objects.
+    EvidenceType:
+      type: object
+      properties:
+        name: {}
+        description: {}
+      required:
+      - name
+      - description
+      description: Schema for serializing and deserializing EvidenceType objects.
+    Ioc:
+      type: object
+      properties:
+        ioc_value: {}
+        ioc_enrichment: {}
+        ioc_type:
+          $ref: '#/components/schemas/IocType'
+      required:
+      - ioc_value
+      description: Schema for serializing and deserializing IOC objects.
+    IocSchemaForAPIV2:
+      type: object
+      properties:
+        ioc_value: {}
+        ioc_enrichment: {}
+        ioc_type:
+          $ref: '#/components/schemas/IocType'
+        tlp:
+          $ref: '#/components/schemas/Tlp'
+        link: {}
+      required:
+      - ioc_value
+      description: Schema for serializing and deserializing IOC objects.
+    IocType:
+      type: object
+      properties:
+        type_name: {}
+        type_description: {}
+        type_taxonomy: {}
+        type_validation_regex: {}
+        type_validation_expect: {}
+      required:
+      - type_name
+      - type_description
+      description: Schema for serializing and deserializing IocType objects.
+    NoteSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
     ReviewStatus:
       type: object
       properties: {}
+    SearchCaseNoteDirectory:
+      type: object
+      properties:
+        note_count:
+          type: integer
+        subdirectories:
+          type: array
+          items:
+            type: string
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NoteSummary'
+      description: Schema for serializing and deserializing SearchCaseNoteDirectory objects.
     Severity:
       type: object
       properties: {}
       description: Schema for serializing and deserializing Severity objects.
     Tags:
+      type: object
+      properties: {}
+    TaskStatus:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing TaskStatus objects.
+    Tlp:
       type: object
       properties: {}
     User:

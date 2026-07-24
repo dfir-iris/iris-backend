@@ -20,6 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -157,29 +158,37 @@ tasks_operations = TasksOperations()
 
 @case_tasks_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CaseTaskSchema, response_shape='paginated', tags=['CaseTasks'],
+         summary='List case tasks')
 def case_get_tasks(case_identifier):
     return tasks_operations.search(case_identifier)
 
 
 @case_tasks_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CaseTaskSchema, response=CaseTaskSchema, response_shape='created',
+         tags=['CaseTasks'], summary='Create a case task')
 def add_case_task(case_identifier):
     return tasks_operations.create(case_identifier)
 
 
 @case_tasks_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseTaskSchema, tags=['CaseTasks'], summary='Get a case task')
 def get_case_task(case_identifier, identifier):
     return tasks_operations.read(case_identifier, identifier)
 
 
 @case_tasks_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CaseTaskSchema, response=CaseTaskSchema, tags=['CaseTasks'],
+         summary='Update a case task')
 def update_case_task(case_identifier, identifier):
     return tasks_operations.update(case_identifier, identifier)
 
 
 @case_tasks_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseTasks'], summary='Delete a case task')
 def delete_case_task(case_identifier, identifier):
     return tasks_operations.delete(case_identifier, identifier)

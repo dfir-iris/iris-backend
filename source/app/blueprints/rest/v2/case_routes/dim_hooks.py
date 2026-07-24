@@ -30,6 +30,7 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.dim_hooks import invoke_hook_for_case
@@ -46,6 +47,7 @@ case_dim_hooks_blueprint = Blueprint(
 
 @case_dim_hooks_blueprint.post('/invoke')
 @ac_api_requires()
+@api_doc(tags=['CaseDimHooks'], summary='Invoke a DIM hook for a case')
 def invoke_dim_hook(case_identifier):
     if not ac_fast_check_current_user_has_case_access(
         case_identifier, [CaseAccessLevel.full_access]

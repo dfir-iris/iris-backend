@@ -23,6 +23,7 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.endpoints import response_api_deleted
@@ -298,36 +299,44 @@ case_notes_blueprint = Blueprint('case_notes',
 
 @case_notes_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CaseNoteSchema, tags=['CaseNotes'], summary='List case notes')
 def list_notes(case_identifier):
     return notes_operations.list(case_identifier)
 
 
 @case_notes_blueprint.get('/search')
 @ac_api_requires()
+@api_doc(response=CaseNoteSchema, tags=['CaseNotes'], summary='Search case notes')
 def search_notes(case_identifier):
     return notes_operations.search(case_identifier)
 
 
 @case_notes_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CaseNoteSchema, response=CaseNoteSchema, response_shape='created',
+         tags=['CaseNotes'], summary='Create a case note')
 def create_note(case_identifier):
     return notes_operations.create(case_identifier)
 
 
 @case_notes_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseNoteSchema, tags=['CaseNotes'], summary='Get a case note')
 def get_note(case_identifier, identifier):
     return notes_operations.get(case_identifier, identifier)
 
 
 @case_notes_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CaseNoteSchema, response=CaseNoteSchema, tags=['CaseNotes'],
+         summary='Update a case note')
 def update_note(case_identifier, identifier):
     return notes_operations.update(case_identifier, identifier)
 
 
 @case_notes_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseNotes'], summary='Delete a case note')
 def delete_note(case_identifier, identifier):
     return notes_operations.delete(case_identifier, identifier)
 
@@ -336,23 +345,27 @@ def delete_note(case_identifier, identifier):
 
 @case_notes_blueprint.get('/<int:identifier>/revisions')
 @ac_api_requires()
+@api_doc(response=CaseNoteRevisionSchema, tags=['CaseNotes'], summary='List note revisions')
 def list_note_revisions(case_identifier, identifier):
     return notes_operations.list_revisions(case_identifier, identifier)
 
 
 @case_notes_blueprint.get('/<int:identifier>/revisions/<int:revision_number>')
 @ac_api_requires()
+@api_doc(response=CaseNoteRevisionSchema, tags=['CaseNotes'], summary='Get a note revision')
 def get_note_revision(case_identifier, identifier, revision_number):
     return notes_operations.get_revision(case_identifier, identifier, revision_number)
 
 
 @case_notes_blueprint.delete('/<int:identifier>/revisions/<int:revision_number>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseNotes'], summary='Delete a note revision')
 def delete_note_revision(case_identifier, identifier, revision_number):
     return notes_operations.delete_revision(case_identifier, identifier, revision_number)
 
 
 @case_notes_blueprint.post('/<int:identifier>/revisions/<int:revision_number>/restore')
 @ac_api_requires()
+@api_doc(response=CaseNoteSchema, tags=['CaseNotes'], summary='Restore a note revision')
 def restore_note_revision(case_identifier, identifier, revision_number):
     return notes_operations.restore_revision(case_identifier, identifier, revision_number)

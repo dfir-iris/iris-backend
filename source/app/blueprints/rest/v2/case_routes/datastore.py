@@ -29,6 +29,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -541,6 +542,7 @@ case_datastore_blueprint = Blueprint(
 # Tree --------------------------------------------------------------------
 @case_datastore_blueprint.get('/tree')
 @ac_api_requires()
+@api_doc(tags=['CaseDatastore'], summary='Get the datastore tree')
 def datastore_tree(case_identifier):
     return datastore_operations.tree(case_identifier)
 
@@ -548,12 +550,14 @@ def datastore_tree(case_identifier):
 # Files -------------------------------------------------------------------
 @case_datastore_blueprint.get('/files')
 @ac_api_requires()
+@api_doc(tags=['CaseDatastore'], summary='List datastore files')
 def datastore_list_files(case_identifier):
     return datastore_operations.list_files(case_identifier)
 
 
 @case_datastore_blueprint.get('/files/<int:identifier>')
 @ac_api_requires()
+@api_doc(tags=['CaseDatastore'], summary='Download or view a datastore file')
 def datastore_view_file(case_identifier, identifier):
     # When a ?info=1 query parameter is set, return the file metadata as JSON
     # instead of streaming the file contents. Keeps a single URL for "the
@@ -565,36 +569,44 @@ def datastore_view_file(case_identifier, identifier):
 
 @case_datastore_blueprint.get('/files/<int:identifier>/info')
 @ac_api_requires()
+@api_doc(response=DSFileSchema, tags=['CaseDatastore'], summary='Get datastore file info')
 def datastore_file_info(case_identifier, identifier):
     return datastore_operations.get_file_info(case_identifier, identifier)
 
 
 @case_datastore_blueprint.post('/folders/<int:folder_identifier>/files')
 @ac_api_requires()
+@api_doc(response=DSFileSchema, response_shape='created', tags=['CaseDatastore'],
+         summary='Upload a file to a datastore folder')
 def datastore_add_file(case_identifier, folder_identifier):
     return datastore_operations.add_file(case_identifier, folder_identifier)
 
 
 @case_datastore_blueprint.post('/files/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=DSFileSchema, tags=['CaseDatastore'], summary='Update a datastore file')
 def datastore_update_file(case_identifier, identifier):
     return datastore_operations.update_file(case_identifier, identifier)
 
 
 @case_datastore_blueprint.post('/files/<int:identifier>/move')
 @ac_api_requires()
+@api_doc(response=DSFileSchema, tags=['CaseDatastore'], summary='Move a datastore file')
 def datastore_move_file(case_identifier, identifier):
     return datastore_operations.move_file(case_identifier, identifier)
 
 
 @case_datastore_blueprint.delete('/files/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseDatastore'], summary='Delete a datastore file')
 def datastore_delete_file_route(case_identifier, identifier):
     return datastore_operations.delete_file(case_identifier, identifier)
 
 
 @case_datastore_blueprint.post('/files/interactive')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['CaseDatastore'],
+         summary='Upload a base64 file from the rich-text editor')
 def datastore_add_interactive_file(case_identifier):
     return datastore_operations.add_interactive(case_identifier)
 
@@ -602,35 +614,42 @@ def datastore_add_interactive_file(case_identifier):
 # Folders -----------------------------------------------------------------
 @case_datastore_blueprint.get('/folders')
 @ac_api_requires()
+@api_doc(response=DSPathSchema, tags=['CaseDatastore'], summary='List datastore folders')
 def datastore_list_folders(case_identifier):
     return datastore_operations.list_folders(case_identifier)
 
 
 @case_datastore_blueprint.post('/folders')
 @ac_api_requires()
+@api_doc(response=DSPathSchema, response_shape='created', tags=['CaseDatastore'],
+         summary='Create a datastore folder')
 def datastore_add_folder(case_identifier):
     return datastore_operations.add_folder(case_identifier)
 
 
 @case_datastore_blueprint.get('/folders/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=DSPathSchema, tags=['CaseDatastore'], summary='Get a datastore folder')
 def datastore_get_folder(case_identifier, identifier):
     return datastore_operations.get_folder(case_identifier, identifier)
 
 
 @case_datastore_blueprint.post('/folders/<int:identifier>/rename')
 @ac_api_requires()
+@api_doc(response=DSPathSchema, tags=['CaseDatastore'], summary='Rename a datastore folder')
 def datastore_rename_folder(case_identifier, identifier):
     return datastore_operations.rename_folder(case_identifier, identifier)
 
 
 @case_datastore_blueprint.post('/folders/<int:identifier>/move')
 @ac_api_requires()
+@api_doc(response=DSPathSchema, tags=['CaseDatastore'], summary='Move a datastore folder')
 def datastore_move_folder(case_identifier, identifier):
     return datastore_operations.move_folder(case_identifier, identifier)
 
 
 @case_datastore_blueprint.delete('/folders/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseDatastore'], summary='Delete a datastore folder')
 def datastore_delete_folder(case_identifier, identifier):
     return datastore_operations.delete_folder(case_identifier, identifier)

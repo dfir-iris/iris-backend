@@ -21,6 +21,7 @@ from flask import request
 from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -162,36 +163,45 @@ case_assets_blueprint = Blueprint('case_assets',
 
 @case_assets_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CaseAssetsSchema, response_shape='paginated', tags=['CaseAssets'],
+         summary='List case assets')
 def case_list_assets(case_identifier):
     return assets_operations.search(case_identifier)
 
 
 @case_assets_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CaseAssetsSchema, response=CaseAssetsSchema, response_shape='created',
+         tags=['CaseAssets'], summary='Create a case asset')
 def add_asset(case_identifier):
     return assets_operations.create(case_identifier)
 
 
 @case_assets_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseAssetsSchema, tags=['CaseAssets'], summary='Get a case asset')
 def get_asset(case_identifier, identifier):
     return assets_operations.read(case_identifier, identifier)
 
 
 @case_assets_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CaseAssetsSchema, response=CaseAssetsSchema, tags=['CaseAssets'],
+         summary='Update a case asset')
 def update_asset(case_identifier, identifier):
     return assets_operations.update(case_identifier, identifier)
 
 
 @case_assets_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseAssets'], summary='Delete a case asset')
 def delete_asset(case_identifier, identifier):
     return assets_operations.delete(case_identifier, identifier)
 
 
 @case_assets_blueprint.get('/<int:identifier>/links')
 @ac_api_requires()
+@api_doc(tags=['CaseAssets'], summary='List other cases sharing this asset')
 def get_asset_other_case_links(case_identifier, identifier):
     """Return the list of OTHER cases where the same asset was seen.
 

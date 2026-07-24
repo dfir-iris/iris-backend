@@ -36,6 +36,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -93,6 +94,7 @@ def _require_full_access(case_identifier):
 
 @case_timelines_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['CaseTimelines'], summary='List case timelines')
 def list_timelines(case_identifier):
     err = _require_read_access(case_identifier)
     if err is not None:
@@ -104,6 +106,7 @@ def list_timelines(case_identifier):
 
 @case_timelines_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['CaseTimelines'], summary='Create a case timeline')
 def create_timeline(case_identifier):
     err = _require_full_access(case_identifier)
     if err is not None:
@@ -129,6 +132,7 @@ def create_timeline(case_identifier):
 
 @case_timelines_blueprint.get('/<int:timeline_id>')
 @ac_api_requires()
+@api_doc(tags=['CaseTimelines'], summary='Get a case timeline')
 def get_timeline(case_identifier, timeline_id):
     err = _require_read_access(case_identifier)
     if err is not None:
@@ -142,6 +146,7 @@ def get_timeline(case_identifier, timeline_id):
 
 @case_timelines_blueprint.put('/<int:timeline_id>')
 @ac_api_requires()
+@api_doc(tags=['CaseTimelines'], summary='Update a case timeline')
 def update_timeline(case_identifier, timeline_id):
     err = _require_full_access(case_identifier)
     if err is not None:
@@ -168,6 +173,7 @@ def update_timeline(case_identifier, timeline_id):
 
 @case_timelines_blueprint.delete('/<int:timeline_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseTimelines'], summary='Delete a case timeline')
 def delete_timeline(case_identifier, timeline_id):
     err = _require_full_access(case_identifier)
     if err is not None:

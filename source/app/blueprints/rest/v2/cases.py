@@ -446,7 +446,12 @@ def get_cases() -> Response:
 
 @cases_blueprint.get('/filter')
 @ac_api_requires()
+@api_doc(response=CaseSchemaForAPIV2, response_shape='paginated', tags=['Cases'],
+         summary='Filter cases with a nested logic tree')
 def filter_cases() -> Response:
+    """Paginated case list with an ad-hoc filter tree (see `?filters=` and
+    `?logic=`). Preferred over `GET /cases` when composing complex `and`/`or`
+    conditions across multiple fields."""
     return cases_operations.filter()
 
 
@@ -502,6 +507,7 @@ def case_routes_reopen(identifier):
 
 @cases_blueprint.get('/<int:identifier>/access/users')
 @ac_api_requires()
+@api_doc(tags=['Cases'], summary='List users with access to a case')
 def list_case_access_users(identifier):
     """Return every user with effective access to this case along with
     their access level. Used by the frontend to populate task-assignee
@@ -523,6 +529,7 @@ def list_case_access_users(identifier):
 
 @cases_blueprint.get('/<int:identifier>/access/me')
 @ac_api_requires()
+@api_doc(tags=['Cases'], summary="Get the caller's access level for a case")
 def get_case_access_me(identifier):
     """Return the current user's effective access level for this case.
 
@@ -543,6 +550,7 @@ def get_case_access_me(identifier):
 
 @cases_blueprint.get('/<int:identifier>/followers')
 @ac_api_requires()
+@api_doc(tags=['Cases'], summary='List users following a case')
 def list_case_followers(identifier):
     """Return the users following this case.
 
@@ -576,6 +584,7 @@ def list_case_followers(identifier):
 
 @cases_blueprint.get('/<int:identifier>/source-alert-cluster')
 @ac_api_requires()
+@api_doc(tags=['Cases'], summary='Get the source alert cluster of a case')
 def get_case_source_alert_cluster(identifier):
     """Return the alert cluster this case was created from, if any.
 
@@ -610,6 +619,8 @@ def get_case_source_alert_cluster(identifier):
 
 @cases_blueprint.delete('/<int:identifier>/alerts/<int:alert_id>')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(response_shape='deleted', tags=['Cases'],
+         summary='Detach an alert from a case')
 def rest_v2_case_unlink_alert(identifier, alert_id):
     """Detach one alert from this case and reset its status.
 
@@ -637,6 +648,7 @@ def rest_v2_case_unlink_alert(identifier, alert_id):
 
 @cases_blueprint.delete('/<int:identifier>/source-alert-cluster')
 @ac_api_requires(Permissions.standard_user)
+@api_doc(tags=['Cases'], summary='Unlink the source alert cluster from a case')
 def rest_v2_case_unlink_alert_cluster(identifier):
     """Unlink the alert cluster that produced this case.
 
@@ -669,6 +681,7 @@ def rest_v2_case_unlink_alert_cluster(identifier):
 
 @cases_blueprint.get('/<int:identifier>/war-rooms')
 @ac_api_requires()
+@api_doc(tags=['Cases'], summary='List war rooms attached to a case')
 def list_case_war_rooms(identifier):
     """Return war rooms this case is attached to.
 
@@ -691,6 +704,7 @@ def list_case_war_rooms(identifier):
 
 @cases_blueprint.get('/<int:identifier>/activities')
 @ac_api_requires()
+@api_doc(tags=['Cases'], summary='List the activity log of a case')
 def list_case_activities(identifier):
     """Return the recent user activity log for this case.
 

@@ -23,6 +23,7 @@ from marshmallow import ValidationError
 from app.logger import logger
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -168,36 +169,45 @@ iocs_operations = IocsOperations()
 
 @case_iocs_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=IocSchemaForAPIV2, response_shape='paginated', tags=['CaseIocs'],
+         summary='List case IOCs')
 def get_case_iocs(case_identifier):
     return iocs_operations.search(case_identifier)
 
 
 @case_iocs_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=IocSchemaForAPIV2, response=IocSchemaForAPIV2, response_shape='created',
+         tags=['CaseIocs'], summary='Create a case IOC')
 def add_ioc_to_case(case_identifier):
     return iocs_operations.create(case_identifier)
 
 
 @case_iocs_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=IocSchemaForAPIV2, tags=['CaseIocs'], summary='Get a case IOC')
 def get_case_ioc(case_identifier, identifier):
     return iocs_operations.read(case_identifier, identifier)
 
 
 @case_iocs_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=IocSchemaForAPIV2, response=IocSchemaForAPIV2, tags=['CaseIocs'],
+         summary='Update a case IOC')
 def update_ioc(case_identifier, identifier):
     return iocs_operations.update(case_identifier, identifier)
 
 
 @case_iocs_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseIocs'], summary='Delete a case IOC')
 def delete_case_ioc(case_identifier, identifier):
     return iocs_operations.delete(case_identifier, identifier)
 
 
 @case_iocs_blueprint.get('/<int:identifier>/links')
 @ac_api_requires()
+@api_doc(tags=['CaseIocs'], summary='List other cases sharing this IOC')
 def get_ioc_other_case_links(case_identifier, identifier):
     """Return the list of OTHER cases where the same IOC value+type was seen.
 

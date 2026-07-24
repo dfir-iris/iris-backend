@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.models.authorization import CaseAccessLevel
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -159,29 +160,37 @@ case_evidences_blueprint = Blueprint('case_evidences_rest_v2', __name__, url_pre
 
 @case_evidences_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CaseEvidenceSchema, response_shape='paginated', tags=['CaseEvidences'],
+         summary='List case evidences')
 def search_evidences(case_identifier):
     return evidences_operations.search(case_identifier)
 
 
 @case_evidences_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CaseEvidenceSchema, response=CaseEvidenceSchema, response_shape='created',
+         tags=['CaseEvidences'], summary='Create an evidence')
 def create_evidence(case_identifier):
     return evidences_operations.create(case_identifier)
 
 
 @case_evidences_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseEvidenceSchema, tags=['CaseEvidences'], summary='Get an evidence')
 def get_evidence(case_identifier, identifier):
     return evidences_operations.read(case_identifier, identifier)
 
 
 @case_evidences_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CaseEvidenceSchema, response=CaseEvidenceSchema, tags=['CaseEvidences'],
+         summary='Update an evidence')
 def update_evidence(case_identifier, identifier):
     return evidences_operations.update(case_identifier, identifier)
 
 
 @case_evidences_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseEvidences'], summary='Delete an evidence')
 def delete_evidence(case_identifier, identifier):
     return evidences_operations.delete(case_identifier, identifier)

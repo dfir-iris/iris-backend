@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.parsing import parse_pagination_parameters
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
@@ -152,29 +153,40 @@ case_notes_directories_blueprint = Blueprint('case_notes_directories_rest_v2', _
 
 @case_notes_directories_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CaseNoteDirectorySchema, response=CaseNoteDirectorySchema,
+         response_shape='created', tags=['CaseNotesDirectories'],
+         summary='Create a note directory')
 def create_note_directory(case_identifier):
     return notes_directories.create(case_identifier)
 
 
 @case_notes_directories_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseNoteDirectorySchema, tags=['CaseNotesDirectories'],
+         summary='Get a note directory')
 def get_note_directory(case_identifier, identifier):
     return notes_directories.get(case_identifier, identifier)
 
 
 @case_notes_directories_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CaseNoteDirectorySchema, response=CaseNoteDirectorySchema,
+         tags=['CaseNotesDirectories'], summary='Update a note directory')
 def update_note_directory(case_identifier, identifier):
     return notes_directories.update(case_identifier, identifier)
 
 
 @case_notes_directories_blueprint.delete('<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CaseNotesDirectories'],
+         summary='Delete a note directory')
 def delete_note_directory(case_identifier, identifier):
     return notes_directories.delete(case_identifier, identifier)
 
 
 @case_notes_directories_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=SearchCaseNoteDirectorySchema, response_shape='paginated',
+         tags=['CaseNotesDirectories'], summary='List note directories')
 def get_note_directory_filter(case_identifier):
     return notes_directories.search(case_identifier)
