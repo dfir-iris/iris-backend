@@ -19,6 +19,7 @@ from flask import Blueprint, request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -161,6 +162,7 @@ def _emit_socket(war_room_id, event_name, payload):
 
 @war_rooms_chat_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='List chat messages')
 def list_chat(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -502,6 +504,7 @@ def _resolve_user_handle(handle):
 
 @war_rooms_chat_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomChat'], summary='Post a chat message')
 def post_chat(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -637,6 +640,7 @@ def post_chat(war_room_id):
 
 @war_rooms_chat_blueprint.patch('/<int:message_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Edit a chat message')
 def edit_chat(war_room_id, message_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -657,6 +661,7 @@ def edit_chat(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.delete('/<int:message_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomChat'], summary='Delete a chat message')
 def remove_chat(war_room_id, message_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -674,6 +679,7 @@ def remove_chat(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.patch('/<int:message_id>/pin')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Pin or unpin a chat message')
 def pin_chat(war_room_id, message_id):
     """Toggle the sticky-pin flag on a chat message.
 
@@ -708,6 +714,7 @@ def pin_chat(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.get('/topics')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='List chat topics')
 def list_topics_route(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -718,6 +725,7 @@ def list_topics_route(war_room_id):
 
 @war_rooms_chat_blueprint.post('/topics')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomChat'], summary='Create a chat topic')
 def create_topic_route(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -735,6 +743,7 @@ def create_topic_route(war_room_id):
 
 @war_rooms_chat_blueprint.post('/topics/<int:topic_id>/archive')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Archive a chat topic')
 def archive_topic_route(war_room_id, topic_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -751,6 +760,7 @@ def archive_topic_route(war_room_id, topic_id):
 
 @war_rooms_chat_blueprint.post('/topics/<int:topic_id>/unarchive')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Unarchive a chat topic')
 def unarchive_topic_route(war_room_id, topic_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -796,6 +806,7 @@ def _serialize_thread_root(row, followed_ids):
 
 @war_rooms_chat_blueprint.get('/threads')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='List chat threads')
 def list_threads(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -810,6 +821,7 @@ def list_threads(war_room_id):
 
 @war_rooms_chat_blueprint.get('/trace-log')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='List decisions, pins and notes')
 def list_trace(war_room_id):
     """Return every decision / pin / note in the war room, including
     replies inside threads.
@@ -830,6 +842,7 @@ def list_trace(war_room_id):
 
 @war_rooms_chat_blueprint.get('/<int:message_id>/replies')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='List thread replies')
 def list_message_replies(war_room_id, message_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -848,6 +861,7 @@ def list_message_replies(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.post('/<int:message_id>/replies')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomChat'], summary='Post a thread reply')
 def post_reply(war_room_id, message_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -900,6 +914,7 @@ def post_reply(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.patch('/<int:message_id>/thread-title')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Set a thread title')
 def patch_thread_title(war_room_id, message_id):
     """Name, rename, or clear a thread's title.
 
@@ -930,6 +945,7 @@ def patch_thread_title(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.post('/<int:message_id>/follow')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Follow a chat thread')
 def post_follow(war_room_id, message_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -945,6 +961,7 @@ def post_follow(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.delete('/<int:message_id>/follow')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Unfollow a chat thread')
 def delete_follow(war_room_id, message_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -960,6 +977,7 @@ def delete_follow(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.post('/<int:message_id>/reactions')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Toggle a chat reaction')
 def post_reaction(war_room_id, message_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -996,6 +1014,7 @@ def post_reaction(war_room_id, message_id):
 
 @war_rooms_chat_blueprint.post('/polls')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomChat'], summary='Create a chat poll')
 def create_poll_route(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -1032,6 +1051,7 @@ def create_poll_route(war_room_id):
 
 @war_rooms_chat_blueprint.get('/polls/<int:poll_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Get poll state')
 def get_poll_route(war_room_id, poll_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -1045,6 +1065,7 @@ def get_poll_route(war_room_id, poll_id):
 
 @war_rooms_chat_blueprint.post('/polls/<int:poll_id>/vote')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Vote on a chat poll')
 def post_poll_vote(war_room_id, poll_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -1072,6 +1093,7 @@ def post_poll_vote(war_room_id, poll_id):
 
 @war_rooms_chat_blueprint.post('/polls/<int:poll_id>/close')
 @ac_api_requires()
+@api_doc(tags=['WarRoomChat'], summary='Close a chat poll')
 def post_poll_close(war_room_id, poll_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

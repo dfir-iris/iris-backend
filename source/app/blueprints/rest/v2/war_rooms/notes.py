@@ -15,6 +15,7 @@ from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -78,6 +79,7 @@ def _serialize_revision(rev):
 
 @war_rooms_notes_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotes'], summary='List war room notes')
 def list_notes(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -87,6 +89,7 @@ def list_notes(war_room_id):
 
 @war_rooms_notes_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomNotes'], summary='Create a war room note')
 def create_note(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -115,6 +118,7 @@ def create_note(war_room_id):
 
 @war_rooms_notes_blueprint.get('/<int:note_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotes'], summary='Get a war room note')
 def get_note(war_room_id, note_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -128,6 +132,7 @@ def get_note(war_room_id, note_id):
 
 @war_rooms_notes_blueprint.patch('/<int:note_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotes'], summary='Update a war room note')
 def update_note(war_room_id, note_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -156,6 +161,7 @@ def update_note(war_room_id, note_id):
 
 @war_rooms_notes_blueprint.delete('/<int:note_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomNotes'], summary='Delete a war room note')
 def delete_note(war_room_id, note_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -173,6 +179,7 @@ def delete_note(war_room_id, note_id):
 
 @war_rooms_notes_blueprint.get('/<int:note_id>/revisions')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotes'], summary='List note revisions')
 def list_revisions(war_room_id, note_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -186,6 +193,7 @@ def list_revisions(war_room_id, note_id):
 
 @war_rooms_notes_blueprint.get('/<int:note_id>/revisions/<int:revision_number>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotes'], summary='Get a note revision')
 def get_revision(war_room_id, note_id, revision_number):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -199,6 +207,7 @@ def get_revision(war_room_id, note_id, revision_number):
 
 @war_rooms_notes_blueprint.delete('/<int:note_id>/revisions/<int:revision_number>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomNotes'], summary='Delete a note revision')
 def delete_revision(war_room_id, note_id, revision_number):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -214,6 +223,7 @@ def delete_revision(war_room_id, note_id, revision_number):
 
 @war_rooms_notes_blueprint.post('/<int:note_id>/revisions/<int:revision_number>/restore')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotes'], summary='Restore a note revision')
 def restore_revision(war_room_id, note_id, revision_number):
     err = require_war_room_write(war_room_id)
     if err is not None:

@@ -8,6 +8,7 @@ from flask import Blueprint, request, send_file
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -50,6 +51,7 @@ def _serialize(row):
 
 @war_rooms_datastore_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomDatastore'], summary='List datastore files')
 def list_files(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -64,6 +66,7 @@ def list_files(war_room_id):
 
 @war_rooms_datastore_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomDatastore'], summary='Upload a datastore file')
 def upload_file(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -93,6 +96,7 @@ def upload_file(war_room_id):
 
 @war_rooms_datastore_blueprint.get('/<int:file_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomDatastore'], summary='Get datastore file metadata')
 def get_file_meta(war_room_id, file_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -106,6 +110,7 @@ def get_file_meta(war_room_id, file_id):
 
 @war_rooms_datastore_blueprint.get('/<int:file_id>/content')
 @ac_api_requires()
+@api_doc(tags=['WarRoomDatastore'], summary='Download a datastore file')
 def download_file(war_room_id, file_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -125,6 +130,7 @@ def download_file(war_room_id, file_id):
 
 @war_rooms_datastore_blueprint.delete('/<int:file_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomDatastore'], summary='Delete a datastore file')
 def delete_file(war_room_id, file_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

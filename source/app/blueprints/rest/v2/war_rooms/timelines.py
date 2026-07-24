@@ -10,6 +10,7 @@ from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -101,6 +102,7 @@ def _serialize_event(e):
 
 @war_rooms_timelines_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='List war room timelines')
 def list_room_timelines(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -112,6 +114,7 @@ def list_room_timelines(war_room_id):
 
 @war_rooms_timelines_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomTimelines'], summary='Create a war room timeline')
 def create_room_timeline(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -132,6 +135,7 @@ def create_room_timeline(war_room_id):
 
 @war_rooms_timelines_blueprint.patch('/<int:timeline_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='Update a war room timeline')
 def update_room_timeline(war_room_id, timeline_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -153,6 +157,7 @@ def update_room_timeline(war_room_id, timeline_id):
 
 @war_rooms_timelines_blueprint.delete('/<int:timeline_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomTimelines'], summary='Delete a war room timeline')
 def delete_room_timeline(war_room_id, timeline_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -168,6 +173,7 @@ def delete_room_timeline(war_room_id, timeline_id):
 
 @war_rooms_timelines_blueprint.get('/events')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='List war room timeline events')
 def list_events(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -198,6 +204,7 @@ def _parse_event_date(raw):
 
 @war_rooms_timelines_blueprint.post('/<int:timeline_id>/events')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomTimelines'], summary='Add a timeline event')
 def add_event(war_room_id, timeline_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -235,6 +242,7 @@ def add_event(war_room_id, timeline_id):
 
 @war_rooms_timelines_blueprint.patch('/events/<int:event_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='Update a timeline event')
 def patch_event(war_room_id, event_id):
     """Partial update for a war-room timeline event.
 
@@ -274,6 +282,7 @@ def patch_event(war_room_id, event_id):
 
 @war_rooms_timelines_blueprint.delete('/events/<int:event_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomTimelines'], summary='Delete a timeline event')
 def remove_event(war_room_id, event_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -287,6 +296,7 @@ def remove_event(war_room_id, event_id):
 
 @war_rooms_timelines_blueprint.post('/events/<int:event_id>/flag')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='Toggle a timeline event flag')
 def flag_event(war_room_id, event_id):
     """Toggle the triage flag on an event. No body — one click, server
     flips the boolean and returns the fresh row."""
@@ -302,6 +312,7 @@ def flag_event(war_room_id, event_id):
 
 @war_rooms_timelines_blueprint.post('/events/<int:event_id>/duplicate')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomTimelines'], summary='Duplicate a timeline event')
 def duplicate_event_route(war_room_id, event_id):
     """Shallow-copy an event onto the same timeline. Convenience for the
     three-dot menu; the frontend could POST the fields itself but this
@@ -319,6 +330,7 @@ def duplicate_event_route(war_room_id, event_id):
 
 @war_rooms_timelines_blueprint.put('/events/<int:event_id>/assets')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='Replace event assets')
 def replace_event_assets(war_room_id, event_id):
     """Replace the event's asset associations with the given id list.
     Passing `[]` detaches everything; missing / non-list body → 400."""
@@ -338,6 +350,7 @@ def replace_event_assets(war_room_id, event_id):
 
 @war_rooms_timelines_blueprint.put('/events/<int:event_id>/iocs')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTimelines'], summary='Replace event IOCs')
 def replace_event_iocs(war_room_id, event_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

@@ -9,6 +9,7 @@ import io
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -61,6 +62,7 @@ def _safe_filename(name, ext):
 
 @war_rooms_sitreps_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='List SitReps')
 def list_sitreps(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -71,6 +73,7 @@ def list_sitreps(war_room_id):
 
 @war_rooms_sitreps_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomSitreps'], summary='Draft a SitRep')
 def create_sitrep(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -92,6 +95,7 @@ def create_sitrep(war_room_id):
 
 @war_rooms_sitreps_blueprint.get('/<int:sitrep_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='Get a SitRep')
 def get_sitrep(war_room_id, sitrep_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -105,6 +109,7 @@ def get_sitrep(war_room_id, sitrep_id):
 
 @war_rooms_sitreps_blueprint.patch('/<int:sitrep_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='Update a SitRep')
 def update_sitrep(war_room_id, sitrep_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -125,6 +130,7 @@ def update_sitrep(war_room_id, sitrep_id):
 
 @war_rooms_sitreps_blueprint.post('/<int:sitrep_id>/publish')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='Publish a SitRep')
 def publish_sitrep(war_room_id, sitrep_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -149,6 +155,7 @@ def publish_sitrep(war_room_id, sitrep_id):
 
 @war_rooms_sitreps_blueprint.delete('/<int:sitrep_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomSitreps'], summary='Delete a SitRep')
 def delete_sitrep(war_room_id, sitrep_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -164,6 +171,7 @@ def delete_sitrep(war_room_id, sitrep_id):
 
 @war_rooms_sitreps_blueprint.get('/<int:sitrep_id>/export.md')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='Export a SitRep as Markdown')
 def export_markdown(war_room_id, sitrep_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -184,6 +192,7 @@ def export_markdown(war_room_id, sitrep_id):
 
 @war_rooms_sitreps_blueprint.get('/<int:sitrep_id>/export.html')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='Export a SitRep as HTML')
 def export_html(war_room_id, sitrep_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -202,6 +211,7 @@ def export_html(war_room_id, sitrep_id):
 
 @war_rooms_sitreps_blueprint.get('/<int:sitrep_id>/export.pdf')
 @ac_api_requires()
+@api_doc(tags=['WarRoomSitreps'], summary='Export a SitRep as PDF')
 def export_pdf(war_room_id, sitrep_id):
     """PDF export.
 

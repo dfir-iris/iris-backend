@@ -10,6 +10,7 @@ from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -181,6 +182,7 @@ def _parse_date_arg(raw):
 
 @war_rooms_tasks_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='List war room tasks')
 def list_tasks(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -271,6 +273,7 @@ def list_tasks(war_room_id):
 
 @war_rooms_tasks_blueprint.get('/tags')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='List tags used on war room tasks')
 def list_used_tags(war_room_id):
     """Distinct tag values already in use in this war room."""
     err = require_war_room_read(war_room_id)
@@ -281,6 +284,7 @@ def list_used_tags(war_room_id):
 
 @war_rooms_tasks_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomTasks'], summary='Create a war room task')
 def create_task(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -316,6 +320,7 @@ def create_task(war_room_id):
 
 @war_rooms_tasks_blueprint.patch('/<int:task_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='Update a war room task')
 def update_task(war_room_id, task_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -341,6 +346,7 @@ def update_task(war_room_id, task_id):
 
 @war_rooms_tasks_blueprint.post('/<int:task_id>/close')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='Close a war room task')
 def close_task(war_room_id, task_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -361,6 +367,7 @@ def close_task(war_room_id, task_id):
 
 @war_rooms_tasks_blueprint.post('/<int:task_id>/reopen')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='Reopen a war room task')
 def reopen_task(war_room_id, task_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -380,6 +387,7 @@ def reopen_task(war_room_id, task_id):
 
 @war_rooms_tasks_blueprint.delete('/<int:task_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomTasks'], summary='Delete a war room task')
 def delete_task(war_room_id, task_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

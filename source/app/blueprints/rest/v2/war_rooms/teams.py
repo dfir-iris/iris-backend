@@ -25,6 +25,7 @@ from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -86,6 +87,7 @@ def _team_member_ids(team_id):
 
 @war_rooms_teams_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTeams'], summary='List war room teams')
 def list_teams(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -100,6 +102,7 @@ def list_teams(war_room_id):
 
 @war_rooms_teams_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomTeams'], summary='Create a war room team')
 def create_team(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -122,6 +125,7 @@ def create_team(war_room_id):
 
 @war_rooms_teams_blueprint.get('/<int:team_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTeams'], summary='Get a war room team')
 def get_team(war_room_id, team_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -135,6 +139,7 @@ def get_team(war_room_id, team_id):
 
 @war_rooms_teams_blueprint.patch('/<int:team_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTeams'], summary='Update a war room team')
 def update_team(war_room_id, team_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -158,6 +163,7 @@ def update_team(war_room_id, team_id):
 
 @war_rooms_teams_blueprint.delete('/<int:team_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomTeams'], summary='Delete a war room team')
 def delete_team(war_room_id, team_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -173,6 +179,7 @@ def delete_team(war_room_id, team_id):
 
 @war_rooms_teams_blueprint.get('/<int:team_id>/members')
 @ac_api_requires()
+@api_doc(tags=['WarRoomTeams'], summary='List war room team members')
 def list_team_members(war_room_id, team_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -186,6 +193,7 @@ def list_team_members(war_room_id, team_id):
 
 @war_rooms_teams_blueprint.post('/<int:team_id>/members')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomTeams'], summary='Add a war room team member')
 def add_team_member(war_room_id, team_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -212,6 +220,7 @@ def add_team_member(war_room_id, team_id):
 
 @war_rooms_teams_blueprint.delete('/<int:team_id>/members/<int:user_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomTeams'], summary='Remove a war room team member')
 def remove_team_member(war_room_id, team_id, user_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

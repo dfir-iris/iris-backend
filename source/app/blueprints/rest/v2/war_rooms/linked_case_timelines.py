@@ -15,6 +15,7 @@ from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_read
@@ -32,6 +33,7 @@ war_rooms_linked_case_timelines_blueprint = Blueprint(
 
 @war_rooms_linked_case_timelines_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomLinkedCaseTimelines'], summary='List linked case timelines')
 def list_available(war_room_id):
     """Nested `case -> timelines` tree the sidebar renders as toggle
     sources. Cases the caller can't read are silently dropped by the
@@ -45,6 +47,7 @@ def list_available(war_room_id):
 
 @war_rooms_linked_case_timelines_blueprint.get('/events')
 @ac_api_requires()
+@api_doc(tags=['WarRoomLinkedCaseTimelines'], summary='List linked case timeline events')
 def list_events(war_room_id):
     """Return case events for the requested timelines, shaped like
     native war-room events. `case_timeline_ids` is CSV in the query

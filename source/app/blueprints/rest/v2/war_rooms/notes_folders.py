@@ -18,6 +18,7 @@ ACL — because war rooms live in their own permission model
 from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -61,6 +62,7 @@ def _validate_name(raw) -> str:
 
 @war_rooms_notes_folders_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotesFolders'], summary='List note folders')
 def list_notes_folders(war_room_id):
     """Flat list of every folder in the war room. The frontend hydrates
     the tree client-side from `parent_id` — same pattern as case notes."""
@@ -74,6 +76,7 @@ def list_notes_folders(war_room_id):
 
 @war_rooms_notes_folders_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRoomNotesFolders'], summary='Create a note folder')
 def create_notes_folder(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -97,6 +100,7 @@ def create_notes_folder(war_room_id):
 
 @war_rooms_notes_folders_blueprint.get('/<int:folder_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotesFolders'], summary='Get a note folder')
 def get_notes_folder(war_room_id, folder_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -113,6 +117,7 @@ def get_notes_folder(war_room_id, folder_id):
 
 @war_rooms_notes_folders_blueprint.put('/<int:folder_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRoomNotesFolders'], summary='Update a note folder')
 def update_notes_folder(war_room_id, folder_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -141,6 +146,7 @@ def update_notes_folder(war_room_id, folder_id):
 
 @war_rooms_notes_folders_blueprint.delete('/<int:folder_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomNotesFolders'], summary='Delete a note folder')
 def delete_notes_folder(war_room_id, folder_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

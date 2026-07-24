@@ -34,6 +34,7 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -98,6 +99,7 @@ def _is_admin():
 
 @war_rooms_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='List war rooms')
 def list_war_rooms():
     # The list endpoint is gated by `war_rooms_read` so non-permitted
     # users get a 403 rather than an empty list (an empty list would
@@ -129,6 +131,7 @@ def list_war_rooms():
 
 @war_rooms_blueprint.post('')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRooms'], summary='Create a war room')
 def create_war_room():
     if not ac_current_user_has_permission(Permissions.war_rooms_create) \
             and not _is_admin():
@@ -156,6 +159,7 @@ def create_war_room():
 
 @war_rooms_blueprint.get('/<int:war_room_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='Get a war room')
 def get_war_room(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -169,6 +173,7 @@ def get_war_room(war_room_id):
 
 @war_rooms_blueprint.patch('/<int:war_room_id>')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='Update a war room')
 def update_war_room(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -209,6 +214,7 @@ def update_war_room(war_room_id):
 
 @war_rooms_blueprint.delete('/<int:war_room_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRooms'], summary='Delete a war room')
 def delete_war_room(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -235,6 +241,7 @@ def delete_war_room(war_room_id):
 
 @war_rooms_blueprint.post('/<int:war_room_id>/archive')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='Archive a war room')
 def archive_war_room(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -254,6 +261,7 @@ def archive_war_room(war_room_id):
 
 @war_rooms_blueprint.delete('/<int:war_room_id>/archive')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='Unarchive a war room')
 def unarchive_war_room(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -273,6 +281,7 @@ def unarchive_war_room(war_room_id):
 
 @war_rooms_blueprint.get('/<int:war_room_id>/members')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='List war room members')
 def list_members(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -283,6 +292,7 @@ def list_members(war_room_id):
 
 @war_rooms_blueprint.post('/<int:war_room_id>/members')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRooms'], summary='Add a war room member')
 def add_member(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -320,6 +330,7 @@ def add_member(war_room_id):
 
 @war_rooms_blueprint.delete('/<int:war_room_id>/members/<int:user_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRooms'], summary='Remove a war room member')
 def remove_member(war_room_id, user_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -337,6 +348,7 @@ def remove_member(war_room_id, user_id):
 
 @war_rooms_blueprint.get('/<int:war_room_id>/people')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='List people on a war room')
 def list_people(war_room_id):
     """Return the union of war-room members and every user with
     effective access to any attached case.
@@ -355,6 +367,7 @@ def list_people(war_room_id):
 
 @war_rooms_blueprint.get('/<int:war_room_id>/cases')
 @ac_api_requires()
+@api_doc(tags=['WarRooms'], summary='List cases attached to a war room')
 def list_cases(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -365,6 +378,7 @@ def list_cases(war_room_id):
 
 @war_rooms_blueprint.post('/<int:war_room_id>/cases')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['WarRooms'], summary='Attach a case to a war room')
 def attach_case(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -419,6 +433,7 @@ def attach_case(war_room_id):
 
 @war_rooms_blueprint.delete('/<int:war_room_id>/cases/<int:case_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRooms'], summary='Detach a case from a war room')
 def detach_case(war_room_id, case_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
