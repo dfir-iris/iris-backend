@@ -27,6 +27,7 @@ def api_doc(
     response_shape: str = 'raw',
     tags: list[str] | None = None,
     summary: str | None = None,
+    query_params: list[tuple] | None = None,
 ) -> Any:
     """Attach OpenAPI metadata to a view function.
 
@@ -46,6 +47,15 @@ def api_doc(
             'created' → 201 with bare data, 'deleted' → 204 no body.
         tags: OpenAPI tags for grouping.
         summary: Overrides the docstring-derived summary.
+        query_params: List of query-string parameters the view reads
+            via `request.args.get(...)`. Each entry is a tuple:
+                (name, type)                          → optional param, no description
+                (name, type, description)             → optional param with description
+                (name, type, description, required)   → required if last elt is True
+            `type` is one of 'string' | 'integer' | 'number' | 'boolean' |
+            'date' | 'date-time'. Repeatable query keys (e.g. Flask's
+            `getlist(...)`) can use 'string[]' / 'integer[]' etc. to
+            emit as arrays with `style: form, explode: true`.
     """
 
     def decorator(view):
@@ -56,6 +66,7 @@ def api_doc(
             'response_shape': response_shape,
             'tags': tags or [],
             'summary': summary,
+            'query_params': query_params or [],
         }
         return view
 

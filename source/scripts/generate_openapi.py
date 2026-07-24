@@ -35,13 +35,27 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent  # source/
 V2_ROOT = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'v2'
 API_V2_ROUTES = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'api_v2_routes.py'
+MARSHABLES = REPO_ROOT / 'app' / 'schema' / 'marshables.py'
 
-_PATH_PARAM_RE = re.compile(r'<(?:[^:>]+:)?([^>]+)>')
+_PATH_PARAM_RE = re.compile(r'<(?:([^:>]+):)?([^>]+)>')
 _HTTP_METHODS = {'get', 'post', 'put', 'patch', 'delete'}
+
+# Flask URL converters → OpenAPI (type, format).
+# `path` is a catch-all matching slashes; documented as string.
+# `uuid` gets `format: uuid`. `any` and `default` fall through to string.
+_FLASK_CONVERTER_TO_OPENAPI: dict[str, tuple[str, str | None]] = {
+    'int': ('integer', None),
+    'float': ('number', 'float'),
+    'string': ('string', None),
+    'path': ('string', None),
+    'uuid': ('string', 'uuid'),
+    'default': ('string', None),
+    'any': ('string', None),
+}
 
 
 def _flask_path_to_openapi(rule: str) -> str:
-    return _PATH_PARAM_RE.sub(r'{\1}', rule)
+    return _PATH_PARAM_RE.sub(r'{\2}', rule)
 
 
 def _split_docstring(doc: str | None) -> tuple[str, str]:
@@ -73,6 +87,260 @@ class _SchemaRef:
 
 def _schema_component_name(cls_name: str) -> str:
     return cls_name[:-len('Schema')] if cls_name.endswith('Schema') else cls_name
+
+
+# --------------------------------------------------------------------
+# Marshmallow schema resolution (AST-only)
+# --------------------------------------------------------------------
+#
+# Given source/app/schema/marshables.py we produce, per schema class,
+# an OpenAPI object schema listing every explicitly-declared field —
+# `fields.X`, `auto_field(...)`, `ma.Nested(Y)`, `ma.Method(...)`.
+#
+# We don't try to resolve the SQLAlchemy `Meta.model` columns (that
+# would require importing the ORM), so `SQLAlchemyAutoSchema` classes
+# with no explicit field declarations get an open object schema. This
+# is honest — we document what we can see; hand-written fragments in
+# iris-doc-src can layer on richer types where needed.
+
+_MA_FIELD_TO_OPENAPI: dict[str, dict[str, Any]] = {
+    'String': {'type': 'string'},
+    'Str': {'type': 'string'},
+    'Integer': {'type': 'integer'},
+    'Int': {'type': 'integer'},
+    'Float': {'type': 'number', 'format': 'float'},
+    'Number': {'type': 'number'},
+    'Decimal': {'type': 'string', 'format': 'decimal'},
+    'Boolean': {'type': 'boolean'},
+    'Bool': {'type': 'boolean'},
+    'DateTime': {'type': 'string', 'format': 'date-time'},
+    'Date': {'type': 'string', 'format': 'date'},
+    'Time': {'type': 'string', 'format': 'time'},
+    'UUID': {'type': 'string', 'format': 'uuid'},
+    'Email': {'type': 'string', 'format': 'email'},
+    'URL': {'type': 'string', 'format': 'uri'},
+    'Url': {'type': 'string', 'format': 'uri'},
+    'Raw': {},
+    'Dict': {'type': 'object'},
+    'Function': {},
+    'Method': {},
+    'Constant': {},
+}
+
+
+def _field_call_name(call: ast.Call) -> str | None:
+    """Return the leaf attribute name of a marshmallow field call.
+
+    fields.String(...)   → 'String'
+    ma.fields.Integer()  → 'Integer'
+    ma.Nested(...)       → 'Nested'
+    fields.List(...)     → 'List'
+    auto_field(...)      → 'auto_field'
+    Nested(...)          → 'Nested'
+    """
+    func = call.func
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return None
+
+
+def _extract_field_kwarg_constant(call: ast.Call, name: str) -> Any:
+    for kw in call.keywords:
+        if kw.arg == name and isinstance(kw.value, ast.Constant):
+            return kw.value.value
+    return None
+
+
+def _nested_target_name(call: ast.Call) -> str | None:
+    """First positional arg to ma.Nested — the schema class name."""
+    if not call.args:
+        return None
+    arg = call.args[0]
+    if isinstance(arg, ast.Name):
+        return arg.id
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value
+    return None
+
+
+def _resolve_field_schema(call: ast.Call, schemas_seen: set[tuple[str, str]]) -> dict[str, Any]:
+    """Turn a marshmallow field-construction call into an OpenAPI schema."""
+    name = _field_call_name(call)
+    if name is None:
+        return {}
+
+    if name == 'Nested':
+        target = _nested_target_name(call)
+        if target is None:
+            return {'type': 'object'}
+        component = _schema_component_name(target)
+        schemas_seen.add((component, target))
+        many = _extract_field_kwarg_constant(call, 'many') is True
+        ref = {'$ref': f'#/components/schemas/{component}'}
+        return {'type': 'array', 'items': ref} if many else ref
+
+    if name == 'List':
+        inner_schema: dict[str, Any] = {}
+        if call.args and isinstance(call.args[0], ast.Call):
+            inner_schema = _resolve_field_schema(call.args[0], schemas_seen)
+        elif call.args and isinstance(call.args[0], ast.Attribute):
+            # fields.List(fields.String) — bare class ref, no ()
+            attr_name = call.args[0].attr
+            inner_schema = dict(_MA_FIELD_TO_OPENAPI.get(attr_name, {}))
+        elif call.args and isinstance(call.args[0], ast.Name):
+            # fields.List(SomeSchema) — treat as nested
+            target = call.args[0].id
+            component = _schema_component_name(target)
+            schemas_seen.add((component, target))
+            inner_schema = {'$ref': f'#/components/schemas/{component}'}
+        return {'type': 'array', 'items': inner_schema or {}}
+
+    if name == 'auto_field':
+        # We can't recover the SQLAlchemy column type without importing
+        # the model, so leave the type open. The field NAME still lands
+        # in `properties`, which is the main value of auto_field for
+        # documentation purposes.
+        return {}
+
+    if name in _MA_FIELD_TO_OPENAPI:
+        return dict(_MA_FIELD_TO_OPENAPI[name])
+
+    # Unknown field type — emit an empty schema (still lists the property).
+    return {}
+
+
+def _is_schema_base(base: ast.expr) -> bool:
+    """Recognise marshmallow schema base classes we care about."""
+    if isinstance(base, ast.Name):
+        return base.id in {'Schema', 'SQLAlchemyAutoSchema'}
+    if isinstance(base, ast.Attribute):
+        return base.attr in {'Schema', 'SQLAlchemyAutoSchema'}
+    return False
+
+
+def _class_is_schema(cls: ast.ClassDef, known_schemas: set[str]) -> bool:
+    for base in cls.bases:
+        if _is_schema_base(base):
+            return True
+        # Inheritance from another schema class we've already discovered
+        # (e.g. `class SearchCaseNoteDirectorySchema(CaseNoteDirectorySchema)`).
+        if isinstance(base, ast.Name) and base.id in known_schemas:
+            return True
+    return cls.name.endswith('Schema')
+
+
+def _extract_meta_exclude(cls: ast.ClassDef) -> set[str]:
+    for node in cls.body:
+        if not (isinstance(node, ast.ClassDef) and node.name == 'Meta'):
+            continue
+        for stmt in node.body:
+            if not isinstance(stmt, ast.Assign):
+                continue
+            for target in stmt.targets:
+                if isinstance(target, ast.Name) and target.id == 'exclude':
+                    if isinstance(stmt.value, (ast.List, ast.Tuple, ast.Set)):
+                        return {
+                            elt.value for elt in stmt.value.elts
+                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                        }
+    return set()
+
+
+def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -> dict[str, Any]:
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+
+    exclude = _extract_meta_exclude(cls)
+
+    for node in cls.body:
+        # Marshmallow schemas mix plain assignments (`foo = fields.Str()`)
+        # and PEP-526 annotated assignments (`foo: str = auto_field(...)`).
+        # Handle both.
+        if isinstance(node, ast.Assign):
+            if not (len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)):
+                continue
+            target = node.targets[0]
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            if not isinstance(node.target, ast.Name) or node.value is None:
+                continue
+            target = node.target
+            value = node.value
+        else:
+            continue
+
+        if not isinstance(value, ast.Call):
+            continue
+
+        field_name = target.id
+        if field_name in exclude:
+            continue
+
+        schema = _resolve_field_schema(value, schemas_seen)
+
+        # auto_field's first positional arg (if a string) is the ORM
+        # attribute name — but the property key stays as the class-level
+        # variable name because that's what the schema serializes to.
+        if _extract_field_kwarg_constant(value, 'required') is True:
+            required.append(field_name)
+
+        if _extract_field_kwarg_constant(value, 'allow_none') is True:
+            # OpenAPI 3.1: express nullability with a type union.
+            if 'type' in schema and 'nullable' not in schema:
+                schema = {**schema, 'type': [schema['type'], 'null']}
+
+        properties[field_name] = schema or {}
+
+    result: dict[str, Any] = {'type': 'object', 'properties': properties}
+    if required:
+        result['required'] = required
+    doc = ast.get_docstring(cls)
+    if doc:
+        result['description'] = doc.strip().splitlines()[0]
+    return result
+
+
+def _iter_refs(node: Any) -> Any:
+    """Yield every '#/components/schemas/X' $ref value inside a nested
+    dict/list structure (as strings)."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == '$ref' and isinstance(value, str):
+                yield value
+            else:
+                yield from _iter_refs(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _iter_refs(item)
+
+
+def _build_schema_index() -> dict[str, dict[str, Any]]:
+    """Parse marshables.py once and return {ClassName: openapi-schema}."""
+    if not MARSHABLES.exists():
+        return {}
+    try:
+        tree = ast.parse(MARSHABLES.read_text(), filename=str(MARSHABLES))
+    except SyntaxError as exc:
+        print(f'openapi: cannot parse {MARSHABLES.name} ({exc})', file=sys.stderr)
+        return {}
+
+    known_schemas: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name.endswith('Schema'):
+            known_schemas.add(node.name)
+
+    # Two-pass so inheritance from a later-defined schema still resolves.
+    _tmp_seen: set[tuple[str, str]] = set()
+    index: dict[str, dict[str, Any]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if not _class_is_schema(node, known_schemas):
+            continue
+        index[node.name] = _parse_schema_class(node, _tmp_seen)
+    return index
 
 
 # --------------------------------------------------------------------
@@ -337,7 +605,8 @@ def _build_operation(route: dict[str, Any], schemas_seen: set[tuple[str, str]]) 
     if description:
         op['description'] = description
 
-    params = _path_params_from_openapi(_flask_path_to_openapi(route['path']))
+    params = _path_params_from_flask(route['path'])
+    params.extend(_query_params_from_apidoc(apidoc.get('query_params') or []))
     if params:
         op['parameters'] = params
 
@@ -383,19 +652,109 @@ def _build_operation(route: dict[str, Any], schemas_seen: set[tuple[str, str]]) 
     return op
 
 
-def _path_params_from_openapi(path: str) -> list[dict[str, Any]]:
-    """OpenAPI-style `/x/{name}` → parameter list. We can't recover the
-    original Flask converter, so we default to string; annotate as
-    integer when the name is a well-known numeric id."""
+_QUERY_TYPE_ALIASES = {
+    'string': ('string', None),
+    'str': ('string', None),
+    'integer': ('integer', None),
+    'int': ('integer', None),
+    'number': ('number', None),
+    'float': ('number', 'float'),
+    'boolean': ('boolean', None),
+    'bool': ('boolean', None),
+    'date': ('string', 'date'),
+    'date-time': ('string', 'date-time'),
+    'datetime': ('string', 'date-time'),
+    'uuid': ('string', 'uuid'),
+}
+
+
+def _query_type_to_schema(raw_type: str) -> dict[str, Any]:
+    """Turn 'string' / 'integer[]' / 'date' into an OpenAPI schema dict."""
+    is_array = raw_type.endswith('[]')
+    base = raw_type[:-2] if is_array else raw_type
+    base = base.lower().strip()
+    kind, fmt = _QUERY_TYPE_ALIASES.get(base, (base or 'string', None))
+    inner: dict[str, Any] = {'type': kind}
+    if fmt is not None:
+        inner['format'] = fmt
+    return {'type': 'array', 'items': inner} if is_array else inner
+
+
+def _query_params_from_apidoc(entries: list[Any]) -> list[dict[str, Any]]:
+    """Convert @api_doc(query_params=[...]) tuples to OpenAPI parameters.
+
+    Accepted tuple shapes (positional, no keyword args because ast can't
+    reconstruct dict literals as terse):
+        (name, type)
+        (name, type, description)
+        (name, type, description, required)
+
+    Repeatable keys (e.g. `?tag=a&tag=b`) use 'string[]' etc. and get
+    `style: form, explode: true`.
+    """
     params: list[dict[str, Any]] = []
-    for match in re.finditer(r'\{([^}]+)\}', path):
-        name = match.group(1)
-        openapi_type = 'integer' if name.endswith('_id') or name == 'identifier' else 'string'
+    for entry in entries:
+        if not isinstance(entry, tuple) or len(entry) < 2:
+            continue
+        name = entry[0]
+        raw_type = entry[1]
+        description = entry[2] if len(entry) >= 3 else None
+        required = bool(entry[3]) if len(entry) >= 4 else False
+
+        if not isinstance(name, str) or not isinstance(raw_type, str):
+            continue
+
+        schema = _query_type_to_schema(raw_type)
+        param: dict[str, Any] = {
+            'name': name,
+            'in': 'query',
+            'required': required,
+            'schema': schema,
+        }
+        if description:
+            param['description'] = description
+        if schema.get('type') == 'array':
+            # Flask's request.args.getlist(...) matches OpenAPI's default
+            # `form / explode=true`, but we emit it explicitly so clients
+            # don't have to guess.
+            param['style'] = 'form'
+            param['explode'] = True
+        params.append(param)
+    return params
+
+
+def _path_params_from_flask(rule: str) -> list[dict[str, Any]]:
+    """Flask URL rule → OpenAPI parameter list.
+
+    Reads the converter (`<int:foo>`, `<uuid:bar>`, `<path:baz>`) so the
+    emitted `schema.type` matches what Flask actually validates against.
+    Falls back to the same name-based heuristic used before for the
+    converter-less `<name>` shape (bare names default to `string` in
+    Flask; we upgrade to `integer` when the name is a well-known numeric
+    id like `<foo_id>`, matching the codebase convention).
+    """
+    params: list[dict[str, Any]] = []
+    for match in _PATH_PARAM_RE.finditer(rule):
+        converter, name = match.group(1), match.group(2)
+        if converter:
+            kind, fmt = _FLASK_CONVERTER_TO_OPENAPI.get(
+                converter, ('string', None)
+            )
+        else:
+            # `<foo>` — no converter. Flask defaults to string, but the
+            # codebase uses bare-name integer IDs in a handful of routes;
+            # keep the pre-existing heuristic so those still document as
+            # integers rather than regressing to string.
+            kind = 'integer' if name.endswith('_id') or name == 'identifier' else 'string'
+            fmt = None
+        schema: dict[str, Any] = {'type': kind}
+        if fmt is not None:
+            schema['format'] = fmt
         params.append({
             'name': name,
             'in': 'path',
             'required': True,
-            'schema': {'type': openapi_type},
+            'schema': schema,
         })
     return params
 
@@ -413,13 +772,41 @@ def generate() -> dict[str, Any]:
         paths[openapi_path][route['method']] = _build_operation(route, schemas_seen)
 
     components = _shared_components()
-    # Emit placeholder schema components so the spec validates even if
-    # no hand-written schema fragment is bundled in yet.
-    for name, source_cls in sorted(schemas_seen):
-        components['schemas'][name] = {
-            'type': 'object',
-            'description': f'Auto-generated placeholder — see marshables.py::{source_cls}.',
-        }
+    schema_index = _build_schema_index()
+
+    # Transitively resolve nested-schema references. Only the schemas
+    # directly named by routes appear in `schemas_seen`; follow every
+    # $ref inside them until the closure is stable so consumers see a
+    # self-contained components.schemas map.
+    #
+    # Two-pass so emission order is deterministic (CI drift-checks the
+    # exact bytes): first collect every (component, source_cls) pair
+    # reachable, then emit them alphabetically.
+    reachable: dict[str, str] = {}
+    pending = list(schemas_seen)
+    while pending:
+        component, source_cls = pending.pop()
+        if component in reachable:
+            continue
+        reachable[component] = source_cls
+        cls_schema = schema_index.get(source_cls)
+        if cls_schema is None:
+            continue
+        for ref in _iter_refs(cls_schema):
+            target = ref.rsplit('/', 1)[-1]
+            source = target if target in schema_index else f'{target}Schema'
+            pending.append((target, source))
+
+    for component in sorted(reachable):
+        source_cls = reachable[component]
+        cls_schema = schema_index.get(source_cls)
+        if cls_schema is None:
+            components['schemas'][component] = {
+                'type': 'object',
+                'description': f'Auto-generated placeholder — see marshables.py::{source_cls}.',
+            }
+        else:
+            components['schemas'][component] = cls_schema
 
     spec: dict[str, Any] = {
         'openapi': '3.1.0',

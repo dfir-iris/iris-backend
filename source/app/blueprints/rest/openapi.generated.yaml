@@ -25,6 +25,131 @@ paths:
         customer, classification, owner, state, severity, date ranges,
 
         and a `quick_search` free-text filter used by the context switcher.'
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page number (default 1)
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size (default 10)
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Column to sort by
+      - name: sort_dir
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Sort direction: ''asc'' or ''desc'''
+      - name: case_ids
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Comma-separated list of case identifiers to restrict the result to
+      - name: case_customer_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by customer identifier
+      - name: case_name
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by case name (substring match)
+      - name: case_description
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by description (substring match)
+      - name: case_classification_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by classification identifier
+      - name: case_owner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by owner user identifier
+      - name: case_opening_user_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by the user who opened the case
+      - name: case_severity_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by severity identifier
+      - name: case_state_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by state identifier
+      - name: case_soc_id
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by external SOC identifier
+      - name: start_open_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Restrict to cases opened on or after this date (YYYY-MM-DD)
+      - name: end_open_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Restrict to cases opened on or before this date (YYYY-MM-DD)
+      - name: start_close_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Restrict to cases closed on or after this date (YYYY-MM-DD)
+      - name: end_close_date
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+        description: Restrict to cases closed on or before this date (YYYY-MM-DD)
+      - name: is_open
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Restrict to open (true) or closed (false) cases
+      - name: quick_search
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Free-text search across case name, customer name, and case identifier
       responses:
         '200':
           description: Success
@@ -237,9 +362,141 @@ components:
     Deleted:
       description: Resource successfully deleted
   schemas:
+    CaseClassification:
+      type: object
+      properties:
+        name: {}
+        name_expanded: {}
+        description: {}
+      required:
+      - name
+      - name_expanded
+      - description
+      description: Schema for serializing and deserializing CaseClassification objects.
     CaseDetails:
       type: object
-      description: "Auto-generated placeholder \u2014 see marshables.py::CaseDetailsSchema."
+      properties:
+        client:
+          $ref: '#/components/schemas/Customer'
+        owner:
+          $ref: '#/components/schemas/User'
+        classification:
+          $ref: '#/components/schemas/CaseClassification'
+        state:
+          $ref: '#/components/schemas/CaseState'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tags'
+        user:
+          $ref: '#/components/schemas/User'
+        reviewer:
+          $ref: '#/components/schemas/User'
+        review_status:
+          $ref: '#/components/schemas/ReviewStatus'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        status_name: {}
+        protagonists: {}
+      description: Schema for serializing and deserializing Case objects in details.
     CaseSchemaForAPIV2:
       type: object
-      description: "Auto-generated placeholder \u2014 see marshables.py::CaseSchemaForAPIV2."
+      properties:
+        case_name: {}
+        case_description: {}
+        case_soc_id: {}
+        case_customer_id: {}
+        case_organisations:
+          type: array
+          items:
+            type: integer
+        protagonists:
+          type: array
+          items:
+            type: object
+        case_tags:
+          type: string
+        classification_id: {}
+        reviewer_id: {}
+        access_level:
+          type: integer
+        owner:
+          $ref: '#/components/schemas/User'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        classification:
+          $ref: '#/components/schemas/CaseClassification'
+        reviewer:
+          $ref: '#/components/schemas/User'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tags'
+        state:
+          $ref: '#/components/schemas/CaseState'
+        case_customer:
+          $ref: '#/components/schemas/Customer'
+        review_status:
+          $ref: '#/components/schemas/ReviewStatus'
+      required:
+      - case_name
+      - case_description
+      - case_soc_id
+      - case_customer_id
+      description: Schema for serializing and deserializing Case objects.
+    CaseState:
+      type: object
+      properties:
+        case_state_id:
+          type: integer
+        case_id:
+          type: integer
+        state_name:
+          type: string
+        state_description:
+          type: string
+      description: Schema for serializing and deserializing CaseState objects.
+    Customer:
+      type: object
+      properties:
+        customer_name: {}
+        customer_description: {}
+        customer_sla: {}
+        customer_id: {}
+      required:
+      - customer_name
+      description: Schema for serializing and deserializing Customer objects.
+    ReviewStatus:
+      type: object
+      properties: {}
+    Severity:
+      type: object
+      properties: {}
+      description: Schema for serializing and deserializing Severity objects.
+    Tags:
+      type: object
+      properties: {}
+    User:
+      type: object
+      properties:
+        user_roles_str:
+          type: array
+          items:
+            type: string
+        user_name: {}
+        user_login: {}
+        user_email: {}
+        user_password: {}
+        user_isadmin:
+          type: boolean
+        user_id:
+          type: integer
+        user_primary_organisation_id:
+          type: integer
+        user_is_service_account: {}
+      required:
+      - user_name
+      - user_login
+      - user_email
+      - user_isadmin
+      description: Schema for serializing and deserializing User objects.

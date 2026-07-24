@@ -409,7 +409,31 @@ cases_operations = CasesOperations()
 @cases_blueprint.get('')
 @ac_api_requires()
 @api_doc(response=CaseSchemaForAPIV2, response_shape='paginated', tags=['Cases'],
-         summary='List cases')
+         summary='List cases',
+         query_params=[
+             ('page', 'integer', 'Page number (default 1)'),
+             ('per_page', 'integer', 'Page size (default 10)'),
+             ('order_by', 'string', 'Column to sort by'),
+             ('sort_dir', 'string', "Sort direction: 'asc' or 'desc'"),
+             ('case_ids', 'string',
+              'Comma-separated list of case identifiers to restrict the result to'),
+             ('case_customer_id', 'string', 'Filter by customer identifier'),
+             ('case_name', 'string', 'Filter by case name (substring match)'),
+             ('case_description', 'string', 'Filter by description (substring match)'),
+             ('case_classification_id', 'integer', 'Filter by classification identifier'),
+             ('case_owner_id', 'integer', 'Filter by owner user identifier'),
+             ('case_opening_user_id', 'integer', 'Filter by the user who opened the case'),
+             ('case_severity_id', 'integer', 'Filter by severity identifier'),
+             ('case_state_id', 'integer', 'Filter by state identifier'),
+             ('case_soc_id', 'string', 'Filter by external SOC identifier'),
+             ('start_open_date', 'date', 'Restrict to cases opened on or after this date (YYYY-MM-DD)'),
+             ('end_open_date', 'date', 'Restrict to cases opened on or before this date (YYYY-MM-DD)'),
+             ('start_close_date', 'date', 'Restrict to cases closed on or after this date (YYYY-MM-DD)'),
+             ('end_close_date', 'date', 'Restrict to cases closed on or before this date (YYYY-MM-DD)'),
+             ('is_open', 'boolean', 'Restrict to open (true) or closed (false) cases'),
+             ('quick_search', 'string',
+              'Free-text search across case name, customer name, and case identifier'),
+         ])
 def get_cases() -> Response:
     """Return a paginated list of cases visible to the caller.
 
