@@ -166,8 +166,19 @@ def _nested_target_name(call: ast.Call) -> str | None:
     return None
 
 
-def _resolve_field_schema(call: ast.Call, schemas_seen: set[tuple[str, str]]) -> dict[str, Any]:
-    """Turn a marshmallow field-construction call into an OpenAPI schema."""
+def _resolve_field_schema(
+    call: ast.Call,
+    schemas_seen: set[tuple[str, str, str]],
+    mode: str = 'response',
+) -> dict[str, Any]:
+    """Turn a marshmallow field-construction call into an OpenAPI schema.
+
+    Transitively nested schemas are always registered in RESPONSE mode.
+    The request/response split matters at the top-level operation
+    boundary (POST body vs. GET response); nested resources like
+    `owner`/`severity` inside a top-level Alert are documented once
+    with the full read shape and referenced from both directions.
+    """
     name = _field_call_name(call)
     if name is None:
         return {}
@@ -177,7 +188,7 @@ def _resolve_field_schema(call: ast.Call, schemas_seen: set[tuple[str, str]]) ->
         if target is None:
             return {'type': 'object'}
         component = _schema_component_name(target)
-        schemas_seen.add((component, target))
+        schemas_seen.add((component, target, 'response'))
         many = _extract_field_kwarg_constant(call, 'many') is True
         ref = {'$ref': f'#/components/schemas/{component}'}
         return {'type': 'array', 'items': ref} if many else ref
@@ -185,7 +196,7 @@ def _resolve_field_schema(call: ast.Call, schemas_seen: set[tuple[str, str]]) ->
     if name == 'List':
         inner_schema: dict[str, Any] = {}
         if call.args and isinstance(call.args[0], ast.Call):
-            inner_schema = _resolve_field_schema(call.args[0], schemas_seen)
+            inner_schema = _resolve_field_schema(call.args[0], schemas_seen, mode=mode)
         elif call.args and isinstance(call.args[0], ast.Attribute):
             # fields.List(fields.String) — bare class ref, no ()
             attr_name = call.args[0].attr
@@ -194,7 +205,7 @@ def _resolve_field_schema(call: ast.Call, schemas_seen: set[tuple[str, str]]) ->
             # fields.List(SomeSchema) — treat as nested
             target = call.args[0].id
             component = _schema_component_name(target)
-            schemas_seen.add((component, target))
+            schemas_seen.add((component, target, 'response'))
             inner_schema = {'$ref': f'#/components/schemas/{component}'}
         return {'type': 'array', 'items': inner_schema or {}}
 
@@ -468,10 +479,73 @@ def _get_model_index() -> dict[str, dict[str, dict[str, Any]]]:
     return _MODEL_INDEX
 
 
-def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -> dict[str, Any]:
+def _column_has_default(call: ast.Call) -> bool:
+    """A SQLAlchemy Column has an implicit value when `default=` or
+    `server_default=` is set, or when it's a primary key (usually
+    autoincrement). Columns with a default can be omitted from a POST
+    body, so they should NOT land in the OpenAPI `required` list.
+    """
+    for kw in call.keywords:
+        if kw.arg in ('default', 'server_default'):
+            return True
+        if kw.arg == 'primary_key' and isinstance(kw.value, ast.Constant) and kw.value.value:
+            return True
+    return False
+
+
+# Re-parse the raw Column ast we stored so we can determine defaults
+# lazily (kept out of `_parse_orm_class`'s output to keep the model
+# index a plain data structure; `_column_has_default` is called from
+# a second walk).
+def _model_column_has_default(model_name: str, column_name: str) -> bool:
+    for f in sorted(MODELS_ROOT.rglob('*.py')):
+        try:
+            tree = ast.parse(f.read_text(), filename=str(f))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or node.name != model_name:
+                continue
+            for stmt in node.body:
+                if not isinstance(stmt, ast.Assign) or not isinstance(stmt.value, ast.Call):
+                    continue
+                if _call_name(stmt.value.func) != 'Column':
+                    continue
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name) and target.id == column_name:
+                        return _column_has_default(stmt.value)
+    return False
+
+
+def _parse_schema_class(
+    cls: ast.ClassDef,
+    schemas_seen: set[tuple[str, str, str]],
+    mode: str = 'response',
+) -> dict[str, Any]:
+    """Convert a marshmallow schema AST node into an OpenAPI object schema.
+
+    `mode` is 'response' or 'request':
+      * response — the shape the API returns. Drops `load_only`
+        fields. `nullable=False` on the model does NOT make fields
+        required (the response always includes them, marshmallow's
+        `required` doesn't apply to dump).
+      * request — the shape the API accepts. Drops `dump_only`
+        fields, drops `fields.Method(...)` (dump-only by nature).
+        Nested-schema overlays (`ma.Nested(X)`) are dropped when the
+        parent model has a corresponding FK column, since callers
+        send `<name>_id` rather than the nested object (marshmallow
+        load_instance accepts both, but the FK is the ergonomic
+        idiom). `required` = explicit `required=True` ∪ every model
+        column with `nullable=False` and no default.
+
+    `schemas_seen` accumulates transitively-referenced schemas as
+    (component_name, source_cls, mode) triples so the generator can
+    emit a components entry per mode.
+    """
     properties: dict[str, Any] = {}
     required: list[str] = []
     autofield_targets: dict[str, str] = {}   # class-attr → ORM column name
+    nested_overlays: set[str] = set()        # class-attr names that are ma.Nested(X)
 
     exclude = _extract_meta_exclude(cls)
 
@@ -499,16 +573,28 @@ def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -
         if field_name in exclude:
             continue
 
-        schema = _resolve_field_schema(value, schemas_seen)
+        # Skip fields not applicable to this mode.
+        dump_only = _extract_field_kwarg_constant(value, 'dump_only') is True
+        load_only = _extract_field_kwarg_constant(value, 'load_only') is True
+        field_name_call = _field_call_name(value)
+        if mode == 'request' and (dump_only or field_name_call == 'Method'):
+            continue
+        if mode == 'response' and load_only:
+            continue
+
+        schema = _resolve_field_schema(value, schemas_seen, mode=mode)
 
         # For `auto_field('column_name', ...)` remember the ORM
         # attribute so we can later fill in its type from the model.
-        if _field_call_name(value) == 'auto_field':
+        if field_name_call == 'auto_field':
             if value.args and isinstance(value.args[0], ast.Constant) \
                     and isinstance(value.args[0].value, str):
                 autofield_targets[field_name] = value.args[0].value
             else:
                 autofield_targets[field_name] = field_name
+
+        if field_name_call == 'Nested':
+            nested_overlays.add(field_name)
 
         if _extract_field_kwarg_constant(value, 'required') is True:
             required.append(field_name)
@@ -564,9 +650,44 @@ def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -
                 }
             properties[orm_column] = column_schema
 
+        if mode == 'request':
+            # Drop nested-schema overlays when the parent's model has a
+            # matching FK column — the API idiom is to send `<name>_id`,
+            # not the nested object. If no FK, keep the nested field so
+            # non-model-bound relationships still document.
+            for overlay in list(nested_overlays):
+                fk_candidates = {f'{overlay}_id', f'alert_{overlay}_id',
+                                 f'case_{overlay}_id', f'ioc_{overlay}_id'}
+                if any(c in properties for c in fk_candidates):
+                    properties.pop(overlay, None)
+                    if overlay in required:
+                        required.remove(overlay)
+
+            # Every non-nullable model column without a default is a
+            # required POST field. Skip primary keys (server-assigned)
+            # and Meta.exclude / Meta.dump_only entries.
+            dump_only_meta = _extract_meta_string_iterable(cls, 'dump_only')
+            for orm_column, meta in columns.items():
+                if meta['nullable'] or meta['fk'] and not include_fk:
+                    continue
+                if orm_column in exclude or orm_column in dump_only_meta:
+                    continue
+                if orm_column not in properties:
+                    continue
+                if _model_column_has_default(model_name, orm_column):
+                    continue
+                if orm_column not in required:
+                    required.append(orm_column)
+
+    if mode == 'request':
+        # Response-only Method fields are already dropped above; also
+        # remove them from `required` (they'd never make sense on a POST).
+        # No-op if they never got added.
+        pass
+
     result: dict[str, Any] = {'type': 'object', 'properties': properties}
     if required:
-        result['required'] = required
+        result['required'] = sorted(set(required))
     doc = ast.get_docstring(cls)
     if doc:
         result['description'] = doc.strip().splitlines()[0]
@@ -587,8 +708,13 @@ def _iter_refs(node: Any) -> Any:
             yield from _iter_refs(item)
 
 
-def _build_schema_index() -> dict[str, dict[str, Any]]:
-    """Parse marshables.py once and return {ClassName: openapi-schema}."""
+def _build_schema_ast_index() -> dict[str, ast.ClassDef]:
+    """Parse marshables.py once and return {ClassName: ClassDef ast}.
+
+    The actual OpenAPI schema is derived per-mode by
+    `_parse_schema_class` — we can't pre-compute at index time
+    because response and request modes need different outputs.
+    """
     if not MARSHABLES.exists():
         return {}
     try:
@@ -602,15 +728,13 @@ def _build_schema_index() -> dict[str, dict[str, Any]]:
         if isinstance(node, ast.ClassDef) and node.name.endswith('Schema'):
             known_schemas.add(node.name)
 
-    # Two-pass so inheritance from a later-defined schema still resolves.
-    _tmp_seen: set[tuple[str, str]] = set()
-    index: dict[str, dict[str, Any]] = {}
+    index: dict[str, ast.ClassDef] = {}
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef):
             continue
         if not _class_is_schema(node, known_schemas):
             continue
-        index[node.name] = _parse_schema_class(node, _tmp_seen)
+        index[node.name] = node
     return index
 
 
@@ -1238,7 +1362,10 @@ def _shared_components() -> dict[str, Any]:
     }
 
 
-def _build_operation(route: dict[str, Any], schemas_seen: set[tuple[str, str]]) -> dict[str, Any]:
+def _build_operation(
+    route: dict[str, Any],
+    schemas_seen: set[tuple[str, str, str]],
+) -> dict[str, Any]:
     method: str = route['method']
     apidoc = route['apidoc']
 
@@ -1261,12 +1388,16 @@ def _build_operation(route: dict[str, Any], schemas_seen: set[tuple[str, str]]) 
 
     request_schema = apidoc.get('request')
     if isinstance(request_schema, _SchemaRef) and method in {'post', 'put', 'patch'}:
-        name = _schema_component_name(request_schema.name)
-        schemas_seen.add((name, request_schema.name))
+        base = _schema_component_name(request_schema.name)
+        # Request bodies get their own component (dump_only fields
+        # dropped, nullable=False non-default cols become required,
+        # nested overlays dropped in favour of the FK).
+        request_component = f'{base}Request'
+        schemas_seen.add((request_component, request_schema.name, 'request'))
         op['requestBody'] = {
             'required': True,
             'content': {
-                'application/json': {'schema': {'$ref': f'#/components/schemas/{name}'}}
+                'application/json': {'schema': {'$ref': f'#/components/schemas/{request_component}'}}
             },
         }
 
@@ -1279,7 +1410,7 @@ def _build_operation(route: dict[str, Any], schemas_seen: set[tuple[str, str]]) 
         responses['204'] = {'$ref': '#/components/responses/Deleted'}
     elif isinstance(response_schema, _SchemaRef):
         name = _schema_component_name(response_schema.name)
-        schemas_seen.add((name, response_schema.name))
+        schemas_seen.add((name, response_schema.name, 'response'))
         if response_shape == 'paginated':
             schema_obj: dict[str, Any] = _envelope_paginated(name)
         else:
@@ -1413,7 +1544,7 @@ def generate() -> dict[str, Any]:
     routes.sort(key=lambda r: (r['path'], r['method']))
 
     paths: dict[str, dict[str, Any]] = {}
-    schemas_seen: set[tuple[str, str]] = set()
+    schemas_seen: set[tuple[str, str, str]] = set()
 
     for route in routes:
         openapi_path = _flask_path_to_openapi(route['path'])
@@ -1421,41 +1552,41 @@ def generate() -> dict[str, Any]:
         paths[openapi_path][route['method']] = _build_operation(route, schemas_seen)
 
     components = _shared_components()
-    schema_index = _build_schema_index()
+    ast_index = _build_schema_ast_index()
 
     # Transitively resolve nested-schema references. Only the schemas
     # directly named by routes appear in `schemas_seen`; follow every
     # $ref inside them until the closure is stable so consumers see a
     # self-contained components.schemas map.
     #
-    # Two-pass so emission order is deterministic (CI drift-checks the
-    # exact bytes): first collect every (component, source_cls) pair
-    # reachable, then emit them alphabetically.
-    reachable: dict[str, str] = {}
+    # We parse per (component, source_cls, mode) lazily and cache the
+    # result. Emission order is deterministic (alphabetical by
+    # component) so the CI drift check stays byte-stable.
+    resolved: dict[tuple[str, str, str], dict[str, Any]] = {}
     pending = list(schemas_seen)
     while pending:
-        component, source_cls = pending.pop()
-        if component in reachable:
+        component, source_cls, mode = pending.pop()
+        key = (component, source_cls, mode)
+        if key in resolved:
             continue
-        reachable[component] = source_cls
-        cls_schema = schema_index.get(source_cls)
-        if cls_schema is None:
-            continue
-        for ref in _iter_refs(cls_schema):
-            target = ref.rsplit('/', 1)[-1]
-            source = target if target in schema_index else f'{target}Schema'
-            pending.append((target, source))
-
-    for component in sorted(reachable):
-        source_cls = reachable[component]
-        cls_schema = schema_index.get(source_cls)
-        if cls_schema is None:
-            components['schemas'][component] = {
+        cls_node = ast_index.get(source_cls)
+        if cls_node is None:
+            resolved[key] = {
                 'type': 'object',
                 'description': f'Auto-generated placeholder — see marshables.py::{source_cls}.',
             }
-        else:
-            components['schemas'][component] = cls_schema
+            continue
+        cls_schema = _parse_schema_class(cls_node, schemas_seen, mode=mode)
+        resolved[key] = cls_schema
+        for ref in _iter_refs(cls_schema):
+            target = ref.rsplit('/', 1)[-1]
+            source = target if target in ast_index else f'{target}Schema'
+            # Nested refs are always response-mode (see
+            # _resolve_field_schema's mode='response' hard-coding).
+            pending.append((target, source, 'response'))
+
+    for (component, _source_cls, _mode) in sorted(resolved):
+        components['schemas'][component] = resolved[(component, _source_cls, _mode)]
 
     spec: dict[str, Any] = {
         'openapi': '3.1.0',

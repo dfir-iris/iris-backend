@@ -79,7 +79,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AlertCluster'
+              $ref: '#/components/schemas/AlertClusterRequest'
       responses:
         '201':
           description: Success
@@ -151,7 +151,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -291,7 +291,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AlertCluster'
+              $ref: '#/components/schemas/AlertClusterRequest'
       responses:
         '200':
           description: Success
@@ -597,7 +597,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Alert'
+              $ref: '#/components/schemas/AlertRequest'
       responses:
         '201':
           description: Success
@@ -669,7 +669,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -765,7 +765,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -846,7 +846,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Alert'
+              $ref: '#/components/schemas/AlertRequest'
       responses:
         '200':
           description: Success
@@ -1061,7 +1061,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SavedFilter'
+              $ref: '#/components/schemas/SavedFilterRequest'
       responses:
         '201':
           description: Success
@@ -1140,7 +1140,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SavedFilter'
+              $ref: '#/components/schemas/SavedFilterRequest'
       responses:
         '200':
           description: Success
@@ -1268,7 +1268,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -1364,7 +1364,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -1727,7 +1727,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseSchemaForAPIV2'
+              $ref: '#/components/schemas/CaseSchemaForAPIV2Request'
       responses:
         '201':
           description: Success
@@ -1766,7 +1766,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SavedFilter'
+              $ref: '#/components/schemas/SavedFilterRequest'
       responses:
         '201':
           description: Success
@@ -1845,7 +1845,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SavedFilter'
+              $ref: '#/components/schemas/SavedFilterRequest'
       responses:
         '200':
           description: Success
@@ -1919,7 +1919,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseAssets'
+              $ref: '#/components/schemas/CaseAssetsRequest'
       responses:
         '201':
           description: Success
@@ -2015,7 +2015,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseAssets'
+              $ref: '#/components/schemas/CaseAssetsRequest'
       responses:
         '200':
           description: Success
@@ -2552,7 +2552,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Event'
+              $ref: '#/components/schemas/EventRequest'
       responses:
         '201':
           description: Success
@@ -2648,7 +2648,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Event'
+              $ref: '#/components/schemas/EventRequest'
       responses:
         '200':
           description: Success
@@ -2722,7 +2722,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseEvidence'
+              $ref: '#/components/schemas/CaseEvidenceRequest'
       responses:
         '201':
           description: Success
@@ -2818,7 +2818,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseEvidence'
+              $ref: '#/components/schemas/CaseEvidenceRequest'
       responses:
         '200':
           description: Success
@@ -2892,7 +2892,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/IocSchemaForAPIV2'
+              $ref: '#/components/schemas/IocSchemaForAPIV2Request'
       responses:
         '201':
           description: Success
@@ -2988,7 +2988,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/IocSchemaForAPIV2'
+              $ref: '#/components/schemas/IocSchemaForAPIV2Request'
       responses:
         '200':
           description: Success
@@ -3082,7 +3082,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseNote'
+              $ref: '#/components/schemas/CaseNoteRequest'
       responses:
         '201':
           description: Success
@@ -3156,7 +3156,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseNoteDirectory'
+              $ref: '#/components/schemas/CaseNoteDirectoryRequest'
       responses:
         '201':
           description: Success
@@ -3225,7 +3225,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseNoteDirectory'
+              $ref: '#/components/schemas/CaseNoteDirectoryRequest'
       responses:
         '200':
           description: Success
@@ -3349,7 +3349,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseNote'
+              $ref: '#/components/schemas/CaseNoteRequest'
       responses:
         '200':
           description: Success
@@ -3588,7 +3588,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseTask'
+              $ref: '#/components/schemas/CaseTaskRequest'
       responses:
         '201':
           description: Success
@@ -3684,7 +3684,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseTask'
+              $ref: '#/components/schemas/CaseTaskRequest'
       responses:
         '200':
           description: Success
@@ -3892,7 +3892,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseSchemaForAPIV2'
+              $ref: '#/components/schemas/CaseSchemaForAPIV2Request'
       responses:
         '200':
           description: Success
@@ -4266,7 +4266,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClusterRule'
+              $ref: '#/components/schemas/ClusterRuleRequest'
       responses:
         '201':
           description: Success
@@ -4345,7 +4345,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClusterRule'
+              $ref: '#/components/schemas/ClusterRuleRequest'
       responses:
         '200':
           description: Success
@@ -4437,7 +4437,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomDashboard'
+              $ref: '#/components/schemas/CustomDashboardRequest'
       responses:
         '200':
           description: Success
@@ -4508,7 +4508,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomDashboard'
+              $ref: '#/components/schemas/CustomDashboardRequest'
       responses:
         '200':
           description: Success
@@ -4783,7 +4783,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -4879,7 +4879,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -4953,7 +4953,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -5049,7 +5049,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -5109,7 +5109,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GlobalTasks'
+              $ref: '#/components/schemas/GlobalTasksRequest'
       responses:
         '201':
           description: Success
@@ -5188,7 +5188,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GlobalTasks'
+              $ref: '#/components/schemas/GlobalTasksRequest'
       responses:
         '200':
           description: Success
@@ -5229,7 +5229,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvestigationFlow'
+              $ref: '#/components/schemas/InvestigationFlowRequest'
       responses:
         '201':
           description: Success
@@ -5292,7 +5292,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvestigationFlowStep'
+              $ref: '#/components/schemas/InvestigationFlowStepRequest'
       responses:
         '200':
           description: Success
@@ -5373,7 +5373,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvestigationFlow'
+              $ref: '#/components/schemas/InvestigationFlowRequest'
       responses:
         '200':
           description: Success
@@ -5433,7 +5433,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvestigationFlowStep'
+              $ref: '#/components/schemas/InvestigationFlowStepRequest'
       responses:
         '201':
           description: Success
@@ -5514,7 +5514,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Ioc'
+              $ref: '#/components/schemas/IocRequest'
       responses:
         '200':
           description: Success
@@ -5588,7 +5588,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -5684,7 +5684,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -5939,7 +5939,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '201':
           description: Success
@@ -6018,7 +6018,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '200':
           description: Success
@@ -6119,7 +6119,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '201':
           description: Success
@@ -6195,7 +6195,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '200':
           description: Success
@@ -6253,7 +6253,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '201':
           description: Success
@@ -6329,7 +6329,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '200':
           description: Success
@@ -6387,7 +6387,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '201':
           description: Success
@@ -6463,7 +6463,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '200':
           description: Success
@@ -6521,7 +6521,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '201':
           description: Success
@@ -6597,7 +6597,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/schema_cls'
+              $ref: '#/components/schemas/schema_clsRequest'
       responses:
         '200':
           description: Success
@@ -6657,7 +6657,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseTemplate'
+              $ref: '#/components/schemas/CaseTemplateRequest'
       responses:
         '201':
           description: Success
@@ -6736,7 +6736,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CaseTemplate'
+              $ref: '#/components/schemas/CaseTemplateRequest'
       responses:
         '200':
           description: Success
@@ -6909,7 +6909,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Customer'
+              $ref: '#/components/schemas/CustomerRequest'
       responses:
         '201':
           description: Success
@@ -6988,7 +6988,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Customer'
+              $ref: '#/components/schemas/CustomerRequest'
       responses:
         '200':
           description: Success
@@ -7047,7 +7047,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Contact'
+              $ref: '#/components/schemas/ContactRequest'
       responses:
         '201':
           description: Success
@@ -7143,7 +7143,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Contact'
+              $ref: '#/components/schemas/ContactRequest'
       responses:
         '200':
           description: Success
@@ -7217,7 +7217,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthorizationGroup'
+              $ref: '#/components/schemas/AuthorizationGroupRequest'
       responses:
         '201':
           description: Success
@@ -7296,7 +7296,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthorizationGroup'
+              $ref: '#/components/schemas/AuthorizationGroupRequest'
       responses:
         '200':
           description: Success
@@ -8168,7 +8168,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ServerSettings'
+              $ref: '#/components/schemas/ServerSettingsRequest'
       responses:
         '200':
           description: Success
@@ -8306,7 +8306,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserSchemaForAPIV2'
+              $ref: '#/components/schemas/UserSchemaForAPIV2Request'
       responses:
         '201':
           description: Success
@@ -8385,7 +8385,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserSchemaForAPIV2'
+              $ref: '#/components/schemas/UserSchemaForAPIV2Request'
       responses:
         '200':
           description: Success
@@ -9068,7 +9068,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -9164,7 +9164,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -9440,7 +9440,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '201':
           description: Success
@@ -9536,7 +9536,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Comment'
+              $ref: '#/components/schemas/CommentRequest'
       responses:
         '200':
           description: Success
@@ -12199,6 +12199,60 @@ components:
           type:
           - string
           - 'null'
+    AlertClusterRequest:
+      type: object
+      properties:
+        cluster_id:
+          type: integer
+          format: int64
+        cluster_uuid:
+          type: string
+          format: uuid
+        cluster_title:
+          type: string
+        cluster_description:
+          type:
+          - string
+          - 'null'
+        cluster_status_id:
+          type: integer
+        cluster_severity_id:
+          type:
+          - integer
+          - 'null'
+        cluster_customer_id:
+          type: integer
+        cluster_owner_id:
+          type:
+          - integer
+          - 'null'
+        cluster_creation_time:
+          type: string
+          format: date-time
+        cluster_source_rule_id:
+          type:
+          - integer
+          - 'null'
+        cluster_case_id:
+          type:
+          - integer
+          - 'null'
+        cluster_dedupe_key:
+          type:
+          - string
+          - 'null'
+        cluster_investigation_flow_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+      required:
+      - cluster_customer_id
+      - cluster_status_id
+      - cluster_title
     AlertClusterStatus:
       type: object
       properties:
@@ -12231,6 +12285,96 @@ components:
           type:
           - string
           - 'null'
+    AlertRequest:
+      type: object
+      properties:
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ioc'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseAssets'
+        cases: {}
+        alert_id:
+          type: integer
+          format: int64
+        alert_uuid:
+          type: string
+          format: uuid
+        alert_title:
+          type: string
+        alert_description:
+          type:
+          - string
+          - 'null'
+        alert_source:
+          type:
+          - string
+          - 'null'
+        alert_source_ref:
+          type:
+          - string
+          - 'null'
+        alert_source_link:
+          type:
+          - string
+          - 'null'
+        alert_source_content:
+          type:
+          - object
+          - 'null'
+        alert_severity_id:
+          type: integer
+        alert_status_id:
+          type: integer
+        alert_context:
+          type:
+          - object
+          - 'null'
+        alert_source_event_time:
+          type: string
+          format: date-time
+        alert_creation_time:
+          type: string
+          format: date-time
+        alert_note:
+          type:
+          - string
+          - 'null'
+        alert_tags:
+          type:
+          - string
+          - 'null'
+        alert_owner_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+        alert_customer_id:
+          type: integer
+        alert_classification_id:
+          type:
+          - integer
+          - 'null'
+        alert_resolution_status_id:
+          type:
+          - integer
+          - 'null'
+        alert_investigation_flow_id:
+          type:
+          - integer
+          - 'null'
+      required:
+      - alert_customer_id
+      - alert_severity_id
+      - alert_status_id
+      - alert_title
+      description: Schema for serializing and deserializing Alert objects.
     AlertResolution:
       type: object
       properties:
@@ -12287,8 +12431,8 @@ components:
         asset_id:
           type: integer
       required:
-      - asset_name
       - asset_description
+      - asset_name
       description: Schema for serializing and deserializing AssetsType objects.
     AuthorizationGroup:
       type: object
@@ -12331,8 +12475,53 @@ components:
         group_auto_follow:
           type: boolean
       required:
-      - group_name
       - group_description
+      - group_name
+      description: Schema for serializing and deserializing AuthorizationGroup objects.
+    AuthorizationGroupRequest:
+      type: object
+      properties:
+        group_name:
+          type: string
+        group_description:
+          type:
+          - string
+          - 'null'
+        group_auto_follow_access_level:
+          type: integer
+          format: int64
+        group_permissions:
+          type: integer
+        group_members:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        group_permissions_list:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        group_cases_access:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        group_id:
+          type: integer
+          format: int64
+        group_uuid:
+          type: string
+          format: uuid
+        group_auto_follow:
+          type: boolean
+      required:
+      - group_description
+      - group_name
+      - group_permissions
       description: Schema for serializing and deserializing AuthorizationGroup objects.
     Case:
       type: object
@@ -12421,10 +12610,10 @@ components:
           - object
           - 'null'
       required:
-      - case_name
-      - case_description
-      - case_soc_id
       - case_customer
+      - case_description
+      - case_name
+      - case_soc_id
       description: Schema for serializing and deserializing Case objects.
     CaseAssets:
       type: object
@@ -12521,6 +12710,97 @@ components:
       - asset_name
       - asset_type_id
       description: Schema for serializing and deserializing CaseAssets objects.
+    CaseAssetsRequest:
+      type: object
+      properties:
+        asset_name:
+          type:
+          - string
+          - 'null'
+        asset_type_id:
+          type:
+          - integer
+          - 'null'
+        ioc_links:
+          type: array
+          items:
+            type: integer
+        asset_enrichment:
+          type:
+          - object
+          - 'null'
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        iocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/IocSchemaForAPIV2'
+        asset_id:
+          type: integer
+          format: int64
+        asset_uuid:
+          type: string
+          format: uuid
+        asset_description:
+          type:
+          - string
+          - 'null'
+        asset_domain:
+          type:
+          - string
+          - 'null'
+        asset_ip:
+          type:
+          - string
+          - 'null'
+        asset_info:
+          type:
+          - string
+          - 'null'
+        asset_compromise_status_id:
+          type:
+          - integer
+          - 'null'
+        asset_tags:
+          type:
+          - string
+          - 'null'
+        case_id:
+          type:
+          - integer
+          - 'null'
+        date_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        date_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        user_id:
+          type:
+          - integer
+          - 'null'
+        analysis_status_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+      required:
+      - asset_name
+      - asset_type_id
+      description: Schema for serializing and deserializing CaseAssets objects.
     CaseClassification:
       type: object
       properties:
@@ -12544,9 +12824,9 @@ components:
           - 'null'
           format: date-time
       required:
+      - description
       - name
       - name_expanded
-      - description
       description: Schema for serializing and deserializing CaseClassification objects.
     CaseDetails:
       type: object
@@ -12726,6 +13006,79 @@ components:
       required:
       - filename
       description: Schema for serializing and deserializing CaseEvidence objects.
+    CaseEvidenceRequest:
+      type: object
+      properties:
+        filename:
+          type:
+          - string
+          - 'null'
+        id:
+          type: integer
+          format: int64
+        file_uuid:
+          type: string
+          format: uuid
+        date_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        acquisition_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        file_hash:
+          type:
+          - string
+          - 'null'
+        file_description:
+          type:
+          - string
+          - 'null'
+        file_size:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        start_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        end_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        case_id:
+          type:
+          - integer
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        type_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        chain_of_custody:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+      required:
+      - filename
+      description: Schema for serializing and deserializing CaseEvidence objects.
     CaseNote:
       type: object
       properties:
@@ -12795,6 +13148,76 @@ components:
         case_id:
           type: integer
       description: Schema for serializing and deserializing CaseNoteDirectory objects.
+    CaseNoteDirectoryRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        parent_id:
+          type:
+          - integer
+          - 'null'
+        case_id:
+          type: integer
+      required:
+      - case_id
+      - name
+      description: Schema for serializing and deserializing CaseNoteDirectory objects.
+    CaseNoteRequest:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        note_id:
+          type: integer
+          format: int64
+        note_uuid:
+          type: string
+          format: uuid
+        note_title:
+          type:
+          - string
+          - 'null'
+        note_content:
+          type:
+          - string
+          - 'null'
+        note_user:
+          type:
+          - integer
+          - 'null'
+        note_creationdate:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        note_lastupdate:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        note_case_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        directory_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+      description: Schema for serializing and deserializing CaseNote objects.
     CaseNoteRevision:
       type: object
       properties:
@@ -12932,10 +13355,107 @@ components:
           - object
           - 'null'
       required:
-      - case_name
-      - case_description
-      - case_soc_id
       - case_customer_id
+      - case_description
+      - case_name
+      - case_soc_id
+      description: Schema for serializing and deserializing Case objects.
+    CaseSchemaForAPIV2Request:
+      type: object
+      properties:
+        case_name:
+          type:
+          - string
+          - 'null'
+        case_description:
+          type:
+          - string
+          - 'null'
+        case_soc_id:
+          type:
+          - string
+          - 'null'
+        case_customer_id:
+          type: integer
+        case_organisations:
+          type: array
+          items:
+            type: integer
+        protagonists:
+          type: array
+          items:
+            type: object
+        case_tags:
+          type: string
+        classification_id:
+          type:
+          - integer
+          - 'null'
+        reviewer_id:
+          type:
+          - integer
+          - 'null'
+        access_level:
+          type: integer
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tags'
+        case_id:
+          type: integer
+          format: int64
+        open_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        close_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        closing_note:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        owner_id:
+          type:
+          - integer
+          - 'null'
+        status_id:
+          type: integer
+        state_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        case_uuid:
+          type: string
+          format: uuid
+        review_status_id:
+          type:
+          - integer
+          - 'null'
+        severity_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+      required:
+      - case_customer_id
+      - case_description
+      - case_name
+      - case_soc_id
       description: Schema for serializing and deserializing Case objects.
     CaseState:
       type: object
@@ -13036,8 +13556,92 @@ components:
           - object
           - 'null'
       required:
-      - task_title
       - task_status_id
+      - task_title
+      description: Schema for serializing and deserializing CaseTask objects.
+    CaseTaskRequest:
+      type: object
+      properties:
+        task_title:
+          type:
+          - string
+          - 'null'
+        task_status_id:
+          type:
+          - integer
+          - 'null'
+        task_assignees_id:
+          type:
+          - array
+          - 'null'
+          items:
+            type: integer
+        task_assignees:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        case:
+          $ref: '#/components/schemas/Case'
+        id:
+          type: integer
+          format: int64
+        task_uuid:
+          type: string
+          format: uuid
+        task_description:
+          type:
+          - string
+          - 'null'
+        task_tags:
+          type:
+          - string
+          - 'null'
+        task_open_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_close_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_last_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_userid_open:
+          type:
+          - integer
+          - 'null'
+        task_userid_close:
+          type:
+          - integer
+          - 'null'
+        task_userid_update:
+          type:
+          - integer
+          - 'null'
+        task_case_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+      required:
+      - task_status_id
+      - task_title
       description: Schema for serializing and deserializing CaseTask objects.
     CaseTemplate:
       type: object
@@ -13052,6 +13656,59 @@ components:
         updated_at:
           type: string
           format: date-time
+        name:
+          type: string
+        display_name:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        author:
+          type:
+          - string
+          - 'null'
+        title_prefix:
+          type:
+          - string
+          - 'null'
+        summary:
+          type:
+          - string
+          - 'null'
+        tags:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+        classification:
+          type:
+          - string
+          - 'null'
+        note_directories:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        tasks:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+      required:
+      - created_by_user_id
+      - name
+      description: Schema for serializing and deserializing CaseTemplate objects.
+    CaseTemplateRequest:
+      type: object
+      properties:
+        created_by_user_id:
+          type: integer
         name:
           type: string
         display_name:
@@ -13139,7 +13796,92 @@ components:
         rule_updated_at:
           type: string
           format: date-time
+    ClusterRuleRequest:
+      type: object
+      properties:
+        rule_id:
+          type: integer
+          format: int64
+        rule_uuid:
+          type: string
+          format: uuid
+        rule_name:
+          type: string
+        rule_description:
+          type:
+          - string
+          - 'null'
+        rule_is_active:
+          type: boolean
+        rule_priority:
+          type: integer
+        rule_customer_scope:
+          type:
+          - object
+          - 'null'
+        rule_conditions:
+          type: object
+        rule_action_type:
+          type: string
+        rule_action_config:
+          type: object
+        rule_created_by:
+          type:
+          - integer
+          - 'null'
+        rule_created_at:
+          type: string
+          format: date-time
+        rule_updated_at:
+          type: string
+          format: date-time
+      required:
+      - rule_action_type
+      - rule_conditions
+      - rule_name
     Comment:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        comment_id:
+          type: integer
+          format: int64
+        comment_uuid:
+          type: string
+          format: uuid
+        comment_text:
+          type:
+          - string
+          - 'null'
+        comment_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        comment_update_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        comment_user_id:
+          type:
+          - integer
+          - 'null'
+        comment_case_id:
+          type:
+          - integer
+          - 'null'
+        comment_alert_id:
+          type:
+          - integer
+          - 'null'
+        comment_cluster_id:
+          type:
+          - integer
+          - 'null'
+      description: Schema for serializing and deserializing Comment objects.
+    CommentRequest:
       type: object
       properties:
         user:
@@ -13223,13 +13965,96 @@ components:
           - object
           - 'null'
       required:
-      - contact_name
       - client_id
+      - contact_name
       description: Schema for serializing and deserializing Contact objects.
-    CustomDashboard:
+    ContactRequest:
+      type: object
+      properties:
+        contact_name:
+          type:
+          - string
+          - 'null'
+        contact_email:
+          type:
+          - string
+          - 'null'
+        contact_work_phone:
+          type:
+          - string
+          - 'null'
+        contact_mobile_phone:
+          type:
+          - string
+          - 'null'
+        contact_role:
+          type:
+          - string
+          - 'null'
+        contact_note:
+          type:
+          - string
+          - 'null'
+        client_id:
+          type:
+          - integer
+          - 'null'
+        id:
+          type: integer
+          format: int64
+        contact_uuid:
+          type: string
+          format: uuid
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+      required:
+      - client_id
+      - contact_name
+      description: Schema for serializing and deserializing Contact objects.
+    CustomDashboardRequest:
       type: object
       description: "Auto-generated placeholder \u2014 see marshables.py::CustomDashboardSchema."
     Customer:
+      type: object
+      properties:
+        customer_name:
+          type:
+          - string
+          - 'null'
+        customer_description:
+          type:
+          - string
+          - 'null'
+        customer_sla:
+          type:
+          - string
+          - 'null'
+        customer_id:
+          type: integer
+          format: int64
+        client_uuid:
+          type: string
+          format: uuid
+        creation_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_update_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+      required:
+      - customer_name
+      description: Schema for serializing and deserializing Customer objects.
+    CustomerRequest:
       type: object
       properties:
         customer_name:
@@ -13277,14 +14102,14 @@ components:
           - string
           - 'null'
         file_content: {}
-        file_local_name:
-          type: string
         file_id:
           type: integer
           format: int64
         file_uuid:
           type: string
           format: uuid
+        file_local_name:
+          type: string
         file_date_added:
           type:
           - string
@@ -13454,10 +14279,116 @@ components:
           - object
           - 'null'
       required:
-      - event_title
       - event_assets
-      - event_iocs
       - event_date
+      - event_iocs
+      - event_title
+      - event_tz
+      description: Schema for serializing and deserializing Event objects.
+    EventRequest:
+      type: object
+      properties:
+        event_title:
+          type:
+          - string
+          - 'null'
+        event_assets:
+          type: array
+          items:
+            type: integer
+        event_iocs:
+          type: array
+          items:
+            type: integer
+        event_date:
+          type: string
+          format: date-time
+        event_tz:
+          type: string
+        event_date_wtz:
+          type: string
+          format: date-time
+        modification_history:
+          type:
+          - object
+          - 'null'
+        event_comments_map:
+          type:
+          - array
+          - 'null'
+          items:
+            type: integer
+        event_sync_iocs_assets:
+          type: boolean
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        event_id:
+          type: integer
+          format: int64
+        parent_event_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        event_uuid:
+          type: string
+          format: uuid
+        case_id:
+          type:
+          - integer
+          - 'null'
+        event_source:
+          type:
+          - string
+          - 'null'
+        event_content:
+          type:
+          - string
+          - 'null'
+        event_raw:
+          type:
+          - string
+          - 'null'
+        event_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        event_in_graph:
+          type:
+          - boolean
+          - 'null'
+        event_in_summary:
+          type:
+          - boolean
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        event_color:
+          type:
+          - string
+          - 'null'
+        event_tags:
+          type:
+          - string
+          - 'null'
+        event_is_flagged:
+          type:
+          - boolean
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+      required:
+      - event_assets
+      - event_date
+      - event_iocs
+      - event_title
       - event_tz
       description: Schema for serializing and deserializing Event objects.
     EvidenceType:
@@ -13479,10 +14410,70 @@ components:
           - 'null'
           format: date-time
       required:
-      - name
       - description
+      - name
       description: Schema for serializing and deserializing EvidenceType objects.
     GlobalTasks:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          format: int64
+        task_assignee_id:
+          type:
+          - integer
+          - 'null'
+        task_title:
+          type:
+          - string
+          - 'null'
+        task_uuid:
+          type: string
+          format: uuid
+        task_description:
+          type:
+          - string
+          - 'null'
+        task_tags:
+          type:
+          - string
+          - 'null'
+        task_open_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_close_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_last_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_userid_open:
+          type:
+          - integer
+          - 'null'
+        task_userid_close:
+          type:
+          - integer
+          - 'null'
+        task_userid_update:
+          type:
+          - integer
+          - 'null'
+        task_status_id:
+          type:
+          - integer
+          - 'null'
+      required:
+      - task_assignee_id
+      - task_title
+      description: Schema for serializing and deserializing GlobalTasks objects.
+    GlobalTasksRequest:
       type: object
       properties:
         task_id:
@@ -13583,6 +14574,49 @@ components:
         flow_updated_at:
           type: string
           format: date-time
+    InvestigationFlowRequest:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestigationFlowStep'
+        flow_id:
+          type: integer
+          format: int64
+        flow_uuid:
+          type: string
+          format: uuid
+        flow_name:
+          type: string
+        flow_description:
+          type:
+          - string
+          - 'null'
+        flow_is_active:
+          type: boolean
+        flow_customer_scope:
+          type:
+          - object
+          - 'null'
+        flow_target:
+          type: string
+        flow_conditions:
+          type: object
+        flow_priority:
+          type: integer
+        flow_created_by:
+          type:
+          - integer
+          - 'null'
+        flow_created_at:
+          type: string
+          format: date-time
+        flow_updated_at:
+          type: string
+          format: date-time
+      required:
+      - flow_name
     InvestigationFlowStep:
       type: object
       properties:
@@ -13601,6 +14635,28 @@ components:
           - 'null'
         step_is_required:
           type: boolean
+    InvestigationFlowStepRequest:
+      type: object
+      properties:
+        flow_id:
+          type: integer
+        step_id:
+          type: integer
+          format: int64
+        step_order:
+          type: integer
+        step_title:
+          type: string
+        step_description:
+          type:
+          - string
+          - 'null'
+        step_is_required:
+          type: boolean
+      required:
+      - flow_id
+      - step_order
+      - step_title
     Ioc:
       type: object
       properties:
@@ -13614,6 +14670,62 @@ components:
           - 'null'
         ioc_type:
           $ref: '#/components/schemas/IocType'
+        ioc_id:
+          type: integer
+          format: int64
+        ioc_uuid:
+          type: string
+          format: uuid
+        ioc_type_id:
+          type:
+          - integer
+          - 'null'
+        ioc_description:
+          type:
+          - string
+          - 'null'
+        ioc_tags:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        ioc_misp:
+          type:
+          - string
+          - 'null'
+        ioc_tlp_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+        case_id:
+          type:
+          - integer
+          - 'null'
+      required:
+      - ioc_value
+      description: Schema for serializing and deserializing IOC objects.
+    IocRequest:
+      type: object
+      properties:
+        ioc_value:
+          type:
+          - string
+          - 'null'
+        ioc_enrichment:
+          type:
+          - object
+          - 'null'
         ioc_id:
           type: integer
           format: int64
@@ -13720,6 +14832,62 @@ components:
       required:
       - ioc_value
       description: Schema for serializing and deserializing IOC objects.
+    IocSchemaForAPIV2Request:
+      type: object
+      properties:
+        ioc_value:
+          type:
+          - string
+          - 'null'
+        ioc_enrichment:
+          type:
+          - object
+          - 'null'
+        ioc_id:
+          type: integer
+          format: int64
+        ioc_uuid:
+          type: string
+          format: uuid
+        ioc_type_id:
+          type:
+          - integer
+          - 'null'
+        ioc_description:
+          type:
+          - string
+          - 'null'
+        ioc_tags:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        ioc_misp:
+          type:
+          - string
+          - 'null'
+        ioc_tlp_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+        case_id:
+          type:
+          - integer
+          - 'null'
+      required:
+      - ioc_value
+      description: Schema for serializing and deserializing IOC objects.
     IocType:
       type: object
       properties:
@@ -13746,8 +14914,8 @@ components:
         type_id:
           type: integer
       required:
-      - type_name
       - type_description
+      - type_name
       description: Schema for serializing and deserializing IocType objects.
     NoteSummary:
       type: object
@@ -13784,6 +14952,33 @@ components:
         filter_type:
           type: string
       description: Schema for serializing and deserializing SavedFilter objects.
+    SavedFilterRequest:
+      type: object
+      properties:
+        filter_id:
+          type: integer
+          format: int64
+        created_by:
+          type: integer
+        filter_name:
+          type: string
+        filter_description:
+          type:
+          - string
+          - 'null'
+        filter_data:
+          type: object
+        filter_is_private:
+          type: boolean
+        filter_type:
+          type: string
+      required:
+      - created_by
+      - filter_data
+      - filter_is_private
+      - filter_name
+      - filter_type
+      description: Schema for serializing and deserializing SavedFilter objects.
     SearchCaseNoteDirectory:
       type: object
       properties:
@@ -13814,6 +15009,112 @@ components:
         prevent_post_objects_repush:
           type: boolean
         has_updates_available:
+          type: boolean
+        enable_updates_check:
+          type: boolean
+        password_policy_min_length:
+          type: integer
+        password_policy_upper_case:
+          type: boolean
+        password_policy_lower_case:
+          type: boolean
+        password_policy_digit:
+          type: boolean
+        password_policy_special_chars:
+          type:
+          - string
+          - 'null'
+        enforce_mfa:
+          type: boolean
+        force_confirmation_before_delete:
+          type: boolean
+        mail_smtp_enabled:
+          type:
+          - boolean
+          - 'null'
+        mail_smtp_host:
+          type:
+          - string
+          - 'null'
+        mail_smtp_port:
+          type:
+          - integer
+          - 'null'
+        mail_smtp_user:
+          type:
+          - string
+          - 'null'
+        mail_smtp_use_tls:
+          type:
+          - boolean
+          - 'null'
+        mail_smtp_use_ssl:
+          type:
+          - boolean
+          - 'null'
+        mail_from_address:
+          type:
+          - string
+          - 'null'
+        mail_from_name:
+          type:
+          - string
+          - 'null'
+        mail_imap_enabled:
+          type:
+          - boolean
+          - 'null'
+        mail_imap_host:
+          type:
+          - string
+          - 'null'
+        mail_imap_port:
+          type:
+          - integer
+          - 'null'
+        mail_imap_user:
+          type:
+          - string
+          - 'null'
+        mail_imap_use_ssl:
+          type:
+          - boolean
+          - 'null'
+        mail_imap_mailbox:
+          type:
+          - string
+          - 'null'
+        mail_imap_poll_interval_sec:
+          type:
+          - integer
+          - 'null'
+        mail_imap_max_attachment_mb:
+          type:
+          - integer
+          - 'null'
+        mail_smtp_password:
+          type:
+          - string
+          - 'null'
+        mail_imap_password:
+          type:
+          - string
+          - 'null'
+      description: Schema for the singleton `ServerSettings` row.
+    ServerSettingsRequest:
+      type: object
+      properties:
+        http_proxy:
+          type:
+          - string
+          - 'null'
+        https_proxy:
+          type:
+          - string
+          - 'null'
+        prevent_post_mod_repush:
+          type: boolean
+        prevent_post_objects_repush:
           type: boolean
         enable_updates_check:
           type: boolean
@@ -13905,6 +15206,10 @@ components:
           type:
           - integer
           - 'null'
+        has_updates_available:
+          type:
+          - boolean
+          - 'null'
       description: Schema for the singleton `ServerSettings` row.
     Severity:
       type: object
@@ -13987,10 +15292,6 @@ components:
           type:
           - string
           - 'null'
-        user_password:
-          type:
-          - string
-          - 'null'
         user_isadmin:
           type: boolean
         user_id:
@@ -14037,10 +15338,10 @@ components:
           - 'null'
           format: date-time
       required:
-      - user_name
-      - user_login
       - user_email
       - user_isadmin
+      - user_login
+      - user_name
       description: Schema for serializing and deserializing User objects.
     UserSchemaForAPIV2:
       type: object
@@ -14069,10 +15370,6 @@ components:
           type: integer
           format: int64
         user_api_key:
-          type:
-          - string
-          - 'null'
-        user_password:
           type:
           - string
           - 'null'
@@ -14125,14 +15422,97 @@ components:
           - 'null'
           format: date-time
       required:
-      - user_name
-      - user_login
-      - user_email
       - user_active
+      - user_email
       - user_id
       - user_isadmin
+      - user_login
+      - user_name
+      description: Schema for serializing and deserializing User objects.
+    UserSchemaForAPIV2Request:
+      type: object
+      properties:
+        user_roles_str:
+          type: array
+          items:
+            type: string
+        user_name:
+          type:
+          - string
+          - 'null'
+        user_login:
+          type:
+          - string
+          - 'null'
+        user_email:
+          type:
+          - string
+          - 'null'
+        user_active:
+          type:
+          - boolean
+          - 'null'
+        user_password:
+          type:
+          - string
+          - 'null'
+        user_isadmin:
+          type: boolean
+        user_is_service_account:
+          type:
+          - boolean
+          - 'null'
+        user_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorizationGroup'
+        user_permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorizationGroup'
+        user_customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        user_cases_access:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseSchemaForAPIV2'
+        uuid:
+          type: string
+          format: uuid
+        ctx_case:
+          type:
+          - integer
+          - 'null'
+        in_dark_mode:
+          type:
+          - boolean
+          - 'null'
+        has_mini_sidebar:
+          type:
+          - boolean
+          - 'null'
+        has_deletion_confirmation:
+          type:
+          - boolean
+          - 'null'
+        avatar_updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - user_active
+      - user_email
+      - user_isadmin
+      - user_login
+      - user_name
       description: Schema for serializing and deserializing User objects.
     schema_cls:
+      type: object
+      description: "Auto-generated placeholder \u2014 see marshables.py::schema_cls."
+    schema_clsRequest:
       type: object
       description: "Auto-generated placeholder \u2014 see marshables.py::schema_cls."
     schema_factory:
