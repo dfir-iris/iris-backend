@@ -21,6 +21,7 @@ import json
 import pickle
 import uuid
 
+from flask import g
 from flask import render_template
 from flask import request
 from sqlalchemy.orm import DeclarativeMeta
@@ -37,6 +38,27 @@ def page_not_found(e):
         return response_error("Resource not found", status=404)
 
     return render_template('pages/error-404.html', template_folder=TEMPLATE_PATH), 404
+
+
+# 500 handler — the FlaskIntegration in
+# app/iris_engine/observability/reporter.py captures the exception
+# BEFORE this runs (via `flask.got_request_exception`), so no manual
+# capture_exception call is needed here. This exists only to return a
+# useful envelope: JSON clients get `{request_id, ...}` so a support
+# ticket can link an activity-log row to a crash event.
+@app.errorhandler(500)
+def internal_server_error(e):
+    request_id = g.get('request_id')
+    if request.content_type and 'application/json' in request.content_type:
+        return response_error(
+            'Internal server error',
+            data={'request_id': request_id} if request_id else None,
+            status=500,
+        )
+    return render_template(
+        'pages/error-404.html',
+        template_folder=TEMPLATE_PATH,
+    ), 500
 
 
 _UNSET = object()

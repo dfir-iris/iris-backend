@@ -168,6 +168,12 @@ def after_request(response):
     return response
 
 
+# Request-ID middleware BEFORE blueprints so every route (including
+# the 404/500 error handlers) has an id bound on `flask.g` and
+# echoed on the response as `X-Request-Id`.
+from app.iris_engine.observability.request_id import register_request_id_middleware
+register_request_id_middleware(app)
+
 register_blueprints(app)
 
 try:
@@ -177,6 +183,15 @@ try:
 except Exception as e:
     app.logger.exception('Post init failed. IRIS not started')
     raise e
+
+# Error reporter init runs AFTER PostInit — that's what guarantees
+# the singleton ServerSettings row exists (PostInit seeds it on cold
+# boot). Reads the six error_reporting_* fields and calls
+# sentry_sdk.init(...) if enabled; else installs a null client. Any
+# failure here is logged and swallowed — the reporter is optional
+# and must never block boot.
+from app.iris_engine.observability.reporter import init_error_reporter_from_settings
+init_error_reporter_from_settings(app)
 
 lm.user_loader(load_user)
 lm.request_loader(load_user_from_request)

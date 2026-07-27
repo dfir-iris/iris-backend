@@ -48,6 +48,7 @@ from app.db import db
 from app.iris_engine.backup.backup import backup_iris_db
 from app.iris_engine.mail.outbound import mail_send_system
 from app.iris_engine.mail.secrets import encrypt_secret
+from app.iris_engine.observability.reporter import reload_error_reporter
 from app.iris_engine.updater.updater import remove_periodic_update_checks
 from app.iris_engine.updater.updater import setup_periodic_update_checks
 from app.iris_engine.utils.tracker import track_activity
@@ -69,8 +70,8 @@ _MAIL_PASSWORD_FIELDS = ('mail_smtp_password', 'mail_imap_password')
 _ERROR_REPORTING_SECRET_FIELDS = ('error_reporting_backend_dsn',)
 
 # Any change to one of these fields triggers `reload_error_reporter`
-# (stubbed in PR1, wired in PR2). Snapshot before the schema load and
-# compare after commit — same shape as the mail-interval snapshot.
+# after commit — snapshot before the schema load and compare, same
+# shape as the mail-interval snapshot above.
 _ERROR_REPORTING_TRACKED_FIELDS = (
     'error_reporting_enabled',
     'error_reporting_backend_dsn',
@@ -170,16 +171,6 @@ def _error_reporting_changed(before: dict, settings) -> bool:
         before[field] != getattr(settings, field, None)
         for field in _ERROR_REPORTING_TRACKED_FIELDS
     )
-
-
-def _reload_error_reporter_stub() -> None:
-    """No-op hook for PR1.
-
-    Wired to the real `sentry_sdk.init(...)` call in PR2 (module
-    `app/iris_engine/observability/reporter.py`). Kept as a named
-    seam so the PUT-handler side-effect block is stable across PRs.
-    """
-    return
 
 
 class ServerOperations:
@@ -296,10 +287,11 @@ class ServerOperations:
                     app.logger.exception('Failed to refresh mail beat schedule')
 
             # Reload the error reporter only when one of its fields
-            # actually changed. PR1 wires the seam as a no-op; PR2
-            # replaces the stub with the real `sentry_sdk.init(...)`.
+            # actually changed. `sentry_sdk.init` is idempotent — it
+            # installs a new client on the current hub, so subsequent
+            # captures pick up the fresh DSN/environment/sample-rate.
             if _error_reporting_changed(error_reporting_before, updated):
-                _reload_error_reporter_stub()
+                reload_error_reporter(app)
 
             track_activity(f'Server settings updated: {changes}', ctx_less=True)
             # Re-cache the dump on app.config so other code paths that

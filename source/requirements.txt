@@ -51,6 +51,12 @@ dictdiffer==0.2.0
 oic==1.7.0
 bleach==6.1.0
 imap-tools==1.5.0
+# Sentry SDK — the ingest wire is Sentry-compatible so this drives
+# both Sentry and GlitchTip. Optional at runtime: the SDK is only
+# init'd when `ServerSettings.error_reporting_enabled` is on and a
+# DSN is set. `[flask]` extra pulls in the Flask + Werkzeug wsgi
+# integrations. See app/iris_engine/observability/reporter.py.
+sentry-sdk[flask]>=2.20,<3
 
 https://github.com/dfir-iris/docx-generator/releases/download/v0.9.1/docx_generator-0.9.1-py3-none-any.whl
 dependencies/iris_interface-1.2.0-py3-none-any.whl
