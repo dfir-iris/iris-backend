@@ -57,6 +57,7 @@ from app import app
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -160,6 +161,7 @@ def _list_query():
 
 @report_templates_blueprint.get('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='List report templates')
 def list_report_templates() -> Response:
     pagination_parameters = parse_pagination_parameters(request)
     paginated = paginate(CaseTemplateReport, pagination_parameters, _list_query())
@@ -177,6 +179,7 @@ def list_report_templates() -> Response:
 
 @report_templates_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='Get a report template')
 def get_report_template(identifier: int) -> Response:
     try:
         return response_api_success(_serialize_template(_get_template(identifier)))
@@ -186,6 +189,8 @@ def get_report_template(identifier: int) -> Response:
 
 @report_templates_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='created', tags=['ManageReportTemplates'],
+         summary='Upload a report template')
 def create_report_template() -> Response:
     """Multipart upload: metadata in form fields + the template file
     under the `file` key. Mirrors the legacy endpoint so existing
@@ -257,6 +262,7 @@ def create_report_template() -> Response:
 
 @report_templates_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='Update a report template metadata')
 def update_report_template(identifier: int) -> Response:
     """Metadata-only update. Takes JSON so admins can rename / re-tag
     a template without re-uploading its file. To replace the file
@@ -306,6 +312,8 @@ def update_report_template(identifier: int) -> Response:
 
 @report_templates_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='deleted', tags=['ManageReportTemplates'],
+         summary='Delete a report template')
 def delete_report_template(identifier: int) -> Response:
     """Delete metadata + the underlying file. Best-effort file
     unlink: if it fails (already removed manually, FS permissions
@@ -341,6 +349,7 @@ def delete_report_template(identifier: int) -> Response:
 
 @report_templates_blueprint.put('/<int:identifier>/file')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='Replace a report template file')
 def replace_report_template_file(identifier: int) -> Response:
     """Replace the underlying template file in place.
 
@@ -420,6 +429,7 @@ def replace_report_template_file(identifier: int) -> Response:
 
 @report_templates_blueprint.get('/<int:identifier>/download')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='Download a report template file')
 def download_report_template(identifier: int) -> Response:
     """Stream the raw template file back so an admin can inspect /
     edit / copy it locally. Filename uses the human-readable
@@ -444,6 +454,7 @@ def download_report_template(identifier: int) -> Response:
 
 @report_templates_blueprint.post('/<int:identifier>/render')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='Render a report template against a case')
 def render_report_template(identifier: int) -> Response:
     """Render the template against a real case and stream the result.
 
@@ -503,6 +514,7 @@ def render_report_template(identifier: int) -> Response:
 
 @report_templates_blueprint.get('/accessible-cases')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='List cases available for rendering')
 def list_accessible_cases() -> Response:
     """Lightweight list of cases the current user can render against.
 
@@ -561,6 +573,7 @@ _FIELD_META = {
 
 @report_templates_blueprint.get('/schema')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageReportTemplates'], summary='Describe the report template schema')
 def get_report_template_schema() -> Response:
     """Editor metadata + seeded lookups in a single round-trip.
 

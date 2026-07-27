@@ -36,6 +36,7 @@ from flask import Response
 from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
@@ -78,6 +79,7 @@ custom_attributes_blueprint = Blueprint(
 
 @custom_attributes_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['ManageCustomAttributes'], summary='List custom attribute definitions')
 def list_custom_attributes() -> Response:
     """List every attribute-definition row.
 
@@ -101,6 +103,7 @@ def list_custom_attributes() -> Response:
 
 @custom_attributes_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(tags=['ManageCustomAttributes'], summary='Get a custom attribute definition')
 def get_custom_attribute(identifier: int) -> Response:
     row = CustomAttribute.query.filter(CustomAttribute.attribute_id == identifier).first()
     if row is None:
@@ -110,6 +113,7 @@ def get_custom_attribute(identifier: int) -> Response:
 
 @custom_attributes_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageCustomAttributes'], summary='Update a custom attribute definition')
 def update_custom_attribute(identifier: int) -> Response:
     """Update one attribute-definition row.
 
@@ -183,6 +187,7 @@ def update_custom_attribute(identifier: int) -> Response:
 
 @custom_attributes_blueprint.post('/validate')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageCustomAttributes'], summary='Validate a custom attribute schema')
 def validate_custom_attribute() -> Response:
     """Dry-run the schema validator without mutating anything.
 

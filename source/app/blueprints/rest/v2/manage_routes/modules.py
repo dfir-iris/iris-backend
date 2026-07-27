@@ -28,6 +28,7 @@ from flask import Blueprint
 from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -53,6 +54,7 @@ modules_blueprint = Blueprint('modules_rest_v2', __name__, url_prefix='/modules'
 
 @modules_blueprint.get('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='List modules')
 def list_modules():
     page = request.args.get('page', default=1, type=int)
     per_page = request.args.get('per_page', default=25, type=int)
@@ -61,6 +63,7 @@ def list_modules():
 
 @modules_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='created', tags=['ManageModules'], summary='Register a module')
 def add_module():
     request_data = request.get_json() or {}
     module_name = request_data.get('module_name')
@@ -74,6 +77,7 @@ def add_module():
 
 @modules_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='Get a module')
 def get_module(identifier):
     try:
         return response_api_success(module_get_detail(identifier))
@@ -83,6 +87,7 @@ def get_module(identifier):
 
 @modules_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='deleted', tags=['ManageModules'], summary='Delete a module')
 def delete_module(identifier):
     try:
         modules_delete(identifier)
@@ -95,6 +100,7 @@ def delete_module(identifier):
 
 @modules_blueprint.post('/<int:identifier>/enable')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='Enable a module')
 def enable_module(identifier):
     try:
         modules_enable(identifier)
@@ -107,6 +113,7 @@ def enable_module(identifier):
 
 @modules_blueprint.post('/<int:identifier>/disable')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='Disable a module')
 def disable_module(identifier):
     try:
         modules_disable(identifier)
@@ -119,6 +126,7 @@ def disable_module(identifier):
 
 @modules_blueprint.put('/<int:identifier>/parameters/<path:param_name>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='Update a module parameter')
 def set_module_parameter(identifier, param_name):
     """Update one parameter.
 
@@ -143,6 +151,7 @@ def set_module_parameter(identifier, param_name):
 
 @modules_blueprint.get('/<int:identifier>/export-config')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='Export a module configuration')
 def export_module_config(identifier):
     try:
         return response_api_success(modules_export_config(identifier))
@@ -152,6 +161,7 @@ def export_module_config(identifier):
 
 @modules_blueprint.post('/<int:identifier>/import-config')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='Import a module configuration')
 def import_module_config(identifier):
     request_data = request.get_json() or {}
     payload = request_data.get('module_configuration')
@@ -168,6 +178,7 @@ def import_module_config(identifier):
 
 @modules_blueprint.get('/hooks')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageModules'], summary='List module hooks')
 def list_modules_hooks():
     page = request.args.get('page', default=1, type=int)
     per_page = request.args.get('per_page', default=25, type=int)

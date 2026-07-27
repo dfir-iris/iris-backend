@@ -40,6 +40,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -143,6 +144,8 @@ def _list_query():
 
 @case_templates_blueprint.get('')
 @ac_api_requires(Permissions.case_templates_read)
+@api_doc(response=CaseTemplateSchema, response_shape='paginated',
+         tags=['ManageCaseTemplates'], summary='List case templates')
 def list_case_templates() -> Response:
     pagination_parameters = parse_pagination_parameters(request)
     paginated = paginate(CaseTemplate, pagination_parameters, _list_query())
@@ -151,6 +154,8 @@ def list_case_templates() -> Response:
 
 @case_templates_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.case_templates_read)
+@api_doc(response=CaseTemplateSchema, tags=['ManageCaseTemplates'],
+         summary='Get a case template')
 def get_case_template(identifier: int) -> Response:
     row = get_case_template_by_id(identifier)
     if row is None:
@@ -160,6 +165,9 @@ def get_case_template(identifier: int) -> Response:
 
 @case_templates_blueprint.post('')
 @ac_api_requires(Permissions.case_templates_write)
+@api_doc(request=CaseTemplateSchema, response=CaseTemplateSchema,
+         response_shape='created', tags=['ManageCaseTemplates'],
+         summary='Create a case template')
 def create_case_template() -> Response:
     try:
         template_dict = _to_dict(request.get_json() or {})
@@ -180,6 +188,8 @@ def create_case_template() -> Response:
 
 @case_templates_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.case_templates_write)
+@api_doc(request=CaseTemplateSchema, response=CaseTemplateSchema,
+         tags=['ManageCaseTemplates'], summary='Update a case template')
 def update_case_template(identifier: int) -> Response:
     row = get_case_template_by_id(identifier)
     if row is None:
@@ -204,6 +214,8 @@ def update_case_template(identifier: int) -> Response:
 
 @case_templates_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.case_templates_write)
+@api_doc(response_shape='deleted', tags=['ManageCaseTemplates'],
+         summary='Delete a case template')
 def delete_case_template(identifier: int) -> Response:
     row = get_case_template_by_id(identifier)
     if row is None:
@@ -403,6 +415,7 @@ _ITEM_SCHEMA_BY_FIELD: Dict[str, str] = {
 
 @case_templates_blueprint.get('/schema')
 @ac_api_requires(Permissions.case_templates_read)
+@api_doc(tags=['ManageCaseTemplates'], summary='Describe the case template schema')
 def get_case_template_schema() -> Response:
     """Describe `CaseTemplateSchema` + nested template shapes.
 

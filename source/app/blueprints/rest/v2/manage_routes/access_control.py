@@ -48,6 +48,7 @@ from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_success
 from app.iris_engine.access_control.utils import ac_recompute_all_users_effective_ac
 from app.models.authorization import CaseAccessLevel
@@ -145,6 +146,7 @@ _CASE_ACCESS_LABELS: Dict[str, Dict[str, str]] = {
 
 @access_control_blueprint.get('/schema')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageAccessControl'], summary='Get access-control enum metadata')
 def get_access_control_schema() -> Response:
     """Enum metadata for the Access Control editor.
 
@@ -182,6 +184,7 @@ def get_access_control_schema() -> Response:
 
 @access_control_blueprint.get('/accessible-cases')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageAccessControl'], summary='List cases accessible to the current user')
 def list_accessible_cases() -> Response:
     """Lightweight case picker for the per-user / per-group case-access
     modals.
@@ -217,6 +220,7 @@ def list_accessible_cases() -> Response:
 
 @access_control_blueprint.post('/recompute-all')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageAccessControl'], summary='Recompute effective access for all users')
 def recompute_all_users_access() -> Response:
     """Rebuild the effective-access cache for every user.
 

@@ -20,6 +20,7 @@ from flask import Blueprint
 from flask import request
 from marshmallow import ValidationError
 
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
@@ -207,59 +208,79 @@ customers_contacts_operations = CustomersContactsOperations()
 
 @customers_blueprint.get('')
 @ac_api_requires(Permissions.customers_read)
+@api_doc(response=CustomerSchema, response_shape='paginated',
+         tags=['ManageCustomers'], summary='List customers')
 def search_customers():
     return customers_operations.search()
 
 
 @customers_blueprint.post('')
 @ac_api_requires(Permissions.customers_write)
+@api_doc(request=CustomerSchema, response=CustomerSchema, response_shape='created',
+         tags=['ManageCustomers'], summary='Create a customer')
 def create_customer():
     return customers_operations.create()
 
 
 @customers_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.customers_read)
+@api_doc(response=CustomerSchema, tags=['ManageCustomers'],
+         summary='Get a customer')
 def get_customer(identifier):
     return customers_operations.read(identifier)
 
 
 @customers_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.customers_write)
+@api_doc(request=CustomerSchema, response=CustomerSchema,
+         tags=['ManageCustomers'], summary='Update a customer')
 def put_customer(identifier):
     return customers_operations.update(identifier)
 
 
 @customers_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.customers_write)
+@api_doc(response_shape='deleted', tags=['ManageCustomers'],
+         summary='Delete a customer')
 def delete_user(identifier):
     return customers_operations.delete(identifier)
 
 
 @customers_blueprint.get('/<int:identifier>/contacts')
 @ac_api_requires(Permissions.customers_read)
+@api_doc(response=ContactSchema, tags=['ManageCustomers'],
+         summary='List a customer contacts')
 def list_customer_contacts(identifier):
     return customers_contacts_operations.list(identifier)
 
 
 @customers_blueprint.post('/<int:identifier>/contacts')
 @ac_api_requires(Permissions.customers_write)
+@api_doc(request=ContactSchema, response=ContactSchema, response_shape='created',
+         tags=['ManageCustomers'], summary='Create a customer contact')
 def create_customer_contact(identifier):
     return customers_contacts_operations.create(identifier)
 
 
 @customers_blueprint.get('/<int:identifier>/contacts/<int:contact_id>')
 @ac_api_requires(Permissions.customers_read)
+@api_doc(response=ContactSchema, tags=['ManageCustomers'],
+         summary='Get a customer contact')
 def get_customer_contact(identifier, contact_id):
     return customers_contacts_operations.read(identifier, contact_id)
 
 
 @customers_blueprint.put('/<int:identifier>/contacts/<int:contact_id>')
 @ac_api_requires(Permissions.customers_write)
+@api_doc(request=ContactSchema, response=ContactSchema,
+         tags=['ManageCustomers'], summary='Update a customer contact')
 def put_customer_contact(identifier, contact_id):
     return customers_contacts_operations.update(identifier, contact_id)
 
 
 @customers_blueprint.delete('/<int:identifier>/contacts/<int:contact_id>')
 @ac_api_requires(Permissions.customers_write)
+@api_doc(response_shape='deleted', tags=['ManageCustomers'],
+         summary='Delete a customer contact')
 def delete_customer_contact(identifier, contact_id):
     return customers_contacts_operations.delete(identifier, contact_id)

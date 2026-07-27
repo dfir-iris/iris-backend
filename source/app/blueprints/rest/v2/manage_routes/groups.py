@@ -43,6 +43,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -185,30 +186,38 @@ groups = Groups()
 
 @groups_blueprint.get('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageGroups'], summary='List groups')
 def search_groups():
     return groups.search()
 
 
 @groups_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(request=AuthorizationGroupSchema, response=AuthorizationGroupSchema,
+         response_shape='created', tags=['ManageGroups'], summary='Create a group')
 def create_group():
     return groups.create()
 
 
 @groups_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AuthorizationGroupSchema, tags=['ManageGroups'],
+         summary='Get a group')
 def read_group(identifier):
     return groups.read(identifier)
 
 
 @groups_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(request=AuthorizationGroupSchema, response=AuthorizationGroupSchema,
+         tags=['ManageGroups'], summary='Update a group')
 def update_group(identifier):
     return groups.update(identifier)
 
 
 @groups_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='deleted', tags=['ManageGroups'], summary='Delete a group')
 def delete_group(identifier):
     return groups.delete(identifier)
 
@@ -225,6 +234,7 @@ def _require_group(group_id: int):
 
 @groups_blueprint.get('/<int:identifier>/members')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageGroups'], summary='List group members')
 def list_group_members(identifier: int) -> Response:
     group, err = _require_group(identifier)
     if err is not None:
@@ -234,6 +244,8 @@ def list_group_members(identifier: int) -> Response:
 
 @groups_blueprint.put('/<int:identifier>/members')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AuthorizationGroupSchema, tags=['ManageGroups'],
+         summary='Replace group members')
 def put_group_members(identifier: int) -> Response:
     """Replace the group's member list.
 
@@ -263,6 +275,8 @@ def put_group_members(identifier: int) -> Response:
 
 @groups_blueprint.delete('/<int:identifier>/members/<int:user_id>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AuthorizationGroupSchema, tags=['ManageGroups'],
+         summary='Remove a member from a group')
 def remove_group_member(identifier: int, user_id: int) -> Response:
     """Drop a single user from the group.
 
@@ -291,6 +305,8 @@ def remove_group_member(identifier: int, user_id: int) -> Response:
 
 @groups_blueprint.get('/<int:identifier>/cases-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AuthorizationGroupSchema, tags=['ManageGroups'],
+         summary='List a group per-case grants')
 def get_group_cases_access(identifier: int) -> Response:
     """List the group's per-case grants.
 
@@ -306,6 +322,8 @@ def get_group_cases_access(identifier: int) -> Response:
 
 @groups_blueprint.post('/<int:identifier>/cases-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AuthorizationGroupSchema, tags=['ManageGroups'],
+         summary='Grant cases access to a group')
 def add_group_cases_access(identifier: int) -> Response:
     """Grant the group access over cases.
 
@@ -358,6 +376,8 @@ def add_group_cases_access(identifier: int) -> Response:
 
 @groups_blueprint.delete('/<int:identifier>/cases-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AuthorizationGroupSchema, tags=['ManageGroups'],
+         summary='Revoke cases access from a group')
 def delete_group_cases_access(identifier: int) -> Response:
     """Drop the group's grants for `cases`.
 

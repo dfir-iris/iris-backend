@@ -39,6 +39,7 @@ from flask import request
 from app import app
 from app import celery
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.server_settings import get_server_settings_as_dict
@@ -263,30 +264,36 @@ server_operations = ServerOperations()
 
 
 @server_blueprint.get("/authentication-settings")
+@api_doc(tags=['ManageServer'], summary='Get authentication settings')
 def server_get_authsettings() -> Response:
     return server_operations.get_authentication_settings()
 
 
 @server_blueprint.get('/settings')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageServer'], summary='Get server settings')
 def server_get_settings() -> Response:
     return server_operations.read_settings()
 
 
 @server_blueprint.put('/settings')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(request=ServerSettingsSchema, response=ServerSettingsSchema,
+         tags=['ManageServer'], summary='Update server settings')
 def server_put_settings() -> Response:
     return server_operations.update_settings()
 
 
 @server_blueprint.post('/backups/db')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageServer'], summary='Trigger a database backup')
 def server_make_db_backup() -> Response:
     return server_operations.make_db_backup()
 
 
 @server_blueprint.post('/mail/test-send')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageServer'], summary='Send an SMTP test email')
 def server_send_test_mail() -> Response:
     return server_operations.send_test_mail()
 

@@ -3755,6 +3755,2922 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/access-control/accessible-cases:
+    get:
+      operationId: list_accessible_cases_get
+      summary: List cases accessible to the current user
+      tags:
+      - ManageAccessControl
+      security:
+      - ApiKey: []
+      description: 'modals.
+
+
+        Returns at most 200 rows ordered by `case_id DESC`, optionally
+
+        filtered by a `search` ILIKE on case name + SOC id. Each
+
+        candidate is re-checked with `ac_fast_check_current_user_has_case_access`
+
+        so an admin who''s explicitly removed themselves from a case
+
+        still doesn''t see it in the picker.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/access-control/recompute-all:
+    post:
+      operationId: recompute_all_users_access_post
+      summary: Recompute effective access for all users
+      tags:
+      - ManageAccessControl
+      security:
+      - ApiKey: []
+      description: "Expensive on large fleets \u2014 the legacy UI gated this behind a\nconfirmation.\
+        \ The page does the same client-side; the endpoint\nitself just runs the helper synchronously."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/access-control/schema:
+    get:
+      operationId: get_access_control_schema_get
+      summary: Get access-control enum metadata
+      tags:
+      - ManageAccessControl
+      security:
+      - ApiKey: []
+      description: "Permissions are exposed as a flat list of `{name, value, label,\ndescription}` ordered\
+        \ by their bit value \u2014 that's the order the\neditor renders the checklist. CaseAccessLevel\
+        \ is shipped the\nsame way but as a small mutually-exclusive set the UI renders as\na select."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/alert-cluster-statuses:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: &id001
+      - ManageTaxonomies
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/alert-resolutions:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/alert-statuses:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/analysis-statuses:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-objects/asset-types:
+    get:
+      operationId: list_taxonomy_get
+      summary: list_taxonomy
+      tags: &id002
+      - ManageCaseObjects
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_cls'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_taxonomy_post
+      summary: create_taxonomy
+      tags: &id003
+      - ManageCaseObjects
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-objects/asset-types/{identifier}:
+    delete:
+      operationId: delete_taxonomy_delete
+      summary: delete_taxonomy
+      tags: &id004
+      - ManageCaseObjects
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_taxonomy_get
+      summary: read_taxonomy
+      tags: &id005
+      - ManageCaseObjects
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_taxonomy_put
+      summary: update_taxonomy
+      tags: &id006
+      - ManageCaseObjects
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-objects/asset-types/{identifier}/icon/{field}:
+    post:
+      operationId: upload_asset_type_icon_post
+      summary: Upload an asset type icon
+      tags:
+      - ManageCaseObjects
+      security:
+      - ApiKey: []
+      description: '`field` is either `compromised` or `not_compromised`. The file
+
+        must be sent as multipart form-data under the key `file` and pass
+
+        the existing `allowed_file_icon` check (png/svg only). On success
+
+        the new filename is persisted on the column
+
+        `asset_icon_<field>` and the full updated row is returned so the
+
+        frontend can refresh its detail pane in one round-trip.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: field
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetType'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-objects/case-classifications:
+    get:
+      operationId: list_taxonomy_get
+      summary: list_taxonomy
+      tags: *id002
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_cls'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_taxonomy_post
+      summary: create_taxonomy
+      tags: *id003
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-objects/case-classifications/{identifier}:
+    delete:
+      operationId: delete_taxonomy_delete
+      summary: delete_taxonomy
+      tags: *id004
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_taxonomy_get
+      summary: read_taxonomy
+      tags: *id005
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_taxonomy_put
+      summary: update_taxonomy
+      tags: *id006
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-objects/case-states:
+    get:
+      operationId: list_taxonomy_get
+      summary: list_taxonomy
+      tags: *id002
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_cls'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_taxonomy_post
+      summary: create_taxonomy
+      tags: *id003
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-objects/case-states/{identifier}:
+    delete:
+      operationId: delete_taxonomy_delete
+      summary: delete_taxonomy
+      tags: *id004
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_taxonomy_get
+      summary: read_taxonomy
+      tags: *id005
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_taxonomy_put
+      summary: update_taxonomy
+      tags: *id006
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-objects/evidence-types:
+    get:
+      operationId: list_taxonomy_get
+      summary: list_taxonomy
+      tags: *id002
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_cls'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_taxonomy_post
+      summary: create_taxonomy
+      tags: *id003
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-objects/evidence-types/{identifier}:
+    delete:
+      operationId: delete_taxonomy_delete
+      summary: delete_taxonomy
+      tags: *id004
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_taxonomy_get
+      summary: read_taxonomy
+      tags: *id005
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_taxonomy_put
+      summary: update_taxonomy
+      tags: *id006
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-objects/ioc-types:
+    get:
+      operationId: list_taxonomy_get
+      summary: list_taxonomy
+      tags: *id002
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_cls'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_taxonomy_post
+      summary: create_taxonomy
+      tags: *id003
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-objects/ioc-types/{identifier}:
+    delete:
+      operationId: delete_taxonomy_delete
+      summary: delete_taxonomy
+      tags: *id004
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_taxonomy_get
+      summary: read_taxonomy
+      tags: *id005
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_taxonomy_put
+      summary: update_taxonomy
+      tags: *id006
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/schema_cls'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/schema_cls'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-templates:
+    get:
+      operationId: list_case_templates_get
+      summary: List case templates
+      tags:
+      - ManageCaseTemplates
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseTemplate'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_case_template_post
+      summary: Create a case template
+      tags:
+      - ManageCaseTemplates
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseTemplate'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTemplate'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-templates/{identifier}:
+    delete:
+      operationId: delete_case_template_delete
+      summary: Delete a case template
+      tags:
+      - ManageCaseTemplates
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_template_get
+      summary: Get a case template
+      tags:
+      - ManageCaseTemplates
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTemplate'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_template_put
+      summary: Update a case template
+      tags:
+      - ManageCaseTemplates
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseTemplate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTemplate'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/case-templates/schema:
+    get:
+      operationId: get_case_template_schema_get
+      summary: Describe the case template schema
+      tags:
+      - ManageCaseTemplates
+      security:
+      - ApiKey: []
+      description: "Returned shape is consumed by the interactive editor to build the\nform. Keeping introspection\
+        \ here (rather than client-side) keeps\nthe form in lockstep with the backend schema \u2014 adding\
+        \ a field to\n`CaseTemplateSchema` adds an input on the form on the next reload.\n\n`tasks` is\
+        \ special-cased: it's stored as raw JSON on the model\nand never declared as a Marshmallow field,\
+        \ but the post-modifier\ntreats it as a structured list. We expose it as if it were a\ndeclared\
+        \ field so the UI can build the same repeater the rest of\nthe form uses."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/custom-attributes:
+    get:
+      operationId: list_custom_attributes_get
+      summary: List custom attribute definitions
+      tags:
+      - ManageCustomAttributes
+      security:
+      - ApiKey: []
+      description: 'Readable by any authenticated user because the schema is
+
+        needed to render the detail-view tabs (not just by admins). Write
+
+        access is still admin-only via PUT below.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/custom-attributes/{identifier}:
+    get:
+      operationId: get_custom_attribute_get
+      summary: Get a custom attribute definition
+      tags:
+      - ManageCustomAttributes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_custom_attribute_put
+      summary: Update a custom attribute definition
+      tags:
+      - ManageCustomAttributes
+      security:
+      - ApiKey: []
+      description: "Body shape:\n\n{\n\"attribute_content\": \"<JSON-stringified schema>\" | {schema},\n\
+        \"complete_overwrite\": <bool>,   # optional\n\"partial_overwrite\": <bool>     # optional\n}\n\
+        \n`attribute_content` is accepted as either a raw object or a\nJSON-encoded string \u2014 the\
+        \ legacy admin page sent it stringified;\nthe new SPA panel will send the object directly. Both\
+        \ paths feed\ninto `validate_attribute` which expects a string, so we re-encode\nwhen needed.\n\
+        \n`complete_overwrite` / `partial_overwrite` propagate into\n`update_all_attributes` so the change\
+        \ is back-filled across every\nexisting record of the matching object type."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/custom-attributes/validate:
+    post:
+      operationId: validate_custom_attribute_post
+      summary: Validate a custom attribute schema
+      tags:
+      - ManageCustomAttributes
+      security:
+      - ApiKey: []
+      description: "The SPA calls this from the edit modal so admins can see the\nexact per-field error\
+        \ list before committing (the PUT would run\n`update_all_attributes` and back-fill every existing\
+        \ row, which\nis expensive \u2014 surfacing validation errors early avoids paying\nthat cost only\
+        \ to be rejected).\n\nBody: `{\"attribute_content\": <object | JSON string>}`.\nReturns `{ok:\
+        \ bool, logs: [...]}` \u2014 `logs` is empty on success."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/customers:
+    get:
+      operationId: search_customers_get
+      summary: List customers
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_customer_post
+      summary: Create a customer
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/customers/{identifier}:
+    delete:
+      operationId: delete_user_delete
+      summary: Delete a customer
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_customer_get
+      summary: Get a customer
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_customer_put
+      summary: Update a customer
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/customers/{identifier}/contacts:
+    get:
+      operationId: list_customer_contacts_get
+      summary: List a customer contacts
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_customer_contact_post
+      summary: Create a customer contact
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/customers/{identifier}/contacts/{contact_id}:
+    delete:
+      operationId: delete_customer_contact_delete
+      summary: Delete a customer contact
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: contact_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_customer_contact_get
+      summary: Get a customer contact
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: contact_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_customer_contact_put
+      summary: Update a customer contact
+      tags:
+      - ManageCustomers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: contact_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/event-categories:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/groups:
+    get:
+      operationId: search_groups_get
+      summary: List groups
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_group_post
+      summary: Create a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizationGroup'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/groups/{identifier}:
+    delete:
+      operationId: delete_group_delete
+      summary: Delete a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_group_get
+      summary: Get a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_group_put
+      summary: Update a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizationGroup'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/groups/{identifier}/cases-access:
+    delete:
+      operationId: delete_group_cases_access_delete
+      summary: Revoke cases access from a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      description: 'Body: `{cases: [int, ...]}`. Members'' effective access is
+
+        recomputed before the response returns so subsequent reads see
+
+        the new state without a manual recompute call.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_group_cases_access_get
+      summary: List a group per-case grants
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      description: 'The hydrated `Group` object exposes the rows under
+
+        `group_cases_access`; we return the full projection so the page
+
+        can render the picker without computing anything client-side.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: add_group_cases_access_post
+      summary: Grant cases access to a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      description: "Body shape variants:\n* `{access_level, auto_follow_cases: true}` \u2014 grant access\
+        \ on\nevery existing case and persist the auto-follow flag so\nfuture cases get the grant automatically.\n\
+        * `{access_level, cases_list: [int, ...]}` \u2014 explicit list.\n\nEither path triggers a recompute\
+        \ of effective access for every\nmember of the group."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/groups/{identifier}/members:
+    get:
+      operationId: list_group_members_get
+      summary: List group members
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_group_members_put
+      summary: Replace group members
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      description: "Body: `{members: [user_id, ...]}` (or legacy `group_members`).\nThe data-layer helper\
+        \ performs an in-place diff (remove orphans,\ninsert newcomers, leave existing in place) so this\
+        \ isn't an\nO(N\xB2) churn even with hundreds of users."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/groups/{identifier}/members/{user_id}:
+    delete:
+      operationId: remove_group_member_delete
+      summary: Remove a member from a group
+      tags:
+      - ManageGroups
+      security:
+      - ApiKey: []
+      description: "Refuses if the caller removing this user would lock the caller\nout \u2014 `ac_ldp_group_removal`\
+        \ does the transitive check."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationGroup'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules:
+    get:
+      operationId: list_modules_get
+      summary: List modules
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: add_module_post
+      summary: Register a module
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/modules/{identifier}:
+    delete:
+      operationId: delete_module_delete
+      summary: Delete a module
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_module_get
+      summary: Get a module
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules/{identifier}/disable:
+    post:
+      operationId: disable_module_post
+      summary: Disable a module
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules/{identifier}/enable:
+    post:
+      operationId: enable_module_post
+      summary: Enable a module
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules/{identifier}/export-config:
+    get:
+      operationId: export_module_config_get
+      summary: Export a module configuration
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules/{identifier}/import-config:
+    post:
+      operationId: import_module_config_post
+      summary: Import a module configuration
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules/{identifier}/parameters/{param_name}:
+    put:
+      operationId: set_module_parameter_put
+      summary: Update a module parameter
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      description: "The legacy API encoded `mod_id##param_name` as base64 in the URL \u2014\nwe don't\
+        \ carry that scheme over: the v2 URL puts `module_id` and\n`param_name` as discrete path segments.\
+        \ `path:` matches slashes so\nparameter names that contain `/` (rare but legal) round-trip cleanly."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: param_name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/modules/hooks:
+    get:
+      operationId: list_modules_hooks_get
+      summary: List module hooks
+      tags:
+      - ManageModules
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/report-templates:
+    get:
+      operationId: list_report_templates_get
+      summary: List report templates
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_report_template_post
+      summary: Upload a report template
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: 'under the `file` key. Mirrors the legacy endpoint so existing
+
+        template files round-trip without modification.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/report-templates/{identifier}:
+    delete:
+      operationId: delete_report_template_delete
+      summary: Delete a report template
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: "unlink: if it fails (already removed manually, FS permissions\ndrift) the row still\
+        \ goes \u2014 the legacy endpoint did the same."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_report_template_get
+      summary: Get a report template
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_report_template_put
+      summary: Update a report template metadata
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: "a template without re-uploading its file. To replace the file\nitself, use `PUT /<id>/file`\
+        \ (multipart) \u2014 kept separate so this\nroute can stay plain JSON."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/report-templates/{identifier}/download:
+    get:
+      operationId: download_report_template_get
+      summary: Download a report template file
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: 'edit / copy it locally. Filename uses the human-readable
+
+        `template.name` with the stored extension.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/report-templates/{identifier}/file:
+    put:
+      operationId: replace_report_template_file_put
+      summary: Replace a report template file
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: "Multipart: a single `file` field, same allowlist as the create\nendpoint. The renderer\
+        \ reads the file from disk every time a\nreport is generated, so an in-place swap is safe between\n\
+        requests \u2014 no caching to invalidate.\n\nStrategy: write the new file under a fresh random\
+        \ name first,\nthen atomically flip `internal_reference` to point at it and\nunlink the old file.\
+        \ If the upload or DB update fails we drop\nthe staged file, leaving the original intact."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/report-templates/{identifier}/render:
+    post:
+      operationId: render_report_template_post
+      summary: Render a report template against a case
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: "Body: `{case_id: int, safe_mode?: bool}`. The current user must\nhold `read_only`-or-better\
+        \ on the case \u2014 that gate matches what\nthe legacy `/case/report/generate-{investigation,activities}/...`\n\
+        routes enforce via `ac_requires_case_identifier`. Dispatch\nbetween investigation / activities\
+        \ is driven by the template's\n`report_type` so the UI doesn't have to know which generator to\n\
+        call."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/report-templates/accessible-cases:
+    get:
+      operationId: list_accessible_cases_get
+      summary: List cases available for rendering
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: 'Returns at most 200 rows ordered by `case_id DESC`, optionally
+
+        filtered by a `search` ILIKE on case name + SOC id. The page
+
+        refreshes this list on every keystroke (debounced); 200 is the
+
+        inflexion point past which a user is expected to start typing.
+
+
+        We still re-check `ac_fast_check_current_user_has_case_access`
+
+        per row even though the route is admin-gated, so an admin who
+
+        explicitly removed themselves from a case still doesn''t see it.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/report-templates/schema:
+    get:
+      operationId: get_report_template_schema_get
+      summary: Describe the report template schema
+      tags:
+      - ManageReportTemplates
+      security:
+      - ApiKey: []
+      description: 'Languages and report types are seeded at install time and only
+
+        grow when the operator adds new ones via SQL; bundling them with
+
+        the schema keeps the form rendering free of extra requests on
+
+        open.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/server/authentication-settings:
+    get:
+      operationId: server_get_authsettings_get
+      summary: Get authentication settings
+      tags:
+      - ManageServer
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/server/backups/db:
+    post:
+      operationId: server_make_db_backup_post
+      summary: Trigger a database backup
+      tags:
+      - ManageServer
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/server/mail/test-send:
+    post:
+      operationId: server_send_test_mail_post
+      summary: Send an SMTP test email
+      tags:
+      - ManageServer
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/server/settings:
+    get:
+      operationId: server_get_settings_get
+      summary: Get server settings
+      tags:
+      - ManageServer
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: server_put_settings_put
+      summary: Update server settings
+      tags:
+      - ManageServer
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServerSettings'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerSettings'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/severities:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/task-statuses:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/tlp:
+    get:
+      operationId: list_route_get
+      summary: list_route
+      tags: *id001
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/schema_factory'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/users:
+    get:
+      operationId: search_users_get
+      summary: List users
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_user_post
+      summary: Create a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSchemaForAPIV2'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/users/{identifier}:
+    delete:
+      operationId: delete_user_delete
+      summary: Delete a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_user_endpoint_get
+      summary: Get a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_user_put
+      summary: Update a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSchemaForAPIV2'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/activate:
+    post:
+      operationId: activate_user_post
+      summary: Activate a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/api-key/renew:
+    post:
+      operationId: renew_user_api_key_post
+      summary: Rotate a user API key
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "once \u2014 the admin should copy it immediately; we don't surface it\nagain on subsequent\
+        \ reads."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/audit:
+    get:
+      operationId: audit_user_get
+      summary: Get user effective access audit
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: 'Returns:
+
+        * `access_audit`: per-case rows showing where the user''s
+
+        effective access came from (direct user grant, group, org).
+
+        * `permissions_audit`: per-permission rows showing which
+
+        group(s) contribute each bit of the user''s effective
+
+        permission bitmask.
+
+
+        Both projections are computed on-the-fly by the iris_engine
+
+        helpers; nothing is persisted.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/cases-access:
+    delete:
+      operationId: delete_user_cases_access_delete
+      summary: Revoke cases access from a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: 'Body: `{cases: [int, ...]}`. DELETE with a body is unusual but
+
+        intentional: removing a list of grants is conceptually a single
+
+        bulk operation and forcing it through GET-with-query or POST
+
+        would be even noisier.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_user_cases_access_get
+      summary: List user explicit case grants
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "Effective access (after merging group / org grants) is exposed\nby the audit endpoint\
+        \ below \u2014 this one shows just what the admin\ncan directly edit."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: add_user_cases_access_post
+      summary: Grant cases access to a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "Body: `{cases_list: [int, ...], access_level: int}`. Existing\ngrants for the same\
+        \ case are overwritten in place \u2014 the\nunderlying helper handles both insert + update."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/customers:
+    put:
+      operationId: put_user_customers_put
+      summary: Replace user customer membership
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: 'Body: `{customers: [int, ...]}`. The data-layer call mirrors the
+
+        legacy `update_user_customers`; here we just normalise the body.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/deactivate:
+    post:
+      operationId: deactivate_user_post
+      summary: Deactivate a user
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "Refuses if the caller is trying to deactivate themselves \u2014 the\nlegacy route\
+        \ had the same guard and it's worth keeping; an admin\nlocking themselves out is irrecoverable\
+        \ without DB access."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/groups:
+    get:
+      operationId: list_user_groups_get
+      summary: List user group membership
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "Powers the \"Groups\" tab on the User edit modal and the membership\npicker. We don't\
+        \ add a \"groups available to add\" sub-endpoint\nhere \u2014 the page already loads the full\
+        \ group list elsewhere."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_user_groups_put
+      summary: Replace user group membership
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: 'Body: `{groups: [int, ...]}`. Each group id is validated to exist
+
+        before any DB write. Matches the legacy "groups_membership" key
+
+        by also accepting that for back-compat.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/mfa/reset:
+    post:
+      operationId: reset_user_mfa_post
+      summary: Reset a user MFA
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "helper raises `BusinessProcessingError` when the user can't be\nfound (rather than\
+        \ a typed not-found) \u2014 surface both paths\ncleanly."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/recompute-access:
+    post:
+      operationId: recompute_user_access_post
+      summary: Recompute a user effective access
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: 'Useful after a manual DB poke or to debug effective-access
+
+        drift. The legacy UI exposed this on the User Audit modal.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/me/preferences/{key}:
+    get:
+      operationId: get_my_preference_get
+      summary: Get a current-user preference
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_my_preference_put
+      summary: Set a current-user preference
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/war-rooms:
     get:
       operationId: list_war_rooms_get
@@ -6253,6 +9169,36 @@ components:
       - asset_name
       - asset_description
       description: Schema for serializing and deserializing AssetsType objects.
+    AuthorizationGroup:
+      type: object
+      properties:
+        group_name: {}
+        group_description: {}
+        group_auto_follow_access_level: {}
+        group_permissions:
+          type: integer
+        group_members:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        group_permissions_list:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        group_cases_access:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+      required:
+      - group_name
+      - group_description
+      description: Schema for serializing and deserializing AuthorizationGroup objects.
     Case:
       type: object
       properties:
@@ -6456,12 +9402,87 @@ components:
       - task_title
       - task_status_id
       description: Schema for serializing and deserializing CaseTask objects.
+    CaseTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        created_by_user_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        name:
+          type: string
+        display_name:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        author:
+          type:
+          - string
+          - 'null'
+        title_prefix:
+          type:
+          - string
+          - 'null'
+        summary:
+          type:
+          - string
+          - 'null'
+        tags:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+        classification:
+          type:
+          - string
+          - 'null'
+        note_directories:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+        tasks:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+      required:
+      - created_by_user_id
+      - name
+      description: Schema for serializing and deserializing CaseTemplate objects.
     Comment:
       type: object
       properties:
         user:
           $ref: '#/components/schemas/User'
       description: Schema for serializing and deserializing Comment objects.
+    Contact:
+      type: object
+      properties:
+        contact_name: {}
+        contact_email: {}
+        contact_work_phone: {}
+        contact_mobile_phone: {}
+        contact_role: {}
+        contact_note: {}
+        client_id: {}
+      required:
+      - contact_name
+      - client_id
+      description: Schema for serializing and deserializing Contact objects.
     Customer:
       type: object
       properties:
@@ -6599,6 +9620,114 @@ components:
           items:
             $ref: '#/components/schemas/NoteSummary'
       description: Schema for serializing and deserializing SearchCaseNoteDirectory objects.
+    ServerSettings:
+      type: object
+      properties:
+        http_proxy:
+          type:
+          - string
+          - 'null'
+        https_proxy:
+          type:
+          - string
+          - 'null'
+        prevent_post_mod_repush:
+          type: boolean
+        prevent_post_objects_repush:
+          type: boolean
+        has_updates_available:
+          type: boolean
+        enable_updates_check:
+          type: boolean
+        password_policy_min_length:
+          type: integer
+        password_policy_upper_case:
+          type: boolean
+        password_policy_lower_case:
+          type: boolean
+        password_policy_digit:
+          type: boolean
+        password_policy_special_chars:
+          type:
+          - string
+          - 'null'
+        enforce_mfa:
+          type: boolean
+        force_confirmation_before_delete:
+          type: boolean
+        mail_smtp_enabled:
+          type:
+          - boolean
+          - 'null'
+        mail_smtp_host:
+          type:
+          - string
+          - 'null'
+        mail_smtp_port:
+          type:
+          - integer
+          - 'null'
+        mail_smtp_user:
+          type:
+          - string
+          - 'null'
+        mail_smtp_password:
+          type:
+          - string
+          - 'null'
+        mail_smtp_use_tls:
+          type:
+          - boolean
+          - 'null'
+        mail_smtp_use_ssl:
+          type:
+          - boolean
+          - 'null'
+        mail_from_address:
+          type:
+          - string
+          - 'null'
+        mail_from_name:
+          type:
+          - string
+          - 'null'
+        mail_imap_enabled:
+          type:
+          - boolean
+          - 'null'
+        mail_imap_host:
+          type:
+          - string
+          - 'null'
+        mail_imap_port:
+          type:
+          - integer
+          - 'null'
+        mail_imap_user:
+          type:
+          - string
+          - 'null'
+        mail_imap_password:
+          type:
+          - string
+          - 'null'
+        mail_imap_use_ssl:
+          type:
+          - boolean
+          - 'null'
+        mail_imap_mailbox:
+          type:
+          - string
+          - 'null'
+        mail_imap_poll_interval_sec:
+          type:
+          - integer
+          - 'null'
+        mail_imap_max_attachment_mb:
+          type:
+          - integer
+          - 'null'
+      description: Schema for the singleton `ServerSettings` row.
     Severity:
       type: object
       properties: {}
@@ -6637,3 +9766,52 @@ components:
       - user_email
       - user_isadmin
       description: Schema for serializing and deserializing User objects.
+    UserSchemaForAPIV2:
+      type: object
+      properties:
+        user_roles_str:
+          type: array
+          items:
+            type: string
+        user_name: {}
+        user_login: {}
+        user_email: {}
+        user_active: {}
+        user_id: {}
+        user_api_key: {}
+        user_password: {}
+        user_isadmin:
+          type: boolean
+        user_is_service_account: {}
+        user_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorizationGroup'
+        user_permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorizationGroup'
+        user_customers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        user_cases_access:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseSchemaForAPIV2'
+        user_organisations: {}
+        user_primary_organisation_id: {}
+      required:
+      - user_name
+      - user_login
+      - user_email
+      - user_active
+      - user_id
+      - user_isadmin
+      description: Schema for serializing and deserializing User objects.
+    schema_cls:
+      type: object
+      description: "Auto-generated placeholder \u2014 see marshables.py::schema_cls."
+    schema_factory:
+      type: object
+      description: "Auto-generated placeholder \u2014 see marshables.py::schema_factory."

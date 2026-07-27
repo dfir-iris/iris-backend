@@ -46,6 +46,7 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -244,29 +245,41 @@ def _build_blueprint(config: TaxonomyConfig) -> Blueprint:
         url_prefix=f'/{config.url_prefix}',
     )
     operations = TaxonomyOperations(config)
+    schema_cls = config.schema_factory
+    label = config.activity_label
 
     @blueprint.get('')
     @ac_api_requires()
+    @api_doc(response=schema_cls, response_shape='paginated',
+             tags=['ManageCaseObjects'], summary=f'List {label}s')
     def list_taxonomy() -> Response:
         return operations.search()
 
     @blueprint.post('')
     @ac_api_requires(Permissions.server_administrator)
+    @api_doc(request=schema_cls, response=schema_cls, response_shape='created',
+             tags=['ManageCaseObjects'], summary=f'Create a {label}')
     def create_taxonomy() -> Response:
         return operations.create()
 
     @blueprint.get('/<int:identifier>')
     @ac_api_requires()
+    @api_doc(response=schema_cls, tags=['ManageCaseObjects'],
+             summary=f'Get a {label}')
     def read_taxonomy(identifier: int) -> Response:
         return operations.read(identifier)
 
     @blueprint.put('/<int:identifier>')
     @ac_api_requires(Permissions.server_administrator)
+    @api_doc(request=schema_cls, response=schema_cls,
+             tags=['ManageCaseObjects'], summary=f'Update a {label}')
     def update_taxonomy(identifier: int) -> Response:
         return operations.update(identifier)
 
     @blueprint.delete('/<int:identifier>')
     @ac_api_requires(Permissions.server_administrator)
+    @api_doc(response_shape='deleted', tags=['ManageCaseObjects'],
+             summary=f'Delete a {label}')
     def delete_taxonomy(identifier: int) -> Response:
         return operations.delete(identifier)
 
@@ -362,6 +375,8 @@ _ASSET_TYPE_ICON_FIELDS = {'compromised', 'not_compromised'}
 
 @case_objects_blueprint.post('/asset-types/<int:identifier>/icon/<string:field>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=AssetTypeSchema, tags=['ManageCaseObjects'],
+         summary='Upload an asset type icon')
 def upload_asset_type_icon(identifier: int, field: str) -> Response:
     """Upload one of an asset type's two icons.
 

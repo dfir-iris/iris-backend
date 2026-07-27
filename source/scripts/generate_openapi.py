@@ -347,32 +347,107 @@ def _build_schema_index() -> dict[str, dict[str, Any]]:
 # Blueprint prefix resolution
 # --------------------------------------------------------------------
 
+def _extract_prefix_from_call(call: ast.Call) -> str:
+    """Return the url_prefix passed to a `Blueprint(...)` call, or ''.
+
+    Handles both `Blueprint(..., url_prefix='/foo')` and the factory
+    idiom `Blueprint(..., url_prefix=f'/{url_prefix}')` where the
+    f-string interpolates a factory parameter that we later resolve
+    from each call site.
+    """
+    for kw in call.keywords:
+        if kw.arg != 'url_prefix':
+            continue
+        if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            return kw.value.value or ''
+        # Factory-style f'/{name}' — leave as-is; the caller resolves.
+        if isinstance(kw.value, ast.JoinedStr):
+            return _dump_fstring_placeholder(kw.value)
+    return ''
+
+
+def _dump_fstring_placeholder(node: ast.JoinedStr) -> str:
+    """Render an f-string as a placeholder-form template string.
+
+    `f'/{url_prefix}'` → `'/{$url_prefix}'`. Callers pattern-match on
+    `{$name}` markers to substitute per-call-site values.
+    """
+    parts: list[str] = []
+    for value in node.values:
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            parts.append(value.value)
+        elif isinstance(value, ast.FormattedValue):
+            expr = value.value
+            if isinstance(expr, ast.Name):
+                parts.append('{$' + expr.id + '}')
+            elif isinstance(expr, ast.Attribute) and isinstance(expr.value, ast.Name):
+                # e.g. `config.url_prefix` → `{$config.url_prefix}`.
+                parts.append('{$' + expr.value.id + '.' + expr.attr + '}')
+            else:
+                parts.append('{$?}')
+    return ''.join(parts)
+
+
 def _parse_blueprints(path: Path) -> dict[str, dict[str, Any]]:
     """Extract Blueprint(...) assignments + register_blueprint() edges.
 
     Returns {variable_name: {'prefix': str, 'children': [child_var]}}
-    limited to the current module. Callers combine per-module data
-    into a full prefix map.
+    limited to the current module. Also handles the factory idiom
+    `X = _build_thing(url_prefix='foo', ...)` (or with a config
+    object) by resolving `_build_thing`'s inner `Blueprint(...,
+    url_prefix=f'/{url_prefix}')` template against the call's kwargs.
+
+    Callers combine per-module data into a full prefix map.
     """
     tree = ast.parse(path.read_text(), filename=str(path))
     bps: dict[str, dict[str, Any]] = {}
 
-    for node in ast.walk(tree):
+    # First pass: identify factory functions (returning a Blueprint with
+    # a template url_prefix like f'/{param}').
+    factories: dict[str, dict[str, Any]] = _find_factory_blueprints(tree)
+
+    # Second pass: collect config-object literals so we can resolve
+    # `_build_blueprint(config)` calls where config is a dataclass-like
+    # object with a url_prefix attribute.
+    config_prefixes: dict[str, str] = _find_config_url_prefixes(tree)
+
+    # Only look at module-level statements, not nested ones. Nested
+    # `bp = Blueprint(...)` lives inside a factory and is discovered
+    # separately via `_find_factory_blueprints`; picking it up here
+    # would double-register it as a top-level blueprint whose prefix
+    # is the raw f-string template.
+    for node in tree.body:
         # `foo = Blueprint('name', __name__, url_prefix='/x')`
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
             call = node.value
             func = call.func
             fname = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', None)
+
             if fname == 'Blueprint':
-                prefix = ''
-                for kw in call.keywords:
-                    if kw.arg == 'url_prefix' and isinstance(kw.value, ast.Constant):
-                        prefix = kw.value.value or ''
+                prefix = _extract_prefix_from_call(call)
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         bps.setdefault(target.id, {'prefix': prefix, 'children': []})
 
-        # `foo.register_blueprint(bar)`
+            # `foo = _build_readonly_blueprint(url_prefix='x', ...)` or
+            # `foo = _build_blueprint(some_config)` — direct assignment
+            # of a factory's return value. Route emission needs the
+            # factory metadata (which local var inside the factory
+            # holds the blueprint, so we can bind routes to it).
+            elif fname in factories:
+                factory = factories[fname]
+                prefix = _resolve_factory_prefix(factory, call, config_prefixes)
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        bps.setdefault(target.id, {
+                            'prefix': prefix,
+                            'children': [],
+                            'factory': fname,
+                            'local_bp': factory['local_bp'],
+                        })
+
+        # `foo.register_blueprint(bar)` — where bar may be a Name or a
+        # factory call like `_build_blueprint(some_config)`.
         if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
             call = node.value
             if (
@@ -380,23 +455,280 @@ def _parse_blueprints(path: Path) -> dict[str, dict[str, Any]]:
                 and call.func.attr == 'register_blueprint'
                 and isinstance(call.func.value, ast.Name)
                 and call.args
-                and isinstance(call.args[0], ast.Name)
             ):
                 parent = call.func.value.id
-                child = call.args[0].id
-                bps.setdefault(parent, {'prefix': '', 'children': []})
-                bps[parent]['children'].append(child)
+                arg = call.args[0]
+                child: str | None = None
+                if isinstance(arg, ast.Name):
+                    child = arg.id
+                elif isinstance(arg, ast.Call):
+                    inner_fname = (
+                        arg.func.id if isinstance(arg.func, ast.Name)
+                        else getattr(arg.func, 'attr', None)
+                    )
+                    if inner_fname in factories:
+                        # Synthesise a virtual blueprint per call site so
+                        # each factory registration lives at its own
+                        # resolved prefix. The name is stable — same
+                        # (parent, factory, config) always maps to the
+                        # same virtual key — so re-runs remain idempotent.
+                        prefix = _resolve_factory_prefix(
+                            factories[inner_fname], arg, config_prefixes
+                        )
+                        child = _virtual_blueprint_name(
+                            path.stem, inner_fname, arg, config_prefixes
+                        )
+                        info = bps.setdefault(child, {'prefix': prefix, 'children': []})
+                        if prefix and not info['prefix']:
+                            info['prefix'] = prefix
+                        # Tag the virtual blueprint with the factory
+                        # it wraps so route emission can recognise it.
+                        info['factory'] = inner_fname
+                        info['local_bp'] = factories[inner_fname]['local_bp']
+                if child is not None:
+                    bps.setdefault(parent, {'prefix': '', 'children': []})
+                    bps[parent]['children'].append(child)
+
+        # `for _c in _CONFIGS: parent.register_blueprint(_build_blueprint(_c))`
+        # — the loop generates one registration per list entry. Unroll
+        # each entry so every registered blueprint gets its own
+        # prefix-resolved virtual entry.
+        if isinstance(node, ast.For) and isinstance(node.iter, ast.Name):
+            configs_name = node.iter.id
+            loop_var = node.target.id if isinstance(node.target, ast.Name) else None
+            if loop_var:
+                for stmt in node.body:
+                    if not (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call)):
+                        continue
+                    call = stmt.value
+                    if not (
+                        isinstance(call.func, ast.Attribute)
+                        and call.func.attr == 'register_blueprint'
+                        and isinstance(call.func.value, ast.Name)
+                        and call.args
+                        and isinstance(call.args[0], ast.Call)
+                    ):
+                        continue
+                    parent = call.func.value.id
+                    factory_call = call.args[0]
+                    inner_fname = (
+                        factory_call.func.id if isinstance(factory_call.func, ast.Name)
+                        else getattr(factory_call.func, 'attr', None)
+                    )
+                    if inner_fname not in factories:
+                        continue
+                    # Enumerate every `_CONFIGS[i]` entry and register
+                    # one virtual blueprint per iteration.
+                    for key, prefix in config_prefixes.items():
+                        if not key.startswith(f'{configs_name}['):
+                            continue
+                        virtual_name = f'__vloop__{path.stem}__{inner_fname}__{key}'
+                        info = bps.setdefault(virtual_name, {
+                            'prefix': '/' + prefix if not prefix.startswith('/') else prefix,
+                            'children': [],
+                        })
+                        info['factory'] = inner_fname
+                        info['local_bp'] = factories[inner_fname]['local_bp']
+                        bps.setdefault(parent, {'prefix': '', 'children': []})
+                        bps[parent]['children'].append(virtual_name)
 
     return bps
 
 
-def _build_prefix_map() -> dict[str, str]:
+def _find_factory_blueprints(tree: ast.Module) -> dict[str, dict[str, Any]]:
+    """Discover functions that build and return a Blueprint.
+
+    A factory looks like:
+
+        def _build(url_prefix, ...):
+            bp = Blueprint(name, __name__, url_prefix=f'/{url_prefix}')
+            @bp.get('')
+            def x(): ...
+            return bp
+
+    We record:
+        {factory_name: {
+            'local_bp': 'bp',                # local var holding the Blueprint
+            'prefix_template': '/{$url_prefix}',  # template string
+            'params': ['url_prefix', ...],   # positional param names
+        }}
+    """
+    factories: dict[str, dict[str, Any]] = {}
+    for fn in ast.walk(tree):
+        if not isinstance(fn, ast.FunctionDef):
+            continue
+        for node in fn.body:
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+                continue
+            call = node.value
+            call_func = call.func
+            fname = (
+                call_func.attr if isinstance(call_func, ast.Attribute)
+                else getattr(call_func, 'id', None)
+            )
+            if fname != 'Blueprint':
+                continue
+            template = _extract_prefix_from_call(call)
+            if not template:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    factories[fn.name] = {
+                        'local_bp': target.id,
+                        'prefix_template': template,
+                        'params': [arg.arg for arg in fn.args.args],
+                    }
+                    break
+            break
+    return factories
+
+
+def _find_config_url_prefixes(tree: ast.Module) -> dict[str, str]:
+    """Static registry of `TaxonomyConfig(url_prefix='asset-types', ...)`
+    literals so we can resolve `_build_blueprint(config_var)` calls
+    against the same file's config assignments.
+
+    Two shapes captured:
+      * `NAME = TaxonomyConfig(url_prefix='x', ...)` at module scope.
+      * `TaxonomyConfig(url_prefix='x', ...)` inside a list literal
+        assigned to `_CONFIGS = [TaxonomyConfig(...), ...]` — used by
+        the `for c in _CONFIGS: parent.register_blueprint(_build(c))`
+        idiom. We don't try to match individual list entries back to
+        specific register_blueprint calls (the loop makes that a
+        1-to-N mapping) but instead treat every list entry as its own
+        virtual registration.
+    """
+    prefixes: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        # `NAME = SomeConfig(url_prefix='x')`
+        if isinstance(node.value, ast.Call):
+            prefix = _extract_kwarg_string(node.value, 'url_prefix')
+            if prefix:
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        prefixes[target.id] = prefix
+        # `_CONFIGS = [SomeConfig(url_prefix='x'), SomeConfig(url_prefix='y')]`
+        if isinstance(node.value, (ast.List, ast.Tuple)):
+            for i, elt in enumerate(node.value.elts):
+                if isinstance(elt, ast.Call):
+                    prefix = _extract_kwarg_string(elt, 'url_prefix')
+                    if not prefix:
+                        continue
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            prefixes[f'{target.id}[{i}]'] = prefix
+    return prefixes
+
+
+def _extract_kwarg_string(call: ast.Call, name: str) -> str | None:
+    for kw in call.keywords:
+        if kw.arg == name and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            return kw.value.value
+    return None
+
+
+def _resolve_factory_prefix(
+    factory: dict[str, Any],
+    call: ast.Call,
+    config_prefixes: dict[str, str],
+) -> str:
+    """Substitute the factory's `prefix_template` placeholders against
+    the call's arguments and available config-object url_prefixes.
+
+    Substitution rules:
+      * `{$name}` where `name` is a factory param — look up the value
+        from `call.keywords` (`name=...`) or the matching positional
+        arg. String constants substitute directly.
+      * `{$name.url_prefix}` — look up `name` as a config variable in
+        the file's `config_prefixes` map (built by
+        `_find_config_url_prefixes`). This handles
+        `_build_blueprint(config)` where config's url_prefix is
+        determined by the caller — we can't statically bind to a
+        single instance, so we resolve nothing and return the
+        template's static prefix (usually just '/').
+    """
+    template = factory['prefix_template']
+    if not template:
+        return ''
+
+    # Fast path: template has no placeholders.
+    if '{$' not in template:
+        return template
+
+    # Build kwarg map from the call. Positional args map by index to
+    # factory params.
+    resolved: dict[str, str] = {}
+    for kw in call.keywords:
+        if kw.arg and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            resolved[kw.arg] = kw.value.value
+    for i, arg in enumerate(call.args):
+        if i >= len(factory['params']):
+            break
+        param_name = factory['params'][i]
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            resolved[param_name] = arg.value
+        elif isinstance(arg, ast.Name):
+            # `_build_blueprint(config)` — resolve config.url_prefix
+            # via the file-scope config map.
+            for key, value in config_prefixes.items():
+                # `key` may be `config_name` or `_CONFIGS[i]` — accept
+                # the first that matches the passed variable name.
+                if key == arg.id:
+                    resolved[param_name] = value
+                    resolved[param_name + '.url_prefix'] = value
+                    break
+
+    # Substitute placeholders. `{$name}` and `{$name.url_prefix}`.
+    def sub(match: re.Match) -> str:
+        key = match.group(1)
+        return resolved.get(key, '')
+
+    return re.sub(r'\{\$([^}]+)\}', sub, template)
+
+
+def _virtual_blueprint_name(
+    file_stem: str,
+    factory_name: str,
+    call: ast.Call,
+    config_prefixes: dict[str, str],
+) -> str:
+    """Synthesise a stable name for a factory-registered virtual
+    blueprint.
+
+    The name is only used internally to key the `bps`/`prefix_map`
+    dicts — it never lands in the emitted spec. Determinism matters
+    because the CI drift check compares byte-for-byte.
+    """
+    parts = [file_stem, factory_name]
+    for kw in call.keywords:
+        if kw.arg == 'url_prefix' and isinstance(kw.value, ast.Constant):
+            parts.append(str(kw.value.value))
+    for arg in call.args:
+        if isinstance(arg, ast.Constant):
+            parts.append(str(arg.value))
+        elif isinstance(arg, ast.Name):
+            parts.append(config_prefixes.get(arg.id, arg.id))
+    return '__vfact__' + '__'.join(parts)
+
+
+def _build_prefix_map() -> tuple[dict[str, str], dict[str, list[dict[str, Any]]]]:
     """Walk the api_v2_routes registration tree and every child module
     to compute the absolute URL prefix per blueprint variable.
 
+    Returns two dicts:
+      * `absolute`: {variable_name: absolute_prefix} — the classic map.
+      * `factory_bindings`: {(file_stem, factory_name): [
+             {'prefix': absolute_prefix, 'local_bp': 'bp'}, ...
+         ]} — every registration site of a factory function, so
+         `_discover_routes` can emit each factory route once per site.
+
     We use the variable name as the identity key. Duplicate names
     across modules would collide — the v2 codebase already avoids
-    that (each blueprint is a globally-unique variable).
+    that (each blueprint is a globally-unique variable). Virtual
+    blueprint keys (`__vfact__…` / `__vloop__…`) are guaranteed unique
+    by construction.
     """
     all_bps: dict[str, dict[str, Any]] = {}
     files: list[Path] = [API_V2_ROUTES]
@@ -408,14 +740,19 @@ def _build_prefix_map() -> dict[str, str]:
         try:
             for name, info in _parse_blueprints(f).items():
                 existing = all_bps.setdefault(name, {'prefix': '', 'children': []})
-                if info['prefix']:
+                if info.get('prefix') and not existing['prefix']:
                     existing['prefix'] = info['prefix']
+                if info.get('factory'):
+                    existing['factory'] = info['factory']
+                    existing['local_bp'] = info['local_bp']
+                    existing['source_file'] = f.stem
                 existing['children'].extend(info['children'])
         except SyntaxError as exc:
             print(f'openapi: skipping {f} ({exc})', file=sys.stderr)
 
     # Traverse from the root, accumulating prefixes.
     absolute: dict[str, str] = {}
+    factory_bindings: dict[str, list[dict[str, Any]]] = {}
 
     def walk(var: str, parent_prefix: str) -> None:
         if var in absolute:
@@ -424,11 +761,17 @@ def _build_prefix_map() -> dict[str, str]:
         if info is None:
             return
         absolute[var] = parent_prefix + info['prefix']
+        if info.get('factory'):
+            key = (info['source_file'], info['factory'])
+            factory_bindings.setdefault(key, []).append({
+                'prefix': absolute[var],
+                'local_bp': info['local_bp'],
+            })
         for child in info['children']:
             walk(child, absolute[var])
 
     walk('rest_v2_blueprint', '')
-    return absolute
+    return absolute, factory_bindings
 
 
 # --------------------------------------------------------------------
@@ -482,8 +825,22 @@ def _extract_api_doc(dec: ast.expr) -> dict[str, Any] | None:
     return kwargs
 
 
+def _enclosing_factory(node: ast.AST, tree: ast.Module) -> str | None:
+    """Return the name of the FunctionDef that lexically encloses
+    `node`, or None if `node` is at module scope. Walks the tree
+    building parent links on the fly; slow-but-simple.
+    """
+    for parent in ast.walk(tree):
+        if not isinstance(parent, ast.FunctionDef):
+            continue
+        for child in ast.walk(parent):
+            if child is node:
+                return parent.name
+    return None
+
+
 def _discover_routes() -> list[dict[str, Any]]:
-    prefix_map = _build_prefix_map()
+    prefix_map, factory_bindings = _build_prefix_map()
     routes: list[dict[str, Any]] = []
 
     for f in V2_ROOT.rglob('*.py'):
@@ -518,6 +875,27 @@ def _discover_routes() -> list[dict[str, Any]]:
                 continue
 
             method, path = route_info
+
+            # Factory-based route? If this function is lexically nested
+            # inside a Blueprint factory that's been registered N times,
+            # emit one route per registration with each site's resolved
+            # prefix. The bp_var must match the factory's local
+            # blueprint variable — a nested function that mutates some
+            # other blueprint isn't a factory template.
+            enclosing = _enclosing_factory(node, tree)
+            bindings = factory_bindings.get((f.stem, enclosing)) if enclosing else None
+            if bindings and any(b.get('local_bp') == bp_var for b in bindings):
+                for binding in bindings:
+                    routes.append({
+                        'method': method,
+                        'path': binding['prefix'] + path,
+                        'view_name': node.name,
+                        'docstring': ast.get_docstring(node),
+                        'apidoc': apidoc,
+                        'source': f'{f.relative_to(REPO_ROOT)}:{node.lineno}',
+                    })
+                continue
+
             prefix = prefix_map.get(bp_var or module_bp or '', '')
             if not prefix and (bp_var or module_bp):
                 print(f'openapi: no prefix resolved for {bp_var or module_bp} in {f.name} '

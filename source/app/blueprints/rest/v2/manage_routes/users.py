@@ -49,6 +49,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -200,30 +201,37 @@ users_blueprint = Blueprint('users_rest_v2', __name__, url_prefix='/users')
 
 @users_blueprint.get('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='List users')
 def search_users():
     return users.search()
 
 
 @users_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(request=UserSchemaForAPIV2, response=UserSchemaForAPIV2,
+         response_shape='created', tags=['ManageUsers'], summary='Create a user')
 def create_user():
     return users.create()
 
 
 @users_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=UserSchemaForAPIV2, tags=['ManageUsers'], summary='Get a user')
 def get_user_endpoint(identifier):
     return users.read(identifier)
 
 
 @users_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(request=UserSchemaForAPIV2, response=UserSchemaForAPIV2,
+         tags=['ManageUsers'], summary='Update a user')
 def put_user(identifier):
     return users.update(identifier)
 
 
 @users_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='deleted', tags=['ManageUsers'], summary='Delete a user')
 def delete_user(identifier):
     return users.delete(identifier)
 
@@ -240,6 +248,7 @@ def _require_user(user_id: int):
 
 @users_blueprint.get('/<int:identifier>/groups')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='List user group membership')
 def list_user_groups(identifier: int) -> Response:
     """Return the user's group membership as a list of `{id, name}`.
 
@@ -260,6 +269,7 @@ def list_user_groups(identifier: int) -> Response:
 
 @users_blueprint.put('/<int:identifier>/groups')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Replace user group membership')
 def put_user_groups(identifier: int) -> Response:
     """Replace the user's group membership.
 
@@ -289,6 +299,7 @@ def put_user_groups(identifier: int) -> Response:
 
 @users_blueprint.put('/<int:identifier>/customers')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Replace user customer membership')
 def put_user_customers(identifier: int) -> Response:
     """Replace the user's customer membership.
 
@@ -316,6 +327,7 @@ def put_user_customers(identifier: int) -> Response:
 
 @users_blueprint.get('/<int:identifier>/cases-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='List user explicit case grants')
 def get_user_cases_access(identifier: int) -> Response:
     """List the user's *explicit* per-case access rows.
 
@@ -334,6 +346,7 @@ def get_user_cases_access(identifier: int) -> Response:
 
 @users_blueprint.post('/<int:identifier>/cases-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Grant cases access to a user')
 def add_user_cases_access(identifier: int) -> Response:
     """Grant `access_level` over `cases_list` to the user.
 
@@ -369,6 +382,7 @@ def add_user_cases_access(identifier: int) -> Response:
 
 @users_blueprint.delete('/<int:identifier>/cases-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Revoke cases access from a user')
 def delete_user_cases_access(identifier: int) -> Response:
     """Drop explicit case grants for `cases`.
 
@@ -405,6 +419,7 @@ def delete_user_cases_access(identifier: int) -> Response:
 
 @users_blueprint.post('/<int:identifier>/activate')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=UserSchemaForAPIV2, tags=['ManageUsers'], summary='Activate a user')
 def activate_user(identifier: int) -> Response:
     user, err = _require_user(identifier)
     if err is not None:
@@ -417,6 +432,7 @@ def activate_user(identifier: int) -> Response:
 
 @users_blueprint.post('/<int:identifier>/deactivate')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response=UserSchemaForAPIV2, tags=['ManageUsers'], summary='Deactivate a user')
 def deactivate_user(identifier: int) -> Response:
     """Disable a user account.
 
@@ -439,6 +455,7 @@ def deactivate_user(identifier: int) -> Response:
 
 @users_blueprint.post('/<int:identifier>/api-key/renew')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Rotate a user API key')
 def renew_user_api_key(identifier: int) -> Response:
     """Rotate the user's API key. Returns the *new* key in the body
     once — the admin should copy it immediately; we don't surface it
@@ -459,6 +476,7 @@ def renew_user_api_key(identifier: int) -> Response:
 
 @users_blueprint.post('/<int:identifier>/mfa/reset')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Reset a user MFA')
 def reset_user_mfa(identifier: int) -> Response:
     """Clear MFA secrets for the user. The underlying business
     helper raises `BusinessProcessingError` when the user can't be
@@ -479,6 +497,7 @@ def reset_user_mfa(identifier: int) -> Response:
 
 @users_blueprint.post('/<int:identifier>/recompute-access')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Recompute a user effective access')
 def recompute_user_access(identifier: int) -> Response:
     """Force-recompute the user's effective case access cache.
 
@@ -494,6 +513,7 @@ def recompute_user_access(identifier: int) -> Response:
 
 @users_blueprint.get('/<int:identifier>/audit')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['ManageUsers'], summary='Get user effective access audit')
 def audit_user(identifier: int) -> Response:
     """Effective-access trace.
 
@@ -537,6 +557,7 @@ def _get_pref_user():
 
 @users_blueprint.get('/me/preferences/<key>')
 @ac_api_requires()
+@api_doc(tags=['ManageUsers'], summary='Get a current-user preference')
 def get_my_preference(key: str):
     if not _PREF_KEY_RE.match(key or ''):
         return response_api_error('Invalid preference key')
@@ -549,6 +570,7 @@ def get_my_preference(key: str):
 
 @users_blueprint.put('/me/preferences/<key>')
 @ac_api_requires()
+@api_doc(tags=['ManageUsers'], summary='Set a current-user preference')
 def put_my_preference(key: str):
     if not _PREF_KEY_RE.match(key or ''):
         return response_api_error('Invalid preference key')

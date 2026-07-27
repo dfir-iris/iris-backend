@@ -42,6 +42,7 @@ from flask import request
 from sqlalchemy import or_
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.pagination import paginate
 from app.blueprints.rest.parsing import parse_pagination_parameters
@@ -116,6 +117,8 @@ def _build_readonly_blueprint(
 
     @bp.get('')
     @ac_api_requires()
+    @api_doc(response=schema_factory, response_shape='paginated',
+             tags=['ManageTaxonomies'], summary=f'List {url_prefix}')
     def list_route() -> Response:
         return _list_endpoint(model, schema_factory, search_columns, order_column)()
 
