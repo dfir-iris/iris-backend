@@ -12044,6 +12044,78 @@ components:
         cases: {}
         clusters: {}
         investigation_flow: {}
+        alert_id:
+          type: integer
+          format: int64
+        alert_uuid:
+          type: string
+          format: uuid
+        alert_title:
+          type: string
+        alert_description:
+          type:
+          - string
+          - 'null'
+        alert_source:
+          type:
+          - string
+          - 'null'
+        alert_source_ref:
+          type:
+          - string
+          - 'null'
+        alert_source_link:
+          type:
+          - string
+          - 'null'
+        alert_source_content:
+          type:
+          - object
+          - 'null'
+        alert_severity_id:
+          type: integer
+        alert_status_id:
+          type: integer
+        alert_context:
+          type:
+          - object
+          - 'null'
+        alert_source_event_time:
+          type: string
+          format: date-time
+        alert_creation_time:
+          type: string
+          format: date-time
+        alert_note:
+          type:
+          - string
+          - 'null'
+        alert_tags:
+          type:
+          - string
+          - 'null'
+        alert_owner_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+        alert_customer_id:
+          type: integer
+        alert_classification_id:
+          type:
+          - integer
+          - 'null'
+        alert_resolution_status_id:
+          type:
+          - integer
+          - 'null'
+        alert_investigation_flow_id:
+          type:
+          - integer
+          - 'null'
       description: Schema for serializing and deserializing Alert objects.
     AlertCluster:
       type: object
@@ -12059,38 +12131,161 @@ components:
         alert_ids: {}
         investigation_flow: {}
         source_rule: {}
+        cluster_id:
+          type: integer
+          format: int64
+        cluster_uuid:
+          type: string
+          format: uuid
+        cluster_title:
+          type: string
+        cluster_description:
+          type:
+          - string
+          - 'null'
+        cluster_status_id:
+          type: integer
+        cluster_severity_id:
+          type:
+          - integer
+          - 'null'
+        cluster_customer_id:
+          type: integer
+        cluster_owner_id:
+          type:
+          - integer
+          - 'null'
+        cluster_creation_time:
+          type: string
+          format: date-time
+        cluster_source_rule_id:
+          type:
+          - integer
+          - 'null'
+        cluster_case_id:
+          type:
+          - integer
+          - 'null'
+        cluster_dedupe_key:
+          type:
+          - string
+          - 'null'
+        cluster_investigation_flow_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
     AlertClusterInvestigationProgress:
       type: object
       properties:
         completed_by:
           $ref: '#/components/schemas/User'
+        id:
+          type: integer
+          format: int64
+        cluster_id:
+          type: integer
+        step_id:
+          type: integer
+        completed_by_user_id:
+          type: integer
+        completed_at:
+          type: string
+          format: date-time
+        note:
+          type:
+          - string
+          - 'null'
     AlertClusterStatus:
       type: object
-      properties: {}
+      properties:
+        status_id:
+          type: integer
+        status_name:
+          type: string
+        status_description:
+          type:
+          - string
+          - 'null'
     AlertInvestigationProgress:
       type: object
       properties:
         completed_by:
           $ref: '#/components/schemas/User'
+        id:
+          type: integer
+          format: int64
+        alert_id:
+          type: integer
+        step_id:
+          type: integer
+        completed_by_user_id:
+          type: integer
+        completed_at:
+          type: string
+          format: date-time
+        note:
+          type:
+          - string
+          - 'null'
     AlertResolution:
       type: object
-      properties: {}
+      properties:
+        resolution_status_id:
+          type: integer
+        resolution_status_name:
+          type: string
+        resolution_status_description:
+          type:
+          - string
+          - 'null'
       description: Schema for serializing and deserializing AlertResolution objects.
     AlertStatus:
       type: object
-      properties: {}
+      properties:
+        status_id:
+          type: integer
+        status_name:
+          type: string
+        status_description:
+          type:
+          - string
+          - 'null'
       description: Schema for serializing and deserializing AlertStatus objects.
     AnalysisStatus:
       type: object
-      properties: {}
+      properties:
+        id:
+          type: integer
+        name:
+          type:
+          - string
+          - 'null'
       description: Schema for serializing and deserializing AnalysisStatus objects.
     AssetType:
       type: object
       properties:
-        asset_name: {}
-        asset_description: {}
-        asset_icon_compromised: {}
-        asset_icon_not_compromised: {}
+        asset_name:
+          type:
+          - string
+          - 'null'
+        asset_description:
+          type:
+          - string
+          - 'null'
+        asset_icon_compromised:
+          type:
+          - string
+          - 'null'
+        asset_icon_not_compromised:
+          type:
+          - string
+          - 'null'
+        asset_id:
+          type: integer
       required:
       - asset_name
       - asset_description
@@ -12098,9 +12293,15 @@ components:
     AuthorizationGroup:
       type: object
       properties:
-        group_name: {}
-        group_description: {}
-        group_auto_follow_access_level: {}
+        group_name:
+          type: string
+        group_description:
+          type:
+          - string
+          - 'null'
+        group_auto_follow_access_level:
+          type: integer
+          format: int64
         group_permissions:
           type: integer
         group_members:
@@ -12121,6 +12322,14 @@ components:
           - 'null'
           items:
             type: object
+        group_id:
+          type: integer
+          format: int64
+        group_uuid:
+          type: string
+          format: uuid
+        group_auto_follow:
+          type: boolean
       required:
       - group_name
       - group_description
@@ -12128,10 +12337,20 @@ components:
     Case:
       type: object
       properties:
-        case_name: {}
-        case_description: {}
-        case_soc_id: {}
-        case_customer: {}
+        case_name:
+          type:
+          - string
+          - 'null'
+        case_description:
+          type:
+          - string
+          - 'null'
+        case_soc_id:
+          type:
+          - string
+          - 'null'
+        case_customer:
+          type: integer
         case_organisations:
           type: array
           items:
@@ -12142,10 +12361,65 @@ components:
             type: object
         case_tags:
           type: string
-        classification_id: {}
-        reviewer_id: {}
+        classification_id:
+          type:
+          - integer
+          - 'null'
+        reviewer_id:
+          type:
+          - integer
+          - 'null'
         review_status: {}
-        severity_id: {}
+        severity_id:
+          type:
+          - integer
+          - 'null'
+        case_id:
+          type: integer
+          format: int64
+        open_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        close_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        closing_note:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        owner_id:
+          type:
+          - integer
+          - 'null'
+        status_id:
+          type: integer
+        state_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        case_uuid:
+          type: string
+          format: uuid
+        review_status_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       required:
       - case_name
       - case_description
@@ -12155,13 +12429,22 @@ components:
     CaseAssets:
       type: object
       properties:
-        asset_name: {}
-        asset_type_id: {}
+        asset_name:
+          type:
+          - string
+          - 'null'
+        asset_type_id:
+          type:
+          - integer
+          - 'null'
         ioc_links:
           type: array
           items:
             type: integer
-        asset_enrichment: {}
+        asset_enrichment:
+          type:
+          - object
+          - 'null'
         asset_type:
           $ref: '#/components/schemas/AssetType'
         alerts:
@@ -12174,6 +12457,66 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/IocSchemaForAPIV2'
+        asset_id:
+          type: integer
+          format: int64
+        asset_uuid:
+          type: string
+          format: uuid
+        asset_description:
+          type:
+          - string
+          - 'null'
+        asset_domain:
+          type:
+          - string
+          - 'null'
+        asset_ip:
+          type:
+          - string
+          - 'null'
+        asset_info:
+          type:
+          - string
+          - 'null'
+        asset_compromise_status_id:
+          type:
+          - integer
+          - 'null'
+        asset_tags:
+          type:
+          - string
+          - 'null'
+        case_id:
+          type:
+          - integer
+          - 'null'
+        date_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        date_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        user_id:
+          type:
+          - integer
+          - 'null'
+        analysis_status_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       required:
       - asset_name
       - asset_type_id
@@ -12181,9 +12524,25 @@ components:
     CaseClassification:
       type: object
       properties:
-        name: {}
-        name_expanded: {}
-        description: {}
+        name:
+          type:
+          - string
+          - 'null'
+        name_expanded:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        id:
+          type: integer
+        creation_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - name
       - name_expanded
@@ -12214,15 +12573,156 @@ components:
           $ref: '#/components/schemas/Severity'
         status_name: {}
         protagonists: {}
+        case_id:
+          type: integer
+          format: int64
+        soc_id:
+          type:
+          - string
+          - 'null'
+        client_id:
+          type: integer
+        name:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        open_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        close_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        initial_date:
+          type: string
+          format: date-time
+        closing_note:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        owner_id:
+          type:
+          - integer
+          - 'null'
+        status_id:
+          type: integer
+        state_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        case_uuid:
+          type: string
+          format: uuid
+        classification_id:
+          type:
+          - integer
+          - 'null'
+        reviewer_id:
+          type:
+          - integer
+          - 'null'
+        review_status_id:
+          type:
+          - integer
+          - 'null'
+        severity_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       description: Schema for serializing and deserializing Case objects in details.
     CaseEvidence:
       type: object
       properties:
-        filename: {}
+        filename:
+          type:
+          - string
+          - 'null'
         type:
           $ref: '#/components/schemas/EvidenceType'
         user:
           $ref: '#/components/schemas/User'
+        id:
+          type: integer
+          format: int64
+        file_uuid:
+          type: string
+          format: uuid
+        date_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        acquisition_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        file_hash:
+          type:
+          - string
+          - 'null'
+        file_description:
+          type:
+          - string
+          - 'null'
+        file_size:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        start_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        end_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        case_id:
+          type:
+          - integer
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        type_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        chain_of_custody:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       required:
       - filename
       description: Schema for serializing and deserializing CaseEvidence objects.
@@ -12235,24 +12735,114 @@ components:
             $ref: '#/components/schemas/Comment'
         directory:
           $ref: '#/components/schemas/CaseNoteDirectory'
+        note_id:
+          type: integer
+          format: int64
+        note_uuid:
+          type: string
+          format: uuid
+        note_title:
+          type:
+          - string
+          - 'null'
+        note_content:
+          type:
+          - string
+          - 'null'
+        note_user:
+          type:
+          - integer
+          - 'null'
+        note_creationdate:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        note_lastupdate:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        note_case_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        directory_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       description: Schema for serializing and deserializing CaseNote objects.
     CaseNoteDirectory:
       type: object
-      properties: {}
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        parent_id:
+          type:
+          - integer
+          - 'null'
+        case_id:
+          type: integer
       description: Schema for serializing and deserializing CaseNoteDirectory objects.
     CaseNoteRevision:
       type: object
       properties:
         user_name:
           type: string
+        revision_id:
+          type: integer
+          format: int64
+        note_id:
+          type: integer
+          format: int64
+        revision_number:
+          type: integer
+        note_title:
+          type:
+          - string
+          - 'null'
+        note_content:
+          type:
+          - string
+          - 'null'
+        note_user:
+          type:
+          - integer
+          - 'null'
+        revision_timestamp:
+          type:
+          - string
+          - 'null'
+          format: date-time
       description: Schema for serializing and deserializing CaseNoteVersion objects.
     CaseSchemaForAPIV2:
       type: object
       properties:
-        case_name: {}
-        case_description: {}
-        case_soc_id: {}
-        case_customer_id: {}
+        case_name:
+          type:
+          - string
+          - 'null'
+        case_description:
+          type:
+          - string
+          - 'null'
+        case_soc_id:
+          type:
+          - string
+          - 'null'
+        case_customer_id:
+          type: integer
         case_organisations:
           type: array
           items:
@@ -12263,8 +12853,14 @@ components:
             type: object
         case_tags:
           type: string
-        classification_id: {}
-        reviewer_id: {}
+        classification_id:
+          type:
+          - integer
+          - 'null'
+        reviewer_id:
+          type:
+          - integer
+          - 'null'
         access_level:
           type: integer
         owner:
@@ -12285,6 +12881,56 @@ components:
           $ref: '#/components/schemas/Customer'
         review_status:
           $ref: '#/components/schemas/ReviewStatus'
+        case_id:
+          type: integer
+          format: int64
+        open_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        close_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        closing_note:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        owner_id:
+          type:
+          - integer
+          - 'null'
+        status_id:
+          type: integer
+        state_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        case_uuid:
+          type: string
+          format: uuid
+        review_status_id:
+          type:
+          - integer
+          - 'null'
+        severity_id:
+          type:
+          - integer
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       required:
       - case_name
       - case_description
@@ -12302,12 +12948,24 @@ components:
           type: string
         state_description:
           type: string
+        state_id:
+          type: integer
+        protected:
+          type:
+          - boolean
+          - 'null'
       description: Schema for serializing and deserializing CaseState objects.
     CaseTask:
       type: object
       properties:
-        task_title: {}
-        task_status_id: {}
+        task_title:
+          type:
+          - string
+          - 'null'
+        task_status_id:
+          type:
+          - integer
+          - 'null'
         task_assignees_id:
           type:
           - array
@@ -12324,6 +12982,59 @@ components:
           $ref: '#/components/schemas/TaskStatus'
         case:
           $ref: '#/components/schemas/Case'
+        id:
+          type: integer
+          format: int64
+        task_uuid:
+          type: string
+          format: uuid
+        task_description:
+          type:
+          - string
+          - 'null'
+        task_tags:
+          type:
+          - string
+          - 'null'
+        task_open_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_close_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_last_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_userid_open:
+          type:
+          - integer
+          - 'null'
+        task_userid_close:
+          type:
+          - integer
+          - 'null'
+        task_userid_update:
+          type:
+          - integer
+          - 'null'
+        task_case_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
       required:
       - task_title
       - task_status_id
@@ -12391,23 +13102,126 @@ components:
       description: Schema for serializing and deserializing CaseTemplate objects.
     ClusterRule:
       type: object
-      properties: {}
+      properties:
+        rule_id:
+          type: integer
+          format: int64
+        rule_uuid:
+          type: string
+          format: uuid
+        rule_name:
+          type: string
+        rule_description:
+          type:
+          - string
+          - 'null'
+        rule_is_active:
+          type: boolean
+        rule_priority:
+          type: integer
+        rule_customer_scope:
+          type:
+          - object
+          - 'null'
+        rule_conditions:
+          type: object
+        rule_action_type:
+          type: string
+        rule_action_config:
+          type: object
+        rule_created_by:
+          type:
+          - integer
+          - 'null'
+        rule_created_at:
+          type: string
+          format: date-time
+        rule_updated_at:
+          type: string
+          format: date-time
     Comment:
       type: object
       properties:
         user:
           $ref: '#/components/schemas/User'
+        comment_id:
+          type: integer
+          format: int64
+        comment_uuid:
+          type: string
+          format: uuid
+        comment_text:
+          type:
+          - string
+          - 'null'
+        comment_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        comment_update_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        comment_user_id:
+          type:
+          - integer
+          - 'null'
+        comment_case_id:
+          type:
+          - integer
+          - 'null'
+        comment_alert_id:
+          type:
+          - integer
+          - 'null'
+        comment_cluster_id:
+          type:
+          - integer
+          - 'null'
       description: Schema for serializing and deserializing Comment objects.
     Contact:
       type: object
       properties:
-        contact_name: {}
-        contact_email: {}
-        contact_work_phone: {}
-        contact_mobile_phone: {}
-        contact_role: {}
-        contact_note: {}
-        client_id: {}
+        contact_name:
+          type:
+          - string
+          - 'null'
+        contact_email:
+          type:
+          - string
+          - 'null'
+        contact_work_phone:
+          type:
+          - string
+          - 'null'
+        contact_mobile_phone:
+          type:
+          - string
+          - 'null'
+        contact_role:
+          type:
+          - string
+          - 'null'
+        contact_note:
+          type:
+          - string
+          - 'null'
+        client_id:
+          type:
+          - integer
+          - 'null'
+        id:
+          type: integer
+          format: int64
+        contact_uuid:
+          type: string
+          format: uuid
+        custom_attributes:
+          type:
+          - object
+          - 'null'
       required:
       - contact_name
       - client_id
@@ -12418,31 +13232,134 @@ components:
     Customer:
       type: object
       properties:
-        customer_name: {}
-        customer_description: {}
-        customer_sla: {}
-        customer_id: {}
+        customer_name:
+          type:
+          - string
+          - 'null'
+        customer_description:
+          type:
+          - string
+          - 'null'
+        customer_sla:
+          type:
+          - string
+          - 'null'
+        customer_id:
+          type: integer
+          format: int64
+        client_uuid:
+          type: string
+          format: uuid
+        creation_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_update_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        custom_attributes:
+          type:
+          - object
+          - 'null'
       required:
       - customer_name
       description: Schema for serializing and deserializing Customer objects.
     DSFile:
       type: object
       properties:
-        file_original_name: {}
-        file_description: {}
+        file_original_name:
+          type: string
+        file_description:
+          type:
+          - string
+          - 'null'
         file_content: {}
-        file_local_name: {}
+        file_local_name:
+          type: string
+        file_id:
+          type: integer
+          format: int64
+        file_uuid:
+          type: string
+          format: uuid
+        file_date_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        file_tags:
+          type:
+          - string
+          - 'null'
+        file_size:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        file_is_ioc:
+          type:
+          - boolean
+          - 'null'
+        file_is_evidence:
+          type:
+          - boolean
+          - 'null'
+        file_password:
+          type:
+          - string
+          - 'null'
+        file_parent_id:
+          type: integer
+        file_sha256:
+          type:
+          - string
+          - 'null'
+        added_by_user_id:
+          type: integer
+        modification_history:
+          type:
+          - object
+          - 'null'
+        file_case_id:
+          type: integer
       required:
       - file_original_name
       description: Schema for serializing and deserializing DataStoreFile objects.
     DSPath:
       type: object
-      properties: {}
+      properties:
+        path_id:
+          type: integer
+          format: int64
+        path_uuid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        path_name:
+          type: string
+        path_parent_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        path_is_root:
+          type:
+          - boolean
+          - 'null'
+        path_case_id:
+          type: integer
       description: Schema for serializing and deserializing DataStorePath objects.
     Event:
       type: object
       properties:
-        event_title: {}
+        event_title:
+          type:
+          - string
+          - 'null'
         event_assets:
           type: array
           items:
@@ -12460,7 +13377,10 @@ components:
         event_date_wtz:
           type: string
           format: date-time
-        modification_history: {}
+        modification_history:
+          type:
+          - object
+          - 'null'
         event_comments_map:
           type:
           - array
@@ -12473,6 +13393,66 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Event'
+        event_id:
+          type: integer
+          format: int64
+        parent_event_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        event_uuid:
+          type: string
+          format: uuid
+        case_id:
+          type:
+          - integer
+          - 'null'
+        event_source:
+          type:
+          - string
+          - 'null'
+        event_content:
+          type:
+          - string
+          - 'null'
+        event_raw:
+          type:
+          - string
+          - 'null'
+        event_added:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        event_in_graph:
+          type:
+          - boolean
+          - 'null'
+        event_in_summary:
+          type:
+          - boolean
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        event_color:
+          type:
+          - string
+          - 'null'
+        event_tags:
+          type:
+          - string
+          - 'null'
+        event_is_flagged:
+          type:
+          - boolean
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
       required:
       - event_title
       - event_assets
@@ -12483,8 +13463,21 @@ components:
     EvidenceType:
       type: object
       properties:
-        name: {}
-        description: {}
+        name:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        id:
+          type: integer
+        creation_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - name
       - description
@@ -12492,9 +13485,59 @@ components:
     GlobalTasks:
       type: object
       properties:
-        task_id: {}
-        task_assignee_id: {}
-        task_title: {}
+        task_id:
+          type: integer
+          format: int64
+        task_assignee_id:
+          type:
+          - integer
+          - 'null'
+        task_title:
+          type:
+          - string
+          - 'null'
+        task_uuid:
+          type: string
+          format: uuid
+        task_description:
+          type:
+          - string
+          - 'null'
+        task_tags:
+          type:
+          - string
+          - 'null'
+        task_open_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_close_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_last_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        task_userid_open:
+          type:
+          - integer
+          - 'null'
+        task_userid_close:
+          type:
+          - integer
+          - 'null'
+        task_userid_update:
+          type:
+          - integer
+          - 'null'
+        task_status_id:
+          type:
+          - integer
+          - 'null'
       required:
       - task_assignee_id
       - task_title
@@ -12506,41 +13549,202 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/InvestigationFlowStep'
+        flow_id:
+          type: integer
+          format: int64
+        flow_uuid:
+          type: string
+          format: uuid
+        flow_name:
+          type: string
+        flow_description:
+          type:
+          - string
+          - 'null'
+        flow_is_active:
+          type: boolean
+        flow_customer_scope:
+          type:
+          - object
+          - 'null'
+        flow_target:
+          type: string
+        flow_conditions:
+          type: object
+        flow_priority:
+          type: integer
+        flow_created_by:
+          type:
+          - integer
+          - 'null'
+        flow_created_at:
+          type: string
+          format: date-time
+        flow_updated_at:
+          type: string
+          format: date-time
     InvestigationFlowStep:
       type: object
       properties:
-        flow_id: {}
+        flow_id:
+          type: integer
+        step_id:
+          type: integer
+          format: int64
+        step_order:
+          type: integer
+        step_title:
+          type: string
+        step_description:
+          type:
+          - string
+          - 'null'
+        step_is_required:
+          type: boolean
     Ioc:
       type: object
       properties:
-        ioc_value: {}
-        ioc_enrichment: {}
+        ioc_value:
+          type:
+          - string
+          - 'null'
+        ioc_enrichment:
+          type:
+          - object
+          - 'null'
         ioc_type:
           $ref: '#/components/schemas/IocType'
+        ioc_id:
+          type: integer
+          format: int64
+        ioc_uuid:
+          type: string
+          format: uuid
+        ioc_type_id:
+          type:
+          - integer
+          - 'null'
+        ioc_description:
+          type:
+          - string
+          - 'null'
+        ioc_tags:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        ioc_misp:
+          type:
+          - string
+          - 'null'
+        ioc_tlp_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+        case_id:
+          type:
+          - integer
+          - 'null'
       required:
       - ioc_value
       description: Schema for serializing and deserializing IOC objects.
     IocSchemaForAPIV2:
       type: object
       properties:
-        ioc_value: {}
-        ioc_enrichment: {}
+        ioc_value:
+          type:
+          - string
+          - 'null'
+        ioc_enrichment:
+          type:
+          - object
+          - 'null'
         ioc_type:
           $ref: '#/components/schemas/IocType'
         tlp:
           $ref: '#/components/schemas/Tlp'
         link: {}
+        ioc_id:
+          type: integer
+          format: int64
+        ioc_uuid:
+          type: string
+          format: uuid
+        ioc_type_id:
+          type:
+          - integer
+          - 'null'
+        ioc_description:
+          type:
+          - string
+          - 'null'
+        ioc_tags:
+          type:
+          - string
+          - 'null'
+        user_id:
+          type:
+          - integer
+          - 'null'
+        ioc_misp:
+          type:
+          - string
+          - 'null'
+        ioc_tlp_id:
+          type:
+          - integer
+          - 'null'
+        custom_attributes:
+          type:
+          - object
+          - 'null'
+        modification_history:
+          type:
+          - object
+          - 'null'
+        case_id:
+          type:
+          - integer
+          - 'null'
       required:
       - ioc_value
       description: Schema for serializing and deserializing IOC objects.
     IocType:
       type: object
       properties:
-        type_name: {}
-        type_description: {}
-        type_taxonomy: {}
-        type_validation_regex: {}
-        type_validation_expect: {}
+        type_name:
+          type:
+          - string
+          - 'null'
+        type_description:
+          type:
+          - string
+          - 'null'
+        type_taxonomy:
+          type:
+          - string
+          - 'null'
+        type_validation_regex:
+          type:
+          - string
+          - 'null'
+        type_validation_expect:
+          type:
+          - string
+          - 'null'
+        type_id:
+          type: integer
       required:
       - type_name
       - type_description
@@ -12554,10 +13758,31 @@ components:
           type: string
     ReviewStatus:
       type: object
-      properties: {}
+      properties:
+        id:
+          type: integer
+        status_name:
+          type: string
     SavedFilter:
       type: object
-      properties: {}
+      properties:
+        filter_id:
+          type: integer
+          format: int64
+        created_by:
+          type: integer
+        filter_name:
+          type: string
+        filter_description:
+          type:
+          - string
+          - 'null'
+        filter_data:
+          type: object
+        filter_is_private:
+          type: boolean
+        filter_type:
+          type: string
       description: Schema for serializing and deserializing SavedFilter objects.
     SearchCaseNoteDirectory:
       type: object
@@ -12683,18 +13908,66 @@ components:
       description: Schema for the singleton `ServerSettings` row.
     Severity:
       type: object
-      properties: {}
+      properties:
+        severity_id:
+          type: integer
+        severity_name:
+          type: string
+        severity_description:
+          type:
+          - string
+          - 'null'
       description: Schema for serializing and deserializing Severity objects.
     Tags:
       type: object
-      properties: {}
+      properties:
+        id:
+          type: integer
+          format: int64
+        tag_title:
+          type:
+          - string
+          - 'null'
+        tag_creation_date:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        tag_namespace:
+          type:
+          - string
+          - 'null'
     TaskStatus:
       type: object
-      properties: {}
+      properties:
+        id:
+          type: integer
+        status_name:
+          type:
+          - string
+          - 'null'
+        status_description:
+          type:
+          - string
+          - 'null'
+        status_bscolor:
+          type:
+          - string
+          - 'null'
       description: Schema for serializing and deserializing TaskStatus objects.
     Tlp:
       type: object
-      properties: {}
+      properties:
+        tlp_id:
+          type: integer
+        tlp_name:
+          type:
+          - string
+          - 'null'
+        tlp_bscolor:
+          type:
+          - string
+          - 'null'
     User:
       type: object
       properties:
@@ -12702,17 +13975,67 @@ components:
           type: array
           items:
             type: string
-        user_name: {}
-        user_login: {}
-        user_email: {}
-        user_password: {}
+        user_name:
+          type:
+          - string
+          - 'null'
+        user_login:
+          type:
+          - string
+          - 'null'
+        user_email:
+          type:
+          - string
+          - 'null'
+        user_password:
+          type:
+          - string
+          - 'null'
         user_isadmin:
           type: boolean
         user_id:
           type: integer
         user_primary_organisation_id:
           type: integer
-        user_is_service_account: {}
+        user_is_service_account:
+          type:
+          - boolean
+          - 'null'
+        id:
+          type: integer
+          format: int64
+        uuid:
+          type: string
+          format: uuid
+        active:
+          type:
+          - boolean
+          - 'null'
+        external_id:
+          type:
+          - string
+          - 'null'
+        in_dark_mode:
+          type:
+          - boolean
+          - 'null'
+        has_mini_sidebar:
+          type:
+          - boolean
+          - 'null'
+        has_deletion_confirmation:
+          type:
+          - boolean
+          - 'null'
+        mfa_setup_complete:
+          type:
+          - boolean
+          - 'null'
+        avatar_updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - user_name
       - user_login
@@ -12726,16 +14049,39 @@ components:
           type: array
           items:
             type: string
-        user_name: {}
-        user_login: {}
-        user_email: {}
-        user_active: {}
-        user_id: {}
-        user_api_key: {}
-        user_password: {}
+        user_name:
+          type:
+          - string
+          - 'null'
+        user_login:
+          type:
+          - string
+          - 'null'
+        user_email:
+          type:
+          - string
+          - 'null'
+        user_active:
+          type:
+          - boolean
+          - 'null'
+        user_id:
+          type: integer
+          format: int64
+        user_api_key:
+          type:
+          - string
+          - 'null'
+        user_password:
+          type:
+          - string
+          - 'null'
         user_isadmin:
           type: boolean
-        user_is_service_account: {}
+        user_is_service_account:
+          type:
+          - boolean
+          - 'null'
         user_groups:
           type: array
           items:
@@ -12754,6 +14100,30 @@ components:
             $ref: '#/components/schemas/CaseSchemaForAPIV2'
         user_organisations: {}
         user_primary_organisation_id: {}
+        uuid:
+          type: string
+          format: uuid
+        ctx_case:
+          type:
+          - integer
+          - 'null'
+        in_dark_mode:
+          type:
+          - boolean
+          - 'null'
+        has_mini_sidebar:
+          type:
+          - boolean
+          - 'null'
+        has_deletion_confirmation:
+          type:
+          - boolean
+          - 'null'
+        avatar_updated_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - user_name
       - user_login

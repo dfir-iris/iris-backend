@@ -36,6 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent  # source/
 V2_ROOT = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'v2'
 API_V2_ROUTES = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'api_v2_routes.py'
 MARSHABLES = REPO_ROOT / 'app' / 'schema' / 'marshables.py'
+MODELS_ROOT = REPO_ROOT / 'app' / 'models'
 
 _PATH_PARAM_RE = re.compile(r'<(?:([^:>]+):)?([^>]+)>')
 _HTTP_METHODS = {'get', 'post', 'put', 'patch', 'delete'}
@@ -232,6 +233,10 @@ def _class_is_schema(cls: ast.ClassDef, known_schemas: set[str]) -> bool:
 
 
 def _extract_meta_exclude(cls: ast.ClassDef) -> set[str]:
+    return _extract_meta_string_iterable(cls, 'exclude')
+
+
+def _extract_meta_string_iterable(cls: ast.ClassDef, name: str) -> set[str]:
     for node in cls.body:
         if not (isinstance(node, ast.ClassDef) and node.name == 'Meta'):
             continue
@@ -239,7 +244,7 @@ def _extract_meta_exclude(cls: ast.ClassDef) -> set[str]:
             if not isinstance(stmt, ast.Assign):
                 continue
             for target in stmt.targets:
-                if isinstance(target, ast.Name) and target.id == 'exclude':
+                if isinstance(target, ast.Name) and target.id == name:
                     if isinstance(stmt.value, (ast.List, ast.Tuple, ast.Set)):
                         return {
                             elt.value for elt in stmt.value.elts
@@ -248,9 +253,225 @@ def _extract_meta_exclude(cls: ast.ClassDef) -> set[str]:
     return set()
 
 
+def _extract_meta_flag(cls: ast.ClassDef, name: str) -> bool:
+    """Return the boolean value of `Meta.<name>` if present, else False."""
+    for node in cls.body:
+        if not (isinstance(node, ast.ClassDef) and node.name == 'Meta'):
+            continue
+        for stmt in node.body:
+            if not isinstance(stmt, ast.Assign):
+                continue
+            for target in stmt.targets:
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id == name
+                    and isinstance(stmt.value, ast.Constant)
+                    and isinstance(stmt.value.value, bool)
+                ):
+                    return stmt.value.value
+    return False
+
+
+def _extract_meta_model(cls: ast.ClassDef) -> str | None:
+    """Return the ORM class name from `Meta.model = <Name>`."""
+    for node in cls.body:
+        if not (isinstance(node, ast.ClassDef) and node.name == 'Meta'):
+            continue
+        for stmt in node.body:
+            if not isinstance(stmt, ast.Assign):
+                continue
+            for target in stmt.targets:
+                if isinstance(target, ast.Name) and target.id == 'model':
+                    if isinstance(stmt.value, ast.Name):
+                        return stmt.value.id
+    return None
+
+
+# --------------------------------------------------------------------
+# SQLAlchemy ORM model resolution (AST-only)
+# --------------------------------------------------------------------
+#
+# `SQLAlchemyAutoSchema` inspects its `Meta.model` at runtime and
+# emits a field per column — including foreign-key columns when
+# `include_fk=True` (which is the default in most iris schemas).
+# Without walking the model, our schema components are missing the
+# scalar payload fields entirely: e.g. AlertSchema declared only
+# nested `owner`, `severity`, ... but the API actually accepts (and
+# emits) `alert_owner_id`, `alert_severity_id`, `alert_title` …
+#
+# We parse `source/app/models/*.py` once and build a per-class map of
+# {attribute_name: openapi_schema}. Column type mapping is best-effort
+# — the surface used by iris models is small enough that a static
+# table catches ~all real columns.
+
+_SA_TYPE_TO_OPENAPI: dict[str, dict[str, Any]] = {
+    'Integer': {'type': 'integer'},
+    'BigInteger': {'type': 'integer', 'format': 'int64'},
+    'SmallInteger': {'type': 'integer'},
+    'Numeric': {'type': 'number'},
+    'Float': {'type': 'number', 'format': 'float'},
+    'Boolean': {'type': 'boolean'},
+    'String': {'type': 'string'},
+    'Unicode': {'type': 'string'},
+    'Text': {'type': 'string'},
+    'UnicodeText': {'type': 'string'},
+    'LargeBinary': {'type': 'string', 'format': 'binary'},
+    'Date': {'type': 'string', 'format': 'date'},
+    'DateTime': {'type': 'string', 'format': 'date-time'},
+    'Time': {'type': 'string', 'format': 'time'},
+    'JSON': {'type': 'object'},
+    'JSONB': {'type': 'object'},
+    'UUID': {'type': 'string', 'format': 'uuid'},
+    'Enum': {'type': 'string'},
+    'ARRAY': {'type': 'array', 'items': {}},
+}
+
+
+def _column_type_to_openapi(call: ast.Call) -> dict[str, Any]:
+    """Given a `Column(...)` call, extract the OpenAPI schema for its
+    SQLAlchemy type argument.
+
+    We look at the first positional arg that isn't a `ForeignKey(...)`
+    call — that's the type. If the type is passed as an instance
+    (`String(64)`), we use the class name. If it's passed as a class
+    reference (`Integer`), we use the identifier. `ForeignKey(...)`
+    columns default to `integer` unless the ForeignKey target's PK
+    type is knowable — good-enough default since iris uses integer
+    PKs everywhere except `alert_uuid`-style UUID columns, which
+    declare their type alongside the FK.
+    """
+    for arg in call.args:
+        # Skip ForeignKey wrapper — inspect the sibling type arg.
+        if isinstance(arg, ast.Call) and _call_name(arg.func) == 'ForeignKey':
+            continue
+        if isinstance(arg, ast.Call):
+            type_name = _call_name(arg.func)
+            if type_name and type_name in _SA_TYPE_TO_OPENAPI:
+                return dict(_SA_TYPE_TO_OPENAPI[type_name])
+        if isinstance(arg, ast.Name) and arg.id in _SA_TYPE_TO_OPENAPI:
+            return dict(_SA_TYPE_TO_OPENAPI[arg.id])
+        if isinstance(arg, ast.Attribute) and arg.attr in _SA_TYPE_TO_OPENAPI:
+            return dict(_SA_TYPE_TO_OPENAPI[arg.attr])
+    # ForeignKey-only column with no explicit type — iris uses integer
+    # PKs by convention, so default to integer.
+    if any(
+        isinstance(arg, ast.Call) and _call_name(arg.func) == 'ForeignKey'
+        for arg in call.args
+    ):
+        return {'type': 'integer'}
+    return {}
+
+
+def _call_name(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _column_is_fk(call: ast.Call) -> bool:
+    return any(
+        isinstance(arg, ast.Call) and _call_name(arg.func) == 'ForeignKey'
+        for arg in call.args
+    )
+
+
+def _column_nullable(call: ast.Call) -> bool:
+    """Columns are nullable unless `nullable=False` or `primary_key=True`."""
+    for kw in call.keywords:
+        if kw.arg == 'nullable' and isinstance(kw.value, ast.Constant):
+            return bool(kw.value.value)
+        if kw.arg == 'primary_key' and isinstance(kw.value, ast.Constant) and kw.value.value:
+            return False
+    return True
+
+
+def _parse_orm_class(cls: ast.ClassDef) -> dict[str, dict[str, Any]] | None:
+    """Return {column_name: {'schema': …, 'fk': bool, 'nullable': bool}}
+    for a class inheriting from `db.Model` (or similar), or None if the
+    class isn't ORM-shaped.
+
+    We accept the class if either its base is `Model` / `Base` (SQLAlchemy
+    declarative) or it defines a `__tablename__` attribute (covers
+    projects that alias `Base = declarative_base()` under a different
+    name).
+    """
+    is_model = False
+    for base in cls.bases:
+        base_name = base.attr if isinstance(base, ast.Attribute) else getattr(base, 'id', None)
+        if base_name in {'Model', 'Base'}:
+            is_model = True
+            break
+    if not is_model and not _class_has_tablename(cls):
+        return None
+
+    columns: dict[str, dict[str, Any]] = {}
+    for node in cls.body:
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+            continue
+        if _call_name(node.value.func) != 'Column':
+            continue
+        openapi = _column_type_to_openapi(node.value)
+        fk = _column_is_fk(node.value)
+        nullable = _column_nullable(node.value)
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                columns[target.id] = {
+                    'schema': openapi,
+                    'fk': fk,
+                    'nullable': nullable,
+                }
+    return columns if columns else None
+
+
+def _class_has_tablename(cls: ast.ClassDef) -> bool:
+    for node in cls.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == '__tablename__':
+                    return True
+    return False
+
+
+def _build_model_index() -> dict[str, dict[str, dict[str, Any]]]:
+    """Parse every `app/models/*.py` file once and return
+    {ModelClassName: {column_name: {'schema': …, 'fk': bool,
+    'nullable': bool}}}."""
+    index: dict[str, dict[str, dict[str, Any]]] = {}
+    if not MODELS_ROOT.exists():
+        return index
+    for f in sorted(MODELS_ROOT.rglob('*.py')):
+        try:
+            tree = ast.parse(f.read_text(), filename=str(f))
+        except SyntaxError as exc:
+            print(f'openapi: cannot parse {f.name} ({exc})', file=sys.stderr)
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            columns = _parse_orm_class(node)
+            if columns:
+                index[node.name] = columns
+    return index
+
+
+# Populated lazily; kept module-global so `_parse_schema_class` can
+# see it without threading the map through every helper.
+_MODEL_INDEX: dict[str, dict[str, dict[str, Any]]] | None = None
+
+
+def _get_model_index() -> dict[str, dict[str, dict[str, Any]]]:
+    global _MODEL_INDEX
+    if _MODEL_INDEX is None:
+        _MODEL_INDEX = _build_model_index()
+    return _MODEL_INDEX
+
+
 def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -> dict[str, Any]:
     properties: dict[str, Any] = {}
     required: list[str] = []
+    autofield_targets: dict[str, str] = {}   # class-attr → ORM column name
 
     exclude = _extract_meta_exclude(cls)
 
@@ -280,9 +501,15 @@ def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -
 
         schema = _resolve_field_schema(value, schemas_seen)
 
-        # auto_field's first positional arg (if a string) is the ORM
-        # attribute name — but the property key stays as the class-level
-        # variable name because that's what the schema serializes to.
+        # For `auto_field('column_name', ...)` remember the ORM
+        # attribute so we can later fill in its type from the model.
+        if _field_call_name(value) == 'auto_field':
+            if value.args and isinstance(value.args[0], ast.Constant) \
+                    and isinstance(value.args[0].value, str):
+                autofield_targets[field_name] = value.args[0].value
+            else:
+                autofield_targets[field_name] = field_name
+
         if _extract_field_kwarg_constant(value, 'required') is True:
             required.append(field_name)
 
@@ -292,6 +519,50 @@ def _parse_schema_class(cls: ast.ClassDef, schemas_seen: set[tuple[str, str]]) -
                 schema = {**schema, 'type': [schema['type'], 'null']}
 
         properties[field_name] = schema or {}
+
+    # If the schema binds to a SQLAlchemy model via `Meta.model = X`,
+    # merge in the model's columns so auto_field / SQLAlchemyAutoSchema
+    # fields land in the spec instead of being reduced to `{}`. This is
+    # what marshmallow-sqlalchemy does at runtime.
+    model_name = _extract_meta_model(cls)
+    if model_name:
+        columns = _get_model_index().get(model_name, {})
+        include_fk = _extract_meta_flag(cls, 'include_fk')
+        include_rels = _extract_meta_flag(cls, 'include_relationships')
+
+        # 1. Backfill types on `auto_field` declarations that were
+        #    emitted as `{}` above.
+        for attr, orm_column in autofield_targets.items():
+            if properties.get(attr):
+                continue
+            column = columns.get(orm_column)
+            if column and column['schema']:
+                properties[attr] = dict(column['schema'])
+                if column['nullable'] and 'type' in properties[attr]:
+                    properties[attr] = {
+                        **properties[attr],
+                        'type': [properties[attr]['type'], 'null'],
+                    }
+
+        # 2. Add every ORM column NOT already declared, subject to
+        #    Meta.exclude and (for FKs) include_fk. Relationships live
+        #    on the model but as Python-only attrs — they're not
+        #    `Column(...)` so they never made it into the model index,
+        #    which matches marshmallow's behaviour when
+        #    include_relationships is False.
+        _ = include_rels  # currently only used to gate a warning path
+        for orm_column, meta in columns.items():
+            if orm_column in properties or orm_column in exclude:
+                continue
+            if meta['fk'] and not include_fk:
+                continue
+            column_schema = dict(meta['schema']) if meta['schema'] else {}
+            if meta['nullable'] and 'type' in column_schema:
+                column_schema = {
+                    **column_schema,
+                    'type': [column_schema['type'], 'null'],
+                }
+            properties[orm_column] = column_schema
 
     result: dict[str, Any] = {'type': 'object', 'properties': properties}
     if required:
