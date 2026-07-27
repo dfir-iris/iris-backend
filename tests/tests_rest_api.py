@@ -51,3 +51,22 @@ class TestsRestApi(TestCase):
         self.assertEqual('true', response.headers.get('Deprecation'))
         link = response.headers.get('Link', '')
         self.assertIn('/api/v2/versions', link)
+
+    def test_v2_openapi_yaml_should_return_the_generated_spec(self):
+        # The static spec file shipped alongside api.py — same one the
+        # CI drift check regenerates and compares.
+        response = self._subject.get('/api/v2/openapi.yaml')
+        self.assertEqual(200, response.status_code)
+        body = response.text
+        self.assertTrue(body.startswith('openapi: 3.1.0'))
+        # Sanity-check that a well-known operation shows up so a
+        # regression in the send_file wiring doesn't ship an empty spec.
+        self.assertIn('/api/v2/cases', body)
+
+    def test_v2_docs_should_serve_the_redoc_html_shell(self):
+        response = self._subject.get('/api/v2/docs')
+        self.assertEqual(200, response.status_code)
+        self.assertIn('text/html', response.headers.get('Content-Type', ''))
+        body = response.text
+        self.assertIn('spec-url="/api/v2/openapi.yaml"', body)
+        self.assertIn('redoc.standalone.js', body)

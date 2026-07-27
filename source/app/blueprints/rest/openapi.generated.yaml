@@ -4723,6 +4723,28 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/docs:
+    get:
+      operationId: api_docs_get
+      summary: Interactive API reference (Redoc)
+      tags:
+      - Meta
+      security:
+      - ApiKey: []
+      description: 'Points at /api/v2/openapi.yaml above; both endpoints require
+
+        the same session/API-key auth so operators can browse the docs
+
+        while logged in but public visitors don''t get a free tour of
+
+        the internal surface.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/events/{event_identifier}/comments:
     get:
       operationId: get_event_comments_get
@@ -9282,6 +9304,39 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/openapi.yaml:
+    get:
+      operationId: api_openapi_spec_get
+      summary: Get the OpenAPI spec (YAML)
+      tags:
+      - Meta
+      security:
+      - ApiKey: []
+      description: "Gated by the same auth as any other v2 endpoint \u2014 the spec exposes\nthe entire\
+        \ request/response shape of the API, so we don't hand it\nout to unauthenticated callers. Session-authed\
+        \ browsers pick it up\nvia the docs page below."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ping:
+    get:
+      operationId: api_ping_get
+      summary: Health check
+      tags:
+      - Meta
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/search:
     get:
       operationId: search_across_cases_get
@@ -9590,6 +9645,21 @@ paths:
         "malice@bar" alike). Empty `q` returns the first N active users
 
         which the client can then fuzzy-filter locally.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/versions:
+    get:
+      operationId: api_versions_get
+      summary: Report IRIS + API version
+      tags:
+      - Meta
+      security:
+      - ApiKey: []
       responses:
         '200':
           description: Success
