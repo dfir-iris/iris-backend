@@ -25,20 +25,28 @@ from app.blueprints.iris_user import iris_current_user
 from app.models.models import UserActivity
 
 
-def track_activity(message, caseid=None, war_room_id=None, ctx_less=False, user_input=False, display_in_ui=True):
+def track_activity(message, caseid=None, war_room_id=None, ctx_less=False, user_input=False, display_in_ui=True, user_id_override=None):
     """
     Register a user activity in DB.
     :param message: Message to save as activity
+    :param user_id_override: attribute the row to this user id instead of
+        the current request's principal. Used by paths that run outside a
+        normal request context — notably the collab flush that fires on
+        socket disconnect, where `iris_current_user` is unbound and the
+        last-editor is authoritative anyway (tracked on CollabDoc).
     :return: Nothing
     """
     ua = UserActivity()
 
-    try:
+    if user_id_override is not None:
+        ua.user_id = user_id_override
+    else:
+        try:
 
-        ua.user_id = iris_current_user.id
+            ua.user_id = iris_current_user.id
 
-    except:
-        pass
+        except:
+            pass
 
     try:
         ua.case_id = caseid if ctx_less is False else None
@@ -50,15 +58,25 @@ def track_activity(message, caseid=None, war_room_id=None, ctx_less=False, user_
     ua.activity_desc = message.capitalize()
 
     scope = f"Case {caseid}" if caseid else (f"War room {war_room_id}" if war_room_id else "-")
-    if iris_current_user.is_authenticated:
-        logger.info(f"{iris_current_user.user} [#{iris_current_user.id}] :: {scope} :: {ua.activity_desc}")
-    else:
-        logger.info(f"Anonymous :: {scope} :: {ua.activity_desc}")
+    try:
+        if iris_current_user.is_authenticated:
+            logger.info(f"{iris_current_user.user} [#{iris_current_user.id}] :: {scope} :: {ua.activity_desc}")
+        else:
+            logger.info(f"Anonymous :: {scope} :: {ua.activity_desc}")
+    except Exception:
+        # No request context (e.g. socket disconnect flushing a collab
+        # doc). Fall back to the override id if we have one.
+        who = f"user #{user_id_override}" if user_id_override else "Anonymous"
+        logger.info(f"{who} :: {scope} :: {ua.activity_desc}")
 
     ua.user_input = user_input
     ua.display_in_ui = display_in_ui
 
-    ua.is_from_api = (request.cookies.get('session') is None if request else False)
+    try:
+        ua.is_from_api = (request.cookies.get('session') is None if request else False)
+    except Exception:
+        # No request context — treat as non-API (background flush).
+        ua.is_from_api = False
 
     db.session.add(ua)
     db.session.commit()

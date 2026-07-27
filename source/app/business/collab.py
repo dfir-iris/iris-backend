@@ -361,6 +361,13 @@ def flush_to_source(doc_name):
         row.content_md = new_content
         db.session.commit()
 
+    # `flush_to_source` runs on socket disconnect, where the Flask-Login
+    # request context is often gone — `iris_current_user` would raise and
+    # `track_activity` would silently record user_id=NULL. `updated_by_id`
+    # on the CollabDoc is the authoritative last-writer (set on every
+    # buffered update), so we hand it to track_activity directly.
+    author_id = row.updated_by_id
+
     if kind == 'note':
         note = Notes.query.filter_by(note_id=obj_id).first()
         if note is None or note.note_content == new_content:
@@ -368,7 +375,8 @@ def flush_to_source(doc_name):
         note.note_content = new_content
         db.session.commit()
         track_activity(f'updated note "{note.note_title}"',
-                       caseid=note.note_case_id)
+                       caseid=note.note_case_id,
+                       user_id_override=author_id)
         return
 
     if kind == 'case-summary':
@@ -377,7 +385,8 @@ def flush_to_source(doc_name):
             return
         case.description = new_content
         db.session.commit()
-        track_activity('updated case summary', caseid=case.case_id)
+        track_activity('updated case summary', caseid=case.case_id,
+                       user_id_override=author_id)
         return
 
     if kind == 'war-room-note':
@@ -387,7 +396,8 @@ def flush_to_source(doc_name):
         wrn.content = new_content
         db.session.commit()
         track_activity(f'updated war room note "{wrn.title}"',
-                       war_room_id=wrn.war_room_id)
+                       war_room_id=wrn.war_room_id,
+                       user_id_override=author_id)
         return
 
     if kind == 'war-room-summary':
@@ -397,7 +407,8 @@ def flush_to_source(doc_name):
         room.description = new_content
         db.session.commit()
         track_activity('updated war room summary',
-                       war_room_id=room.war_room_id)
+                       war_room_id=room.war_room_id,
+                       user_id_override=author_id)
         return
 
     if kind == 'sitrep':
@@ -412,5 +423,6 @@ def flush_to_source(doc_name):
         track_activity(
             f'updated sitrep "{sit.title}" (v{sit.version})',
             war_room_id=sit.war_room_id,
+            user_id_override=author_id,
         )
         return
