@@ -27,6 +27,7 @@ from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import LargeBinary
+from sqlalchemy import Numeric
 from sqlalchemy import Sequence
 from sqlalchemy import String
 from sqlalchemy import TIMESTAMP
@@ -550,6 +551,19 @@ class ServerSettings(db.Model):
     mail_imap_mailbox = Column(String(255), nullable=True, default='INBOX')
     mail_imap_poll_interval_sec = Column(Integer, nullable=True, default=300)
     mail_imap_max_attachment_mb = Column(Integer, nullable=True, default=20)
+
+    # ---- Error reporting (GlitchTip / Sentry-compatible) -------------
+    # Off by default on every install. The backend DSN is stored as
+    # Fernet ciphertext (same wrap as `mail_smtp_password`); the
+    # frontend DSN is plaintext because DSNs are ingest tokens, not
+    # secrets, and the browser has to read it to init the SDK. See
+    # app/iris_engine/observability/reporter.py for consumers.
+    error_reporting_enabled = Column(Boolean, nullable=True, default=False)
+    error_reporting_backend_dsn = Column(Text, nullable=True)
+    error_reporting_frontend_dsn = Column(Text, nullable=True)
+    error_reporting_environment = Column(String(64), nullable=True)
+    error_reporting_sample_rate = Column(Numeric(3, 2), nullable=True, default=1.00)
+    error_reporting_include_user = Column(Boolean, nullable=True, default=False)
 
 
 class IrisModule(db.Model):

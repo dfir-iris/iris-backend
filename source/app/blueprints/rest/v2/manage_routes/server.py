@@ -63,12 +63,37 @@ from dictdiffer import diff
 # empty input for an unset one.
 _MAIL_PASSWORD_FIELDS = ('mail_smtp_password', 'mail_imap_password')
 
+# Same masking treatment for the backend DSN of the error reporter.
+# The frontend DSN is not in this list — it round-trips to the SPA on
+# purpose so the browser can init the Sentry SDK against it.
+_ERROR_REPORTING_SECRET_FIELDS = ('error_reporting_backend_dsn',)
+
+# Any change to one of these fields triggers `reload_error_reporter`
+# (stubbed in PR1, wired in PR2). Snapshot before the schema load and
+# compare after commit — same shape as the mail-interval snapshot.
+_ERROR_REPORTING_TRACKED_FIELDS = (
+    'error_reporting_enabled',
+    'error_reporting_backend_dsn',
+    'error_reporting_frontend_dsn',
+    'error_reporting_environment',
+    'error_reporting_sample_rate',
+    'error_reporting_include_user',
+)
+
 
 def _mail_password_flags(settings) -> dict:
     """Compact `{<field>_set: bool}` map for the mail password fields."""
     return {
         f'{field}_set': bool(getattr(settings, field, None))
         for field in _MAIL_PASSWORD_FIELDS
+    }
+
+
+def _error_reporting_flags(settings) -> dict:
+    """Compact `{<field>_set: bool}` map for the masked error-reporting fields."""
+    return {
+        f'{field}_set': bool(getattr(settings, field, None))
+        for field in _ERROR_REPORTING_SECRET_FIELDS
     }
 
 
@@ -88,6 +113,73 @@ def _encrypt_mail_passwords_in_body(body: dict) -> None:
             body[field] = None
             continue
         body[field] = encrypt_secret(raw)
+
+
+def _encrypt_error_reporting_secrets_in_body(body: dict) -> None:
+    """In-place: Fernet-wrap the backend DSN — same rules as mail passwords."""
+    for field in _ERROR_REPORTING_SECRET_FIELDS:
+        if field not in body:
+            continue
+        raw = body[field]
+        if raw is None or raw == '':
+            body[field] = None
+            continue
+        body[field] = encrypt_secret(raw)
+
+
+def _redact_secrets_in_changes(changes: list) -> list:
+    """Replace secret values in the diff with a sentinel.
+
+    `changes` feeds directly into `track_activity` which becomes an
+    audit-log row — so a raw DSN would land in cleartext there. Backend
+    DSN is load-only (never in the dumped baseline), so the diff shape
+    is a `add`/`change` where the new-value side needs masking. Frontend
+    DSN also gets masked in the activity log even though it round-trips
+    in the API response, because an activity-log row is more durable and
+    more widely-read than a single API response.
+    """
+    redacted_keys = {
+        'error_reporting_backend_dsn',
+        'error_reporting_frontend_dsn',
+    }
+    out = []
+    for entry in changes:
+        # entry has the shape `{key: new_value}` — see the caller.
+        redacted_entry = {}
+        for key, value in entry.items():
+            if key in redacted_keys and value:
+                redacted_entry[key] = '<changed>'
+            else:
+                redacted_entry[key] = value
+        out.append(redacted_entry)
+    return out
+
+
+def _snapshot_error_reporting(settings) -> dict:
+    """Read the six error-reporting fields off the settings row.
+
+    Used before the schema load so we can compare pre/post and only
+    invoke `reload_error_reporter` when something actually changed.
+    """
+    return {field: getattr(settings, field, None)
+            for field in _ERROR_REPORTING_TRACKED_FIELDS}
+
+
+def _error_reporting_changed(before: dict, settings) -> bool:
+    return any(
+        before[field] != getattr(settings, field, None)
+        for field in _ERROR_REPORTING_TRACKED_FIELDS
+    )
+
+
+def _reload_error_reporter_stub() -> None:
+    """No-op hook for PR1.
+
+    Wired to the real `sentry_sdk.init(...)` call in PR2 (module
+    `app/iris_engine/observability/reporter.py`). Kept as a named
+    seam so the PUT-handler side-effect block is stable across PRs.
+    """
+    return
 
 
 class ServerOperations:
@@ -128,6 +220,7 @@ class ServerOperations:
 
         settings_dump = self._schema.dump(settings)
         settings_dump.update(_mail_password_flags(settings))
+        settings_dump.update(_error_reporting_flags(settings))
 
         return response_api_success({
             'settings': settings_dump,
@@ -162,10 +255,12 @@ class ServerOperations:
         # Wrap plaintext mail passwords in Fernet BEFORE the schema
         # load — the DB column should never hold a plaintext value.
         _encrypt_mail_passwords_in_body(body)
+        _encrypt_error_reporting_secrets_in_body(body)
         # Snapshot mail interval so we can nudge the beat scheduler
         # if the operator changes it below.
         old_imap_interval = settings.mail_imap_poll_interval_sec
         old_imap_enabled = settings.mail_imap_enabled
+        error_reporting_before = _snapshot_error_reporting(settings)
 
         try:
             original_dump = self._schema.dump(settings)
@@ -173,6 +268,8 @@ class ServerOperations:
             changes = [
                 {d[1]: d[2]} for d in differences if d[0] == 'change'
             ]
+            # DSN values must never land in the activity log in clear.
+            changes = _redact_secrets_in_changes(changes)
             updated = self._schema.load(body, instance=settings, partial=True)
             db.session.commit()
 
@@ -198,12 +295,19 @@ class ServerOperations:
                 except Exception:
                     app.logger.exception('Failed to refresh mail beat schedule')
 
+            # Reload the error reporter only when one of its fields
+            # actually changed. PR1 wires the seam as a no-op; PR2
+            # replaces the stub with the real `sentry_sdk.init(...)`.
+            if _error_reporting_changed(error_reporting_before, updated):
+                _reload_error_reporter_stub()
+
             track_activity(f'Server settings updated: {changes}', ctx_less=True)
             # Re-cache the dump on app.config so other code paths that
             # read `app.config['SERVER_SETTINGS']` see the new values
             # without an extra DB hit. The legacy route did the same.
             settings_dump = self._schema.dump(updated)
             settings_dump.update(_mail_password_flags(updated))
+            settings_dump.update(_error_reporting_flags(updated))
             app.config['SERVER_SETTINGS'] = settings_dump
             return response_api_success(settings_dump)
 

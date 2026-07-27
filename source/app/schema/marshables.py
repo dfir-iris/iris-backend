@@ -1564,6 +1564,19 @@ class ServerSettingsSchema(ma.SQLAlchemyAutoSchema):
     mail_imap_poll_interval_sec: Optional[int] = fields.Integer(required=False, allow_none=True)
     mail_imap_max_attachment_mb: Optional[int] = fields.Integer(required=False, allow_none=True)
 
+    # ---- Error reporting (GlitchTip / Sentry-compatible) -------------
+    # Backend DSN is load-only for the same reason as mail passwords —
+    # the GET path returns an `error_reporting_backend_dsn_set` boolean
+    # instead, so the SPA can render a masked "•••••" input when set.
+    # Frontend DSN is round-trippable: the browser needs to read it at
+    # boot from `/api/v2/runtime-config` to init the Sentry SDK.
+    error_reporting_enabled: Optional[bool] = fields.Boolean(required=False, allow_none=True)
+    error_reporting_backend_dsn: Optional[str] = fields.String(required=False, allow_none=True, load_only=True)
+    error_reporting_frontend_dsn: Optional[str] = fields.String(required=False, allow_none=True)
+    error_reporting_environment: Optional[str] = fields.String(required=False, allow_none=True)
+    error_reporting_sample_rate: Optional[float] = fields.Decimal(required=False, allow_none=True, as_string=False, places=2)
+    error_reporting_include_user: Optional[bool] = fields.Boolean(required=False, allow_none=True)
+
     class Meta:
         model = ServerSettings
         load_instance = True

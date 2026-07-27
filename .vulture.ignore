@@ -508,3 +508,11 @@ uploaded_by  # unused variable (source/app/models/war_rooms.py:815)
 voted_at  # unused variable (source/app/models/war_rooms.py:612)
 votes  # unused variable (source/app/models/war_rooms.py:590)
 widget_uuid  # unused variable (source/app/models/custom_dashboard.py:57)
+# --- error_reporting columns: consumed via getattr(settings, field) in server.py
+# --- and by the reporter module wired in a follow-up revision.
+error_reporting_enabled  # unused variable (source/app/models/models.py)
+error_reporting_backend_dsn  # unused variable (source/app/models/models.py)
+error_reporting_frontend_dsn  # unused variable (source/app/models/models.py)
+error_reporting_environment  # unused variable (source/app/models/models.py)
+error_reporting_sample_rate  # unused variable (source/app/models/models.py)
+error_reporting_include_user  # unused variable (source/app/models/models.py)
