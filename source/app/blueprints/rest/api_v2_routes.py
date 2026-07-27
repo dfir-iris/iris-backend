@@ -22,6 +22,7 @@ from app.blueprints.rest.v2.activities import activities_blueprint
 from app.blueprints.rest.v2.alerts import alerts_blueprint
 from app.blueprints.rest.v2.api import api_blueprint
 from app.blueprints.rest.v2.assets import assets_blueprint
+from app.blueprints.rest.v2.bug_reports import bug_reports_blueprint
 from app.blueprints.rest.v2.events import events_blueprint
 from app.blueprints.rest.v2.evidences import evidences_blueprint
 from app.blueprints.rest.v2.notes import notes_blueprint
@@ -71,6 +72,7 @@ rest_v2_blueprint.register_blueprint(dashboard_blueprint)
 rest_v2_blueprint.register_blueprint(manage_v2_blueprint)
 rest_v2_blueprint.register_blueprint(tags_blueprint)
 rest_v2_blueprint.register_blueprint(profile_blueprint)
+rest_v2_blueprint.register_blueprint(bug_reports_blueprint)
 rest_v2_blueprint.register_blueprint(runtime_config_blueprint)
 rest_v2_blueprint.register_blueprint(search_blueprint)
 rest_v2_blueprint.register_blueprint(cases_filters_blueprint)
