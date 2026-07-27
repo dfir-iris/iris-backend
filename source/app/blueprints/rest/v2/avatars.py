@@ -45,6 +45,7 @@ from sqlalchemy import or_
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
@@ -180,6 +181,7 @@ users_public_blueprint = Blueprint('users_public_rest_v2', __name__, url_prefix=
 
 @users_public_blueprint.get('/<int:identifier>/avatar')
 @ac_api_requires()
+@api_doc(tags=['Avatars'], summary="Get a user's avatar")
 def get_user_avatar(identifier: int) -> Response:
     try:
         user = users_get(identifier)
@@ -208,6 +210,7 @@ _MENTION_LIMIT = 200
 
 @users_public_blueprint.get('/mentionable')
 @ac_api_requires()
+@api_doc(tags=['Avatars'], summary='List mentionable users')
 def get_mentionable_users() -> Response:
     """Return active users matching `?q=<prefix>` for the mention popup.
 
@@ -260,6 +263,7 @@ me_avatar_blueprint = Blueprint('me_avatar_rest_v2', __name__, url_prefix='/me')
 
 @me_avatar_blueprint.post('/avatar')
 @ac_api_requires()
+@api_doc(tags=['Avatars'], summary="Upload the caller's avatar")
 def post_my_avatar() -> Response:
     user = users_get(iris_current_user.id)
     if user is None:
@@ -269,6 +273,7 @@ def post_my_avatar() -> Response:
 
 @me_avatar_blueprint.delete('/avatar')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Avatars'], summary="Delete the caller's avatar")
 def delete_my_avatar() -> Response:
     user = users_get(iris_current_user.id)
     if user is None:
@@ -285,6 +290,7 @@ admin_avatar_blueprint = Blueprint(
 
 @admin_avatar_blueprint.post('/<int:identifier>/avatar')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Avatars'], summary="Upload a user's avatar (admin)")
 def post_user_avatar(identifier: int) -> Response:
     try:
         user = users_get(identifier)
@@ -297,6 +303,7 @@ def post_user_avatar(identifier: int) -> Response:
 
 @admin_avatar_blueprint.delete('/<int:identifier>/avatar')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='deleted', tags=['Avatars'], summary="Delete a user's avatar (admin)")
 def delete_user_avatar(identifier: int) -> Response:
     try:
         user = users_get(identifier)

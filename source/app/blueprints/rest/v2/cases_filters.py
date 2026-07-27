@@ -17,6 +17,7 @@ from flask import request
 from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -148,29 +149,39 @@ cases_filters_operations = CasesFiltersOperations()
 
 @cases_filters_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=SavedFilterSchema, response=SavedFilterSchema,
+         response_shape='created', tags=['CasesFilters'],
+         summary='Create a saved cases filter')
 def create_case_filter():
     return cases_filters_operations.create()
 
 
 @cases_filters_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['CasesFilters'], summary='List saved cases filters')
 def list_case_filters():
     return cases_filters_operations.list()
 
 
 @cases_filters_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=SavedFilterSchema, tags=['CasesFilters'],
+         summary='Get a saved cases filter')
 def get_case_filter(identifier):
     return cases_filters_operations.get(identifier)
 
 
 @cases_filters_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=SavedFilterSchema, response=SavedFilterSchema,
+         tags=['CasesFilters'], summary='Update a saved cases filter')
 def update_case_filter(identifier):
     return cases_filters_operations.put(identifier)
 
 
 @cases_filters_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['CasesFilters'],
+         summary='Delete a saved cases filter')
 def delete_case_filter(identifier):
     return cases_filters_operations.delete(identifier)

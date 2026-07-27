@@ -22,6 +22,7 @@ from flask import request
 from app.models.authorization import Permissions
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.search import search_across
@@ -33,6 +34,7 @@ search_blueprint = Blueprint('search_rest_v2', __name__, url_prefix='/search')
 
 @search_blueprint.get('')
 @ac_api_requires(Permissions.search_across_cases)
+@api_doc(tags=['Search'], summary='Search across cases')
 def search_across_cases():
     # `types` is a comma-separated list (notes,iocs,comments). We accept
     # repeated `?types=notes&types=iocs` form too — Flask's getlist + a

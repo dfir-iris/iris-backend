@@ -42,6 +42,7 @@ from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import not_authenticated_redirection_url
 from app.blueprints.rest.api_auth import api_auth
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error, response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.auth import validate_ldap_login
@@ -117,6 +118,7 @@ def _mfa_status_for(user):
 
 
 @auth_blueprint.post('/login')
+@api_doc(tags=['Auth'], summary='Log in')
 def login():
     """
     Login endpoint. Handles taking user/pass combo and authenticating a local session or returning an error.
@@ -162,6 +164,7 @@ def login():
 
 
 @auth_blueprint.post('/oidc-exchange')
+@api_doc(tags=['Auth'], summary='Exchange OIDC session for JWT tokens')
 def oidc_exchange():
     """
     Trade a fresh OIDC-authenticated session cookie for JWT access/refresh
@@ -224,6 +227,7 @@ def oidc_exchange():
 
 
 @auth_blueprint.post('/mfa-setup')
+@api_doc(tags=['Auth'], summary='Set up MFA')
 def mfa_setup():
     """
     Persist user's MFA secret after validating:
@@ -340,6 +344,7 @@ def mfa_setup():
 
 
 @auth_blueprint.post('/mfa-verify')
+@api_doc(tags=['Auth'], summary='Verify MFA token')
 def mfa_verify():
     """
     Verify a TOTP token against the saved MFA secret.
@@ -406,6 +411,7 @@ def mfa_verify():
 
 @auth_blueprint.get('/whoami')
 @api_auth()
+@api_doc(tags=['Auth'], summary='Get the current user')
 def whoami():
     """
     Returns current authenticated user info (based on the existing session) and API tokens.
@@ -427,6 +433,7 @@ def whoami():
 
 @auth_blueprint.post('/logout')
 @api_auth()
+@api_doc(tags=['Auth'], summary='Log out')
 def logout():
     """
     Logout function. Erase its session and redirect to index i.e login
@@ -465,6 +472,7 @@ def logout():
 
 
 @auth_blueprint.post('/refresh-token')
+@api_doc(tags=['Auth'], summary='Refresh authentication tokens')
 def refresh_token_endpoint():
     """
     Refresh authentication tokens using a valid refresh token

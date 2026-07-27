@@ -22,6 +22,7 @@ from flask import request
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.activity import list_activities
 from app.models.authorization import Permissions
@@ -42,6 +43,7 @@ def _format_row(row):
 
 @activities_blueprint.get('')
 @ac_api_requires(Permissions.activities_read, Permissions.all_activities_read)
+@api_doc(tags=['Activities'], summary='List activities')
 def list_activities_endpoint():
     """Paginated, access-scoped listing of UserActivity rows.
 

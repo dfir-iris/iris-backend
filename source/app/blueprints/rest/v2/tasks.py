@@ -31,6 +31,7 @@ from app.models.errors import ObjectNotFoundError
 from app.models.errors import BusinessProcessingError
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseTaskSchema
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.v2.tasks_routes.comments import tasks_comments_blueprint
 
 
@@ -75,11 +76,13 @@ tasks_operations = Tasks()
 
 @tasks_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseTaskSchema, tags=['Tasks'], summary='Get a task')
 def get_case_task(identifier):
     return tasks_operations.read(identifier)
 
 
 @tasks_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Tasks'], summary='Delete a task')
 def delete_case_task(identifier):
     return tasks_operations.delete(identifier)

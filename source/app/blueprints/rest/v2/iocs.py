@@ -33,6 +33,7 @@ from app.business.iocs import iocs_get
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import IocSchemaForAPIV2
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.v2.iocs_routes.comments import iocs_comments_blueprint
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import IocSchema
@@ -108,17 +109,21 @@ iocs_operations = IocsOperations()
 
 @iocs_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=IocSchemaForAPIV2, tags=['Iocs'], summary='Get an IOC')
 def get_case_ioc(identifier):
     return iocs_operations.read(identifier)
 
 
 @iocs_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=IocSchema, response=IocSchemaForAPIV2, tags=['Iocs'],
+         summary='Update an IOC')
 def update_ioc(identifier):
     return iocs_operations.update(identifier)
 
 
 @iocs_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Iocs'], summary='Delete an IOC')
 def delete_case_ioc(identifier):
     return iocs_operations.delete(identifier)

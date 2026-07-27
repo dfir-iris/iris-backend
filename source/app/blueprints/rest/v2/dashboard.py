@@ -24,6 +24,7 @@ from sqlalchemy import func
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.cases import cases_filter_by_user
 from app.business.cases import cases_filter_by_reviewer
@@ -45,6 +46,7 @@ dashboard_blueprint = Blueprint('dashboard',
 #      Prefer to use GET /api/v2/cases?case_owner_id=xx
 @dashboard_blueprint.route('/cases/list', methods=['GET'])
 @ac_api_requires()
+@api_doc(tags=['Dashboard'], summary="List the caller's cases")
 def list_own_cases():
     show_closed = request.args.get('show_closed', 'false', type=str).lower()
     cases = cases_filter_by_user(iris_current_user, show_closed == 'true')
@@ -56,6 +58,7 @@ def list_own_cases():
 #      We should rather have /api/v2/tasks?
 @dashboard_blueprint.get('/tasks/list')
 @ac_api_requires()
+@api_doc(tags=['Dashboard'], summary="List the caller's tasks")
 def list_own_tasks():
     # `tasks_filter_by_user` projects flat row tuples (task_id, task_title,
     # task_case, case_id, status_name, …), not model instances — running
@@ -74,6 +77,7 @@ def list_own_tasks():
 
 @dashboard_blueprint.get('/activities/recent')
 @ac_api_requires()
+@api_doc(tags=['Dashboard'], summary='List recent activities')
 def list_recent_activities():
     """Recent UI-visible activity entries the current user is allowed to
     see. Scoped to cases the user has access to (plus their own activity)
@@ -108,6 +112,7 @@ def list_recent_activities():
 
 @dashboard_blueprint.get('/activities/cases/major')
 @ac_api_requires()
+@api_doc(tags=['Dashboard'], summary='List recent major case activities')
 def list_recent_major_case_activities():
     """Recent major case activities (created / closed) for dashboard use.
 
@@ -140,6 +145,7 @@ def list_recent_major_case_activities():
 #      We should rather have /api/v2/reviews?
 @dashboard_blueprint.get('/reviews/list')
 @ac_api_requires()
+@api_doc(tags=['Dashboard'], summary="List the caller's reviews")
 def list_own_reviews():
     reviews = cases_filter_by_reviewer(iris_current_user)
     return response_api_success(
@@ -159,6 +165,7 @@ _OPEN_ALERT_STATUS_NAMES = ('new', 'pending', 'in progress')
 
 @dashboard_blueprint.get('/kpis')
 @ac_api_requires()
+@api_doc(tags=['Dashboard'], summary='Get dashboard KPIs')
 def get_dashboard_kpis():
     """Compact KPI block for the SvelteKit home tile.
 

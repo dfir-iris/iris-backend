@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
@@ -115,29 +116,39 @@ comments_operations = CommentsOperations()
 
 @events_comments_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Events'],
+         summary="List an event's comments")
 def get_event_comments(event_identifier):
     return comments_operations.search(event_identifier)
 
 
 @events_comments_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Events'], summary='Add a comment to an event')
 def create_event_comment(event_identifier):
     return comments_operations.create(event_identifier)
 
 
 @events_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CommentSchema, tags=['Events'],
+         summary='Get an event comment')
 def get_event_comment(event_identifier, identifier):
     return comments_operations.read(event_identifier, identifier)
 
 
 @events_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Events'],
+         summary='Update an event comment')
 def update_assets_comment(event_identifier, identifier):
     return comments_operations.update(event_identifier, identifier)
 
 
 @events_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Events'],
+         summary='Delete an event comment')
 def delete_task_comment(event_identifier, identifier):
     return comments_operations.delete(event_identifier, identifier)

@@ -27,6 +27,7 @@ from flask import Blueprint
 from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.dim_hooks import list_hook_options_for
@@ -37,6 +38,7 @@ dim_hooks_blueprint = Blueprint('dim_hooks_rest_v2', __name__, url_prefix='/dim-
 
 @dim_hooks_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['DimHooks'], summary='List available module hooks')
 def list_dim_hook_options():
     """Return every active module hook registered for the requested
     `target` type (e.g. `?target=ioc`).

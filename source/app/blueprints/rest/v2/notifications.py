@@ -24,6 +24,7 @@ from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_success
 from app.iris_engine.notifications.service import clear as clear_notifications
@@ -63,6 +64,7 @@ def _serialize(row):
 
 @notifications_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['Notifications'], summary='List notifications')
 def get_notifications():
     """List the current user's notifications.
 
@@ -89,6 +91,7 @@ def get_notifications():
 
 @notifications_blueprint.get('/unread-count')
 @ac_api_requires()
+@api_doc(tags=['Notifications'], summary='Get the unread notification count')
 def get_unread_count():
     """Bell badge poll — cheap `SELECT count(*)`."""
     return response_api_success({
@@ -98,6 +101,7 @@ def get_unread_count():
 
 @notifications_blueprint.post('/mark-read')
 @ac_api_requires()
+@api_doc(tags=['Notifications'], summary='Mark notifications as read')
 def post_mark_read():
     """Mark notifications read. Body: `{"ids": [...]}` OR `{"all": true}`.
 
@@ -135,6 +139,7 @@ def post_mark_read():
 
 @notifications_blueprint.post('/clear')
 @ac_api_requires()
+@api_doc(tags=['Notifications'], summary='Clear notifications')
 def post_clear():
     """Permanently delete notifications. Body: `{"ids": [...]}` OR
     `{"all": true}`.
@@ -175,6 +180,7 @@ def post_clear():
 
 @notifications_blueprint.get('/settings')
 @ac_api_requires()
+@api_doc(tags=['Notifications'], summary='Get notification settings')
 def get_settings():
     """Return the effective settings grid for the current user.
 
@@ -192,6 +198,7 @@ def get_settings():
 
 @notifications_blueprint.put('/settings')
 @ac_api_requires()
+@api_doc(tags=['Notifications'], summary='Update notification settings')
 def put_settings():
     """Upsert per-user settings. Body: `{settings: {event: {channel: bool}}}`.
 
@@ -224,6 +231,7 @@ admin_notifications_blueprint = Blueprint(
 
 @admin_notifications_blueprint.get('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Notifications'], summary='Get admin notification defaults')
 def get_admin():
     return response_api_success({
         'event_types': list(EVENT_TYPES),
@@ -234,6 +242,7 @@ def get_admin():
 
 @admin_notifications_blueprint.put('')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Notifications'], summary='Update admin notification defaults')
 def put_admin():
     payload = request.get_json(silent=True) or {}
     settings = payload.get('settings')

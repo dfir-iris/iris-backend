@@ -23,6 +23,7 @@ from marshmallow import ValidationError
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
@@ -115,29 +116,39 @@ comments_operations = CommentsOperations()
 
 @notes_comments_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Notes'],
+         summary="List a note's comments")
 def get_notes_comments(note_identifier):
     return comments_operations.search(note_identifier)
 
 
 @notes_comments_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Notes'], summary='Add a comment to a note')
 def create_notes_comment(note_identifier):
     return comments_operations.create(note_identifier)
 
 
 @notes_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CommentSchema, tags=['Notes'],
+         summary='Get a note comment')
 def get_note_comment(note_identifier, identifier):
     return comments_operations.read(note_identifier, identifier)
 
 
 @notes_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Notes'],
+         summary='Update a note comment')
 def update_assets_comment(note_identifier, identifier):
     return comments_operations.update(note_identifier, identifier)
 
 
 @notes_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Notes'],
+         summary='Delete a note comment')
 def delete_note_comment(note_identifier, identifier):
     return comments_operations.delete(note_identifier, identifier)

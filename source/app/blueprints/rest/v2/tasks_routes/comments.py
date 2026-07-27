@@ -23,6 +23,7 @@ from marshmallow import ValidationError
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.parsing import parse_pagination_parameters
@@ -115,29 +116,39 @@ comments_operations = CommentsOperations()
 
 @tasks_comments_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Tasks'],
+         summary="List a task's comments")
 def get_tasks_comments(task_identifier):
     return comments_operations.search(task_identifier)
 
 
 @tasks_comments_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Tasks'], summary='Add a comment to a task')
 def create_tasks_comment(task_identifier):
     return comments_operations.create(task_identifier)
 
 
 @tasks_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CommentSchema, tags=['Tasks'],
+         summary='Get a task comment')
 def get_task_comment(task_identifier, identifier):
     return comments_operations.read(task_identifier, identifier)
 
 
 @tasks_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Tasks'],
+         summary='Update a task comment')
 def update_assets_comment(task_identifier, identifier):
     return comments_operations.update(task_identifier, identifier)
 
 
 @tasks_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Tasks'],
+         summary='Delete a task comment')
 def delete_task_comment(task_identifier, identifier):
     return comments_operations.delete(task_identifier, identifier)

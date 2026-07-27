@@ -24,6 +24,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_current_user_permissions_mask
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -80,6 +81,7 @@ _step_schema = InvestigationFlowStepSchema()
 
 @investigation_flows_blueprint.get('')
 @ac_api_requires(Permissions.investigation_flows_read)
+@api_doc(tags=['InvestigationFlows'], summary='List investigation flows')
 def list_flows():
     user, perms = _caller()
     return response_api_success([_flow_schema.dump(f) for f in flows_list(user, perms)])
@@ -87,6 +89,9 @@ def list_flows():
 
 @investigation_flows_blueprint.post('')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(request=InvestigationFlowSchema, response=InvestigationFlowSchema,
+         response_shape='created', tags=['InvestigationFlows'],
+         summary='Create an investigation flow')
 def create_flow():
     user, perms = _caller()
     payload = _strip_readonly(request.get_json() or {})
@@ -108,6 +113,8 @@ def create_flow():
 
 @investigation_flows_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.investigation_flows_read)
+@api_doc(response=InvestigationFlowSchema, tags=['InvestigationFlows'],
+         summary='Get an investigation flow')
 def read_flow(identifier):
     user, perms = _caller()
     try:
@@ -122,6 +129,8 @@ def read_flow(identifier):
 
 @investigation_flows_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(request=InvestigationFlowSchema, response=InvestigationFlowSchema,
+         tags=['InvestigationFlows'], summary='Update an investigation flow')
 def update_flow(identifier):
     user, perms = _caller()
     try:
@@ -150,6 +159,8 @@ def update_flow(identifier):
 
 @investigation_flows_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(response_shape='deleted', tags=['InvestigationFlows'],
+         summary='Delete an investigation flow')
 def delete_flow(identifier):
     user, perms = _caller()
     try:
@@ -165,6 +176,9 @@ def delete_flow(identifier):
 
 @investigation_flows_blueprint.post('/<int:identifier>/steps')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(request=InvestigationFlowStepSchema, response=InvestigationFlowStepSchema,
+         response_shape='created', tags=['InvestigationFlows'],
+         summary='Create an investigation flow step')
 def create_step(identifier):
     user, perms = _caller()
     try:
@@ -184,6 +198,9 @@ def create_step(identifier):
 
 @investigation_flows_blueprint.put('/<int:flow_id>/steps/<int:step_id>')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(request=InvestigationFlowStepSchema, response=InvestigationFlowStepSchema,
+         tags=['InvestigationFlows'],
+         summary='Update an investigation flow step')
 def update_step(flow_id, step_id):
     user, perms = _caller()
     try:
@@ -208,6 +225,8 @@ def update_step(flow_id, step_id):
 
 @investigation_flows_blueprint.delete('/<int:flow_id>/steps/<int:step_id>')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(response_shape='deleted', tags=['InvestigationFlows'],
+         summary='Delete an investigation flow step')
 def delete_step(flow_id, step_id):
     user, perms = _caller()
     try:
@@ -225,6 +244,8 @@ def delete_step(flow_id, step_id):
 
 @investigation_flows_blueprint.post('/<int:identifier>/deploy')
 @ac_api_requires(Permissions.investigation_flows_write)
+@api_doc(tags=['InvestigationFlows'],
+         summary='Deploy an investigation flow to historical alerts')
 def deploy(identifier):
     """Back-fill this flow onto historical alerts / alert clusters whose
     investigation-flow FK is empty and whose contents match the flow's

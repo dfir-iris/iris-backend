@@ -20,6 +20,7 @@ from flask import Blueprint
 from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.asynchronous_tasks import asynchronous_task_get_by_id
@@ -32,6 +33,7 @@ dim_tasks_blueprint = Blueprint('dim_tasks_rest_v2', __name__, url_prefix='/dim-
 
 @dim_tasks_blueprint.get('')
 @ac_api_requires()
+@api_doc(tags=['DimTasks'], summary='List Dim tasks')
 def list_dim_tasks_endpoint():
     """Paginated listing of Celery (Dim) tasks.
 
@@ -68,6 +70,7 @@ def list_dim_tasks_endpoint():
 
 @dim_tasks_blueprint.get('/<task_id>')
 @ac_api_requires()
+@api_doc(tags=['DimTasks'], summary='Get a Dim task')
 def get_dim_task_endpoint(task_id):
     """Detail view for a single Dim task.
 

@@ -12,6 +12,27 @@ info:
 security:
 - ApiKey: []
 paths:
+  /api/v2/activities:
+    get:
+      operationId: list_activities_endpoint_get
+      summary: List activities
+      tags:
+      - Activities
+      security:
+      - ApiKey: []
+      description: "Query params:\n- page (int, default 1)\n- per_page (int, default 25, max 200)\n- search\
+        \ (str, optional) \u2014 ILIKE filter on activity_desc\n- include_non_case (bool, default false)\
+        \ \u2014 include rows with no\nassociated case. Only honoured when the caller has the\n``all_activities_read``\
+        \ permission (otherwise non-case rows from\nother users would leak across tenants).\n- user_id\
+        \ (int, optional) \u2014 restrict to a single author\n- case_id (int, optional) \u2014 restrict\
+        \ to a single case"
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/alert-clusters:
     get:
       operationId: list_clusters_get
@@ -1187,6 +1208,349 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/assets/{asset_identifier}/comments:
+    get:
+      operationId: get_assets_comments_get
+      summary: List an asset's comments
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: asset_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_assets_comment_post
+      summary: Add a comment to an asset
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: asset_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/assets/{asset_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_alerts_comment_delete
+      summary: Delete an asset comment
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: asset_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_assets_comment_get
+      summary: Get an asset comment
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: asset_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_assets_comment_put
+      summary: Update an asset comment
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: asset_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/assets/{identifier}:
+    delete:
+      operationId: delete_asset_delete
+      summary: Delete an asset
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_asset_get
+      summary: Get an asset
+      tags:
+      - Assets
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssets'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/auth/login:
+    post:
+      operationId: login_post
+      summary: Log in
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/auth/logout:
+    post:
+      operationId: logout_post
+      summary: Log out
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      description: ':return: Page'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/auth/mfa-setup:
+    post:
+      operationId: mfa_setup_post
+      summary: Set up MFA
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      description: '- refresh_token is valid (used to identify user_id)
+
+        - provided TOTP token matches provided secret
+
+        - provided password matches user (LDAP or local)'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/auth/mfa-verify:
+    post:
+      operationId: mfa_verify_post
+      summary: Verify MFA token
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      description: Uses refresh_token to identify the user (no reliance on iris_current_user).
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/auth/oidc-exchange:
+    post:
+      operationId: oidc_exchange_post
+      summary: Exchange OIDC session for JWT tokens
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      description: "tokens, then invalidate the session so the cookie can't be reused.\n\nSecurity model:\n\
+        - Only redeemable when the Flask session was created by a successful\nOIDC callback in this same\
+        \ session (checked via the one-time\n`oidc_authenticated` flag set in login.oidc_authorise). A\
+        \ plain\nlocal-login session, or a session hydrated some other way, is\nrejected \u2014 this endpoint\
+        \ is not a general session->JWT converter.\n- Single-use: the flag is popped and the session is\
+        \ fully cleared\nbefore the response is returned, so the same session cookie\ncannot mint a second\
+        \ set of tokens even if the browser replays.\n- MFA is trusted from the IdP for OIDC users (mirrors\
+        \ wrap_login_user's\nis_oidc=True branch, which skips IRIS's local MFA prompt). Tokens\nare minted\
+        \ with mfa_verified=True \u2014 same policy as the existing\nsession-based OIDC login has today."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/auth/refresh-token:
+    post:
+      operationId: refresh_token_endpoint_post
+      summary: Refresh authentication tokens
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/auth/whoami:
+    get:
+      operationId: whoami_get
+      summary: Get the current user
+      tags:
+      - Auth
+      security:
+      - ApiKey: []
+      description: 'Output shape matches the frontend''s existing local-login handler:
+
+        { responseData, tokenInfo, redirectTo }'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/cases:
     get:
       operationId: get_cases_get
@@ -1375,6 +1739,126 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/cases-filters:
+    get:
+      operationId: list_case_filters_get
+      summary: List saved cases filters
+      tags:
+      - CasesFilters
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_case_filter_post
+      summary: Create a saved cases filter
+      tags:
+      - CasesFilters
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilter'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/cases-filters/{identifier}:
+    delete:
+      operationId: delete_case_filter_delete
+      summary: Delete a saved cases filter
+      tags:
+      - CasesFilters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_filter_get
+      summary: Get a saved cases filter
+      tags:
+      - CasesFilters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_filter_put
+      summary: Update a saved cases filter
+      tags:
+      - CasesFilters
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilter'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{case_identifier}/assets:
     get:
       operationId: case_list_assets_get
@@ -3755,6 +4239,1465 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/cluster-rules:
+    get:
+      operationId: list_rules_get
+      summary: List cluster rules
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_rule_post
+      summary: Create a cluster rule
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterRule'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterRule'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/cluster-rules/{identifier}:
+    delete:
+      operationId: delete_rule_delete
+      summary: Delete a cluster rule
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_rule_get
+      summary: Get a cluster rule
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterRule'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_rule_put
+      summary: Update a cluster rule
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClusterRule'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterRule'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cluster-rules/{identifier}/backfill:
+    post:
+      operationId: backfill_post
+      summary: Backfill a cluster rule
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      description: "grouped into a cluster are skipped so the rule can't hijack an\nanalyst's manual grouping.\
+        \ The dedupe / time-window logic keeps the\noperation idempotent \u2014 re-running produces no\
+        \ duplicates.\n\nLoaded through the scope-gated `rules_get` so a caller who can't\nsee every tenant\
+        \ in `rule.rule_customer_scope` gets a 404 (matching\nthe getter's behaviour) rather than a cross-tenant\
+        \ write."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cluster-rules/{identifier}/test:
+    post:
+      operationId: test_rule_post
+      summary: Dry-run a cluster rule
+      tags:
+      - ClusterRules
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/custom-dashboards:
+    get:
+      operationId: list_dashboards_get
+      summary: List custom dashboards
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_dashboard_post
+      summary: Create a custom dashboard
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomDashboard'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/custom-dashboards/{dashboard_uuid}:
+    delete:
+      operationId: delete_dashboard_delete
+      summary: Delete a custom dashboard
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      parameters:
+      - name: dashboard_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_dashboard_get
+      summary: Get a custom dashboard
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      parameters:
+      - name: dashboard_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_dashboard_put
+      summary: Update a custom dashboard
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      parameters:
+      - name: dashboard_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomDashboard'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/custom-dashboards/{dashboard_uuid}/render:
+    post:
+      operationId: render_dashboard_post
+      summary: Render a dashboard
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      parameters:
+      - name: dashboard_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/custom-dashboards/presets:
+    get:
+      operationId: get_presets_get
+      summary: List widget presets
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/custom-dashboards/schema:
+    get:
+      operationId: get_editor_schema_get
+      summary: Get the dashboard editor schema
+      tags:
+      - CustomDashboards
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dashboard/activities/cases/major:
+    get:
+      operationId: list_recent_major_case_activities_get
+      summary: List recent major case activities
+      tags:
+      - Dashboard
+      security:
+      - ApiKey: []
+      description: "Query params:\n- limit: int (default 20, max 100) \u2014 page size\n- offset: int\
+        \ (default 0)         \u2014 pagination cursor"
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dashboard/activities/recent:
+    get:
+      operationId: list_recent_activities_get
+      summary: List recent activities
+      tags:
+      - Dashboard
+      security:
+      - ApiKey: []
+      description: "see. Scoped to cases the user has access to (plus their own activity)\nso a multi-tenant\
+        \ deployment doesn't leak cross-customer events.\n\nQuery params:\n- limit: int (default 20, max\
+        \ 100) \u2014 page size\n- offset: int (default 0)         \u2014 pagination cursor"
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dashboard/kpis:
+    get:
+      operationId: get_dashboard_kpis_get
+      summary: Get dashboard KPIs
+      tags:
+      - Dashboard
+      security:
+      - ApiKey: []
+      description: "Returns just the few numbers the dashboard tile renders \u2014 keeps the\npayload\
+        \ tiny so the call is cheap on every navigation. The full\nStatistics page is served by the seeded\
+        \ custom dashboard, not by\nthis endpoint.\n\nResponse shape:\n{\n\"assigned_alerts\": {\n\"count\"\
+        : int,\n\"filter\": {\"alert_owner_id\": int, \"alert_status_id\": [int, ...]}\n},\n\"open_cases_count\"\
+        : int,\n\"cases_closed_last_30d\": int,\n}\n\nThe `filter` block under `assigned_alerts` lets\
+        \ the frontend deep-link\ninto the alerts page with the same predicate that produced the count\n\
+        \u2014 no second round-trip to discover which status ids count as \"open\"."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dashboard/reviews/list:
+    get:
+      operationId: list_own_reviews_get
+      summary: List the caller's reviews
+      tags:
+      - Dashboard
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dashboard/tasks/list:
+    get:
+      operationId: list_own_tasks_get
+      summary: List the caller's tasks
+      tags:
+      - Dashboard
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dim-hooks:
+    get:
+      operationId: list_dim_hook_options_get
+      summary: List available module hooks
+      tags:
+      - DimHooks
+      security:
+      - ApiKey: []
+      description: '`target` type (e.g. `?target=ioc`).
+
+
+        Naked JSON array of `{manual_hook_ui_name, hook_name, module_name}`.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dim-tasks:
+    get:
+      operationId: list_dim_tasks_endpoint_get
+      summary: List Dim tasks
+      tags:
+      - DimTasks
+      security:
+      - ApiKey: []
+      description: "Query params:\n- page (int, default 1)\n- per_page (int, default 25, clamped to 1..200)\n\
+        - search (str, optional) \u2014 ILIKE filter over task name + task id\n- status (str, optional)\
+        \ \u2014 exact-match on the Celery status column\n(SUCCESS / FAILURE / PENDING / STARTED / RETRY)."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/dim-tasks/{task_id}:
+    get:
+      operationId: get_dim_task_endpoint_get
+      summary: Get a Dim task
+      tags:
+      - DimTasks
+      security:
+      - ApiKey: []
+      description: "Returns the full Celery AsyncResult metadata (logs, traceback, etc.)\nplus the row-shape\
+        \ projection used by the listing \u2014 handy because\nthe frontend can hydrate a slide-out panel\
+        \ without a second request.\n\n404 only if the meta row itself is missing. A successful AsyncResult\n\
+        fetch for an unknown id still returns a \"PENDING\" stub from Celery,\nso we use the DB lookup\
+        \ as the source of truth for existence."
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/events/{event_identifier}/comments:
+    get:
+      operationId: get_event_comments_get
+      summary: List an event's comments
+      tags:
+      - Events
+      security:
+      - ApiKey: []
+      parameters:
+      - name: event_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_event_comment_post
+      summary: Add a comment to an event
+      tags:
+      - Events
+      security:
+      - ApiKey: []
+      parameters:
+      - name: event_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/events/{event_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_task_comment_delete
+      summary: Delete an event comment
+      tags:
+      - Events
+      security:
+      - ApiKey: []
+      parameters:
+      - name: event_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_event_comment_get
+      summary: Get an event comment
+      tags:
+      - Events
+      security:
+      - ApiKey: []
+      parameters:
+      - name: event_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_assets_comment_put
+      summary: Update an event comment
+      tags:
+      - Events
+      security:
+      - ApiKey: []
+      parameters:
+      - name: event_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/evidences/{evidence_identifier}/comments:
+    get:
+      operationId: get_evidence_comments_get
+      summary: List an evidence's comments
+      tags:
+      - Evidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: evidence_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_evidence_comment_post
+      summary: Add a comment to an evidence
+      tags:
+      - Evidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: evidence_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/evidences/{evidence_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_evidence_comment_delete
+      summary: Delete an evidence comment
+      tags:
+      - Evidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: evidence_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_evidence_comment_get
+      summary: Get an evidence comment
+      tags:
+      - Evidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: evidence_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_assets_comment_put
+      summary: Update an evidence comment
+      tags:
+      - Evidences
+      security:
+      - ApiKey: []
+      parameters:
+      - name: evidence_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/global-tasks:
+    get:
+      operationId: search_global_task_get
+      summary: List global tasks
+      tags:
+      - GlobalTasks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GlobalTasks'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_global_task_post
+      summary: Create a global task
+      tags:
+      - GlobalTasks
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlobalTasks'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalTasks'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/global-tasks/{identifier}:
+    delete:
+      operationId: delete_global_task_delete
+      summary: Delete a global task
+      tags:
+      - GlobalTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_global_task_get
+      summary: Get a global task
+      tags:
+      - GlobalTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalTasks'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_glboal_task_put
+      summary: Update a global task
+      tags:
+      - GlobalTasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlobalTasks'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalTasks'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/investigation-flows:
+    get:
+      operationId: list_flows_get
+      summary: List investigation flows
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_flow_post
+      summary: Create an investigation flow
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestigationFlow'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationFlow'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/investigation-flows/{flow_id}/steps/{step_id}:
+    delete:
+      operationId: delete_step_delete
+      summary: Delete an investigation flow step
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: flow_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_step_put
+      summary: Update an investigation flow step
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: flow_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestigationFlowStep'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationFlowStep'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/investigation-flows/{identifier}:
+    delete:
+      operationId: delete_flow_delete
+      summary: Delete an investigation flow
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: read_flow_get
+      summary: Get an investigation flow
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationFlow'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_flow_put
+      summary: Update an investigation flow
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestigationFlow'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationFlow'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/investigation-flows/{identifier}/deploy:
+    post:
+      operationId: deploy_post
+      summary: Deploy an investigation flow to historical alerts
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      description: "investigation-flow FK is empty and whose contents match the flow's\nown conditions.\
+        \ Returns per-target attach counts.\n\nLoaded through the scope-gated `flows_get` \u2014 a caller\
+        \ who can't act\non every tenant in `flow.flow_customer_scope` gets a 404 the same\nway the read\
+        \ endpoint would, closing the deploy-then-cross-tenant\npath the security review flagged."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/investigation-flows/{identifier}/steps:
+    post:
+      operationId: create_step_post
+      summary: Create an investigation flow step
+      tags:
+      - InvestigationFlows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestigationFlowStep'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestigationFlowStep'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/iocs/{identifier}:
+    delete:
+      operationId: delete_case_ioc_delete
+      summary: Delete an IOC
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_ioc_get
+      summary: Get an IOC
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IocSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_ioc_put
+      summary: Update an IOC
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ioc'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IocSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/iocs/{ioc_identifier}/comments:
+    get:
+      operationId: get_iocs_comments_get
+      summary: List an IOC's comments
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: ioc_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_iocs_comment_post
+      summary: Add a comment to an IOC
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: ioc_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/iocs/{ioc_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_ioc_comment_delete
+      summary: Delete an IOC comment
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: ioc_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_ioc_comment_get
+      summary: Get an IOC comment
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: ioc_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_assets_comment_put
+      summary: Update an IOC comment
+      tags:
+      - Iocs
+      security:
+      - ApiKey: []
+      parameters:
+      - name: ioc_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/manage/access-control/accessible-cases:
     get:
       operationId: list_accessible_cases_get
@@ -5546,6 +7489,136 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/manage/mail/ingest-log:
+    get:
+      operationId: list_ingest_log_get
+      summary: List mail ingest log entries
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      description: 500 to keep the payload small for an on-page log viewer.
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/mail/poll-now:
+    post:
+      operationId: poll_now_post
+      summary: Poll the inbound mailbox now
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      description: 'diagnostic for admins tuning rules; regular polling is driven by
+
+        the Celery beat schedule.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/mail/rules:
+    get:
+      operationId: list_rules_get
+      summary: List mail ingest rules
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_rule_post
+      summary: Create a mail ingest rule
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/mail/rules/{rule_id}:
+    delete:
+      operationId: delete_rule_delete
+      summary: Delete a mail ingest rule
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_rule_get
+      summary: Get a mail ingest rule
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_rule_put
+      summary: Update a mail ingest rule
+      tags:
+      - Mail
+      security:
+      - ApiKey: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/manage/modules:
     get:
       operationId: list_modules_get
@@ -5749,6 +7822,35 @@ paths:
       summary: List module hooks
       tags:
       - ManageModules
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/notification-settings:
+    get:
+      operationId: get_admin_get
+      summary: Get admin notification defaults
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: put_admin_put
+      summary: Update admin notification defaults
+      tags:
+      - Notifications
       security:
       - ApiKey: []
       responses:
@@ -6388,6 +8490,51 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/avatar:
+    delete:
+      operationId: delete_user_avatar_delete
+      summary: Delete a user's avatar (admin)
+      tags:
+      - Avatars
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: post_user_avatar_post
+      summary: Upload a user's avatar (admin)
+      tags:
+      - Avatars
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/manage/users/{identifier}/cases-access:
     delete:
       operationId: delete_user_cases_access_delete
@@ -6671,6 +8818,785 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/me:
+    get:
+      operationId: get_profile_get
+      summary: Get the caller's profile
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: update_profile_put
+      summary: Update the caller's profile
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/api-key/renew:
+    post:
+      operationId: renew_api_key_post
+      summary: Renew the API key
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/avatar:
+    delete:
+      operationId: delete_my_avatar_delete
+      summary: Delete the caller's avatar
+      tags:
+      - Avatars
+      security:
+      - ApiKey: []
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: post_my_avatar_post
+      summary: Upload the caller's avatar
+      tags:
+      - Avatars
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/context:
+    get:
+      operationId: get_context_get
+      summary: Get the caller's SPA context
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/followed-cases:
+    get:
+      operationId: list_followed_cases_get
+      summary: List followed cases
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: follow_case_post
+      summary: Follow a case
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/followed-cases/{case_id}:
+    delete:
+      operationId: unfollow_case_delete
+      summary: Unfollow a case
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/me/permissions/refresh:
+    post:
+      operationId: refresh_permissions_post
+      summary: Refresh the caller's effective permissions
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSchemaForAPIV2'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/preferences:
+    put:
+      operationId: update_preferences_put
+      summary: Update the caller's UI preferences
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/notes/{note_identifier}/comments:
+    get:
+      operationId: get_notes_comments_get
+      summary: List a note's comments
+      tags:
+      - Notes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: note_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_notes_comment_post
+      summary: Add a comment to a note
+      tags:
+      - Notes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: note_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/notes/{note_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_note_comment_delete
+      summary: Delete a note comment
+      tags:
+      - Notes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: note_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_note_comment_get
+      summary: Get a note comment
+      tags:
+      - Notes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: note_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_assets_comment_put
+      summary: Update a note comment
+      tags:
+      - Notes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: note_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/notifications:
+    get:
+      operationId: get_notifications_get
+      summary: List notifications
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      description: "Query params:\n* `unread_only` \u2014 'true' filters to unread rows only\n* `limit`\
+        \ \u2014 default 50, max 200\n* `before_id` \u2014 cursor for infinite scroll"
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/notifications/clear:
+    post:
+      operationId: post_clear_post
+      summary: Clear notifications
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      description: "`{\"all\": true}`.\n\nSame defensive scoping as mark-read \u2014 the service only\
+        \ ever\ntouches rows owned by the session user."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/notifications/mark-read:
+    post:
+      operationId: post_mark_read_post
+      summary: Mark notifications as read
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      description: 'Any id in `ids` that doesn''t belong to the current user is
+
+        silently ignored (the service layer filters on user_id).'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/notifications/settings:
+    get:
+      operationId: get_settings_get
+      summary: Get notification settings
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      description: "Shape: `{event_types: [...], channels: [...],\nsettings: {event: {channel: bool}}}`\
+        \ \u2014 the SPA renders the grid\nfrom `event_types` \xD7 `channels` and marks each cell from\n\
+        `settings`."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: put_settings_put
+      summary: Update notification settings
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      description: 'Unknown events/channels are dropped; the service returns the
+
+        effective merged view so the SPA can render post-save without
+
+        another round-trip.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/notifications/unread-count:
+    get:
+      operationId: get_unread_count_get
+      summary: Get the unread notification count
+      tags:
+      - Notifications
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/search:
+    get:
+      operationId: search_across_cases_get
+      summary: Search across cases
+      tags:
+      - Search
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/tags:
+    get:
+      operationId: manage_list_tags_get
+      summary: List tags
+      tags:
+      - Tags
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tags'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/tasks/{identifier}:
+    delete:
+      operationId: delete_case_task_delete
+      summary: Delete a task
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_task_get
+      summary: Get a task
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseTask'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/tasks/{task_identifier}/comments:
+    get:
+      operationId: get_tasks_comments_get
+      summary: List a task's comments
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: task_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  last_page:
+                    type: integer
+                  current_page:
+                    type: integer
+                  next_page:
+                    type:
+                    - integer
+                    - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_tasks_comment_post
+      summary: Add a comment to a task
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: task_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/tasks/{task_identifier}/comments/{identifier}:
+    delete:
+      operationId: delete_task_comment_delete
+      summary: Delete a task comment
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: task_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_task_comment_get
+      summary: Get a task comment
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: task_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_assets_comment_put
+      summary: Update a task comment
+      tags:
+      - Tasks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: task_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/users/{identifier}/avatar:
+    get:
+      operationId: get_user_avatar_get
+      summary: Get a user's avatar
+      tags:
+      - Avatars
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/users/mentionable:
+    get:
+      operationId: get_mentionable_users_get
+      summary: List mentionable users
+      tags:
+      - Avatars
+      security:
+      - ApiKey: []
+      description: 'Match is case-insensitive prefix against `user.user` (login) OR
+
+        `user.name` (display name), plus an `ilike` fallback so mid-word
+
+        matches also surface (e.g. `q=alice` finds "Alice Doe" and
+
+        "malice@bar" alike). Empty `q` returns the first N active users
+
+        which the client can then fuzzy-filter locally.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/war-rooms:
     get:
       operationId: list_war_rooms_get
@@ -9463,6 +12389,9 @@ components:
       - created_by_user_id
       - name
       description: Schema for serializing and deserializing CaseTemplate objects.
+    ClusterRule:
+      type: object
+      properties: {}
     Comment:
       type: object
       properties:
@@ -9483,6 +12412,9 @@ components:
       - contact_name
       - client_id
       description: Schema for serializing and deserializing Contact objects.
+    CustomDashboard:
+      type: object
+      description: "Auto-generated placeholder \u2014 see marshables.py::CustomDashboardSchema."
     Customer:
       type: object
       properties:
@@ -9557,6 +12489,27 @@ components:
       - name
       - description
       description: Schema for serializing and deserializing EvidenceType objects.
+    GlobalTasks:
+      type: object
+      properties:
+        task_id: {}
+        task_assignee_id: {}
+        task_title: {}
+      required:
+      - task_assignee_id
+      - task_title
+      description: Schema for serializing and deserializing GlobalTasks objects.
+    InvestigationFlow:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestigationFlowStep'
+    InvestigationFlowStep:
+      type: object
+      properties:
+        flow_id: {}
     Ioc:
       type: object
       properties:

@@ -31,6 +31,7 @@ from app.models.errors import ObjectNotFoundError
 from app.models.authorization import CaseAccessLevel
 from app.schema.marshables import CaseAssetsSchema
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 
 
 class AssetsOperation:
@@ -78,11 +79,13 @@ assets_operations = AssetsOperation()
 
 @assets_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CaseAssetsSchema, tags=['Assets'], summary='Get an asset')
 def get_asset(identifier):
     return assets_operations.read(identifier)
 
 
 @assets_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Assets'], summary='Delete an asset')
 def delete_asset(identifier):
     return assets_operations.delete(identifier)

@@ -21,6 +21,7 @@ from flask import request
 from marshmallow.exceptions import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
@@ -114,29 +115,39 @@ comments_operations = CommentsOperations()
 
 @assets_comments_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Assets'],
+         summary="List an asset's comments")
 def get_assets_comments(asset_identifier):
     return comments_operations.search(asset_identifier)
 
 
 @assets_comments_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Assets'], summary='Add a comment to an asset')
 def create_assets_comment(asset_identifier):
     return comments_operations.create(asset_identifier)
 
 
 @assets_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CommentSchema, tags=['Assets'],
+         summary='Get an asset comment')
 def get_assets_comment(asset_identifier, identifier):
     return comments_operations.read(asset_identifier, identifier)
 
 
 @assets_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Assets'],
+         summary='Update an asset comment')
 def update_assets_comment(asset_identifier, identifier):
     return comments_operations.update(asset_identifier, identifier)
 
 
 @assets_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Assets'],
+         summary='Delete an asset comment')
 def delete_alerts_comment(asset_identifier, identifier):
     return comments_operations.delete(asset_identifier, identifier)

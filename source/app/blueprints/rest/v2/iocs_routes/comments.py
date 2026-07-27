@@ -23,6 +23,7 @@ from marshmallow import ValidationError
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
@@ -114,29 +115,39 @@ comments_operations = CommentsOperations()
 
 @iocs_comments_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Iocs'],
+         summary="List an IOC's comments")
 def get_iocs_comments(ioc_identifier):
     return comments_operations.search(ioc_identifier)
 
 
 @iocs_comments_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Iocs'], summary='Add a comment to an IOC')
 def create_iocs_comment(ioc_identifier):
     return comments_operations.create(ioc_identifier)
 
 
 @iocs_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CommentSchema, tags=['Iocs'],
+         summary='Get an IOC comment')
 def get_ioc_comment(ioc_identifier, identifier):
     return comments_operations.read(ioc_identifier, identifier)
 
 
 @iocs_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Iocs'],
+         summary='Update an IOC comment')
 def update_assets_comment(ioc_identifier, identifier):
     return comments_operations.update(ioc_identifier, identifier)
 
 
 @iocs_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Iocs'],
+         summary='Delete an IOC comment')
 def delete_ioc_comment(ioc_identifier, identifier):
     return comments_operations.delete(ioc_identifier, identifier)

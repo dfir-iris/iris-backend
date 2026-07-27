@@ -25,6 +25,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -175,6 +176,7 @@ def _render_widget(
 
 @custom_dashboards_blueprint.get('')
 @ac_api_requires(Permissions.custom_dashboards_read)
+@api_doc(tags=['CustomDashboards'], summary='List custom dashboards')
 def list_dashboards():
     dashboards = list_dashboards_for_user(iris_current_user.id)
     return response_api_success(data=[serialize_dashboard(d) for d in dashboards])
@@ -182,6 +184,7 @@ def list_dashboards():
 
 @custom_dashboards_blueprint.get('/schema')
 @ac_api_requires(Permissions.custom_dashboards_read)
+@api_doc(tags=['CustomDashboards'], summary='Get the dashboard editor schema')
 def get_editor_schema():
     schema = {
         'tables': list(WidgetQueryExecutor._TABLES.keys()),
@@ -200,12 +203,14 @@ def get_editor_schema():
 
 @custom_dashboards_blueprint.get('/presets')
 @ac_api_requires(Permissions.custom_dashboards_read)
+@api_doc(tags=['CustomDashboards'], summary='List widget presets')
 def get_presets():
     return response_api_success(data=_WIDGET_PRESETS)
 
 
 @custom_dashboards_blueprint.get('/<dashboard_uuid>')
 @ac_api_requires(Permissions.custom_dashboards_read)
+@api_doc(tags=['CustomDashboards'], summary='Get a custom dashboard')
 def get_dashboard(dashboard_uuid: str):
     try:
         dashboard = get_dashboard_for_user(dashboard_uuid, iris_current_user.id)
@@ -218,6 +223,8 @@ def get_dashboard(dashboard_uuid: str):
 
 @custom_dashboards_blueprint.post('')
 @ac_api_requires(Permissions.custom_dashboards_write)
+@api_doc(request=CustomDashboardSchema, response_shape='created',
+         tags=['CustomDashboards'], summary='Create a custom dashboard')
 def create_dashboard():
     payload = request.get_json(silent=True) or {}
     schema = CustomDashboardSchema()
@@ -233,6 +240,8 @@ def create_dashboard():
 
 @custom_dashboards_blueprint.put('/<dashboard_uuid>')
 @ac_api_requires(Permissions.custom_dashboards_write)
+@api_doc(request=CustomDashboardSchema, tags=['CustomDashboards'],
+         summary='Update a custom dashboard')
 def update_dashboard(dashboard_uuid: str):
     payload = request.get_json(silent=True) or {}
     schema = CustomDashboardSchema(partial=True)
@@ -255,6 +264,8 @@ def update_dashboard(dashboard_uuid: str):
 
 @custom_dashboards_blueprint.delete('/<dashboard_uuid>')
 @ac_api_requires(Permissions.custom_dashboards_write)
+@api_doc(response_shape='deleted', tags=['CustomDashboards'],
+         summary='Delete a custom dashboard')
 def delete_dashboard(dashboard_uuid: str):
     try:
         delete_dashboard_for_user(dashboard_uuid, iris_current_user.id)
@@ -269,6 +280,7 @@ def delete_dashboard(dashboard_uuid: str):
 
 @custom_dashboards_blueprint.post('/<dashboard_uuid>/render')
 @ac_api_requires(Permissions.custom_dashboards_read)
+@api_doc(tags=['CustomDashboards'], summary='Render a dashboard')
 def render_dashboard(dashboard_uuid: str):
     try:
         get_dashboard_for_user(dashboard_uuid, iris_current_user.id)

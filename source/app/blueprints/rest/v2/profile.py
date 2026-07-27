@@ -34,6 +34,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
+from app.blueprints.rest.api_doc import api_doc
 from app.business.cases import cases_exists
 from app.business.users import users_get
 from app.business.users import users_update
@@ -281,53 +282,68 @@ profile_blueprint = Blueprint('profile_rest_v2', __name__, url_prefix='/me')
 
 @profile_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=UserSchemaForAPIV2, tags=['Profile'],
+         summary="Get the caller's profile")
 def get_profile():
     return profile_operations.get()
 
 
 @profile_blueprint.put('')
 @ac_api_requires()
+@api_doc(response=UserSchemaForAPIV2, tags=['Profile'],
+         summary="Update the caller's profile")
 def update_profile():
     return profile_operations.update()
 
 
 @profile_blueprint.post('/api-key/renew')
 @ac_api_requires()
+@api_doc(response=UserSchemaForAPIV2, tags=['Profile'],
+         summary='Renew the API key')
 def renew_api_key():
     return profile_operations.renew_api_key()
 
 
 @profile_blueprint.post('/permissions/refresh')
 @ac_api_requires()
+@api_doc(response=UserSchemaForAPIV2, tags=['Profile'],
+         summary="Refresh the caller's effective permissions")
 def refresh_permissions():
     return profile_operations.refresh_permissions()
 
 
 @profile_blueprint.get('/context')
 @ac_api_requires()
+@api_doc(tags=['Profile'], summary="Get the caller's SPA context")
 def get_context():
     return profile_operations.get_context()
 
 
 @profile_blueprint.put('/preferences')
 @ac_api_requires()
+@api_doc(tags=['Profile'], summary="Update the caller's UI preferences")
 def update_preferences():
     return profile_operations.update_preferences()
 
 
 @profile_blueprint.get('/followed-cases')
 @ac_api_requires()
+@api_doc(response=CaseSchemaForAPIV2, tags=['Profile'],
+         summary='List followed cases')
 def list_followed_cases():
     return profile_operations.list_followed_cases()
 
 
 @profile_blueprint.post('/followed-cases')
 @ac_api_requires()
+@api_doc(response_shape='created', tags=['Profile'], summary='Follow a case')
 def follow_case():
     return profile_operations.follow_case()
 
 
 @profile_blueprint.delete('/followed-cases/<int:case_id>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Profile'],
+         summary='Unfollow a case')
 def unfollow_case(case_id):
     return profile_operations.unfollow_case(case_id)

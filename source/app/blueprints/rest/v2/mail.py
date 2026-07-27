@@ -17,6 +17,7 @@ from flask import request
 
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
@@ -99,6 +100,7 @@ def _apply_rule_body(row: MailIngestRule, body: dict) -> None:
 
 @mail_blueprint.get('/rules')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='List mail ingest rules')
 def list_rules():
     rows = (
         MailIngestRule.query
@@ -112,6 +114,7 @@ def list_rules():
 
 @mail_blueprint.post('/rules')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='Create a mail ingest rule')
 def create_rule():
     body = request.get_json(silent=True) or {}
     if not body.get('name'):
@@ -130,6 +133,7 @@ def create_rule():
 
 @mail_blueprint.get('/rules/<int:rule_id>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='Get a mail ingest rule')
 def get_rule(rule_id: int):
     row = MailIngestRule.query.get(rule_id)
     if row is None:
@@ -139,6 +143,7 @@ def get_rule(rule_id: int):
 
 @mail_blueprint.put('/rules/<int:rule_id>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='Update a mail ingest rule')
 def update_rule(rule_id: int):
     row = MailIngestRule.query.get(rule_id)
     if row is None:
@@ -155,6 +160,7 @@ def update_rule(rule_id: int):
 
 @mail_blueprint.delete('/rules/<int:rule_id>')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='Delete a mail ingest rule')
 def delete_rule(rule_id: int):
     row = MailIngestRule.query.get(rule_id)
     if row is None:
@@ -170,6 +176,7 @@ def delete_rule(rule_id: int):
 
 @mail_blueprint.get('/ingest-log')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='List mail ingest log entries')
 def list_ingest_log():
     """Return the most recent ingest-log rows. `?limit=` bounded at
     500 to keep the payload small for an on-page log viewer."""
@@ -192,6 +199,7 @@ def list_ingest_log():
 
 @mail_blueprint.post('/poll-now')
 @ac_api_requires(Permissions.server_administrator)
+@api_doc(tags=['Mail'], summary='Poll the inbound mailbox now')
 def poll_now():
     """Run one IMAP poll immediately. Blocks on the fetch — mostly a
     diagnostic for admins tuning rules; regular polling is driven by

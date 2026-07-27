@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 
 from app.blueprints.access_controls import ac_api_requires, ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_created
@@ -116,29 +117,39 @@ comments_operations = CommentsOperations()
 
 @evidences_comments_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=CommentSchema, response_shape='paginated', tags=['Evidences'],
+         summary="List an evidence's comments")
 def get_evidence_comments(evidence_identifier):
     return comments_operations.search(evidence_identifier)
 
 
 @evidences_comments_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, response_shape='created',
+         tags=['Evidences'], summary='Add a comment to an evidence')
 def create_evidence_comment(evidence_identifier):
     return comments_operations.create(evidence_identifier)
 
 
 @evidences_comments_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=CommentSchema, tags=['Evidences'],
+         summary='Get an evidence comment')
 def get_evidence_comment(evidence_identifier, identifier):
     return comments_operations.read(evidence_identifier, identifier)
 
 
 @evidences_comments_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=CommentSchema, response=CommentSchema, tags=['Evidences'],
+         summary='Update an evidence comment')
 def update_assets_comment(evidence_identifier, identifier):
     return comments_operations.update(evidence_identifier, identifier)
 
 
 @evidences_comments_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Evidences'],
+         summary='Delete an evidence comment')
 def delete_evidence_comment(evidence_identifier, identifier):
     return comments_operations.delete(evidence_identifier, identifier)

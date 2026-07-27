@@ -27,6 +27,7 @@ from app.models.errors import BusinessProcessingError
 from app.business.tags import tags_filter
 from app.schema.marshables import TagsSchema
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 
 
 class TagsOperations:
@@ -65,5 +66,7 @@ tags_operations = TagsOperations()
 
 @tags_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=TagsSchema, response_shape='paginated', tags=['Tags'],
+         summary='List tags')
 def manage_list_tags() -> Response:
     return tags_operations.search()

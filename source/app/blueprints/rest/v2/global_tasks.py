@@ -24,6 +24,7 @@ from app.blueprints.iris_user import iris_current_user
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
 from app.schema.marshables import GlobalTasksSchema
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_success
@@ -100,29 +101,40 @@ global_tasks_operations = GlobalTasksOperations()
 
 @global_tasks_blueprint.get('')
 @ac_api_requires()
+@api_doc(response=GlobalTasksSchema, response_shape='paginated',
+         tags=['GlobalTasks'], summary='List global tasks')
 def search_global_task():
     return global_tasks_operations.search()
 
 
 @global_tasks_blueprint.post('')
 @ac_api_requires()
+@api_doc(request=GlobalTasksSchema, response=GlobalTasksSchema,
+         response_shape='created', tags=['GlobalTasks'],
+         summary='Create a global task')
 def create_global_task():
     return global_tasks_operations.create()
 
 
 @global_tasks_blueprint.get('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response=GlobalTasksSchema, tags=['GlobalTasks'],
+         summary='Get a global task')
 def get_global_task(identifier):
     return global_tasks_operations.read(identifier)
 
 
 @global_tasks_blueprint.put('/<int:identifier>')
 @ac_api_requires()
+@api_doc(request=GlobalTasksSchema, response=GlobalTasksSchema,
+         tags=['GlobalTasks'], summary='Update a global task')
 def put_glboal_task(identifier):
     return global_tasks_operations.update(identifier)
 
 
 @global_tasks_blueprint.delete('/<int:identifier>')
 @ac_api_requires()
+@api_doc(response_shape='deleted', tags=['GlobalTasks'],
+         summary='Delete a global task')
 def delete_global_task(identifier):
     return global_tasks_operations.delete(identifier)

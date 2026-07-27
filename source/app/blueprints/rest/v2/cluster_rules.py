@@ -24,6 +24,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_current_user_permissions_mask
 from app.blueprints.iris_user import iris_current_user
+from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
@@ -79,6 +80,7 @@ _schema = ClusterRuleSchema()
 
 @cluster_rules_blueprint.get('')
 @ac_api_requires(Permissions.cluster_rules_read)
+@api_doc(tags=['ClusterRules'], summary='List cluster rules')
 def list_rules():
     user, perms = _caller()
     rows = rules_list(user, perms)
@@ -87,6 +89,9 @@ def list_rules():
 
 @cluster_rules_blueprint.post('')
 @ac_api_requires(Permissions.cluster_rules_write)
+@api_doc(request=ClusterRuleSchema, response=ClusterRuleSchema,
+         response_shape='created', tags=['ClusterRules'],
+         summary='Create a cluster rule')
 def create_rule():
     user, perms = _caller()
     payload = _strip_readonly(request.get_json() or {})
@@ -109,6 +114,8 @@ def create_rule():
 
 @cluster_rules_blueprint.get('/<int:identifier>')
 @ac_api_requires(Permissions.cluster_rules_read)
+@api_doc(response=ClusterRuleSchema, tags=['ClusterRules'],
+         summary='Get a cluster rule')
 def read_rule(identifier):
     user, perms = _caller()
     try:
@@ -123,6 +130,8 @@ def read_rule(identifier):
 
 @cluster_rules_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.cluster_rules_write)
+@api_doc(request=ClusterRuleSchema, response=ClusterRuleSchema,
+         tags=['ClusterRules'], summary='Update a cluster rule')
 def update_rule(identifier):
     user, perms = _caller()
     try:
@@ -151,6 +160,8 @@ def update_rule(identifier):
 
 @cluster_rules_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.cluster_rules_write)
+@api_doc(response_shape='deleted', tags=['ClusterRules'],
+         summary='Delete a cluster rule')
 def delete_rule(identifier):
     user, perms = _caller()
     try:
@@ -166,6 +177,7 @@ def delete_rule(identifier):
 
 @cluster_rules_blueprint.post('/<int:identifier>/test')
 @ac_api_requires(Permissions.cluster_rules_read)
+@api_doc(tags=['ClusterRules'], summary='Dry-run a cluster rule')
 def test_rule(identifier):
     user, perms = _caller()
     try:
@@ -188,6 +200,7 @@ def test_rule(identifier):
 
 @cluster_rules_blueprint.post('/<int:identifier>/backfill')
 @ac_api_requires(Permissions.cluster_rules_write)
+@api_doc(tags=['ClusterRules'], summary='Backfill a cluster rule')
 def backfill(identifier):
     """Apply this rule's action to *historical* alerts. Alerts already
     grouped into a cluster are skipped so the rule can't hijack an
