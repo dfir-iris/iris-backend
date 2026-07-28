@@ -137,19 +137,24 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 # HTTP CORS layer (see `after_request` below). Falls back to `'*'`
 # only if the config value is unset (existing dev workflow).
 #
-# `async_mode` is auto-detected by Flask-SocketIO from the loaded
-# concurrency library. Forcing `gevent` here caused boot-time crashes
-# under the production gunicorn command that runs with `--threads`
-# (gthread worker) because gevent isn't monkey-patched in that mode.
-# Prefer gevent when available (see scripts/gunicorn-cfg.py's
-# `worker_class='gevent'`) but let Flask-SocketIO fall back to
-# `threading` when it isn't — the chatbot's streaming loop still
-# works there, just at reduced concurrency.
+# `async_mode` is set from the gunicorn side: `source/wsgi.py`
+# monkey-patches gevent before importing `app`, so `sys.modules` has
+# `gevent` when we get here — we force `async_mode='gevent'` for the
+# real server. The Celery worker imports `app.celery` WITHOUT the
+# wsgi.py shim, so gevent isn't in its `sys.modules`; Flask-SocketIO
+# would ValueError on `async_mode='gevent'` in that path. Detect and
+# fall back to auto (threading) — Celery doesn't actually serve
+# sockets, this is just so module init doesn't blow up.
+import sys as _sys
+if 'gevent' in _sys.modules:
+    _socket_async_mode = 'gevent'
+else:
+    _socket_async_mode = None  # let Flask-SocketIO pick
 _socket_allowed_origins = app.config.get('IRIS_ALLOW_ORIGIN') or '*'
-socket_io = SocketIO(
-    app,
-    cors_allowed_origins=_socket_allowed_origins,
-)
+_socket_kwargs = {'cors_allowed_origins': _socket_allowed_origins}
+if _socket_async_mode is not None:
+    _socket_kwargs['async_mode'] = _socket_async_mode
+socket_io = SocketIO(app, **_socket_kwargs)
 
 alerts_namespace = AlertsNamespace('/alerts')
 socket_io.on_namespace(alerts_namespace)
