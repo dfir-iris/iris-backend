@@ -129,10 +129,35 @@ CORS(app,
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 #app.wsgi_app = store.wsgi_middleware(app.wsgi_app)
 
-socket_io = SocketIO(app, cors_allowed_origins="*")
+# `async_mode='gevent'` is load-bearing for the chatbot's LLM streaming
+# — cooperative concurrency lets a 30-second token stream yield the
+# worker back to unrelated handlers between tokens instead of holding
+# it for the whole stream. `worker_class='gevent'` in
+# `scripts/gunicorn-cfg.py` is required for this to actually engage.
+#
+# `cors_allowed_origins` is narrowed from the historical `'*'` — a
+# wide-open handshake acceptor lets any cross-origin page complete a
+# WS upgrade against a victim's `SameSite=Lax` session cookie, which
+# with the chatbot in place becomes an LLM-token-burning attack. The
+# config key mirrors the existing `IRIS_ALLOW_ORIGIN` used by the
+# HTTP CORS layer (see `after_request` below). Falls back to `'*'`
+# only if the config value is unset (existing dev workflow).
+_socket_allowed_origins = app.config.get('IRIS_ALLOW_ORIGIN') or '*'
+socket_io = SocketIO(
+    app,
+    cors_allowed_origins=_socket_allowed_origins,
+    async_mode='gevent',
+)
 
 alerts_namespace = AlertsNamespace('/alerts')
 socket_io.on_namespace(alerts_namespace)
+
+# Chatbot `/chat` namespace. Registered here rather than at blueprint
+# import time because SocketIO namespaces bind to the `socket_io`
+# instance created just above, so import order matters. See
+# `app/blueprints/rest/v2/case_chat/namespace.py`.
+from app.blueprints.rest.v2.case_chat.namespace import register_chat_namespace
+register_chat_namespace()
 
 oidc_client = None
 if app.config.get('AUTHENTICATION_TYPE') == 'oidc':

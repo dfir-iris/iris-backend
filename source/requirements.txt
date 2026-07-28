@@ -23,6 +23,14 @@ urllib3==1.26.18
 Werkzeug==3.1.3
 WTForms==3.2.1
 Flask-SocketIO==5.4.1
+# `gevent` + `gevent-websocket` power Flask-SocketIO's cooperative
+# concurrency mode (async_mode='gevent'). Required so the chatbot's
+# streaming LLM socket handler (up to 30s per token stream) doesn't
+# hold a whole gunicorn worker for its full lifetime. Also improves
+# throughput for /notifications and /collab which were both suffering
+# under sync-worker one-thread-per-connection.
+gevent==24.11.1
+gevent-websocket==0.10.1
 # Server-side Yjs/CRDT bindings (Rust `yrs` core via Python) — powers
 # the collaborative markdown editor. We hold the authoritative Y.Doc
 # server-side, apply every client update through it, and render the
