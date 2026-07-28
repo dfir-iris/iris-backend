@@ -19,14 +19,6 @@ import sys
 
 bind = 'unix:sock'
 workers = 4
-# `gevent` worker class is required for Flask-SocketIO's `async_mode='gevent'`,
-# which the chatbot's LLM streaming needs so a 30-second token stream doesn't
-# occupy a whole sync worker for its full lifetime. Also improves throughput
-# for `/notifications` and `/collab` namespaces — under sync workers those
-# were holding a worker thread per open SocketIO connection anyway. IRIS is
-# IO-bound, so the cooperative-concurrency model is a strict win.
-worker_class = 'gevent'
-worker_connections = 200
 accesslog = '-'
 loglevel = 'warning'
 errorlog = '/var/log/iris/errors.log'
