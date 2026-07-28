@@ -97,6 +97,10 @@ from app.models.authorization import Group
 from app.models.authorization import Organisation
 from app.models.authorization import User
 from app.models.authorization import UserApiKey
+from app.models.case_chat import CaseChatConversation
+from app.models.case_chat import CaseChatEgressAudit
+from app.models.case_chat import CaseChatMessage
+from app.models.case_chat import CaseChatPendingToolCall
 from app.models.cases import CaseState
 from app.models.cases import CaseProtagonist
 from app.schema.utils import assert_type_mml
@@ -1604,6 +1608,34 @@ class ServerSettingsSchema(ma.SQLAlchemyAutoSchema):
     error_reporting_sample_rate: Optional[float] = fields.Decimal(required=False, allow_none=True, as_string=False, places=2)
     error_reporting_include_user: Optional[bool] = fields.Boolean(required=False, allow_none=True)
 
+    # ---- Chatbot (LLM assistant driven by MCP tools) ----------------
+    # Same masking treatment as the mail passwords + error-reporting
+    # backend DSN — `chatbot_api_key` is load-only so a GET never emits
+    # even the ciphertext, and a `chatbot_api_key_set` companion boolean
+    # is attached in the read path (see manage_routes/server.py).
+    chatbot_enabled: Optional[bool] = fields.Boolean(required=False)
+    chatbot_provider: Optional[str] = fields.String(
+        required=False, allow_none=True)
+    chatbot_api_key: Optional[str] = fields.String(
+        required=False, allow_none=True, load_only=True)
+    chatbot_model: Optional[str] = fields.String(
+        required=False, allow_none=True)
+    chatbot_base_url: Optional[str] = fields.String(
+        required=False, allow_none=True)
+    chatbot_max_turns_per_conversation: Optional[int] = fields.Integer(
+        required=False, validate=lambda v: 1 <= v <= 200)
+    chatbot_max_tool_calls_per_turn: Optional[int] = fields.Integer(
+        required=False, validate=lambda v: 1 <= v <= 64)
+    chatbot_auto_execute_read_tools: Optional[bool] = fields.Boolean(
+        required=False)
+    chatbot_daily_token_budget_per_user: Optional[int] = fields.Integer(
+        required=False, validate=lambda v: 0 <= v <= 100_000_000)
+    chatbot_daily_token_budget_org: Optional[int] = fields.Integer(
+        required=False, validate=lambda v: 0 <= v <= 1_000_000_000)
+    chatbot_redact_ips: Optional[bool] = fields.Boolean(required=False)
+    chatbot_redact_emails: Optional[bool] = fields.Boolean(required=False)
+    chatbot_redact_hashes: Optional[bool] = fields.Boolean(required=False)
+
     # ---- MCP (Model Context Protocol) endpoint ----------------------
     mcp_enabled: Optional[bool] = fields.Boolean(required=False)
     mcp_max_calls_per_minute_per_worker: Optional[int] = fields.Integer(
@@ -1619,6 +1651,95 @@ class ServerSettingsSchema(ma.SQLAlchemyAutoSchema):
         # only ever id=1 and the API shouldn't expose a way to change
         # it.
         exclude = ('id',)
+        unknown = EXCLUDE
+
+
+class CaseChatConversationSchema(ma.SQLAlchemyAutoSchema):
+    """Serialize a `CaseChatConversation` row.
+
+    Read-heavy schema — the SPA gets conversation metadata from GET
+    endpoints and never writes a conversation directly (that goes
+    through `POST /api/v2/case-chat/cases/<id>/conversations` with a
+    hand-picked payload). Message list is nested lazily by the
+    conversation-detail endpoint via `CaseChatMessageSchema(many=True)`.
+    """
+    id: int = auto_field('id', dump_only=True)
+    case_id: Optional[int] = auto_field('case_id', dump_only=True)
+    user_id: int = auto_field('user_id', dump_only=True)
+    model: str = auto_field('model', dump_only=True)
+    title: str = auto_field('title', dump_only=True)
+    created_at = auto_field('created_at', dump_only=True)
+    updated_at = auto_field('updated_at', dump_only=True)
+    archived_at = auto_field('archived_at', dump_only=True)
+
+    class Meta:
+        model = CaseChatConversation
+        load_instance = True
+        unknown = EXCLUDE
+
+
+class CaseChatMessageSchema(ma.SQLAlchemyAutoSchema):
+    """Serialize a `CaseChatMessage` row.
+
+    `content` is JSONB Anthropic-shaped content blocks — the SPA renders
+    them directly (text blocks → markdown bubble, tool_use → tool card,
+    tool_result → tool-result card). No custom transformation on
+    dump/load.
+    """
+    id: int = auto_field('id', dump_only=True)
+    conversation_id: int = auto_field('conversation_id', dump_only=True)
+    role: str = auto_field('role', required=True)
+    content = auto_field('content', required=True)
+    tool_use_id: Optional[str] = auto_field(
+        'tool_use_id', required=False, allow_none=True)
+    created_at = auto_field('created_at', dump_only=True)
+
+    class Meta:
+        model = CaseChatMessage
+        load_instance = True
+        unknown = EXCLUDE
+
+
+class CaseChatPendingToolCallSchema(ma.SQLAlchemyAutoSchema):
+    """Serialize a `CaseChatPendingToolCall` row for the Approve/Deny UI."""
+    id: int = auto_field('id', dump_only=True)
+    conversation_id: int = auto_field('conversation_id', dump_only=True)
+    assistant_message_id: int = auto_field(
+        'assistant_message_id', dump_only=True)
+    tool_use_id: str = auto_field('tool_use_id', dump_only=True)
+    tool_name: str = auto_field('tool_name', dump_only=True)
+    arguments = auto_field('arguments', dump_only=True)
+    status: str = auto_field('status', dump_only=True)
+    created_at = auto_field('created_at', dump_only=True)
+    resolved_at = auto_field('resolved_at', dump_only=True)
+    resolved_by_user_id: Optional[int] = auto_field(
+        'resolved_by_user_id', dump_only=True)
+
+    class Meta:
+        model = CaseChatPendingToolCall
+        load_instance = True
+        unknown = EXCLUDE
+
+
+class CaseChatEgressAuditSchema(ma.SQLAlchemyAutoSchema):
+    """Serialize a `CaseChatEgressAudit` row for the admin audit page."""
+    id: int = auto_field('id', dump_only=True)
+    conversation_id: int = auto_field('conversation_id', dump_only=True)
+    user_id: int = auto_field('user_id', dump_only=True)
+    provider: str = auto_field('provider', dump_only=True)
+    model: str = auto_field('model', dump_only=True)
+    request_bytes: int = auto_field('request_bytes', dump_only=True)
+    response_bytes: int = auto_field('response_bytes', dump_only=True)
+    prompt_tokens: Optional[int] = auto_field(
+        'prompt_tokens', dump_only=True)
+    completion_tokens: Optional[int] = auto_field(
+        'completion_tokens', dump_only=True)
+    redacted: bool = auto_field('redacted', dump_only=True)
+    created_at = auto_field('created_at', dump_only=True)
+
+    class Meta:
+        model = CaseChatEgressAudit
+        load_instance = True
         unknown = EXCLUDE
 
 

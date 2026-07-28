@@ -565,6 +565,50 @@ class ServerSettings(db.Model):
     error_reporting_sample_rate = Column(Numeric(3, 2), nullable=True, default=1.00)
     error_reporting_include_user = Column(Boolean, nullable=True, default=False)
 
+    # ---- Chatbot (LLM assistant driven by MCP tools) -----------------
+    # Off by default. When on, the SPA's floating chat panel proxies
+    # user turns through the configured provider (Anthropic / OpenAI /
+    # Ollama). Tool calls dispatch through the same MCP dispatcher the
+    # REST endpoint uses, so every ACL and audit-log row applies.
+    #
+    # `chatbot_api_key` is Fernet-encrypted at rest — same masking
+    # treatment as `mail_smtp_password` and `error_reporting_backend_dsn`.
+    # See app/blueprints/rest/v2/case_chat/loop.py for the tool-use loop
+    # and app/iris_engine/llm/ for the provider adapters.
+    chatbot_enabled = Column(Boolean, nullable=False, default=False,
+                             server_default=text('false'))
+    chatbot_provider = Column(String(32), nullable=False, default='',
+                              server_default=text("''"))
+    chatbot_api_key = Column(Text, nullable=True)
+    chatbot_model = Column(String(120), nullable=False, default='',
+                           server_default=text("''"))
+    chatbot_base_url = Column(String(500), nullable=False, default='',
+                              server_default=text("''"))
+    chatbot_max_turns_per_conversation = Column(
+        Integer, nullable=False, default=25, server_default=text('25'))
+    chatbot_max_tool_calls_per_turn = Column(
+        Integer, nullable=False, default=8, server_default=text('8'))
+    chatbot_auto_execute_read_tools = Column(
+        Boolean, nullable=False, default=True, server_default=text('true'))
+    # Budget caps — checked against `case_chat_egress_audit` sums for
+    # today before every LLM call. 500k tokens/user/day ≈ $2/user on
+    # Sonnet; 10M tokens/org/day ≈ $40/org. Tuneable per install.
+    chatbot_daily_token_budget_per_user = Column(
+        Integer, nullable=False, default=500_000,
+        server_default=text('500000'))
+    chatbot_daily_token_budget_org = Column(
+        Integer, nullable=False, default=10_000_000,
+        server_default=text('10000000'))
+    # Redaction toggles — applied to tool_result blocks before they're
+    # serialised into the LLM request. Off by default (redaction breaks
+    # IOC pivoting) but on-prem strict-DLP installs can enable.
+    chatbot_redact_ips = Column(Boolean, nullable=False, default=False,
+                                server_default=text('false'))
+    chatbot_redact_emails = Column(Boolean, nullable=False, default=False,
+                                   server_default=text('false'))
+    chatbot_redact_hashes = Column(Boolean, nullable=False, default=False,
+                                   server_default=text('false'))
+
     # ---- MCP (Model Context Protocol) endpoint -----------------------
     # Off by default on every install. The endpoint is unconditionally
     # registered under `/api/v2/mcp`; each request checks `mcp_enabled`
