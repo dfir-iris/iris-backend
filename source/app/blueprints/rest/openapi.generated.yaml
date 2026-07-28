@@ -8492,6 +8492,91 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/api-keys:
+    get:
+      operationId: list_user_api_keys_get
+      summary: List a user's named API keys (admin)
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiKey'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_user_api_key_post
+      summary: Mint a named, scope-restricted API key for a user (admin)
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      description: "Response body includes the plaintext `api_key` once \u2014 the admin\nshould hand\
+        \ it off through a secure channel; it isn't retrievable\nafterwards. `scope_mask` optional: integer\
+        \ bitmask of `Permissions`\nvalues AND-ed with the target user's effective mask on every\nrequest\
+        \ authenticated with the key."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiKey'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/users/{identifier}/api-keys/{key_id}:
+    delete:
+      operationId: revoke_user_api_key_delete
+      summary: Revoke a user's named API key (admin, idempotent)
+      tags:
+      - ManageUsers
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: key_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/manage/users/{identifier}/audit:
     get:
       operationId: audit_user_get
@@ -8915,6 +9000,66 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/me/api-keys:
+    get:
+      operationId: list_api_keys_get
+      summary: List the caller's named API keys
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiKey'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_api_key_post
+      summary: Mint a new named, scope-restricted API key
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiKey'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/me/api-keys/{key_id}:
+    delete:
+      operationId: revoke_api_key_delete
+      summary: Revoke a named API key (idempotent)
+      tags:
+      - Profile
+      security:
+      - ApiKey: []
+      parameters:
+      - name: key_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/me/avatar:
     delete:
       operationId: delete_my_avatar_delete
@@ -17192,6 +17337,38 @@ components:
       - user_login
       - user_name
       description: Schema for serializing and deserializing User objects.
+    UserApiKey:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        scope_mask:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      required:
+      - name
+      description: Serialize a `UserApiKey` row.
     UserSchemaForAPIV2:
       type: object
       properties:

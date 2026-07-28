@@ -510,3 +510,6 @@ votes  # unused variable (source/app/models/war_rooms.py:590)
 widget_uuid  # unused variable (source/app/models/custom_dashboard.py:57)
 user_mcp_allowed  # unused variable (source/app/schema/marshables.py:294) — auto_field, consumed by marshmallow reflectively
 user_mcp_allowed  # unused variable (source/app/schema/marshables.py:2673) — auto_field, consumed by marshmallow reflectively
+last_used_at  # unused variable (source/app/models/authorization.py:354) — UserApiKey column read reflectively by marshmallow + business helpers
+last_used_at  # unused variable (source/app/schema/marshables.py:293) — UserApiKeySchema auto_field, consumed by marshmallow reflectively
+last_used_at  # unused attribute (source/app/views.py:236) — bumped in _get_user_by_api_key; read by profile/admin API-key list handlers

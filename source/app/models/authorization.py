@@ -308,6 +308,61 @@ class User(UserMixin, db.Model):
         return self
 
 
+class UserApiKey(db.Model):
+    """A named, revocable, scope-restricted API key issued to a user.
+
+    Layered on top of the legacy `User.api_key` column: `User.api_key`
+    stays populated as a compatibility mirror (one release only) so any
+    external automation using the pre-existing single key keeps working,
+    while every request routed through `_get_user_by_api_key` also picks
+    up per-key metadata — most importantly `scope_mask`, which is
+    AND-ed into the caller's effective permission bitmask so a single
+    user can hand out keys with narrower reach than their session
+    permissions (e.g. a read-only Claude Desktop key issued by an admin
+    account).
+
+    `key_hash` stores SHA-256(key) rather than the raw key so a DB dump
+    doesn't leak usable credentials. Lookup on ingress is
+    `filter_by(key_hash=sha256(header_value))`. Renewal replaces the
+    hash — the plaintext is only visible in the 201 response body.
+
+    `scope_mask=None` means "inherit the user's full effective
+    permissions" (matches legacy behaviour). A concrete mask AND-s with
+    the user's effective mask so an issued key can never expand
+    permissions past the user's own.
+    """
+    __tablename__ = 'user_api_key'
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(BigInteger,
+                     ForeignKey('user.id', ondelete='CASCADE'),
+                     nullable=False)
+    # Human-facing label so a user can tell their keys apart on the
+    # profile page. Unique per-user; keeps 'Claude Desktop' /
+    # 'CI script' etc. from colliding.
+    name = Column(String(120), nullable=False)
+    # SHA-256 hex digest of the raw key. 64 chars, no padding.
+    key_hash = Column(String(64), unique=True, nullable=False, index=True)
+    # None → inherit user permissions. Otherwise AND with user's mask
+    # inside `_get_current_permissions_mask` when this key is the auth.
+    scope_mask = Column(BigInteger, nullable=True)
+    created_at = Column(DateTime, nullable=False,
+                        server_default=text('now()'))
+    # Bumped on every successful auth via this key; NULL until first
+    # use. Not indexed — writes are on the hot path, reads are per-user
+    # admin queries only.
+    last_used_at = Column(DateTime, nullable=True)
+    # Non-null → this key is revoked, `_get_user_by_api_key` returns
+    # None. We keep the row for audit rather than deleting.
+    revoked_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'name', name='uq_user_api_key_user_name'),
+    )
+
+    user = relationship('User', backref='api_keys')
+
+
 class UserFollowedCase(db.Model):
     __tablename__ = 'user_followed_case'
     __table_args__ = (

@@ -55,6 +55,9 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
+from app.business.users import api_keys_create
+from app.business.users import api_keys_list
+from app.business.users import api_keys_revoke
 from app.business.users import users_create
 from app.business.users import users_delete
 from app.business.users import users_get
@@ -76,6 +79,7 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
+from app.schema.marshables import UserApiKeySchema
 from app.schema.marshables import UserSchemaForAPIV2
 
 
@@ -472,6 +476,76 @@ def renew_user_api_key(identifier: int) -> Response:
         'user': user.user,
         'api_key': new_key,
     })
+
+
+@users_blueprint.get('/<int:identifier>/api-keys')
+@ac_api_requires(Permissions.server_administrator)
+@api_doc(response=UserApiKeySchema, tags=['ManageUsers'],
+         summary='List a user\'s named API keys (admin)')
+def list_user_api_keys(identifier: int) -> Response:
+    user, err = _require_user(identifier)
+    if err is not None:
+        return err
+    rows = api_keys_list(user)
+    return response_api_success({
+        'api_keys': UserApiKeySchema(many=True).dump(rows),
+    })
+
+
+@users_blueprint.post('/<int:identifier>/api-keys')
+@ac_api_requires(Permissions.server_administrator)
+@api_doc(response=UserApiKeySchema, response_shape='created',
+         tags=['ManageUsers'],
+         summary='Mint a named, scope-restricted API key for a user (admin)')
+def create_user_api_key(identifier: int) -> Response:
+    """Mint a new API key on behalf of the target user.
+
+    Response body includes the plaintext `api_key` once — the admin
+    should hand it off through a secure channel; it isn't retrievable
+    afterwards. `scope_mask` optional: integer bitmask of `Permissions`
+    values AND-ed with the target user's effective mask on every
+    request authenticated with the key.
+    """
+    user, err = _require_user(identifier)
+    if err is not None:
+        return err
+    body = request.get_json(silent=True) or {}
+    name = (body.get('name') or '').strip()
+    scope_mask = body.get('scope_mask')
+    if not name:
+        return response_api_error('name is required')
+    if scope_mask is not None and not isinstance(scope_mask, int):
+        return response_api_error('scope_mask must be an integer bitmask')
+    try:
+        row, plaintext = api_keys_create(user, name, scope_mask)
+    except BusinessProcessingError as exc:
+        return response_api_error(exc.get_message())
+    track_activity(
+        f'admin minted API key {name!r} for user {user.user}',
+        ctx_less=True,
+    )
+    payload = UserApiKeySchema().dump(row)
+    payload['api_key'] = plaintext
+    return response_api_created(payload)
+
+
+@users_blueprint.delete('/<int:identifier>/api-keys/<int:key_id>')
+@ac_api_requires(Permissions.server_administrator)
+@api_doc(response_shape='deleted', tags=['ManageUsers'],
+         summary='Revoke a user\'s named API key (admin, idempotent)')
+def revoke_user_api_key(identifier: int, key_id: int) -> Response:
+    user, err = _require_user(identifier)
+    if err is not None:
+        return err
+    try:
+        api_keys_revoke(user, key_id)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    track_activity(
+        f'admin revoked API key #{key_id} on user {user.user}',
+        ctx_less=True,
+    )
+    return response_api_deleted()
 
 
 @users_blueprint.post('/<int:identifier>/mfa/reset')

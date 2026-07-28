@@ -96,6 +96,7 @@ from app.models.investigation_flows import AlertClusterInvestigationProgress
 from app.models.authorization import Group
 from app.models.authorization import Organisation
 from app.models.authorization import User
+from app.models.authorization import UserApiKey
 from app.models.cases import CaseState
 from app.models.cases import CaseProtagonist
 from app.schema.utils import assert_type_mml
@@ -272,6 +273,31 @@ class SearchCaseNoteDirectorySchema(CaseNoteDirectorySchema):
         if notes:
             data['notes'] = sorted(notes, key=lambda n: (n.get('title') or '').lower())
         return data
+
+
+class UserApiKeySchema(ma.SQLAlchemyAutoSchema):
+    """Serialize a `UserApiKey` row.
+
+    `key_hash` is excluded from dumps — it's the only value on the row
+    that could be probed against a captured cleartext key, and it has
+    no operational value client-side. The plaintext key itself never
+    appears on this schema (it's returned once in the create-endpoint
+    response body via a plain dict) — subsequent reads only expose the
+    metadata (name, scope_mask, created_at, last_used_at, revoked_at).
+    """
+    id: int = auto_field('id', dump_only=True)
+    user_id: int = auto_field('user_id', dump_only=True)
+    name: str = auto_field('name', required=True, validate=Length(min=1, max=120))
+    scope_mask: Optional[int] = auto_field('scope_mask', required=False, allow_none=True)
+    created_at = auto_field('created_at', dump_only=True)
+    last_used_at = auto_field('last_used_at', dump_only=True)
+    revoked_at = auto_field('revoked_at', dump_only=True)
+
+    class Meta:
+        model = UserApiKey
+        load_instance = True
+        exclude = ['key_hash']
+        unknown = EXCLUDE
 
 
 class UserSchema(ma.SQLAlchemyAutoSchema):

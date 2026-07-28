@@ -32,10 +32,15 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
+from app.models.errors import BusinessProcessingError
+from app.models.errors import ObjectNotFoundError
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.rest.api_doc import api_doc
 from app.business.cases import cases_exists
+from app.business.users import api_keys_create
+from app.business.users import api_keys_list
+from app.business.users import api_keys_revoke
 from app.business.users import users_get
 from app.business.users import users_update
 from app.iris_engine.demo_builder import protect_demo_mode_user
@@ -46,6 +51,7 @@ from app.models.authorization import Permissions
 from app.models.authorization import UserFollowedCase
 from app.models.cases import Cases
 from app.schema.marshables import CaseSchemaForAPIV2
+from app.schema.marshables import UserApiKeySchema
 from app.schema.marshables import UserSchemaForAPIV2
 
 
@@ -110,6 +116,58 @@ class ProfileOperations:
         db.session.commit()
         result = self._schema.dump(user)
         return response_api_success(result)
+
+    # ---- Per-user API keys (UserApiKey) --------------------------------
+
+    def list_api_keys(self):
+        """List every API key belonging to the caller."""
+        user = users_get(iris_current_user.id)
+        rows = api_keys_list(user)
+        return response_api_success({
+            'api_keys': UserApiKeySchema(many=True).dump(rows),
+        })
+
+    def create_api_key(self):
+        """Mint a new named, scope-restricted API key for the caller.
+
+        Body: `{name: str, scope_mask?: int}`. `scope_mask` is an
+        integer bitmask of `Permissions` values that will be AND-ed
+        into the user's effective permissions on every request
+        authenticated with this key. Omit for a full-permissions key
+        (matches legacy behaviour).
+
+        The plaintext `api_key` is returned exactly once in the
+        response body — subsequent list/get calls only expose the
+        metadata. The caller should copy it now and store it in their
+        MCP client / CI configuration.
+        """
+        body = request.get_json(silent=True) or {}
+        name = (body.get('name') or '').strip()
+        scope_mask = body.get('scope_mask')
+        if not name:
+            return response_api_error('name is required')
+        if scope_mask is not None and not isinstance(scope_mask, int):
+            return response_api_error('scope_mask must be an integer bitmask')
+        user = users_get(iris_current_user.id)
+        try:
+            row, plaintext = api_keys_create(user, name, scope_mask)
+        except BusinessProcessingError as exc:
+            return response_api_error(exc.get_message())
+        payload = UserApiKeySchema().dump(row)
+        # Plaintext key is out-of-band relative to the schema on purpose
+        # — the schema never carries the raw key so subsequent GETs
+        # can't accidentally re-emit it.
+        payload['api_key'] = plaintext
+        return response_api_created(payload)
+
+    def revoke_api_key(self, key_id: int):
+        """Revoke one of the caller's API keys (idempotent)."""
+        user = users_get(iris_current_user.id)
+        try:
+            row = api_keys_revoke(user, key_id)
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        return response_api_success(UserApiKeySchema().dump(row))
 
     def refresh_permissions(self):
         user = users_get(iris_current_user.id)
@@ -347,3 +405,27 @@ def follow_case():
          summary='Unfollow a case')
 def unfollow_case(case_id):
     return profile_operations.unfollow_case(case_id)
+
+
+@profile_blueprint.get('/api-keys')
+@ac_api_requires()
+@api_doc(response=UserApiKeySchema, tags=['Profile'],
+         summary='List the caller\'s named API keys')
+def list_api_keys():
+    return profile_operations.list_api_keys()
+
+
+@profile_blueprint.post('/api-keys')
+@ac_api_requires()
+@api_doc(response=UserApiKeySchema, response_shape='created', tags=['Profile'],
+         summary='Mint a new named, scope-restricted API key')
+def create_api_key():
+    return profile_operations.create_api_key()
+
+
+@profile_blueprint.delete('/api-keys/<int:key_id>')
+@ac_api_requires()
+@api_doc(response_shape='deleted', tags=['Profile'],
+         summary='Revoke a named API key (idempotent)')
+def revoke_api_key(key_id: int):
+    return profile_operations.revoke_api_key(key_id)

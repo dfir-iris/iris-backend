@@ -59,38 +59,36 @@ from app.models.authorization import CaseAccessLevel
 def _user_has_at_least_a_required_permission(permissions: list[Permissions]):
     """
     Returns true if the user has at least one of the required permissions
-    Works with both session-based and token-based authentication
+    Works with session, JWT-token, and API-key authentication.
+
+    For API-key auth via a `UserApiKey` row, the row's `scope_mask` (if
+    set) is AND-ed into the user's effective permissions so an issued
+    key can never exceed the reach of its owner. This is handled inside
+    `_get_current_permissions_mask` — do not duplicate the mask logic
+    here.
     """
     if not permissions:
         return True
 
-    # For token-based authentication
-    if hasattr(g, 'auth_token_user_id'):
-        # Use cached permissions from token if available
-        if hasattr(g, 'auth_user_permissions'):
-            user_permissions = g.auth_user_permissions
-        else:
-            # Lazy load permissions only once per request
-            user = get_user(g.auth_token_user_id)
-            if not user:
-                return False
+    # Populate `g.auth_user_permissions` for JWT auth so the shared
+    # helper below (and future callers) can hit the cache. Session and
+    # API-key auth don't set `auth_token_user_id`, so this is a no-op
+    # for them.
+    if hasattr(g, 'auth_token_user_id') and not hasattr(g, 'auth_user_permissions'):
+        user = get_user(g.auth_token_user_id)
+        if not user:
+            return False
+        g.auth_user_permissions = ac_get_effective_permissions_of_user(user)
 
-            user_permissions = ac_get_effective_permissions_of_user(user)
-            g.auth_user_permissions = user_permissions  # Cache for this request
-
-        for permission in permissions:
-            if user_permissions & permission.value:
-                return True
-        return False
-
-    # For session-based authentication
-    if 'permissions' not in session:
+    # Prime session-mode cache the same way the pre-refactor code did.
+    if not hasattr(g, 'auth_token_user_id') and 'permissions' not in session \
+            and current_user.is_authenticated:
         session['permissions'] = ac_get_effective_permissions_of_user(current_user)
 
+    effective_mask = _get_current_permissions_mask()
     for permission in permissions:
-        if session['permissions'] & permission.value:
+        if effective_mask & permission.value:
             return True
-
     return False
 
 
@@ -620,7 +618,7 @@ def _get_current_permissions_mask():
     # Token-based authentication
     if hasattr(g, 'auth_token_user_id'):
         if hasattr(g, 'auth_user_permissions'):
-            return g.auth_user_permissions
+            return _apply_api_key_scope_mask(g.auth_user_permissions)
 
         user = get_user(g.auth_token_user_id)
         if not user:
@@ -628,7 +626,7 @@ def _get_current_permissions_mask():
 
         perms = ac_get_effective_permissions_of_user(user)
         g.auth_user_permissions = perms
-        return perms
+        return _apply_api_key_scope_mask(perms)
 
     # Session-based authentication
     perms = session.get('permissions')
@@ -636,7 +634,26 @@ def _get_current_permissions_mask():
         perms = ac_get_effective_permissions_of_user(current_user)
         session['permissions'] = perms
 
-    return perms or 0
+    return _apply_api_key_scope_mask(perms or 0)
+
+
+def _apply_api_key_scope_mask(perms: int) -> int:
+    """AND the caller's effective permissions with the API-key scope mask.
+
+    `g.api_key_row` is set by `_get_user_by_api_key` (views.py:189) when
+    auth came via a UserApiKey row. If that row's `scope_mask` is set,
+    it restricts the effective mask so an issued key can never expand
+    permissions past the user's own. When there's no API-key context
+    (session / JWT auth, or a legacy `User.api_key` compat path with no
+    UserApiKey row), the caller's permissions are returned unchanged.
+    """
+    row = getattr(g, 'api_key_row', None)
+    if row is None:
+        return perms
+    mask = getattr(row, 'scope_mask', None)
+    if mask is None:
+        return perms
+    return perms & int(mask)
 
 
 def ac_current_user_has_permission(permission):

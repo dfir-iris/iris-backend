@@ -90,3 +90,8 @@ class TestsRestApi(TestCase):
         for name in ('McpJsonRpcRequest', 'McpJsonRpcResponse',
                      'McpToolResult', 'McpResourceTemplateList'):
             self.assertIn(f'{name}:', body)
+        # UserApiKey CRUD picked up automatically.
+        self.assertIn('/api/v2/me/api-keys', body)
+        self.assertIn(
+            '/api/v2/manage/users/{identifier}/api-keys', body,
+        )

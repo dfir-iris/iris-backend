@@ -96,6 +96,11 @@ from app.blueprints.rest.search_routes import search_rest_blueprint
 
 from app.blueprints.rest.api_v2_routes import rest_v2_blueprint
 from app.models.authorization import User
+from app.models.authorization import UserApiKey
+from app.db import db
+from datetime import datetime
+from flask import g
+import hashlib
 
 
 def register_blueprints(app):
@@ -187,10 +192,54 @@ def load_user(user_id):
 
 
 def _get_user_by_api_key(api_key):
+    """Resolve an incoming API key to a `User`, populating `g` metadata.
+
+    Two lookup paths in order:
+
+      1. **`UserApiKey` (preferred)** — SHA-256(key) match against the
+         per-key `key_hash`. On hit, stash `g.api_key_row` so downstream
+         code can consult the row's `scope_mask` and update `last_used_at`.
+         Revoked rows (`revoked_at IS NOT NULL`) are rejected.
+      2. **Legacy `User.api_key` (compat)** — direct compare with the
+         cleartext column, kept for one release while external
+         automation migrates to renewing keys via the new
+         `POST /me/api-keys` endpoint.
+
+    Both paths require the underlying user to be active. The two paths
+    can co-exist for the same key during migration because the back-fill
+    migration hashes each `User.api_key` into a `UserApiKey(name='legacy')`
+    row — the first lookup succeeds and we never reach the fallback.
+    """
     if not api_key:
         return None
 
     api_key = api_key.replace('Bearer ', '', 1)
+
+    # Preferred path — UserApiKey with hashed lookup.
+    key_hash = hashlib.sha256(api_key.encode('utf-8')).hexdigest()
+    key_row = UserApiKey.query.filter(
+        UserApiKey.key_hash == key_hash,
+        UserApiKey.revoked_at.is_(None),
+    ).first()
+    if key_row is not None:
+        user = User.query.filter(
+            User.id == key_row.user_id,
+            User.active == True,
+        ).first()
+        if user is None:
+            return None
+        # Stash for `_get_current_permissions_mask` to apply the mask.
+        g.api_key_row = key_row
+        # Best-effort last-used bump — commit inline; failure to update
+        # this metric must never break auth.
+        try:
+            key_row.last_used_at = datetime.utcnow()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return user
+
+    # Legacy fallback — cleartext column compare. No scope mask.
     return User.query.filter(
         User.api_key == api_key,
         User.active == True
