@@ -1357,6 +1357,11 @@ def _shared_components() -> dict[str, Any]:
             'Forbidden': {'description': 'Insufficient permissions to access resource'},
             'NotFound': {'description': 'Resource not found'},
             'Deleted': {'description': 'Resource successfully deleted'},
+            # Referenced by the MCP entrypoint operation; the JSON-RPC
+            # endpoint rejects session-cookie-only callers with 401.
+            'Unauthorized': {
+                'description': 'Missing or invalid API key / Bearer token',
+            },
         },
         'schemas': {},
     }
@@ -1539,6 +1544,481 @@ def _path_params_from_flask(rule: str) -> list[dict[str, Any]]:
     return params
 
 
+# --------------------------------------------------------------------
+# MCP surface discovery
+# --------------------------------------------------------------------
+#
+# The MCP endpoint (`/api/v2/mcp`, defined in
+# `app/blueprints/rest/v2/mcp/transport.py`) is a single JSON-RPC POST
+# that multiplexes many "methods" (`tools/call`, `resources/read`, ...)
+# internally. `_discover_routes` picks it up if it carries `@api_doc`
+# but only as one anonymous POST — no per-tool visibility.
+#
+# We add a synthesised path per registered `@mcp_tool` / `@mcp_resource`
+# decoration so Redoc can render every MCP tool alongside the REST
+# routes. These synthesised entries are marked with `x-mcp: true` and
+# grouped under the `MCP` tag; they are documentation only — actual
+# dispatch happens through the single JSON-RPC POST.
+
+MCP_TOOLS_DIR = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'v2' / 'mcp' / 'tools'
+MCP_RESOURCES_FILE = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'v2' / 'mcp' / 'resources.py'
+MCP_ENDPOINT_PATH = '/api/v2/mcp'
+
+
+def _literal_dict(node: ast.AST) -> Any:
+    """Safely evaluate a JSON-Schema-like AST literal to a Python value.
+
+    Supports the subset used in MCP `input_schema=` declarations:
+    dicts, lists, strings, ints, bools, None. Any node outside this
+    subset returns None so the caller can decide whether that's a
+    degraded-but-valid result or a hard error.
+    """
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Dict):
+        out: dict[Any, Any] = {}
+        for k, v in zip(node.keys, node.values):
+            if k is None:
+                # `{**x}` splat — skip; nothing in MCP schemas uses this.
+                continue
+            key = _literal_dict(k)
+            out[key] = _literal_dict(v)
+        return out
+    if isinstance(node, ast.List):
+        return [_literal_dict(e) for e in node.elts]
+    if isinstance(node, ast.Tuple):
+        return tuple(_literal_dict(e) for e in node.elts)
+    if isinstance(node, ast.Set):
+        return {_literal_dict(e) for e in node.elts}
+    # Common at-schema-declaration idiom is `{**PAGINATION_SCHEMA_FRAGMENT,
+    # 'foo': {...}}` — the dict merge is handled by the caller (below)
+    # using a manual walk that stitches in the fragment before this
+    # function runs. Anything else that isn't a bare literal we don't
+    # try to eval — leave it as `None` so the operation still emits.
+    return None
+
+
+def _resolve_dict_with_fragments(
+    node: ast.Dict,
+    fragments: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Evaluate a dict-literal node, expanding `{**FRAGMENT_NAME, ...}`
+    splats using a lookup table of module-level fragment constants.
+
+    Used for MCP input schemas which commonly splat
+    `PAGINATION_SCHEMA_FRAGMENT` (from tools/_common.py) into their
+    `properties`. The generator's static AST evaluator can't see the
+    fragment values, so callers pass in a pre-computed lookup.
+    """
+    out: dict[str, Any] = {}
+    for k, v in zip(node.keys, node.values):
+        if k is None and isinstance(v, ast.Name) and v.id in fragments:
+            # `{**FRAGMENT, ...}` — merge.
+            out.update(fragments[v.id])
+            continue
+        if k is None:
+            # Splat of a non-literal expression — skip.
+            continue
+        key = _literal_dict(k)
+        if isinstance(v, ast.Dict):
+            out[key] = _resolve_dict_with_fragments(v, fragments)
+        else:
+            out[key] = _literal_dict(v)
+    return out
+
+
+def _collect_module_fragments(tree: ast.Module) -> dict[str, dict[str, Any]]:
+    """Harvest module-level `NAME = {...}` dict assignments as fragments.
+
+    We use this to resolve `{**PAGINATION_SCHEMA_FRAGMENT, ...}` splats
+    inside tool `input_schema=` declarations. Only bare dict literals
+    are captured; anything else is silently ignored (the fragment lookup
+    just misses and the property is dropped from the emitted schema).
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not isinstance(node.value, ast.Dict):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                out[target.id] = _resolve_dict_with_fragments(node.value, {})
+    return out
+
+
+def _mcp_decorator_kwargs(dec: ast.expr) -> dict[str, Any] | None:
+    """Return kwargs dict for a `@mcp_tool(...)` / `@mcp_resource(...)`
+    decorator, or None if the decorator doesn't match."""
+    if not isinstance(dec, ast.Call):
+        return None
+    fname = getattr(dec.func, 'id', None) or getattr(dec.func, 'attr', None)
+    if fname not in ('mcp_tool', 'mcp_resource'):
+        return None
+    kwargs: dict[str, Any] = {'__decorator__': fname}
+    for kw in dec.keywords:
+        if kw.arg is None:
+            continue
+        kwargs[kw.arg] = kw.value  # raw ast — resolved by the caller.
+    return kwargs
+
+
+def _load_mcp_common_fragments() -> dict[str, dict[str, Any]]:
+    """Load the fragment table from tools/_common.py.
+
+    `PAGINATION_SCHEMA_FRAGMENT` is the only fragment used by MVP tools
+    today; keeping this generic in case more get added.
+    """
+    common_file = MCP_TOOLS_DIR / '_common.py'
+    if not common_file.exists():
+        return {}
+    tree = ast.parse(common_file.read_text(), filename=str(common_file))
+    return _collect_module_fragments(tree)
+
+
+def _discover_mcp_tools() -> list[dict[str, Any]]:
+    """Parse tools/*.py and return one dict per registered @mcp_tool."""
+    if not MCP_TOOLS_DIR.exists():
+        return []
+    fragments = _load_mcp_common_fragments()
+
+    tools: list[dict[str, Any]] = []
+    for f in sorted(MCP_TOOLS_DIR.glob('*.py')):
+        if f.name.startswith('_'):
+            continue
+        try:
+            tree = ast.parse(f.read_text(), filename=str(f))
+        except SyntaxError as exc:
+            print(f'openapi/mcp: skipping {f} ({exc})', file=sys.stderr)
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for dec in node.decorator_list:
+                kw = _mcp_decorator_kwargs(dec)
+                if kw is None or kw['__decorator__'] != 'mcp_tool':
+                    continue
+                # Resolve the raw ast nodes into Python values.
+                name_node = kw.get('name')
+                if not isinstance(name_node, ast.Constant):
+                    continue  # tool name must be a string literal
+                name = name_node.value
+                desc_node = kw.get('description')
+                description = (
+                    desc_node.value if isinstance(desc_node, ast.Constant) else ''
+                )
+                schema_node = kw.get('input_schema')
+                if isinstance(schema_node, ast.Dict):
+                    schema = _resolve_dict_with_fragments(schema_node, fragments)
+                elif schema_node is None:
+                    # `input_schema` omitted — decorator supplies the default
+                    # empty-object schema at runtime.
+                    schema = {'type': 'object', 'properties': {}}
+                else:
+                    # Non-literal expression (e.g. reference to a module
+                    # constant not in the fragment table). Fall back to
+                    # an empty shape so the operation still emits.
+                    schema = {'type': 'object', 'properties': {}}
+                if not isinstance(schema, dict):
+                    schema = {'type': 'object', 'properties': {}}
+                # Augment with the scoping fields dispatch injects at
+                # runtime so the OpenAPI shape matches what a caller
+                # actually sees on `tools/list`.
+                case_scoped = _kw_flag(kw, 'case_scoped')
+                war_room_scoped = _kw_flag(kw, 'war_room_scoped')
+                admin_only = _kw_flag(kw, 'admin_only')
+                mvp = _kw_flag(kw, 'mvp')
+                raw_props = schema.get('properties') or {}
+                props = dict(raw_props) if isinstance(raw_props, dict) else {}
+                raw_required = schema.get('required') or []
+                required = list(raw_required) if isinstance(raw_required, (list, tuple)) else []
+                if case_scoped and 'case_identifier' not in props:
+                    props['case_identifier'] = {
+                        'type': 'integer',
+                        'description': 'Numeric ID of the IRIS case this call targets.',
+                    }
+                    if 'case_identifier' not in required:
+                        required.append('case_identifier')
+                if war_room_scoped and 'war_room_id' not in props:
+                    props['war_room_id'] = {
+                        'type': 'integer',
+                        'description': 'Numeric ID of the war room this call targets.',
+                    }
+                    if 'war_room_id' not in required:
+                        required.append('war_room_id')
+                schema['properties'] = props
+                if required:
+                    schema['required'] = required
+
+                tools.append({
+                    'name': name,
+                    'description': description,
+                    'input_schema': schema,
+                    'admin_only': admin_only,
+                    'case_scoped': case_scoped,
+                    'war_room_scoped': war_room_scoped,
+                    'mvp': mvp,
+                    'source_file': str(f.relative_to(REPO_ROOT.parent)),
+                    'view_name': node.name,
+                })
+    tools.sort(key=lambda t: t['name'])
+    return tools
+
+
+def _kw_flag(kw: dict[str, Any], name: str) -> bool:
+    node = kw.get(name)
+    return isinstance(node, ast.Constant) and bool(node.value)
+
+
+def _discover_mcp_resources() -> list[dict[str, Any]]:
+    """Parse resources.py and return one dict per registered @mcp_resource."""
+    if not MCP_RESOURCES_FILE.exists():
+        return []
+    tree = ast.parse(MCP_RESOURCES_FILE.read_text(),
+                     filename=str(MCP_RESOURCES_FILE))
+    out: list[dict[str, Any]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for dec in node.decorator_list:
+            kw = _mcp_decorator_kwargs(dec)
+            if kw is None or kw['__decorator__'] != 'mcp_resource':
+                continue
+            uri_node = kw.get('uri_template')
+            name_node = kw.get('name')
+            desc_node = kw.get('description')
+            if not isinstance(uri_node, ast.Constant):
+                continue
+            out.append({
+                'uri_template': uri_node.value,
+                'name': name_node.value if isinstance(name_node, ast.Constant) else '',
+                'description': (
+                    desc_node.value if isinstance(desc_node, ast.Constant) else ''
+                ),
+            })
+    out.sort(key=lambda r: r['uri_template'])
+    return out
+
+
+def _build_mcp_operations(
+    tools: list[dict[str, Any]],
+    resources: list[dict[str, Any]],
+) -> list[tuple[str, str, dict[str, Any]]]:
+    """Turn discovered tools + resources into (path, method, op) triples.
+
+    Emits three families of paths under `/api/v2/mcp/…`:
+      * The raw JSON-RPC POST /api/v2/mcp — one operation with a
+        JSON-RPC-shaped requestBody.
+      * POST /api/v2/mcp/tools/{name} — one per tool, with its declared
+        `input_schema` inline as the requestBody schema.
+      * GET  /api/v2/mcp/resources — a single operation listing every
+        registered resource template as an example.
+
+    All entries carry `x-mcp: true` and tag `MCP` so the doc UI can
+    group them.
+    """
+    out: list[tuple[str, str, dict[str, Any]]] = []
+
+    # Raw JSON-RPC POST — canonical entrypoint.
+    out.append((MCP_ENDPOINT_PATH, 'post', {
+        'operationId': 'mcp_jsonrpc_post',
+        'summary': 'MCP JSON-RPC endpoint (single POST, multiplexes every MCP method)',
+        'description': (
+            'Streamable-HTTP MCP transport. Send a JSON-RPC 2.0 request '
+            'or batch; methods include `initialize`, `tools/list`, '
+            '`tools/call`, `resources/list`, `resources/templates/list`, '
+            '`resources/read`, `ping`. Authenticate with X-IRIS-AUTH '
+            'or Authorization: Bearer. See the individual tool operations '
+            'under the `MCP` tag for a per-tool schema view.'
+        ),
+        'tags': ['MCP'],
+        'security': [{'ApiKey': []}],
+        'x-mcp': True,
+        'requestBody': {
+            'required': True,
+            'content': {
+                'application/json': {
+                    'schema': {'$ref': '#/components/schemas/McpJsonRpcRequest'},
+                },
+            },
+        },
+        'responses': {
+            '200': {
+                'description': 'JSON-RPC response (result or error).',
+                'content': {
+                    'application/json': {
+                        'schema': {'$ref': '#/components/schemas/McpJsonRpcResponse'},
+                    },
+                },
+            },
+            '202': {
+                'description': 'Accepted (notification — no body).',
+            },
+            '401': {'$ref': '#/components/responses/Unauthorized'},
+            '503': {'$ref': '#/components/responses/ApiError'},
+        },
+    }))
+
+    # Per-tool synthesised operations.
+    for tool in tools:
+        path = f'{MCP_ENDPOINT_PATH}/tools/{tool["name"]}'
+        op: dict[str, Any] = {
+            'operationId': f'mcp_tool_{tool["name"]}',
+            'summary': tool['description'] or f'MCP tool {tool["name"]}',
+            'tags': ['MCP', 'MCP:admin' if tool['admin_only'] else 'MCP:tools'],
+            'security': [{'ApiKey': []}],
+            'x-mcp': True,
+            'x-mcp-tool': tool['name'],
+            'x-mcp-mvp': tool['mvp'],
+            'x-mcp-admin-only': tool['admin_only'],
+            'description': (
+                'Synthesised documentation entry — MCP tools are actually '
+                f'dispatched via a single POST {MCP_ENDPOINT_PATH} '
+                'with `method: "tools/call"` and `params.name = '
+                f'"{tool["name"]}"`. The request body schema below is the '
+                'tool\'s `input_schema` (identical to what `tools/list` '
+                'returns for this tool).'
+            ),
+            'requestBody': {
+                'required': True,
+                'content': {
+                    'application/json': {'schema': tool['input_schema']},
+                },
+            },
+            'responses': {
+                '200': {
+                    'description': 'Tool result — JSON-RPC content wrapper.',
+                    'content': {
+                        'application/json': {
+                            'schema': {'$ref': '#/components/schemas/McpToolResult'},
+                        },
+                    },
+                },
+                '403': {'$ref': '#/components/responses/Forbidden'},
+            },
+        }
+        out.append((path, 'post', op))
+
+    # Resources — a single GET operation whose response enumerates every
+    # template. Redoc renders the `examples` block inline.
+    resource_examples: dict[str, dict[str, Any]] = {}
+    for res in resources:
+        resource_examples[res['name']] = {
+            'summary': res['description'] or res['name'],
+            'value': {'uri': res['uri_template']},
+        }
+    out.append((f'{MCP_ENDPOINT_PATH}/resources', 'get', {
+        'operationId': 'mcp_resources_list',
+        'summary': 'List MCP resource templates',
+        'description': (
+            'Synthesised documentation entry — the runtime call is '
+            f'POST {MCP_ENDPOINT_PATH} with '
+            '`method: "resources/templates/list"`. Each template can be '
+            f'read via `method: "resources/read"` + `params.uri = <template>` '
+            'with the placeholder(s) filled in.'
+        ),
+        'tags': ['MCP', 'MCP:resources'],
+        'security': [{'ApiKey': []}],
+        'x-mcp': True,
+        'responses': {
+            '200': {
+                'description': 'Registered resource templates.',
+                'content': {
+                    'application/json': {
+                        'schema': {'$ref': '#/components/schemas/McpResourceTemplateList'},
+                        'examples': resource_examples or None,
+                    },
+                },
+            },
+        },
+    }))
+
+    return out
+
+
+def _mcp_component_schemas() -> dict[str, dict[str, Any]]:
+    """Shared components referenced by the synthesised MCP paths."""
+    return {
+        'McpJsonRpcRequest': {
+            'type': 'object',
+            'description': (
+                'JSON-RPC 2.0 request or batch. `method` selects the MCP '
+                'operation; `params` carries method-specific arguments.'
+            ),
+            'properties': {
+                'jsonrpc': {'type': 'string', 'enum': ['2.0']},
+                'id': {
+                    'oneOf': [
+                        {'type': 'integer'},
+                        {'type': 'string'},
+                        {'type': 'null'},
+                    ],
+                    'description': 'Request id — omit for notifications.',
+                },
+                'method': {'type': 'string'},
+                'params': {'type': 'object'},
+            },
+            'required': ['jsonrpc', 'method'],
+        },
+        'McpJsonRpcResponse': {
+            'type': 'object',
+            'properties': {
+                'jsonrpc': {'type': 'string', 'enum': ['2.0']},
+                'id': {
+                    'oneOf': [{'type': 'integer'}, {'type': 'string'}, {'type': 'null'}],
+                },
+                'result': {'type': 'object'},
+                'error': {
+                    'type': 'object',
+                    'properties': {
+                        'code': {'type': 'integer'},
+                        'message': {'type': 'string'},
+                        'data': {},
+                    },
+                    'required': ['code', 'message'],
+                },
+            },
+            'required': ['jsonrpc'],
+        },
+        'McpToolResult': {
+            'type': 'object',
+            'properties': {
+                'content': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'type': {'type': 'string', 'enum': ['text']},
+                            'text': {'type': 'string'},
+                        },
+                        'required': ['type', 'text'],
+                    },
+                },
+            },
+            'required': ['content'],
+        },
+        'McpResourceTemplateList': {
+            'type': 'object',
+            'properties': {
+                'resourceTemplates': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'uriTemplate': {'type': 'string'},
+                            'name': {'type': 'string'},
+                            'description': {'type': 'string'},
+                            'mimeType': {'type': 'string'},
+                        },
+                        'required': ['uriTemplate', 'name'],
+                    },
+                },
+            },
+            'required': ['resourceTemplates'],
+        },
+    }
+
+
 def generate() -> dict[str, Any]:
     routes = _discover_routes()
     routes.sort(key=lambda r: (r['path'], r['method']))
@@ -1550,6 +2030,19 @@ def generate() -> dict[str, Any]:
         openapi_path = _flask_path_to_openapi(route['path'])
         paths.setdefault(openapi_path, {})
         paths[openapi_path][route['method']] = _build_operation(route, schemas_seen)
+
+    # ------------------------------------------------------------------
+    # MCP surface — synthesised paths, one per registered @mcp_tool /
+    # @mcp_resource. The runtime dispatch is still the single JSON-RPC
+    # POST /api/v2/mcp entry (also emitted below); these synthesised
+    # entries exist so Redoc renders every MCP tool inline alongside
+    # the REST endpoints.
+    # ------------------------------------------------------------------
+    mcp_tools = _discover_mcp_tools()
+    mcp_resources = _discover_mcp_resources()
+    for path, method, op in _build_mcp_operations(mcp_tools, mcp_resources):
+        paths.setdefault(path, {})
+        paths[path][method] = op
 
     components = _shared_components()
     ast_index = _build_schema_ast_index()
@@ -1587,6 +2080,12 @@ def generate() -> dict[str, Any]:
 
     for (component, _source_cls, _mode) in sorted(resolved):
         components['schemas'][component] = resolved[(component, _source_cls, _mode)]
+
+    # MCP-specific components (JSON-RPC envelopes, tool result wrapper,
+    # resource template list). Added after resolution so alphabetical
+    # sort places them among the Mc… slice deterministically.
+    for name, schema in sorted(_mcp_component_schemas().items()):
+        components['schemas'][name] = schema
 
     spec: dict[str, Any] = {
         'openapi': '3.1.0',

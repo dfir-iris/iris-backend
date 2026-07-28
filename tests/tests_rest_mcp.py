@@ -318,3 +318,68 @@ class TestsRestMcp(TestCase):
         self.assertIn('mcp', payload)
         self.assertTrue(payload['mcp']['enabled'])
         self.assertEqual('/api/v2/mcp', payload['mcp']['endpoint'])
+
+    # ---- Extended resource templates ------------------------------------
+
+    def test_mcp_resource_templates_include_extended_set(self):
+        self._enable_mcp()
+        response = self._mcp_post(_rpc('resources/templates/list'),
+                                  api_key=self._admin_key())
+        templates = response.json()['result']['resourceTemplates']
+        uris = {t['uriTemplate'] for t in templates}
+        # Case-extended
+        self.assertIn('iris://cases/{case_id}/evidences', uris)
+        self.assertIn('iris://cases/{case_id}/events', uris)
+        self.assertIn('iris://cases/{case_id}/timelines', uris)
+        self.assertIn('iris://cases/{case_id}/activities', uris)
+        self.assertIn('iris://cases/{case_id}/war-rooms', uris)
+        self.assertIn('iris://cases/{case_id}/source-alert-cluster', uris)
+        self.assertIn('iris://cases/{case_id}/followers', uris)
+        # Alert-cluster
+        self.assertIn('iris://alert-clusters/{cluster_id}', uris)
+        self.assertIn('iris://alert-clusters/{cluster_id}/graph', uris)
+        # War-room
+        self.assertIn('iris://war-rooms/{war_room_id}', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/chat', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/notes', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/tasks', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/timelines', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/sitreps', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/teams', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/datastore', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/members', uris)
+        self.assertIn('iris://war-rooms/{war_room_id}/cases', uris)
+        self.assertIn(
+            'iris://war-rooms/{war_room_id}/linked-case-timelines', uris)
+
+    def test_mcp_resource_read_case_activities_after_tool_call(self):
+        self._enable_mcp()
+        case_id = self._subject.create_dummy_case()
+        # A tool call emits a `mcp:iris_cases_get` activity row.
+        self._mcp_post(_rpc('tools/call', {
+            'name': 'iris_cases_get',
+            'arguments': {'case_identifier': case_id},
+        }), api_key=self._admin_key())
+        # Read that activity via the resource.
+        read = self._mcp_post(_rpc('resources/read', {
+            'uri': f'iris://cases/{case_id}/activities',
+        }), api_key=self._admin_key())
+        self.assertEqual(200, read.status_code)
+        import json as _json
+        payload = _json.loads(read.json()['result']['contents'][0]['text'])
+        self.assertIn('activities', payload)
+        # At least the mcp:iris_cases_get audit row is present.
+        acts = payload['activities']
+        self.assertTrue(any('mcp:iris_cases_get' in str(a) for a in acts))
+
+    def test_mcp_resource_read_unknown_case_returns_access_denied(self):
+        self._enable_mcp()
+        # No such case; the ACL check fires before we look up the row,
+        # yielding `IRIS_ACCESS_DENIED` rather than `not found`. Either
+        # outcome is acceptable — the important thing is that we don't
+        # leak the case's existence.
+        response = self._mcp_post(_rpc('resources/read', {
+            'uri': 'iris://cases/999999999/evidences',
+        }), api_key=self._admin_key())
+        self.assertEqual(200, response.status_code)
+        self.assertIn('error', response.json())

@@ -1551,6 +1551,25 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/bug-reports:
+    post:
+      operationId: bug_report_submit_post
+      summary: Submit a manual bug report (fallback path)
+      tags:
+      - BugReports
+      security:
+      - ApiKey: []
+      description: "Body: `{title, description, url?, user_agent?, request_id?}`.\nScreenshots aren't\
+        \ stored on this path \u2014 the Sentry `captureFeedback`\nroute handles binary attachments. When\
+        \ reporting is disabled, the\nfallback deliberately keeps the payload light so the activity log\n\
+        stays useful."
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/cases:
     get:
       operationId: get_cases_get
@@ -9337,6 +9356,26 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/runtime-config:
+    get:
+      operationId: runtime_config_get_get
+      summary: Runtime config digest for the SPA (browser-safe subset)
+      tags:
+      - RuntimeConfig
+      security:
+      - ApiKey: []
+      description: 'Currently only the error-reporting slice. Future runtime toggles
+
+        that the SPA needs at boot go under new top-level keys on this
+
+        response so the SPA can consume them additively.'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/search:
     get:
       operationId: search_across_cases_get
@@ -12061,6 +12100,1662 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/mcp:
+    post:
+      operationId: mcp_jsonrpc_post
+      summary: MCP JSON-RPC endpoint (single POST, multiplexes every MCP method)
+      description: 'Streamable-HTTP MCP transport. Send a JSON-RPC 2.0 request or batch; methods include
+        `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/templates/list`, `resources/read`,
+        `ping`. Authenticate with X-IRIS-AUTH or Authorization: Bearer. See the individual tool operations
+        under the `MCP` tag for a per-tool schema view.'
+      tags:
+      - MCP
+      security:
+      - ApiKey: []
+      x-mcp: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpJsonRpcRequest'
+      responses:
+        '200':
+          description: JSON-RPC response (result or error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpJsonRpcResponse'
+        '202':
+          description: "Accepted (notification \u2014 no body)."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ApiError'
+  /api/v2/mcp/tools/iris_alerts_escalate:
+    post:
+      operationId: mcp_tool_iris_alerts_escalate
+      summary: Escalate an alert to a brand-new case. Optionally imports IOCs and assets from the alert
+        into the case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_escalate
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_escalate\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alert_identifier:
+                  type: integer
+                iocs_import_list:
+                  type: array
+                assets_import_list:
+                  type: array
+                note:
+                  type: string
+                import_as_event:
+                  type: boolean
+                case_tags:
+                  type: string
+                case_title:
+                  type: string
+                case_template_id:
+                  type: integer
+              required:
+              - alert_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_get:
+    post:
+      operationId: mcp_tool_iris_alerts_get
+      summary: Fetch a single alert by ID.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_get\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alert_identifier:
+                  type: integer
+              required:
+              - alert_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_list:
+    post:
+      operationId: mcp_tool_iris_alerts_list
+      summary: Search alerts visible to the caller. All filters are optional; omit them to page through
+        every alert the caller has access to.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_list\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: integer
+                per_page:
+                  type: integer
+                sort:
+                  type: string
+                  description: Field to sort by, prefixed with - for descending.
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                severity:
+                  type: integer
+                owner:
+                  type: integer
+                source:
+                  type: string
+                tags:
+                  type: string
+                case_identifier:
+                  type: integer
+                customer_identifier:
+                  type: integer
+                classification:
+                  type: integer
+                alert_identifiers:
+                  type: string
+                  description: Comma-separated list of IDs.
+                assets:
+                  type: string
+                iocs:
+                  type: string
+                resolution_status:
+                  type: integer
+                source_reference:
+                  type: string
+                start_date:
+                  type: string
+                end_date:
+                  type: string
+                source_start_date:
+                  type: string
+                source_end_date:
+                  type: string
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_merge:
+    post:
+      operationId: mcp_tool_iris_alerts_merge
+      summary: Merge an alert into an existing case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_merge
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_merge\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alert_identifier:
+                  type: integer
+                target_case_id:
+                  type: integer
+                iocs_import_list:
+                  type: array
+                assets_import_list:
+                  type: array
+                note:
+                  type: string
+                import_as_event:
+                  type: boolean
+                case_tags:
+                  type: string
+              required:
+              - alert_identifier
+              - target_case_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_related_get:
+    post:
+      operationId: mcp_tool_iris_alerts_related_get
+      summary: Return the related-alerts graph payload for an alert.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_related_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_related_get\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alert_identifier:
+                  type: integer
+                open_alerts:
+                  type: boolean
+                closed_alerts:
+                  type: boolean
+                open_cases:
+                  type: boolean
+                closed_cases:
+                  type: boolean
+                days_back:
+                  type: integer
+                number_of_nodes:
+                  type: integer
+              required:
+              - alert_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_assets_create:
+    post:
+      operationId: mcp_tool_iris_case_assets_create
+      summary: Add a new asset to a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_assets_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_assets_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                ioc_links:
+                  type: array
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_assets_delete:
+    post:
+      operationId: mcp_tool_iris_case_assets_delete
+      summary: Delete an asset from a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_assets_delete
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_assets_delete\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                asset_identifier:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - asset_identifier
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_assets_get:
+    post:
+      operationId: mcp_tool_iris_case_assets_get
+      summary: Fetch a single asset by ID.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_assets_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_assets_get\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                asset_identifier:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - asset_identifier
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_assets_list:
+    post:
+      operationId: mcp_tool_iris_case_assets_list
+      summary: List assets attached to a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_assets_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_assets_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_assets_update:
+    post:
+      operationId: mcp_tool_iris_case_assets_update
+      summary: Update an existing case asset (partial payload accepted).
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_assets_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_assets_update\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                asset_identifier:
+                  type: integer
+                payload:
+                  type: object
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - asset_identifier
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_iocs_create:
+    post:
+      operationId: mcp_tool_iris_case_iocs_create
+      summary: Add a new IOC to a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_iocs_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_iocs_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                  description: IOC fields; see IocSchemaForAPIV2.
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_iocs_delete:
+    post:
+      operationId: mcp_tool_iris_case_iocs_delete
+      summary: Delete an IOC from a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_iocs_delete
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_iocs_delete\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ioc_identifier:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - ioc_identifier
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_iocs_get:
+    post:
+      operationId: mcp_tool_iris_case_iocs_get
+      summary: Fetch a single IOC by ID.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_iocs_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_iocs_get\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ioc_identifier:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - ioc_identifier
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_iocs_list:
+    post:
+      operationId: mcp_tool_iris_case_iocs_list
+      summary: List IOCs attached to a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_iocs_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_iocs_list\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_iocs_update:
+    post:
+      operationId: mcp_tool_iris_case_iocs_update
+      summary: Update an existing case IOC (partial payload accepted).
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_iocs_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_iocs_update\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ioc_identifier:
+                  type: integer
+                payload:
+                  type: object
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - ioc_identifier
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_notes_create:
+    post:
+      operationId: mcp_tool_iris_case_notes_create
+      summary: Create a note in a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_notes_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_notes_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                  description: "Note fields \u2014 see CaseNoteSchema (note_title, note_content, ...)."
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_notes_get:
+    post:
+      operationId: mcp_tool_iris_case_notes_get
+      summary: Fetch a single note by ID.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_notes_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_notes_get\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note_identifier:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - note_identifier
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_notes_list:
+    post:
+      operationId: mcp_tool_iris_case_notes_list
+      summary: Search case notes by free-text; returns matching note summaries. Pass an empty string to
+        list all notes in the case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_notes_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_notes_list\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                search_input:
+                  type: string
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_notes_update:
+    post:
+      operationId: mcp_tool_iris_case_notes_update
+      summary: Update a note (partial payload accepted). Automatically versions.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_notes_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_notes_update\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note_identifier:
+                  type: integer
+                payload:
+                  type: object
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - note_identifier
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_tasks_create:
+    post:
+      operationId: mcp_tool_iris_case_tasks_create
+      summary: Create a task in a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_tasks_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_tasks_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                  description: "Task fields \u2014 see CaseTaskSchema."
+                task_assignees_id:
+                  type: array
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_tasks_get:
+    post:
+      operationId: mcp_tool_iris_case_tasks_get
+      summary: Fetch a single task by ID.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_tasks_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_tasks_get\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_identifier:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - task_identifier
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_tasks_list:
+    post:
+      operationId: mcp_tool_iris_case_tasks_list
+      summary: List tasks attached to a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_tasks_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_tasks_list\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_tasks_set_status:
+    post:
+      operationId: mcp_tool_iris_case_tasks_set_status
+      summary: Set the status of a task by ID. To find the numeric status ids call `iris_case_tasks_get`
+        on any task and inspect its `status` nested object, or query the case-objects admin surface.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_tasks_set_status
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_tasks_set_status\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_identifier:
+                  type: integer
+                task_status_id:
+                  type: integer
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - task_identifier
+              - task_status_id
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_tasks_update:
+    post:
+      operationId: mcp_tool_iris_case_tasks_update
+      summary: Update a task (partial payload accepted).
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_tasks_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_tasks_update\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_identifier:
+                  type: integer
+                payload:
+                  type: object
+                task_assignees_id:
+                  type: array
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - task_identifier
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_close:
+    post:
+      operationId: mcp_tool_iris_cases_close
+      summary: Close a case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_close
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_close\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_create:
+    post:
+      operationId: mcp_tool_iris_cases_create
+      summary: Create a new case. Accepts the same payload shape as POST /api/v2/cases.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_create\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                  description: "Case fields \u2014 see CaseSchemaForAPIV2."
+                case_template_id:
+                  type: integer
+                  description: Optional case template to seed the case with.
+              required:
+              - payload
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_filter:
+    post:
+      operationId: mcp_tool_iris_cases_filter
+      summary: Filter cases by structured fields (customer, classification, owner, severity, state, SOC
+        id, dates). Returns paginated case summaries.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_filter
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_filter\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_name:
+                  type: string
+                case_description:
+                  type: string
+                case_customer_id:
+                  type: string
+                case_classification_id:
+                  type: integer
+                case_owner_id:
+                  type: integer
+                case_opening_user_id:
+                  type: integer
+                case_severity_id:
+                  type: integer
+                case_state_id:
+                  type: integer
+                case_soc_id:
+                  type: string
+                is_open:
+                  type: boolean
+                start_open_date:
+                  type: string
+                  description: ISO date
+                end_open_date:
+                  type: string
+                  description: ISO date
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_get:
+    post:
+      operationId: mcp_tool_iris_cases_get
+      summary: Fetch a single case by ID.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_get\"`. The request\
+        \ body schema below is the tool's `input_schema` (identical to what `tools/list` returns for this\
+        \ tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_list:
+    post:
+      operationId: mcp_tool_iris_cases_list
+      summary: List IRIS cases visible to the caller, with optional quick-search.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_list\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quick_search:
+                  type: string
+                  description: Free-text match on case name, customer name, or numeric ID.
+                is_open:
+                  type: boolean
+                  description: "True \u2192 only open cases, False \u2192 only closed, omit \u2192 both."
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_reopen:
+    post:
+      operationId: mcp_tool_iris_cases_reopen
+      summary: Reopen a previously-closed case.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_reopen
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_reopen\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_cases_update:
+    post:
+      operationId: mcp_tool_iris_cases_update
+      summary: Update a case. Payload accepts partial fields.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_cases_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_cases_update\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: object
+                protagonists:
+                  type: array
+                tags:
+                  type: string
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_me_context_get:
+    post:
+      operationId: mcp_tool_iris_me_context_get
+      summary: 'Return the calling user''s IRIS runtime context: server version, effective permission
+        mask + human-readable permission names.'
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_me_context_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_me_context_get\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_me_get:
+    post:
+      operationId: mcp_tool_iris_me_get
+      summary: Return the calling user's profile.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_me_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_me_get\"`. The request\
+        \ body schema below is the tool's `input_schema` (identical to what `tools/list` returns for this\
+        \ tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_search:
+    post:
+      operationId: mcp_tool_iris_search
+      summary: MCP tool iris_search
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_search
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_search\"`. The request\
+        \ body schema below is the tool's `input_schema` (identical to what `tools/list` returns for this\
+        \ tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+                  description: Text to search for.
+                types:
+                  type: array
+                  description: null
+                page:
+                  type: integer
+                per_page:
+                  type: integer
+                case_id:
+                  type: integer
+                  description: "Optional \u2014 restrict to a single case."
+                case_ids:
+                  type: array
+                  description: "Optional \u2014 restrict to these case IDs."
+              required:
+              - value
+              - types
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/resources:
+    get:
+      operationId: mcp_resources_list
+      summary: List MCP resource templates
+      description: "Synthesised documentation entry \u2014 the runtime call is POST /api/v2/mcp with `method:\
+        \ \"resources/templates/list\"`. Each template can be read via `method: \"resources/read\"` +\
+        \ `params.uri = <template>` with the placeholder(s) filled in."
+      tags:
+      - MCP
+      - MCP:resources
+      security:
+      - ApiKey: []
+      x-mcp: true
+      responses:
+        '200':
+          description: Registered resource templates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpResourceTemplateList'
+              examples:
+                iris_alert_cluster:
+                  summary: Full alert-cluster record (grouping of related alerts).
+                  value:
+                    uri: iris://alert-clusters/{cluster_id}
+                iris_alert_cluster_graph:
+                  summary: "Correlation graph payload for an alert cluster \u2014 nodes/edges of the alerts,\
+                    \ IOCs, assets, and cases inside the cluster."
+                  value:
+                    uri: iris://alert-clusters/{cluster_id}/graph
+                iris_alert:
+                  summary: Full IRIS alert record.
+                  value:
+                    uri: iris://alerts/{alert_id}
+                iris_case:
+                  summary: Full IRIS case record.
+                  value:
+                    uri: iris://cases/{case_id}
+                iris_case_activities:
+                  summary: Activity-log entries for a case (analyst / MCP audit trail).
+                  value:
+                    uri: iris://cases/{case_id}/activities
+                iris_case_assets:
+                  summary: Assets attached to a case.
+                  value:
+                    uri: iris://cases/{case_id}/assets
+                iris_case_events:
+                  summary: Timeline events attached to a case (chronological).
+                  value:
+                    uri: iris://cases/{case_id}/events
+                iris_case_evidences:
+                  summary: Evidences attached to a case.
+                  value:
+                    uri: iris://cases/{case_id}/evidences
+                iris_case_followers:
+                  summary: Users following this case (dashboard star / mention scope).
+                  value:
+                    uri: iris://cases/{case_id}/followers
+                iris_case_iocs:
+                  summary: IOCs attached to a case.
+                  value:
+                    uri: iris://cases/{case_id}/iocs
+                iris_case_notes:
+                  summary: Notes attached to a case (title + summary).
+                  value:
+                    uri: iris://cases/{case_id}/notes
+                iris_case_source_alert_cluster:
+                  summary: Alert cluster this case was created from (via escalate/merge). Empty payload
+                    when the case was not sourced from a cluster.
+                  value:
+                    uri: iris://cases/{case_id}/source-alert-cluster
+                iris_case_tasks:
+                  summary: Tasks attached to a case.
+                  value:
+                    uri: iris://cases/{case_id}/tasks
+                iris_case_timelines:
+                  summary: Grouped timelines defined on a case.
+                  value:
+                    uri: iris://cases/{case_id}/timelines
+                iris_case_war_rooms:
+                  summary: War rooms this case is attached to.
+                  value:
+                    uri: iris://cases/{case_id}/war-rooms
+                iris_me:
+                  summary: Calling user profile.
+                  value:
+                    uri: iris://me
+                iris_me_context:
+                  summary: Calling user runtime context (permissions, IRIS version).
+                  value:
+                    uri: iris://me/context
+                iris_runtime_config:
+                  summary: Server runtime configuration surface (mirrors GET /api/v2/runtime-config).
+                  value:
+                    uri: iris://runtime-config
+                iris_war_room:
+                  summary: Full war-room record.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}
+                iris_war_room_cases:
+                  summary: Cases attached to a war room.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/cases
+                iris_war_room_chat:
+                  summary: Most recent chat messages in a war room (up to 100).
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/chat
+                iris_war_room_datastore:
+                  summary: Files uploaded to a war room datastore.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/datastore
+                iris_war_room_linked_case_timelines:
+                  summary: Case timelines linked to a war room for cross-case correlation.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/linked-case-timelines
+                iris_war_room_members:
+                  summary: Members of a war room.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/members
+                iris_war_room_notes:
+                  summary: Notes attached to a war room.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/notes
+                iris_war_room_sitreps:
+                  summary: Situation reports drafted inside a war room.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/sitreps
+                iris_war_room_tasks:
+                  summary: Tasks attached to a war room.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/tasks
+                iris_war_room_teams:
+                  summary: Teams defined inside a war room (@team mentions).
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/teams
+                iris_war_room_timelines:
+                  summary: Timelines defined on a war room plus their events.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/timelines
+                iris_war_room_topics:
+                  summary: Chat topics defined on a war room.
+                  value:
+                    uri: iris://war-rooms/{war_room_id}/topics
 components:
   securitySchemes:
     ApiKey:
@@ -12087,6 +13782,8 @@ components:
       description: Resource not found
     Deleted:
       description: Resource successfully deleted
+    Unauthorized:
+      description: Missing or invalid API key / Bearer token
   schemas:
     Alert:
       type: object
@@ -15162,11 +16859,50 @@ components:
           type:
           - integer
           - 'null'
+        error_reporting_enabled:
+          type:
+          - boolean
+          - 'null'
+        error_reporting_frontend_dsn:
+          type:
+          - string
+          - 'null'
+        error_reporting_environment:
+          type:
+          - string
+          - 'null'
+        error_reporting_sample_rate:
+          type:
+          - string
+          - 'null'
+          format: decimal
+        error_reporting_include_user:
+          type:
+          - boolean
+          - 'null'
+        mcp_enabled:
+          type: boolean
+        mcp_max_calls_per_minute_per_worker:
+          type: integer
+        mcp_expose_admin_tools:
+          type: boolean
+        mcp_tool_allowlist:
+          type:
+          - string
+          - 'null'
+        mcp_tool_denylist:
+          type:
+          - string
+          - 'null'
         mail_smtp_password:
           type:
           - string
           - 'null'
         mail_imap_password:
+          type:
+          - string
+          - 'null'
+        error_reporting_backend_dsn:
           type:
           - string
           - 'null'
@@ -15276,6 +17012,45 @@ components:
           type:
           - integer
           - 'null'
+        error_reporting_enabled:
+          type:
+          - boolean
+          - 'null'
+        error_reporting_backend_dsn:
+          type:
+          - string
+          - 'null'
+        error_reporting_frontend_dsn:
+          type:
+          - string
+          - 'null'
+        error_reporting_environment:
+          type:
+          - string
+          - 'null'
+        error_reporting_sample_rate:
+          type:
+          - string
+          - 'null'
+          format: decimal
+        error_reporting_include_user:
+          type:
+          - boolean
+          - 'null'
+        mcp_enabled:
+          type: boolean
+        mcp_max_calls_per_minute_per_worker:
+          type: integer
+        mcp_expose_admin_tools:
+          type: boolean
+        mcp_tool_allowlist:
+          type:
+          - string
+          - 'null'
+        mcp_tool_denylist:
+          type:
+          - string
+          - 'null'
         has_updates_available:
           type:
           - boolean
@@ -15372,6 +17147,8 @@ components:
           type:
           - boolean
           - 'null'
+        user_mcp_allowed:
+          type: boolean
         id:
           type: integer
           format: int64
@@ -15407,6 +17184,8 @@ components:
           - string
           - 'null'
           format: date-time
+        mcp_allowed:
+          type: boolean
       required:
       - user_email
       - user_isadmin
@@ -15449,6 +17228,8 @@ components:
           type:
           - boolean
           - 'null'
+        user_mcp_allowed:
+          type: boolean
         user_groups:
           type: array
           items:
@@ -15491,6 +17272,8 @@ components:
           - string
           - 'null'
           format: date-time
+        mcp_allowed:
+          type: boolean
       required:
       - user_active
       - user_email
@@ -15532,6 +17315,8 @@ components:
           type:
           - boolean
           - 'null'
+        user_mcp_allowed:
+          type: boolean
         user_groups:
           type: array
           items:
@@ -15572,6 +17357,8 @@ components:
           - string
           - 'null'
           format: date-time
+        mcp_allowed:
+          type: boolean
       required:
       - user_active
       - user_email
@@ -15588,3 +17375,92 @@ components:
     schema_factory:
       type: object
       description: "Auto-generated placeholder \u2014 see marshables.py::schema_factory."
+    McpJsonRpcRequest:
+      type: object
+      description: JSON-RPC 2.0 request or batch. `method` selects the MCP operation; `params` carries
+        method-specific arguments.
+      properties:
+        jsonrpc:
+          type: string
+          enum:
+          - '2.0'
+        id:
+          oneOf:
+          - type: integer
+          - type: string
+          - type: 'null'
+          description: "Request id \u2014 omit for notifications."
+        method:
+          type: string
+        params:
+          type: object
+      required:
+      - jsonrpc
+      - method
+    McpJsonRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum:
+          - '2.0'
+        id:
+          oneOf:
+          - type: integer
+          - type: string
+          - type: 'null'
+        result:
+          type: object
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+            data: {}
+          required:
+          - code
+          - message
+      required:
+      - jsonrpc
+    McpResourceTemplateList:
+      type: object
+      properties:
+        resourceTemplates:
+          type: array
+          items:
+            type: object
+            properties:
+              uriTemplate:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              mimeType:
+                type: string
+            required:
+            - uriTemplate
+            - name
+      required:
+      - resourceTemplates
+    McpToolResult:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum:
+                - text
+              text:
+                type: string
+            required:
+            - type
+            - text
+      required:
+      - content

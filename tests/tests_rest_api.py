@@ -70,3 +70,23 @@ class TestsRestApi(TestCase):
         body = response.text
         self.assertIn('spec-url="/api/v2/openapi.yaml"', body)
         self.assertIn('redoc.standalone.js', body)
+
+    def test_openapi_spec_documents_mcp_surface(self):
+        """The generator emits per-tool synthesised MCP paths + a
+        canonical JSON-RPC entrypoint. Assert the shape so a regression
+        in the discovery walker doesn't silently drop them from Redoc."""
+        response = self._subject.get('/api/v2/openapi.yaml')
+        body = response.text
+        # Canonical JSON-RPC entrypoint.
+        self.assertIn('/api/v2/mcp:', body)
+        self.assertIn('mcp_jsonrpc_post', body)
+        # At least one MVP tool path (cases_get).
+        self.assertIn('/api/v2/mcp/tools/iris_cases_get', body)
+        self.assertIn('operationId: mcp_tool_iris_cases_get', body)
+        # Resource-templates listing.
+        self.assertIn('/api/v2/mcp/resources', body)
+        self.assertIn('mcp_resources_list', body)
+        # Shared component schemas.
+        for name in ('McpJsonRpcRequest', 'McpJsonRpcResponse',
+                     'McpToolResult', 'McpResourceTemplateList'):
+            self.assertIn(f'{name}:', body)
