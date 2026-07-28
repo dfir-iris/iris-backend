@@ -291,6 +291,7 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
     user_id: Optional[int] = fields.Integer(required=False)
     user_primary_organisation_id: Optional[int] = fields.Integer(required=False)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
+    user_mcp_allowed: Optional[bool] = auto_field('mcp_allowed', required=False)
 
     class Meta:
         model = User
@@ -1577,6 +1578,14 @@ class ServerSettingsSchema(ma.SQLAlchemyAutoSchema):
     error_reporting_sample_rate: Optional[float] = fields.Decimal(required=False, allow_none=True, as_string=False, places=2)
     error_reporting_include_user: Optional[bool] = fields.Boolean(required=False, allow_none=True)
 
+    # ---- MCP (Model Context Protocol) endpoint ----------------------
+    mcp_enabled: Optional[bool] = fields.Boolean(required=False)
+    mcp_max_calls_per_minute_per_worker: Optional[int] = fields.Integer(
+        required=False, validate=lambda v: 1 <= v <= 10000)
+    mcp_expose_admin_tools: Optional[bool] = fields.Boolean(required=False)
+    mcp_tool_allowlist: Optional[str] = fields.String(required=False, allow_none=True)
+    mcp_tool_denylist: Optional[str] = fields.String(required=False, allow_none=True)
+
     class Meta:
         model = ServerSettings
         load_instance = True
@@ -2661,6 +2670,7 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_password: Optional[str] = auto_field('password', required=False, load_only=True)
     user_isadmin: bool = fields.Boolean(required=True)
     user_is_service_account: Optional[bool] = auto_field('is_service_account', required=False)
+    user_mcp_allowed: Optional[bool] = auto_field('mcp_allowed', required=False)
 
     user_groups = ma.Nested(AuthorizationGroupSchema, many=True, attribute='groups', only=['group_name', 'group_id', 'group_uuid'])
     user_permissions = ma.Nested(AuthorizationGroupSchema, many=True, attribute='permissions', only=['group_name', 'group_permissions'])

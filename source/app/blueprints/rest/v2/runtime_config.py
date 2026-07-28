@@ -83,4 +83,12 @@ def runtime_config_get() -> Response:
                 getattr(settings, 'error_reporting_sample_rate', None)),
             'release': f"iris@{app.config.get('IRIS_VERSION') or 'unknown'}",
         },
+        # MCP toggle status. The endpoint URL is a constant — clients
+        # never need to guess it — but exposing the enabled bit here
+        # lets any non-admin analyst see whether the MCP surface is on
+        # without needing `server_administrator`.
+        'mcp': {
+            'enabled': bool(getattr(settings, 'mcp_enabled', False)),
+            'endpoint': '/api/v2/mcp',
+        },
     })

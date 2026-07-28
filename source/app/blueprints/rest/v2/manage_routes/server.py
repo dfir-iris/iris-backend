@@ -81,6 +81,13 @@ _ERROR_REPORTING_TRACKED_FIELDS = (
     'error_reporting_include_user',
 )
 
+# MCP settings live on the same row but need no reload side-effect —
+# the transport (see `app.blueprints.rest.v2.mcp.transport`) reads the
+# settings on every request, so flipping `mcp_enabled` and friends
+# takes effect immediately. Nothing to snapshot/compare/reload here;
+# the `dictdiffer` block below already emits an activity-log entry
+# naming the changed MCP fields alongside everything else.
+
 
 def _mail_password_flags(settings) -> dict:
     """Compact `{<field>_set: bool}` map for the mail password fields."""

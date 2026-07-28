@@ -268,6 +268,13 @@ class User(UserMixin, db.Model):
     # See migration d8e3f1a90c17.
     preferences = Column(JSONB, nullable=True)
 
+    # Per-user MCP opt-out. When False, all MCP tool/resource calls
+    # authenticated as this user are denied even if `ServerSettings.
+    # mcp_enabled` is True. Lets an admin cut MCP off for individual
+    # high-privilege accounts without disabling MCP globally.
+    mcp_allowed = Column(Boolean, nullable=False, default=True,
+                         server_default=text('true'))
+
     groups = relationship('Group', secondary='user_group', viewonly=True)
     permissions = relationship('Group', secondary='user_group', viewonly=True)
     customers = relationship('Client', secondary='user_client', viewonly=True)

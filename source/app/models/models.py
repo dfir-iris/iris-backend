@@ -565,6 +565,23 @@ class ServerSettings(db.Model):
     error_reporting_sample_rate = Column(Numeric(3, 2), nullable=True, default=1.00)
     error_reporting_include_user = Column(Boolean, nullable=True, default=False)
 
+    # ---- MCP (Model Context Protocol) endpoint -----------------------
+    # Off by default on every install. The endpoint is unconditionally
+    # registered under `/api/v2/mcp`; each request checks `mcp_enabled`
+    # so admins can toggle without a restart. Rate limit is per gunicorn
+    # worker (in-process deque state); admins should size it accordingly.
+    # See app/blueprints/rest/v2/mcp/transport.py.
+    mcp_enabled = Column(Boolean, nullable=False, default=False,
+                         server_default=text('false'))
+    mcp_max_calls_per_minute_per_worker = Column(
+        Integer, nullable=False, default=60, server_default=text('60'))
+    mcp_expose_admin_tools = Column(Boolean, nullable=False, default=False,
+                                    server_default=text('false'))
+    mcp_tool_allowlist = Column(Text, nullable=False, default='',
+                                server_default=text("''"))
+    mcp_tool_denylist = Column(Text, nullable=False, default='',
+                               server_default=text("''"))
+
 
 class IrisModule(db.Model):
     __tablename__ = "iris_module"

@@ -5,7 +5,7 @@ ignore = ["E402", "E711", "E712", "E721", "E722"]
 
 [tool.vulture]
 paths = ["source/app", ".vulture.ignore"]
-ignore_decorators = ["@*.route", "@app.*", "@*.post", "@*.get", "@*.put", "@*.patch", "@*.delete", "@*.on", "@pre_load", "@post_load", "@pre_dump", "@post_dump", "@validates_schema"]
+ignore_decorators = ["@*.route", "@app.*", "@*.post", "@*.get", "@*.put", "@*.patch", "@*.delete", "@*.on", "@pre_load", "@post_load", "@pre_dump", "@post_dump", "@validates_schema", "@mcp_tool", "@mcp_resource"]
 
 [tool.importlinter]
 root_package = "app"
