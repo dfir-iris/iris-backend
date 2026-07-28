@@ -48,6 +48,7 @@ from app.db import db
 from app.iris_engine.backup.backup import backup_iris_db
 from app.iris_engine.mail.outbound import mail_send_system
 from app.iris_engine.mail.secrets import encrypt_secret
+from app.iris_engine.llm.reload import reload_llm_client
 from app.iris_engine.observability.reporter import reload_error_reporter
 from app.iris_engine.updater.updater import remove_periodic_update_checks
 from app.iris_engine.updater.updater import setup_periodic_update_checks
@@ -87,6 +88,30 @@ _ERROR_REPORTING_TRACKED_FIELDS = (
 # takes effect immediately. Nothing to snapshot/compare/reload here;
 # the `dictdiffer` block below already emits an activity-log entry
 # naming the changed MCP fields alongside everything else.
+
+# Chatbot secret — Fernet-encrypted at rest, same treatment as the
+# error-reporting backend DSN and mail passwords.
+_CHATBOT_SECRET_FIELDS = ('chatbot_api_key',)
+
+# Any change to one of these triggers `reload_llm_client(app)` after
+# commit. `reload_llm_client` is a no-op today (the provider factory
+# reads settings on every call) but the hook is here so future caching
+# work stays wired the same way.
+_CHATBOT_TRACKED_FIELDS = (
+    'chatbot_enabled',
+    'chatbot_provider',
+    'chatbot_api_key',
+    'chatbot_model',
+    'chatbot_base_url',
+    'chatbot_max_turns_per_conversation',
+    'chatbot_max_tool_calls_per_turn',
+    'chatbot_auto_execute_read_tools',
+    'chatbot_daily_token_budget_per_user',
+    'chatbot_daily_token_budget_org',
+    'chatbot_redact_ips',
+    'chatbot_redact_emails',
+    'chatbot_redact_hashes',
+)
 
 
 def _mail_password_flags(settings) -> dict:
@@ -135,6 +160,38 @@ def _encrypt_error_reporting_secrets_in_body(body: dict) -> None:
         body[field] = encrypt_secret(raw)
 
 
+def _encrypt_chatbot_secrets_in_body(body: dict) -> None:
+    """In-place: Fernet-wrap the chatbot API key — same rules as above."""
+    for field in _CHATBOT_SECRET_FIELDS:
+        if field not in body:
+            continue
+        raw = body[field]
+        if raw is None or raw == '':
+            body[field] = None
+            continue
+        body[field] = encrypt_secret(raw)
+
+
+def _chatbot_flags(settings) -> dict:
+    """Compact `{<field>_set: bool}` map for the masked chatbot fields."""
+    return {
+        f'{field}_set': bool(getattr(settings, field, None))
+        for field in _CHATBOT_SECRET_FIELDS
+    }
+
+
+def _snapshot_chatbot(settings) -> dict:
+    return {field: getattr(settings, field, None)
+            for field in _CHATBOT_TRACKED_FIELDS}
+
+
+def _chatbot_changed(before: dict, settings) -> bool:
+    return any(
+        before[field] != getattr(settings, field, None)
+        for field in _CHATBOT_TRACKED_FIELDS
+    )
+
+
 def _redact_secrets_in_changes(changes: list) -> list:
     """Replace secret values in the diff with a sentinel.
 
@@ -149,6 +206,7 @@ def _redact_secrets_in_changes(changes: list) -> list:
     redacted_keys = {
         'error_reporting_backend_dsn',
         'error_reporting_frontend_dsn',
+        'chatbot_api_key',
     }
     out = []
     for entry in changes:
@@ -219,6 +277,7 @@ class ServerOperations:
         settings_dump = self._schema.dump(settings)
         settings_dump.update(_mail_password_flags(settings))
         settings_dump.update(_error_reporting_flags(settings))
+        settings_dump.update(_chatbot_flags(settings))
 
         return response_api_success({
             'settings': settings_dump,
@@ -254,11 +313,13 @@ class ServerOperations:
         # load — the DB column should never hold a plaintext value.
         _encrypt_mail_passwords_in_body(body)
         _encrypt_error_reporting_secrets_in_body(body)
+        _encrypt_chatbot_secrets_in_body(body)
         # Snapshot mail interval so we can nudge the beat scheduler
         # if the operator changes it below.
         old_imap_interval = settings.mail_imap_poll_interval_sec
         old_imap_enabled = settings.mail_imap_enabled
         error_reporting_before = _snapshot_error_reporting(settings)
+        chatbot_before = _snapshot_chatbot(settings)
 
         try:
             original_dump = self._schema.dump(settings)
@@ -300,6 +361,13 @@ class ServerOperations:
             if _error_reporting_changed(error_reporting_before, updated):
                 reload_error_reporter(app)
 
+            # Chatbot reload is a no-op today (the provider factory
+            # re-reads settings on every call) but the hook is here so
+            # a future cached provider only needs one place to grow the
+            # invalidation logic.
+            if _chatbot_changed(chatbot_before, updated):
+                reload_llm_client(app)
+
             track_activity(f'Server settings updated: {changes}', ctx_less=True)
             # Re-cache the dump on app.config so other code paths that
             # read `app.config['SERVER_SETTINGS']` see the new values
@@ -307,6 +375,7 @@ class ServerOperations:
             settings_dump = self._schema.dump(updated)
             settings_dump.update(_mail_password_flags(updated))
             settings_dump.update(_error_reporting_flags(updated))
+            settings_dump.update(_chatbot_flags(updated))
             app.config['SERVER_SETTINGS'] = settings_dump
             return response_api_success(settings_dump)
 
