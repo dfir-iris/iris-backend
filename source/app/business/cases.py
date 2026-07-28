@@ -276,11 +276,29 @@ def cases_delete(case_identifier):
         raise BusinessProcessingError('Cannot delete the case. Please check server logs for additional informations')
 
 
-def cases_update(case: Cases, updated_case, protagonists, tags) -> Cases:
+def cases_update(case: Cases, updated_case, protagonists, tags,
+                 previous_case_state: int | None = None,
+                 previous_reviewer_id: int | None = None) -> Cases:
+    """Persist an update to a case.
+
+    `case` and `updated_case` are the same SQLAlchemy instance because the
+    v2 schema uses `load_instance=True` — by the time we get here
+    `case.state_id` is already the NEW value. Callers that need the
+    state-transition side-effects (close_date, alert cascade, reviewer
+    reset) MUST snapshot the previous state/reviewer BEFORE running
+    `schema.load(instance=case)` and pass them in explicitly.
+    """
     try:
         closed_state_id = get_case_state_by_name('Closed').state_id
-        previous_case_state = case.state_id
-        case_previous_reviewer_id = case.reviewer_id
+        # Snapshot fallbacks — some callers (legacy paths) still rely on
+        # the pre-mutation values landing here. `previous_case_state` /
+        # `previous_reviewer_id` win when supplied so the v2 route can
+        # capture the truth before schema.load mutates the instance.
+        if previous_case_state is None:
+            previous_case_state = case.state_id
+        if previous_reviewer_id is None:
+            previous_reviewer_id = case.reviewer_id
+        case_previous_reviewer_id = previous_reviewer_id
         db.session.commit()
 
         if previous_case_state != updated_case.state_id:

@@ -336,6 +336,14 @@ class CasesOperations:
                 request_data['reviewer_id'] = None
             request_data.pop('review_status', None)
 
+            # The v2 CaseSchema uses `load_instance=True`, so schema.load
+            # mutates `case` in place: after the call, `case.state_id` is
+            # already the new value. Snapshot the pre-mutation state/
+            # reviewer here so cases_update can detect a real transition
+            # and run the close_date + alert-cascade side effects.
+            previous_case_state = case.state_id
+            previous_reviewer_id = case.reviewer_id
+
             updated_case = self._schema.load(
                 request_data,
                 instance=case,
@@ -345,7 +353,14 @@ class CasesOperations:
 
             protagonists = request_data.get('protagonists')
             tags = request_data.get('case_tags')
-            case = cases_update(case, updated_case, protagonists, tags)
+            case = cases_update(
+                case,
+                updated_case,
+                protagonists,
+                tags,
+                previous_case_state=previous_case_state,
+                previous_reviewer_id=previous_reviewer_id,
+            )
             result = self._schema.dump(case)
             return response_api_success(result)
         except ValidationError as e:
