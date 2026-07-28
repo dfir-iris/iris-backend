@@ -338,7 +338,13 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
                    # `preferences` has its own dedicated endpoints — no
                    # reason to ship a potentially large JSONB blob on
                    # every user serialisation.
-                   'preferences']
+                   'preferences',
+                   # `mcp_allowed` is re-exposed under the `user_mcp_allowed`
+                   # alias above via `auto_field('mcp_allowed', ...)`;
+                   # the raw column name must be excluded so
+                   # SQLAlchemyAutoSchema's reflective field synth doesn't
+                   # collide with the aliased declaration.
+                   'mcp_allowed']
         unknown = EXCLUDE
 
     @pre_load()
@@ -2837,7 +2843,11 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
                    'avatar_blob', 'avatar_mime',
                    # `preferences` has its own dedicated endpoints —
                    # kept out of the general user serialiser.
-                   'preferences']
+                   'preferences',
+                   # `mcp_allowed` is re-exposed via `user_mcp_allowed`
+                   # above — exclude the raw column to avoid the
+                   # SQLAlchemyAutoSchema collision.
+                   'mcp_allowed']
         unknown = EXCLUDE
 
     def get_user_primary_organisation(self, obj):
