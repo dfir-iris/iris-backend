@@ -185,21 +185,21 @@ def oidc_exchange():
         session-based OIDC login has today.
     """
     if not is_authentication_oidc():
-        return response_api_error('OIDC authentication is not enabled', 400)
+        return response_api_error('OIDC authentication is not enabled', status=400)
 
     if not iris_current_user.is_authenticated:
-        return response_api_error('Unauthorized', 401)
+        return response_api_error('Unauthorized', status=401)
 
     if not session.pop('oidc_authenticated', False):
         # The user has a valid session but it wasn't created via the OIDC
         # callback (or the marker has already been consumed by a prior
         # exchange). Do NOT mint tokens.
-        return response_api_error('No pending OIDC exchange for this session', 403)
+        return response_api_error('No pending OIDC exchange for this session', status=403)
 
     user = users_get_active(iris_current_user.id)
     if user is None:
         session.clear()
-        return response_api_error('User not active', 403)
+        return response_api_error('User not active', status=403)
 
     user_data = UserSchema(
         exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']

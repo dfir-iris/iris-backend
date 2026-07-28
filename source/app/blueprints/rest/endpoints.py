@@ -67,13 +67,13 @@ def response_api_created(data):
     return response(201, data=data)
 
 
-def response_api_error(message, data=None):
+def response_api_error(message, data=None, status=400):
     content = {
         'message': message
     }
     if data:
         content['data'] = data
-    return response(400, data=content)
+    return response(status, data=content)
 
 
 def response_api_not_found():

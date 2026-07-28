@@ -72,7 +72,7 @@ def api_auth(*, require_mfa: bool = False):
             user = _jwt_user()
 
             if user == "invalid":
-                return response_api_error("Invalid token", 401)
+                return response_api_error("Invalid token", status=401)
 
             if user is None:
                 user = _legacy_token_user()
@@ -81,14 +81,14 @@ def api_auth(*, require_mfa: bool = False):
                 user = _session_user()
 
             if user is None:
-                return response_api_error("Unauthorized", 401)
+                return response_api_error("Unauthorized", status=401)
 
             if (
                 require_mfa
                 and app.config.get("MFA_ENABLED")
                 and not user.mfa_setup_complete
             ):
-                return response_api_error("MFA required", 403)
+                return response_api_error("MFA required", status=403)
 
             g.api_user = user
             return fn(*args, **kwargs)
