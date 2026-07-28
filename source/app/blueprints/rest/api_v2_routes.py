@@ -51,6 +51,7 @@ from app.blueprints.rest.v2.mail import mail_blueprint
 from app.blueprints.rest.v2.alert_clusters import alert_clusters_blueprint
 from app.blueprints.rest.v2.cluster_rules import cluster_rules_blueprint
 from app.blueprints.rest.v2.investigation_flows import investigation_flows_blueprint
+from app.blueprints.rest.v2.case_chat import case_chat_blueprint
 from app.blueprints.rest.v2.mcp import mcp_blueprint
 
 
@@ -90,5 +91,6 @@ rest_v2_blueprint.register_blueprint(mail_blueprint)
 rest_v2_blueprint.register_blueprint(alert_clusters_blueprint)
 rest_v2_blueprint.register_blueprint(cluster_rules_blueprint)
 rest_v2_blueprint.register_blueprint(investigation_flows_blueprint)
+rest_v2_blueprint.register_blueprint(case_chat_blueprint)
 rest_v2_blueprint.register_blueprint(mcp_blueprint)
 rest_v2_blueprint.register_blueprint(api_blueprint)

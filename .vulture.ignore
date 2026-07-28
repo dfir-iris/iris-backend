@@ -513,3 +513,20 @@ user_mcp_allowed  # unused variable (source/app/schema/marshables.py:2673) — a
 last_used_at  # unused variable (source/app/models/authorization.py:354) — UserApiKey column read reflectively by marshmallow + business helpers
 last_used_at  # unused variable (source/app/schema/marshables.py:293) — UserApiKeySchema auto_field, consumed by marshmallow reflectively
 last_used_at  # unused attribute (source/app/views.py:236) — bumped in _get_user_by_api_key; read by profile/admin API-key list handlers
+######### Case-chat: SocketIO Namespace methods invoked reflectively via socket_io.on_namespace()
+on_connect
+on_disconnect
+on_join_conversation
+on_leave_conversation
+on_send
+on_approve_tool
+on_deny_tool
+######### Case-chat: model columns / schema fields read reflectively by SQLAlchemy + marshmallow
+STATUS_EXPIRED  # unused variable (source/app/models/case_chat.py:53) — future janitor sets this on stale pending_tool_call rows
+resolved_at
+resolved_by_user_id
+resolved_by  # unused variable (source/app/models/case_chat.py:184) — ORM relationship
+######### Case-chat: private helper flags used reflectively / dataclass fields
+is_classified  # helper for future runtime refuse-unknown-tool path in loop.py
+partial_json  # unused variable (source/app/iris_engine/llm/providers/base.py:42) — dataclass field written+read via getattr
+provider_code  # unused variable (source/app/iris_engine/llm/providers/base.py:68) — dataclass field on Error events

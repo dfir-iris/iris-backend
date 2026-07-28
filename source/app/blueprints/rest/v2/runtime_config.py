@@ -91,4 +91,36 @@ def runtime_config_get() -> Response:
             'enabled': bool(getattr(settings, 'mcp_enabled', False)),
             'endpoint': '/api/v2/mcp',
         },
+        # Chatbot toggle status. `provider_available` is True only when
+        # a provider + model + (for non-Ollama) an api key are all
+        # configured — used by the SPA to hide the floating FAB when
+        # the chatbot is disabled or half-configured.
+        'chatbot': _chatbot_runtime(settings),
     })
+
+
+def _chatbot_runtime(settings) -> dict:
+    """Compute the SPA's chatbot slice.
+
+    `provider_available` requires the same conditions the socket
+    handler will check: enabled, provider, model, and (for
+    non-Ollama) an api key set. We don't decrypt the key here to avoid
+    a per-request Fernet round-trip; the `chatbot_api_key` column being
+    non-empty is a good enough proxy — a stale ciphertext still hides
+    the FAB the same way.
+    """
+    enabled = bool(getattr(settings, 'chatbot_enabled', False))
+    provider = (getattr(settings, 'chatbot_provider', '') or '').lower()
+    model = getattr(settings, 'chatbot_model', '') or ''
+    api_key = getattr(settings, 'chatbot_api_key', '') or ''
+    if provider == 'ollama':
+        # Ollama typically runs unauthenticated on localhost — no key
+        # required. `chatbot_base_url` should be set though.
+        provider_available = bool(enabled and model)
+    else:
+        provider_available = bool(enabled and model and provider and api_key)
+    return {
+        'enabled': enabled,
+        'provider_available': provider_available,
+        'model': model,
+    }

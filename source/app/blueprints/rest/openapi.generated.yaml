@@ -1570,6 +1570,160 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/case-chat/cases/{case_id}/conversations:
+    get:
+      operationId: list_case_conversations_get
+      summary: List the caller's chat conversations for a case
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_case_conversation_post
+      summary: Start a new chat conversation scoped to a case
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/case-chat/conversations/{conversation_id}:
+    delete:
+      operationId: delete_conversation_delete
+      summary: Archive (soft-delete) a conversation
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_conversation_get
+      summary: Fetch a conversation with its full message history
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/case-chat/global/conversations:
+    get:
+      operationId: list_global_conversations_get
+      summary: List the caller's global (no-case-scope) chat conversations
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_global_conversation_post
+      summary: Start a new global (no-case-scope) chat conversation
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/case-chat/health:
+    get:
+      operationId: health_get
+      summary: Return whether the chatbot is enabled and configured
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/cases:
     get:
       operationId: get_cases_get
@@ -5930,6 +6084,28 @@ paths:
                     type:
                     - integer
                     - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/case-chat/egress-audit:
+    get:
+      operationId: list_egress_audit_get
+      summary: List recent chatbot egress-audit rows
+      tags:
+      - ManageCaseChat
+      security:
+      - ApiKey: []
+      description: "Query params:\n* `limit`   \u2014 max rows to return (default 100, cap 1000)\n* `offset`\
+        \  \u2014 pagination offset\n* `user_id` \u2014 filter to a single user (optional)\n* `days` \
+        \   \u2014 window size (default 30)"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatEgressAudit'
         '400':
           $ref: '#/components/responses/ApiError'
         '403':
@@ -14713,6 +14889,70 @@ components:
       - asset_name
       - asset_type_id
       description: Schema for serializing and deserializing CaseAssets objects.
+    CaseChatConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        case_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        model:
+          type: string
+        title:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      description: Serialize a `CaseChatConversation` row.
+    CaseChatEgressAudit:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        conversation_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        provider:
+          type: string
+        model:
+          type: string
+        request_bytes:
+          type: integer
+        response_bytes:
+          type: integer
+        prompt_tokens:
+          type:
+          - integer
+          - 'null'
+        completion_tokens:
+          type:
+          - integer
+          - 'null'
+        redacted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      description: Serialize a `CaseChatEgressAudit` row for the admin audit page.
     CaseClassification:
       type: object
       properties:
@@ -17025,6 +17265,36 @@ components:
           type:
           - boolean
           - 'null'
+        chatbot_enabled:
+          type: boolean
+        chatbot_provider:
+          type:
+          - string
+          - 'null'
+        chatbot_model:
+          type:
+          - string
+          - 'null'
+        chatbot_base_url:
+          type:
+          - string
+          - 'null'
+        chatbot_max_turns_per_conversation:
+          type: integer
+        chatbot_max_tool_calls_per_turn:
+          type: integer
+        chatbot_auto_execute_read_tools:
+          type: boolean
+        chatbot_daily_token_budget_per_user:
+          type: integer
+        chatbot_daily_token_budget_org:
+          type: integer
+        chatbot_redact_ips:
+          type: boolean
+        chatbot_redact_emails:
+          type: boolean
+        chatbot_redact_hashes:
+          type: boolean
         mcp_enabled:
           type: boolean
         mcp_max_calls_per_minute_per_worker:
@@ -17048,6 +17318,10 @@ components:
           - string
           - 'null'
         error_reporting_backend_dsn:
+          type:
+          - string
+          - 'null'
+        chatbot_api_key:
           type:
           - string
           - 'null'
@@ -17182,6 +17456,40 @@ components:
           type:
           - boolean
           - 'null'
+        chatbot_enabled:
+          type: boolean
+        chatbot_provider:
+          type:
+          - string
+          - 'null'
+        chatbot_api_key:
+          type:
+          - string
+          - 'null'
+        chatbot_model:
+          type:
+          - string
+          - 'null'
+        chatbot_base_url:
+          type:
+          - string
+          - 'null'
+        chatbot_max_turns_per_conversation:
+          type: integer
+        chatbot_max_tool_calls_per_turn:
+          type: integer
+        chatbot_auto_execute_read_tools:
+          type: boolean
+        chatbot_daily_token_budget_per_user:
+          type: integer
+        chatbot_daily_token_budget_org:
+          type: integer
+        chatbot_redact_ips:
+          type: boolean
+        chatbot_redact_emails:
+          type: boolean
+        chatbot_redact_hashes:
+          type: boolean
         mcp_enabled:
           type: boolean
         mcp_max_calls_per_minute_per_worker:
