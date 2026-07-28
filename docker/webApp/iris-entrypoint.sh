@@ -126,10 +126,18 @@ else
     # so socket / ssl / threading / psycopg2 are all patched by the
     # time Flask-SocketIO's `async_mode='gevent'` engages.
     #
+    # `--preload` imports the app ONCE in the arbiter and forks into
+    # workers. Load-bearing: `app/__init__.py` runs `post_init.run()`
+    # at module scope, which calls `db.create_all()`; without
+    # preload every worker would race on `CREATE TABLE` and one wins,
+    # the rest crash with `UniqueViolation` on `pg_class_relname_nsp_index`.
+    # Gunicorn's gevent worker re-runs monkey-patching post-fork so
+    # cooperative concurrency still works in each child.
+    #
     # 4 workers × 1000 greenlets = 4000 concurrent sockets before we
     # need horizontal scale. Timeout raised to 300s to give the
     # chatbot's LLM streaming turns headroom.
-    gunicorn wsgi:app --bind 0.0.0.0:8000 --timeout 300 --worker-class gevent --worker-connections 1000 -w 4 --log-level=info &
+    gunicorn wsgi:app --bind 0.0.0.0:8000 --timeout 300 --worker-class gevent --worker-connections 1000 -w 4 --preload --log-level=info &
 fi
 
 while :; do tail -f /dev/null & wait $!; done
