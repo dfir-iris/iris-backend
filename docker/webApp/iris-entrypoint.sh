@@ -137,7 +137,13 @@ else
     # 4 workers × 1000 greenlets = 4000 concurrent sockets before we
     # need horizontal scale. Timeout raised to 300s to give the
     # chatbot's LLM streaming turns headroom.
-    gunicorn wsgi:app --bind 0.0.0.0:8000 --timeout 300 --worker-class gevent --worker-connections 1000 -w 4 --preload --log-level=info &
+    # `geventwebsocket.gunicorn.workers.GeventWebSocketWorker` extends
+    # the plain gevent worker with the WS handshake logic — plain
+    # `--worker-class gevent` refuses the /socket.io/ WS upgrade with
+    # NS_ERROR_WEBSOCKET_CONNECTION_REFUSED (polling fallback still
+    # works, but that's not the point of gevent). This is the standard
+    # Flask-SocketIO + gevent recipe.
+    gunicorn wsgi:app --bind 0.0.0.0:8000 --timeout 300 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 -w 4 --preload --log-level=info &
 fi
 
 while :; do tail -f /dev/null & wait $!; done
