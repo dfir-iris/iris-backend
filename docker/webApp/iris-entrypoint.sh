@@ -120,7 +120,16 @@ if [[ "${target}" == iris-worker ]] ; then
         celery -A app.celery worker -c $NUMBER_OF_CHILD -E -B -l $LOG_LEVEL &
     fi
 else
-    gunicorn app:app --bind 0.0.0.0:8000 --timeout 180 --worker-connections 1000 --threads 100 -w 1 --log-level=info &
+    # gevent worker: cooperative concurrency, one greenlet per open
+    # connection. `wsgi:app` (source/wsgi.py) does gevent.monkey.patch_all()
+    # + psycogreen.gevent.patch_psycopg() BEFORE `from app import app`
+    # so socket / ssl / threading / psycopg2 are all patched by the
+    # time Flask-SocketIO's `async_mode='gevent'` engages.
+    #
+    # 4 workers × 1000 greenlets = 4000 concurrent sockets before we
+    # need horizontal scale. Timeout raised to 300s to give the
+    # chatbot's LLM streaming turns headroom.
+    gunicorn wsgi:app --bind 0.0.0.0:8000 --timeout 300 --worker-class gevent --worker-connections 1000 -w 4 --log-level=info &
 fi
 
 while :; do tail -f /dev/null & wait $!; done
