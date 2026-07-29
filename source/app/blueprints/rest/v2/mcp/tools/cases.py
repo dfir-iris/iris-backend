@@ -34,6 +34,64 @@ _case_schema = CaseSchemaForAPIV2()
 _case_details_schema = CaseDetailsSchema()
 
 
+# Explicit `payload` schema for create + update. Mirrors
+# `CaseSchemaForAPIV2` field-by-field. `additionalProperties: false`
+# stops the model from inventing fields (e.g. `closing_note`) that
+# would fail Marshmallow validation with "Unknown field" or "Invalid
+# X" errors and waste a turn. Update reuses the same shape but with
+# nothing required — Marshmallow's `partial=True` handles that.
+_CASE_PAYLOAD_PROPERTIES: dict[str, dict] = {
+    'case_name': {
+        'type': 'string',
+        'minLength': 2,
+        'description': 'Case title.',
+    },
+    'case_description': {
+        'type': 'string',
+        'minLength': 2,
+        'description': 'Case description / summary. Update this to attach a closing note or post-mortem — there is no separate closing_note field.',
+    },
+    'case_soc_id': {
+        'type': 'integer',
+        'description': 'SOC ticket / ID.',
+    },
+    'case_customer_id': {
+        'type': 'integer',
+        'description': 'Customer (client) id. Required on create; on update it must match the case\'s existing customer or an admin-configured allow-list.',
+    },
+    'case_organisations': {
+        'type': 'array',
+        'items': {'type': 'integer'},
+        'description': 'Organisation ids attached to the case.',
+    },
+    'case_tags': {
+        'type': 'string',
+        'description': 'Comma-separated tag list.',
+    },
+    'initial_date': {
+        'type': 'string',
+        'description': 'ISO datetime for when the incident began.',
+    },
+    'classification_id': {
+        'type': 'integer',
+        'description': 'Case classification id.',
+    },
+    'reviewer_id': {
+        'type': 'integer',
+        'description': 'User id of the case reviewer.',
+    },
+    'access_level': {
+        'type': 'integer',
+        'description': 'Numeric access-level enum.',
+    },
+    'protagonists': {
+        'type': 'array',
+        'items': {'type': 'object'},
+        'description': 'Structured protagonist entries.',
+    },
+}
+
+
 @mcp_tool(
     name='iris_cases_list',
     description='List IRIS cases visible to the caller, with optional quick-search.',
@@ -139,7 +197,13 @@ def iris_cases_get(args: dict) -> dict:
         'properties': {
             'payload': {
                 'type': 'object',
-                'description': 'Case fields — see CaseSchemaForAPIV2.',
+                'description': 'Case fields.',
+                'properties': _CASE_PAYLOAD_PROPERTIES,
+                'required': [
+                    'case_name', 'case_description',
+                    'case_soc_id', 'case_customer_id',
+                ],
+                'additionalProperties': False,
             },
             'case_template_id': {
                 'type': 'integer',
@@ -168,11 +232,20 @@ def iris_cases_create(args: dict) -> dict:
 
 @mcp_tool(
     name='iris_cases_update',
-    description='Update a case. Payload accepts partial fields.',
+    description=(
+        'Update a case. Payload accepts partial fields — omit fields you do not want to '
+        'change. To attach a closing / post-mortem note, update `case_description` or call '
+        '`iris_case_notes_create` — there is no dedicated closing_note field.'
+    ),
     input_schema={
         'type': 'object',
         'properties': {
-            'payload': {'type': 'object'},
+            'payload': {
+                'type': 'object',
+                'description': 'Partial case fields to update.',
+                'properties': _CASE_PAYLOAD_PROPERTIES,
+                'additionalProperties': False,
+            },
             'protagonists': {'type': 'array'},
             'tags': {'type': 'string'},
         },

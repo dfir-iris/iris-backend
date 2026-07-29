@@ -219,6 +219,26 @@ def delete_conversation(conversation_id: int):
     return response_api_deleted()
 
 
+@case_chat_blueprint.patch('/conversations/<int:conversation_id>')
+@ac_api_requires(Permissions.standard_user)
+@api_doc(
+    response=CaseChatConversationSchema, tags=['CaseChat'],
+    summary='Rename a conversation',
+)
+def rename_conversation(conversation_id: int):
+    conv, err = _require_own_conversation(conversation_id)
+    if err is not None:
+        return err
+    body = request.get_json(silent=True) or {}
+    if 'title' not in body:
+        return response_api_error('title is required')
+    title = body['title']
+    if not isinstance(title, str):
+        return response_api_error('title must be a string')
+    conv = case_chat_biz.rename_conversation(conv, title)
+    return response_api_success(_conv_schema.dump(conv))
+
+
 # ---- Configuration health probe (used by the SPA to render the
 # panel's "chatbot is down" empty state).
 

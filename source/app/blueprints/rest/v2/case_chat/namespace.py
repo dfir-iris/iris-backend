@@ -44,16 +44,34 @@ logger = logging.getLogger('iris.chatbot.namespace')
 
 NAMESPACE = '/chat'
 
-# Same in-memory sid → user_id mapping the notifications namespace uses.
-# Persists across events on the same socket so we can identify the
-# caller even when Flask-SocketIO's per-event request context doesn't
-# carry `g.auth_user` (JWT-only auth path).
-_sid_user_ids: dict[str, int] = {}
+# sid → full JWT `user_data` payload. Persists across events on the
+# same socket so per-event handlers can rehydrate `g.auth_user` — the
+# per-event request context Flask-SocketIO builds does NOT carry the
+# connect-time `g.auth_user`, which is why the naked
+# `iris_current_user` fell through to `AnonymousUserMixin` inside
+# `on_send` / `on_join_conversation` etc. and `.id` raised.
+_sid_user_data: dict[str, dict[str, Any]] = {}
 
 # Per-user open-connection cap (§7 safety-g). Blunts a runaway loop or
 # malicious script that pops N sockets to burn LLM tokens.
 _MAX_SOCKETS_PER_USER = 3
 _sid_by_user: dict[int, set[str]] = {}
+
+
+def _install_auth_context() -> int | None:
+    """Copy the connect-time `user_data` onto `g` so `iris_current_user`
+    resolves inside this per-event request context.
+
+    Called at the top of every event handler. Returns the user id, or
+    `None` if the sid isn't in our map (rare — connect handshake failed
+    or the entry was already reaped).
+    """
+    payload = _sid_user_data.get(getattr(request, 'sid', None))
+    if payload is None:
+        return None
+    g.auth_user = payload
+    g.auth_token_user_id = payload['user_id']
+    return payload['user_id']
 
 
 def _current_user_id() -> int | None:
@@ -62,7 +80,8 @@ def _current_user_id() -> int | None:
         uid = getattr(user, 'id', None)
         if uid:
             return uid
-    return _sid_user_ids.get(getattr(request, 'sid', None))
+    payload = _sid_user_data.get(getattr(request, 'sid', None))
+    return payload['user_id'] if payload else None
 
 
 class ChatNamespace(Namespace):
@@ -78,26 +97,38 @@ class ChatNamespace(Namespace):
         `_MAX_SOCKETS_PER_USER` — a fourth concurrent chat socket for
         the same user is refused.
         """
-        user_id: int | None = None
+        user_payload: dict[str, Any] | None = None
+
         if is_user_authenticated(request):
             user_obj = iris_current_user._get_current_object()  # type: ignore[attr-defined]
-            user_id = getattr(user_obj, 'id', None) if user_obj else None
+            uid = getattr(user_obj, 'id', None) if user_obj else None
+            if uid:
+                # Synthesise the same payload shape `validate_auth_token`
+                # returns so per-event rehydration works uniformly for
+                # session-auth and token-auth sockets.
+                user_payload = {
+                    'user_id': uid,
+                    'user_login': getattr(user_obj, 'user', ''),
+                    'user_name': getattr(user_obj, 'name', ''),
+                    'user_email': getattr(user_obj, 'email', ''),
+                }
 
-        if user_id is None and isinstance(auth, dict):
+        if user_payload is None and isinstance(auth, dict):
             token = auth.get('token')
             if isinstance(token, str) and token:
-                user_data = validate_auth_token(token)
-                if user_data and not (
-                    user_data.get('mfa_required')
-                    and not user_data.get('mfa_verified')
+                data = validate_auth_token(token)
+                if data and not (
+                    data.get('mfa_required')
+                    and not data.get('mfa_verified')
                 ):
-                    g.auth_user = user_data
-                    g.auth_token_user_id = user_data['user_id']
-                    user_id = user_data['user_id']
+                    g.auth_user = data
+                    g.auth_token_user_id = data['user_id']
+                    user_payload = data
 
-        if not user_id:
+        if not user_payload:
             return False
 
+        user_id = user_payload['user_id']
         open_for_user = _sid_by_user.setdefault(user_id, set())
         if len(open_for_user) >= _MAX_SOCKETS_PER_USER:
             logger.info(
@@ -106,7 +137,7 @@ class ChatNamespace(Namespace):
             )
             return False
 
-        _sid_user_ids[request.sid] = user_id
+        _sid_user_data[request.sid] = user_payload
         open_for_user.add(request.sid)
         # Per-user room lets the server broadcast to every open panel
         # for the same user (e.g. mark a conversation as resolved).
@@ -115,8 +146,9 @@ class ChatNamespace(Namespace):
 
     def on_disconnect(self, reason: Any = None) -> None:
         sid = request.sid
-        user_id = _sid_user_ids.pop(sid, None)
-        if user_id is not None:
+        payload = _sid_user_data.pop(sid, None)
+        if payload is not None:
+            user_id = payload['user_id']
             sids = _sid_by_user.get(user_id)
             if sids is not None:
                 sids.discard(sid)
@@ -133,6 +165,9 @@ class ChatNamespace(Namespace):
         both see streaming deltas. Access is verified here — you can
         only join a conversation you own.
         """
+        if _install_auth_context() is None:
+            emit('error', {'message': 'Unauthenticated.'})
+            return
         conversation_id = _int(data, 'conversation_id')
         if conversation_id is None:
             emit('error', {'message': 'conversation_id is required'})
@@ -155,6 +190,7 @@ class ChatNamespace(Namespace):
         emit('joined', {'conversation_id': conv.id})
 
     def on_leave_conversation(self, data: Any) -> None:
+        # No auth rehydrate needed — leave_room is scoped to this sid.
         conversation_id = _int(data, 'conversation_id')
         if conversation_id is not None:
             leave_room(f'conv-{conversation_id}')
@@ -163,6 +199,9 @@ class ChatNamespace(Namespace):
 
     def on_send(self, data: Any) -> None:
         """Client → server: append a user turn, run one loop iteration."""
+        if _install_auth_context() is None:
+            emit('error', {'message': 'Unauthenticated.'})
+            return
         conversation_id = _int(data, 'conversation_id')
         user_text = (data or {}).get('user_text') if isinstance(data, dict) else None
         if conversation_id is None or not isinstance(user_text, str) or not user_text.strip():
@@ -204,6 +243,9 @@ class ChatNamespace(Namespace):
     # --- resolve pending tool calls --------------------------------
 
     def on_approve_tool(self, data: Any) -> None:
+        if _install_auth_context() is None:
+            emit('error', {'message': 'Unauthenticated.'})
+            return
         pending_id = _int(data, 'pending_tool_call_id')
         if pending_id is None:
             emit('error', {'message': 'pending_tool_call_id is required'})
@@ -215,6 +257,9 @@ class ChatNamespace(Namespace):
         )
 
     def on_deny_tool(self, data: Any) -> None:
+        if _install_auth_context() is None:
+            emit('error', {'message': 'Unauthenticated.'})
+            return
         pending_id = _int(data, 'pending_tool_call_id')
         if pending_id is None:
             emit('error', {'message': 'pending_tool_call_id is required'})

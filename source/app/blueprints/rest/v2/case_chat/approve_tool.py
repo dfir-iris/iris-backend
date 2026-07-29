@@ -27,7 +27,7 @@ from app.blueprints.rest.v2.case_chat.loop import (
 from app.blueprints.rest.v2.mcp.dispatch import MCPError, dispatch_tool_call
 from app.business import case_chat as case_chat_biz
 from app.iris_engine.utils.tracker import track_activity
-from app.models.case_chat import ROLE_TOOL, STATUS_APPROVED
+from app.models.case_chat import ROLE_TOOL
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 
 
@@ -44,7 +44,7 @@ def approve_pending_tool_call(
     and return — the caller (namespace handler) doesn't need to catch."""
     user = iris_current_user._get_current_object()  # type: ignore[attr-defined]
     try:
-        row = case_chat_biz.resolve_pending_tool_call(
+        row, transitioned = case_chat_biz.resolve_pending_tool_call(
             pending_id=pending_tool_call_id, user=user, approve=True,
         )
     except ObjectNotFoundError:
@@ -54,8 +54,10 @@ def approve_pending_tool_call(
         emit(ChatEvent('error', {'message': exc.get_message()}))
         return
 
-    if row.status != STATUS_APPROVED:
-        # Idempotent double-approve — nothing to do.
+    if not transitioned:
+        # Race lost — another approve already ran dispatch + persisted
+        # the tool_result. Doing it again would duplicate the row in
+        # history and Anthropic would 400 the next request.
         return
 
     conv = case_chat_biz.get_conversation(row.conversation_id)
@@ -114,13 +116,17 @@ def approve_pending_tool_call(
             'result': result,
         }))
 
+    # Anthropic requires `tool_result.content` to be a string or list
+    # of content blocks — a raw dict from `dispatch_tool_call` would be
+    # rejected. Route through the same coercion the read-path uses.
+    from app.blueprints.rest.v2.case_chat.loop import _tool_result_content
     case_chat_biz.append_message(
         conversation=conv,
         role=ROLE_TOOL,
         content=[{
             'type': 'tool_result',
             'tool_use_id': row.tool_use_id,
-            'content': result,
+            'content': _tool_result_content(result),
         }],
         tool_use_id=row.tool_use_id,
     )
@@ -145,7 +151,7 @@ def deny_pending_tool_call(
     re-run the loop so the LLM can react (typically by moving on)."""
     user = iris_current_user._get_current_object()  # type: ignore[attr-defined]
     try:
-        row = case_chat_biz.resolve_pending_tool_call(
+        row, transitioned = case_chat_biz.resolve_pending_tool_call(
             pending_id=pending_tool_call_id, user=user, approve=False,
         )
     except ObjectNotFoundError:
@@ -153,6 +159,11 @@ def deny_pending_tool_call(
         return
     except BusinessProcessingError as exc:
         emit(ChatEvent('error', {'message': exc.get_message()}))
+        return
+
+    if not transitioned:
+        # Race lost — the row was already resolved. Same guard as
+        # approve: don't append a second tool_result.
         return
 
     conv = case_chat_biz.get_conversation(row.conversation_id)

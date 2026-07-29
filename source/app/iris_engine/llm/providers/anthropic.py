@@ -214,8 +214,24 @@ class AnthropicProvider(LLMProvider):
 
 
 def _serialize_message(m: ChatMessage) -> dict[str, Any]:
-    """Anthropic's wire message shape matches our ChatMessage 1:1."""
-    return {'role': m.role, 'content': m.content}
+    """Convert our internal message shape to Anthropic's wire format.
+
+    Our loop persists tool results as `role='tool'` (matches OpenAI's
+    convention and keeps the classifier's read/write bookkeeping
+    symmetric). Anthropic's API only accepts `user` / `assistant`, and
+    expects tool-result blocks inside a `user` turn:
+
+        {
+          role: "user",
+          content: [{type: "tool_result", tool_use_id: "...", content: [...]}]
+        }
+
+    Our stored content already carries the `tool_result` block shape,
+    so the only fix is flipping the role label — no restructuring
+    needed on the way out.
+    """
+    role = 'user' if m.role == 'tool' else m.role
+    return {'role': role, 'content': m.content}
 
 
 def _serialize_tool(t: ToolSpec) -> dict[str, Any]:

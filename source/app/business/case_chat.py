@@ -86,6 +86,18 @@ def archive_conversation(conv: CaseChatConversation) -> CaseChatConversation:
     return conv
 
 
+def rename_conversation(
+    conv: CaseChatConversation, title: str,
+) -> CaseChatConversation:
+    """Update the human-readable title. Truncates to the column's 200-char
+    limit; empty titles are permitted (the SPA falls back to the first
+    user turn's opening words when rendering the history list)."""
+    conv.title = (title or '')[:200]
+    conv.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return conv
+
+
 # ---- Messages --------------------------------------------------------
 
 def list_messages(conversation_id: int) -> list[CaseChatMessage]:
@@ -144,13 +156,16 @@ def resolve_pending_tool_call(
     pending_id: int,
     user: User,
     approve: bool,
-) -> CaseChatPendingToolCall:
+) -> tuple[CaseChatPendingToolCall, bool]:
     """Mark a pending tool call approved or denied — with row-level lock.
 
     Uses `SELECT ... FOR UPDATE` so a double-click on Approve can't
-    dispatch the tool twice. Idempotent for the same status —
-    returning a row that's already resolved is fine, the caller
-    checks the status before dispatching.
+    dispatch the tool twice. Returns `(row, transitioned)` where
+    `transitioned` is True only for the caller that flipped the row
+    from pending — subsequent callers (double-click, retry, second
+    tab) get `(row, False)` and MUST NOT dispatch again, or the
+    `tool_result` history gets duplicated and Anthropic rejects the
+    next request with "each tool_use must have a single result".
     """
     row = (
         CaseChatPendingToolCall.query
@@ -166,13 +181,12 @@ def resolve_pending_tool_call(
             'This pending tool call belongs to another user.'
         )
     if row.status != STATUS_PENDING:
-        # Already resolved — no-op.
-        return row
+        return row, False
     row.status = STATUS_APPROVED if approve else STATUS_DENIED
     row.resolved_at = datetime.now(timezone.utc)
     row.resolved_by_user_id = user.id
     db.session.commit()
-    return row
+    return row, True
 
 
 def count_pending_tool_calls(

@@ -143,7 +143,14 @@ else
     # NS_ERROR_WEBSOCKET_CONNECTION_REFUSED (polling fallback still
     # works, but that's not the point of gevent). This is the standard
     # Flask-SocketIO + gevent recipe.
-    gunicorn wsgi:app --bind 0.0.0.0:8000 --timeout 300 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 -w 4 --preload --log-level=info &
+    # `--config scripts/gunicorn-cfg.py` wires the `post_fork` hook
+    # that disposes the SQLAlchemy engine after each worker forks —
+    # required alongside `--preload` to prevent workers from sharing
+    # inherited psycopg2 connections (protocol desync → "lost sync
+    # with server" fatal). Flags below override the config file's
+    # `bind` / `workers` / `timeout` / `worker-class` — the config
+    # file exists mostly for the hook now.
+    gunicorn wsgi:app --config scripts/gunicorn-cfg.py --bind 0.0.0.0:8000 --timeout 300 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 -w 4 --preload --log-level=info &
 fi
 
 while :; do tail -f /dev/null & wait $!; done

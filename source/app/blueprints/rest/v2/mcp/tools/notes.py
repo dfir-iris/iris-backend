@@ -19,6 +19,7 @@ from app.business.notes import (
 )
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
+from app.models.models import NoteDirectory
 from app.schema.marshables import CaseNoteSchema
 
 
@@ -80,13 +81,40 @@ def iris_case_notes_get(args: dict) -> dict:
 
 @mcp_tool(
     name='iris_case_notes_create',
-    description='Create a note in a case.',
+    description=(
+        'Create a note in a case. `directory_id` is optional — if omitted, '
+        'the note is placed in the case root directory automatically.'
+    ),
     input_schema={
         'type': 'object',
         'properties': {
             'payload': {
                 'type': 'object',
-                'description': 'Note fields — see CaseNoteSchema (note_title, note_content, ...).',
+                'description': 'Note fields.',
+                'properties': {
+                    'note_title': {
+                        'type': 'string',
+                        'maxLength': 155,
+                        'description': 'Note title (short).',
+                    },
+                    'note_content': {
+                        'type': 'string',
+                        'description': 'Note body, markdown accepted.',
+                    },
+                    'directory_id': {
+                        'type': 'integer',
+                        'description': (
+                            'Target directory id. Omit to place the note in '
+                            'the case root directory (auto-resolved).'
+                        ),
+                    },
+                    'custom_attributes': {
+                        'type': 'object',
+                        'description': 'Optional per-note custom attributes.',
+                    },
+                },
+                'required': ['note_title', 'note_content'],
+                'additionalProperties': False,
             },
         },
         'required': ['payload'],
@@ -98,9 +126,31 @@ def iris_case_notes_get(args: dict) -> dict:
 def iris_case_notes_create(args: dict) -> dict:
     try:
         payload = dict(args['payload'])
-        _note_schema.verify_directory_id(payload, caseid=args['case_identifier'])
+        case_id = args['case_identifier']
+        # If the model didn't pick a directory (very common — the LLM
+        # doesn't know the directory tree unless it also listed it), fall
+        # back to the case's root directory. `verify_directory_id` in the
+        # schema demands a non-null directory_id, so we resolve one here.
+        if not payload.get('directory_id'):
+            root = (
+                NoteDirectory.query
+                .filter(
+                    NoteDirectory.case_id == case_id,
+                    NoteDirectory.parent_id.is_(None),
+                )
+                .order_by(NoteDirectory.id)
+                .first()
+            )
+            if root is None:
+                raise MCPError(
+                    protocol.INTERNAL_ERROR,
+                    f'Case #{case_id} has no root note directory. '
+                    'This should not happen — contact an admin.',
+                )
+            payload['directory_id'] = root.id
+        _note_schema.verify_directory_id(payload, caseid=case_id)
         note = _note_schema.load(payload)
-        note = notes_create(note, args['case_identifier'])
+        note = notes_create(note, case_id)
     except ValidationError as exc:
         raise MCPError(protocol.INVALID_PARAMS, f'Validation error: {exc.messages}') from exc
     except BusinessProcessingError as exc:

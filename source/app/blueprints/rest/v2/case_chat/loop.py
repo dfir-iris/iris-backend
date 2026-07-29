@@ -187,6 +187,25 @@ def run_one_iteration(
 
 # ---- Internals -----------------------------------------------------
 
+def _tool_result_content(result: Any) -> Any:
+    """Coerce a `dispatch_tool_call` return into a shape Anthropic
+    accepts for `tool_result.content`.
+
+    Anthropic requires either a string or a list of content blocks
+    (`[{type: 'text', text: '...'}, ...]`). Our MCP dispatch returns
+    Python dicts / lists / primitives, so we JSON-encode anything
+    non-string. Kept as a helper so approve_tool.py (write dispatch)
+    and this file (read dispatch) share one funnel — the shape has to
+    be identical for the provider adapter to accept it.
+    """
+    if isinstance(result, str):
+        return result
+    try:
+        return json.dumps(result, default=str)
+    except (TypeError, ValueError):
+        return str(result)
+
+
 @dataclass
 class _TurnResult:
     terminated: bool = False       # end_turn / stop / error — done for now
@@ -440,25 +459,36 @@ def _finalise_turn(
         )
         # Persist tool_result even on failure so the model sees the
         # error and can react — better UX than silently ignoring.
+        # Anthropic requires `content` to be a string or list of
+        # content blocks; a raw dict from `dispatch_tool_call` fails
+        # validation. Serialize to a JSON string.
         case_chat_biz.append_message(
             conversation=conversation,
             role=ROLE_TOOL,
             content=[{
                 'type': 'tool_result',
                 'tool_use_id': tu['id'],
-                'content': result,
+                'content': _tool_result_content(result),
             }],
             tool_use_id=tu['id'],
         )
 
     # Pending writes: persist rows, emit assistant_tool_start events.
+    # Apply the scope override at persist time so a tab-close-and-
+    # resume-tomorrow flow doesn't lose the case scope, and so the
+    # frontend Approve card has a `case_identifier` to render in the
+    # diff-of-state description. `_dispatch_and_track` re-asserts this
+    # on approve as a belt-and-braces safety net.
     for tu in writes_to_pend:
+        raw_args = dict(tu.get('input') or {})
+        if conversation.case_id is not None:
+            raw_args['case_identifier'] = int(conversation.case_id)
         row = case_chat_biz.create_pending_tool_call(
             conversation=conversation,
             assistant_message=assistant_msg,
             tool_use_id=tu['id'],
             tool_name=tu['name'],
-            arguments=tu['input'] or {},
+            arguments=raw_args,
         )
         emit(ChatEvent('assistant_tool_start', {
             'pending_tool_call_id': row.id,
