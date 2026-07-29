@@ -74,6 +74,16 @@ def approve_pending_tool_call(
                 llm_case, conv.case_id, row.tool_name, conv.id,
             )
         args['case_identifier'] = int(conv.case_id)
+    if conv.war_room_id is not None:
+        llm_wr = args.get('war_room_id')
+        if llm_wr is not None and int(llm_wr) != int(conv.war_room_id):
+            logger.warning(
+                'chatbot approve: LLM emitted war_room_id=%s for '
+                'a conversation scoped to war_room_id=%s (tool=%s, conv=%s) '
+                '— overriding.',
+                llm_wr, conv.war_room_id, row.tool_name, conv.id,
+            )
+        args['war_room_id'] = int(conv.war_room_id)
 
     emit(ChatEvent('assistant_tool_start', {
         'tool_use_id': row.tool_use_id,

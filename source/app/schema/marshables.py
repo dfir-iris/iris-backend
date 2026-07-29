@@ -1671,6 +1671,7 @@ class CaseChatConversationSchema(ma.SQLAlchemyAutoSchema):
     """
     id: int = auto_field('id', dump_only=True)
     case_id: Optional[int] = auto_field('case_id', dump_only=True)
+    war_room_id: Optional[int] = auto_field('war_room_id', dump_only=True)
     user_id: int = auto_field('user_id', dump_only=True)
     model: str = auto_field('model', dump_only=True)
     title: str = auto_field('title', dump_only=True)

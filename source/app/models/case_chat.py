@@ -70,6 +70,16 @@ class CaseChatConversation(db.Model):
         ForeignKey('cases.case_id', ondelete='CASCADE'),
         nullable=True,
     )
+    # War-room scope. Mutually exclusive with case_id in practice
+    # (the SPA sets one or the other based on the route) but no DB
+    # constraint enforces this — an ops user could theoretically link
+    # both. The loop treats war_room_id as the primary scope when set,
+    # falling back to case_id, then unscoped ("global").
+    war_room_id = Column(
+        BigInteger,
+        ForeignKey('war_room.war_room_id', ondelete='CASCADE'),
+        nullable=True,
+    )
     user_id = Column(
         BigInteger,
         ForeignKey('user.id', ondelete='CASCADE'),
@@ -103,6 +113,8 @@ class CaseChatConversation(db.Model):
               'case_id', 'user_id', 'updated_at'),
         Index('ix_case_chat_conversation_user_updated',
               'user_id', 'updated_at'),
+        Index('ix_case_chat_conversation_wr_user_updated',
+              'war_room_id', 'user_id', 'updated_at'),
     )
 
 

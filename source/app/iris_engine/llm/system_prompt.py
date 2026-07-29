@@ -52,20 +52,29 @@ Guidelines:
 """.strip()
 
 
-def system_prompt(*, case_id: int | None) -> str:
-    """Build the effective system prompt. Case-scoped conversations
-    get a small extra paragraph telling the model which case it's
-    embedded in so it can reference the case_id naturally in its
-    output. All tool calls still have their `case_identifier`
-    overridden at dispatch — this paragraph is for narrative context
-    only.
+def system_prompt(
+    *, case_id: int | None, war_room_id: int | None = None,
+) -> str:
+    """Build the effective system prompt. Case- or war-room-scoped
+    conversations get a small extra paragraph telling the model which
+    entity they're embedded in. All scoped tool calls still have their
+    identifier overridden at dispatch — this paragraph is for narrative
+    context only.
     """
-    if case_id is None:
-        return _BASE
-    return (
-        _BASE
-        + f'\n\nThis conversation is scoped to IRIS case #{case_id}. '
-        + 'All case-scoped tool calls are automatically bound to this '
-        + 'case; you do not need to (and should not) supply a case '
-        + 'identifier.'
-    )
+    if war_room_id is not None:
+        return (
+            _BASE
+            + f'\n\nThis conversation is scoped to IRIS war-room #{war_room_id}. '
+            + 'All war-room-scoped tool calls (chat post, sitrep draft, notes, '
+            + 'tasks) are automatically bound to this war-room; you do not '
+            + 'need to (and should not) supply a war_room_id argument.'
+        )
+    if case_id is not None:
+        return (
+            _BASE
+            + f'\n\nThis conversation is scoped to IRIS case #{case_id}. '
+            + 'All case-scoped tool calls are automatically bound to this '
+            + 'case; you do not need to (and should not) supply a case '
+            + 'identifier.'
+        )
+    return _BASE

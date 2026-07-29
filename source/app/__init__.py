@@ -103,6 +103,50 @@ cache = Cache(app)
 
 db.init_app(app)
 
+
+# ---- Poisoned-connection eviction ---------------------------------
+# Under gevent + psycogreen, a query that yields mid-result and gets
+# stepped on by another greenlet can leave a psycopg2 connection in a
+# desynced protocol state ("lost synchronization with server: got
+# message type X" / "error with status PGRES_TUPLES_OK and no message
+# from libpq"). `pool_pre_ping` doesn't catch it — the connection
+# looks fine to a plain `SELECT 1`. The `handle_error` event fires on
+# every DBAPI-level exception; when we see one of these signatures we
+# force-invalidate the connection so the pool discards it instead of
+# handing it out to the next request.
+def _iris_db_error_handler(context):
+    from sqlalchemy.exc import DBAPIError
+    exc = context.original_exception
+    if not isinstance(exc, Exception):
+        return
+    msg = str(exc)
+    poisoned_signatures = (
+        'lost synchronization with server',
+        'PGRES_TUPLES_OK and no message',
+        'server closed the connection unexpectedly',
+        'SSL SYSCALL error',
+    )
+    if any(sig in msg for sig in poisoned_signatures):
+        # Marking the connection invalid on the pool tells SQLAlchemy
+        # to dispose it on release. Next checkout builds a fresh one.
+        app.logger.warning(
+            'iris.db: invalidating poisoned connection — %s',
+            msg.splitlines()[0] if msg else '(no message)',
+        )
+        return DBAPIError.instance(
+            statement=context.statement,
+            params=context.parameters,
+            orig=exc,
+            dbapi_base_err=type(exc),
+            connection_invalidated=True,
+        )
+    return None
+
+
+with app.app_context():
+    from sqlalchemy import event
+    event.listen(db.engine, 'handle_error', _iris_db_error_handler)
+
 bc.init_app(app)
 
 lm = LoginManager()  # flask-loginmanager

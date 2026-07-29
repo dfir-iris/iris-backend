@@ -23,6 +23,7 @@ from app.blueprints.access_controls import (
     ac_api_requires,
     ac_api_return_access_denied,
     ac_fast_check_current_user_has_case_access,
+    ac_fast_check_current_user_has_war_room_access,
 )
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.api_doc import api_doc
@@ -36,7 +37,11 @@ from app.blueprints.rest.endpoints import (
 from app.blueprints.rest.v2.case_chat import case_chat_blueprint
 from app.business import case_chat as case_chat_biz
 from app.iris_engine.llm.client import ChatbotDisabledError, load_config
-from app.models.authorization import CaseAccessLevel, Permissions
+from app.models.authorization import (
+    CaseAccessLevel,
+    Permissions,
+    WarRoomAccessLevel,
+)
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.schema.marshables import (
     CaseChatConversationSchema,
@@ -60,6 +65,17 @@ def _require_case_access(case_id: int):
             case_id,
             [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
         return ac_api_return_access_denied(caseid=case_id)
+    return None
+
+
+def _require_war_room_access(war_room_id: int):
+    """Same idea for war-room-scoped conversations. War rooms have their
+    own access-level enum but the check surface mirrors the case one.
+    """
+    if not ac_fast_check_current_user_has_war_room_access(
+            war_room_id,
+            [WarRoomAccessLevel.read_only, WarRoomAccessLevel.full_access]):
+        return ac_api_return_access_denied()
     return None
 
 
@@ -126,6 +142,57 @@ def create_case_conversation(case_id: int):
     return response_api_created(_conv_schema.dump(conv))
 
 
+# ---- War-room-scoped conversation CRUD -----------------------------
+
+@case_chat_blueprint.get('/war-rooms/<int:war_room_id>/conversations')
+@ac_api_requires(Permissions.standard_user)
+@api_doc(
+    response=CaseChatConversationSchema, tags=['CaseChat'],
+    summary='List the caller\'s chat conversations for a war room',
+)
+def list_war_room_conversations(war_room_id: int):
+    err = _require_war_room_access(war_room_id)
+    if err is not None:
+        return err
+    conversations = case_chat_biz.list_conversations_for_war_room(
+        iris_current_user, war_room_id,
+    )
+    return response_api_success({
+        'conversations': _conv_schema.dump(conversations, many=True),
+    })
+
+
+@case_chat_blueprint.post('/war-rooms/<int:war_room_id>/conversations')
+@ac_api_requires(Permissions.standard_user)
+@api_doc(
+    response=CaseChatConversationSchema, response_shape='created',
+    tags=['CaseChat'],
+    summary='Start a new chat conversation scoped to a war room',
+)
+def create_war_room_conversation(war_room_id: int):
+    err = _require_war_room_access(war_room_id)
+    if err is not None:
+        return err
+    try:
+        cfg = load_config()
+    except Exception:
+        return response_api_error('Failed to load chatbot configuration')
+    if not cfg.enabled:
+        return response_api_error(
+            'Chatbot is disabled on this server.', status=503,
+        )
+    body = request.get_json(silent=True) or {}
+    title = (body.get('title') or '')[:200]
+    conv = case_chat_biz.create_conversation(
+        user=iris_current_user._get_current_object(),  # type: ignore[attr-defined]
+        case_id=None,
+        war_room_id=war_room_id,
+        model=cfg.model,
+        title=title,
+    )
+    return response_api_created(_conv_schema.dump(conv))
+
+
 # ---- Global (no-case-scope) conversation CRUD ----------------------
 
 @case_chat_blueprint.get('/global/conversations')
@@ -180,10 +247,15 @@ def get_conversation(conversation_id: int):
     conv, err = _require_own_conversation(conversation_id)
     if err is not None:
         return err
-    # If the conversation is case-scoped, still verify access — the
-    # user may have lost access since the conversation was created.
+    # If the conversation is case- or war-room-scoped, still verify
+    # access — the user may have lost access since the conversation
+    # was created.
     if conv.case_id is not None:
         acl_err = _require_case_access(conv.case_id)
+        if acl_err is not None:
+            return acl_err
+    if conv.war_room_id is not None:
+        acl_err = _require_war_room_access(conv.war_room_id)
         if acl_err is not None:
             return acl_err
     messages = case_chat_biz.list_messages(conversation_id)

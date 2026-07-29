@@ -22,12 +22,21 @@ from __future__ import annotations
 READ_ONLY_TOOLS: frozenset[str] = frozenset({
     'iris_cases_list', 'iris_cases_filter', 'iris_cases_get',
     'iris_alerts_list', 'iris_alerts_get', 'iris_alerts_related_get',
+    # Alerts — lookup reads (needed before iris_alerts_update)
+    'iris_alerts_status_list', 'iris_alerts_resolution_list',
+    'iris_alerts_severity_list', 'iris_alerts_classification_list',
     'iris_case_iocs_list', 'iris_case_iocs_get',
     'iris_case_assets_list', 'iris_case_assets_get',
     'iris_case_notes_list', 'iris_case_notes_get',
     'iris_case_tasks_list', 'iris_case_tasks_get',
     'iris_search',
     'iris_me_get', 'iris_me_context_get',
+    # War rooms — reads
+    'iris_war_rooms_list', 'iris_war_rooms_get',
+    'iris_war_room_chat_list',
+    'iris_war_room_sitreps_list',
+    'iris_war_room_notes_list',
+    'iris_war_room_tasks_list',
 })
 
 WRITE_TOOLS: frozenset[str] = frozenset({
@@ -35,6 +44,7 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     'iris_cases_create', 'iris_cases_update',
     'iris_cases_close', 'iris_cases_reopen',
     # Alerts
+    'iris_alerts_update',
     'iris_alerts_escalate', 'iris_alerts_merge',
     # IOCs / assets / notes / tasks (case-scoped mutating ops)
     'iris_case_iocs_create', 'iris_case_iocs_update', 'iris_case_iocs_delete',
@@ -42,6 +52,11 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     'iris_case_notes_create', 'iris_case_notes_update',
     'iris_case_tasks_create', 'iris_case_tasks_update',
     'iris_case_tasks_set_status',
+    # War rooms — writes
+    'iris_war_room_chat_post',
+    'iris_war_room_sitreps_create',
+    'iris_war_room_notes_create',
+    'iris_war_room_tasks_create',
 })
 
 

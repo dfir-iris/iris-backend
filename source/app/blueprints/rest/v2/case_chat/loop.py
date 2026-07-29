@@ -151,7 +151,10 @@ def run_one_iteration(
     for _turn in range(max_iterations):
         history = _load_history(conversation, cfg)
         tools = _prepare_tools(conversation)
-        system = system_prompt(case_id=conversation.case_id)
+        system = system_prompt(
+            case_id=conversation.case_id,
+            war_room_id=conversation.war_room_id,
+        )
 
         request_bytes = _estimate_request_bytes(system, history, tools)
         # Redaction toggles are checked inside `_load_history`, so the
@@ -217,7 +220,15 @@ def _load_history(
 ) -> list[ChatMessage]:
     """Load messages + apply the max-turns trim + apply redaction to
     role='tool' blocks. Returns fully-materialised `ChatMessage`
-    dataclasses ready to hand to a provider adapter."""
+    dataclasses ready to hand to a provider adapter.
+
+    Self-heals orphan `tool_use` blocks. If dispatch crashed mid-turn
+    in a prior session and the `tool_result` was never persisted, the
+    next call to the provider would fail with "tool_use ids were found
+    without tool_result blocks" and the whole conversation would be
+    stuck. We stitch in a synthetic error `tool_result` for any orphan
+    so the model can move on.
+    """
     rows = case_chat_biz.list_messages(conversation.id)
     # Trim from the tail — keep the most recent N user turns plus their
     # associated assistant / tool exchanges. Rough heuristic: keep
@@ -236,7 +247,66 @@ def _load_history(
                 redact_hashes=cfg.redact_hashes,
             )
         out.append(ChatMessage(role=row.role, content=content))
-    return out
+    return _stitch_orphan_tool_uses(out)
+
+
+def _stitch_orphan_tool_uses(
+    history: list[ChatMessage],
+) -> list[ChatMessage]:
+    """Insert a synthetic `tool_result` after any assistant `tool_use`
+    whose id isn't matched by a subsequent tool_result.
+
+    Anthropic's API requires strict `tool_use → tool_result` pairing
+    across message boundaries. A crash during dispatch — most notoriously
+    the datetime-serialize bug in the emit path — could persist the
+    assistant's `tool_use` without a matching `tool_result`, and every
+    subsequent send() would fail with a 400 from Anthropic and the
+    analyst couldn't recover without archiving. This heals it in-place
+    on load.
+    """
+    # Walk once to collect the set of tool_result ids already present.
+    have_result: set[str] = set()
+    for msg in history:
+        if msg.role != ROLE_TOOL:
+            continue
+        for b in msg.content or []:
+            if isinstance(b, dict) and b.get('type') == 'tool_result':
+                tu_id = b.get('tool_use_id')
+                if isinstance(tu_id, str):
+                    have_result.add(tu_id)
+
+    # Now walk assistant messages and, for each tool_use with no
+    # corresponding tool_result, splice a synthetic one in AFTER the
+    # assistant message.
+    stitched: list[ChatMessage] = []
+    for msg in history:
+        stitched.append(msg)
+        if msg.role != ROLE_ASSISTANT:
+            continue
+        orphans: list[dict[str, Any]] = []
+        for b in msg.content or []:
+            if not (isinstance(b, dict) and b.get('type') == 'tool_use'):
+                continue
+            tu_id = b.get('id')
+            if isinstance(tu_id, str) and tu_id not in have_result:
+                orphans.append({
+                    'type': 'tool_result',
+                    'tool_use_id': tu_id,
+                    'content': (
+                        'Tool call did not complete (internal error). '
+                        'Please try again or take a different approach.'
+                    ),
+                    'is_error': True,
+                })
+                have_result.add(tu_id)  # dedup if referenced twice
+        if orphans:
+            logger.warning(
+                'chatbot: stitched %d orphan tool_use(s) in conversation history — '
+                'a prior dispatch crashed without persisting tool_result',
+                len(orphans),
+            )
+            stitched.append(ChatMessage(role=ROLE_TOOL, content=orphans))
+    return stitched
 
 
 def _history_was_redacted(
@@ -266,21 +336,28 @@ def _prepare_tools(conversation: CaseChatConversation) -> list[ToolSpec]:
     """Build the tool list the LLM sees.
 
     Strips `case_identifier` from case-scoped tools' input_schema when
-    the conversation itself is case-scoped — the LLM shouldn't be
-    asked to guess or supply it, and dispatch will override anyway.
+    the conversation itself is case-scoped, and `war_room_id` when
+    war-room-scoped — the LLM shouldn't be asked to guess or supply
+    them, and dispatch will override anyway.
     """
     raw = build_tools_list()
     is_case_scoped = conversation.case_id is not None
+    is_war_room_scoped = conversation.war_room_id is not None
+    strip_keys: list[str] = []
+    if is_case_scoped:
+        strip_keys.append('case_identifier')
+    if is_war_room_scoped:
+        strip_keys.append('war_room_id')
     out: list[ToolSpec] = []
     for entry in raw:
         schema = dict(entry.get('inputSchema') or {})
-        if is_case_scoped:
+        if strip_keys:
             props = dict(schema.get('properties') or {})
-            if 'case_identifier' in props:
-                props.pop('case_identifier', None)
-                schema['properties'] = props
+            for key in strip_keys:
+                props.pop(key, None)
+            schema['properties'] = props
             required = [r for r in (schema.get('required') or [])
-                        if r != 'case_identifier']
+                        if r not in strip_keys]
             if required:
                 schema['required'] = required
             elif 'required' in schema:
@@ -483,6 +560,8 @@ def _finalise_turn(
         raw_args = dict(tu.get('input') or {})
         if conversation.case_id is not None:
             raw_args['case_identifier'] = int(conversation.case_id)
+        if conversation.war_room_id is not None:
+            raw_args['war_room_id'] = int(conversation.war_room_id)
         row = case_chat_biz.create_pending_tool_call(
             conversation=conversation,
             assistant_message=assistant_msg,
@@ -535,6 +614,16 @@ def _dispatch_and_track(
                 llm_case, conversation.case_id, name, conversation.id,
             )
         args['case_identifier'] = int(conversation.case_id)
+    if conversation.war_room_id is not None:
+        llm_wr = args.get('war_room_id')
+        if llm_wr is not None and int(llm_wr) != int(conversation.war_room_id):
+            logger.warning(
+                'chatbot: LLM emitted war_room_id=%s for a '
+                'conversation scoped to war_room_id=%s (tool=%s, conv=%s) '
+                '— overriding. Possible prompt-injection.',
+                llm_wr, conversation.war_room_id, name, conversation.id,
+            )
+        args['war_room_id'] = int(conversation.war_room_id)
 
     emit(ChatEvent('assistant_tool_start', {
         'tool_use_id': tool_use['id'],
@@ -575,11 +664,20 @@ def _dispatch_and_track(
     except Exception:
         logger.exception('chatbot: track_activity failed for %s', name)
 
-    emit(ChatEvent('assistant_tool_result', {
-        'tool_use_id': tool_use['id'],
-        'tool_name': name,
-        'result': result,
-    }))
+    # Emit is best-effort — if it fails (JSON encoding bug, socket
+    # dropped mid-turn, etc.), we still return `result` so the caller
+    # persists the tool_result message. Losing that persistence would
+    # leave an orphan tool_use in history and Anthropic would reject
+    # the next request with "tool_use ids were found without
+    # tool_result blocks".
+    try:
+        emit(ChatEvent('assistant_tool_result', {
+            'tool_use_id': tool_use['id'],
+            'tool_name': name,
+            'result': result,
+        }))
+    except Exception:
+        logger.exception('chatbot: assistant_tool_result emit failed for %s', name)
     return result
 
 

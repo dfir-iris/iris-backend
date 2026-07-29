@@ -36,10 +36,16 @@ def create_conversation(
     case_id: Optional[int],
     model: str,
     title: str = '',
+    war_room_id: Optional[int] = None,
 ) -> CaseChatConversation:
+    # A conversation is scoped to at most one of (case, war-room). The
+    # SPA sets exactly one based on the route; global is "neither".
+    # We don't enforce mutual exclusion with a check constraint — cheap
+    # to relax later if we ever want to link both.
     conv = CaseChatConversation(
         user_id=user.id,
         case_id=case_id,
+        war_room_id=war_room_id,
         model=model,
         title=(title or '')[:200],
     )
@@ -69,10 +75,22 @@ def list_conversations_for_case(
 def list_global_conversations(
     user: User, include_archived: bool = False,
 ) -> list[CaseChatConversation]:
-    """Global-scope conversations (`case_id IS NULL`)."""
+    """Global-scope conversations — no case AND no war-room."""
     query = CaseChatConversation.query.filter(
         CaseChatConversation.user_id == user.id,
         CaseChatConversation.case_id.is_(None),
+        CaseChatConversation.war_room_id.is_(None),
+    )
+    if not include_archived:
+        query = query.filter(CaseChatConversation.archived_at.is_(None))
+    return query.order_by(CaseChatConversation.updated_at.desc()).all()
+
+
+def list_conversations_for_war_room(
+    user: User, war_room_id: int, include_archived: bool = False,
+) -> list[CaseChatConversation]:
+    query = CaseChatConversation.query.filter_by(
+        user_id=user.id, war_room_id=war_room_id,
     )
     if not include_archived:
         query = query.filter(CaseChatConversation.archived_at.is_(None))

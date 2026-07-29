@@ -23,13 +23,44 @@ from app.business.alerts import (
     alerts_get_related,
     alerts_merge,
     alerts_search,
+    alerts_update,
 )
+from app.models.alerts import AlertResolutionStatus, AlertStatus, Severity
 from app.models.authorization import Permissions
+from app.models.cases import CaseClassification
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.schema.marshables import AlertSchema
+from marshmallow.exceptions import ValidationError
+
+import copy
 
 
 _alert_schema = AlertSchema()
+
+
+# Fields the LLM is allowed to update via iris_alerts_update. Kept in
+# lock-step with the REST endpoint's _ALERT_READONLY_UPDATE_FIELDS
+# (alert_id / alert_customer_id / alert_creation_time are immutable —
+# see GHSA-8hwq-v6vm-9grr / SBA-ADV-20260128-05 / CWE-863).
+_ALERT_UPDATE_PROPERTIES: dict[str, dict] = {
+    'alert_title':                 {'type': 'string'},
+    'alert_description':           {'type': 'string'},
+    'alert_source':                {'type': 'string'},
+    'alert_source_ref':            {'type': 'string'},
+    'alert_source_link':           {'type': 'string'},
+    'alert_source_event_time':     {'type': 'string', 'description': 'ISO-8601 datetime.'},
+    'alert_note':                  {'type': 'string', 'description': 'Free-form analyst note.'},
+    'alert_tags':                  {'type': 'string', 'description': 'Comma-separated tags.'},
+    'alert_severity_id':           {'type': 'integer'},
+    'alert_status_id':             {'type': 'integer'},
+    'alert_resolution_status_id':  {'type': ['integer', 'null']},
+    'alert_classification_id':     {'type': ['integer', 'null']},
+    'alert_owner_id':              {
+        'type': ['integer', 'null'],
+        'description': 'User id to assign as owner. Use -1 or null to unassign.',
+    },
+    'alert_context':               {'type': 'object'},
+}
 
 
 def _get_alert(alert_id: int):
@@ -257,3 +288,166 @@ def iris_alerts_related_get(args: dict) -> dict:
         days_back,
         number_of_results,
     )
+
+
+@mcp_tool(
+    name='iris_alerts_update',
+    description=(
+        'Update an alert. Payload accepts partial fields — omit fields you do not want to '
+        'change. Common uses: assign an owner (`alert_owner_id`), set the workflow status '
+        '(`alert_status_id`), record a resolution (`alert_resolution_status_id`), change '
+        'severity (`alert_severity_id`), classify (`alert_classification_id`), add tags '
+        '(`alert_tags`), append an analyst note (`alert_note`). Use the corresponding '
+        '`iris_alerts_*_list` tools to discover the numeric ids first. Pass '
+        '`alert_owner_id: -1` (or null) to unassign an owner.'
+    ),
+    input_schema={
+        'type': 'object',
+        'properties': {
+            'alert_identifier': {'type': 'integer'},
+            'payload': {
+                'type': 'object',
+                'description': 'Partial alert fields to update.',
+                'properties': _ALERT_UPDATE_PROPERTIES,
+                'additionalProperties': False,
+            },
+        },
+        'required': ['alert_identifier', 'payload'],
+    },
+    permissions=(Permissions.alerts_write,),
+    mvp=True,
+)
+def iris_alerts_update(args: dict) -> dict:
+    alert = _get_alert(args['alert_identifier'])
+    payload = dict(args.get('payload') or {})
+    if not payload:
+        raise MCPError(protocol.INVALID_PARAMS, 'Payload must contain at least one field.')
+
+    pristine_alert = copy.copy(alert)
+
+    # Mirror the REST route's "unassign owner" convention so the LLM
+    # sees a single consistent semantics for clearing an assignee.
+    if payload.get('alert_owner_id') in (-1, '-1'):
+        payload['alert_owner_id'] = None
+
+    try:
+        updated_alert = _alert_schema.load(payload, instance=alert, partial=True)
+    except ValidationError as exc:
+        raise MCPError(protocol.INVALID_PARAMS, f'Validation error: {exc.messages}') from exc
+
+    activity_data = []
+    for key, value in payload.items():
+        old_value = getattr(pristine_alert, key, None)
+        if key not in ('alert_content', 'alert_note'):
+            activity_data.append(f'"{key}" from "{old_value}" to "{value}"')
+        else:
+            activity_data.append(f'"{key}"')
+
+    try:
+        result = alerts_update(pristine_alert, updated_alert, activity_data)
+    except BusinessProcessingError as exc:
+        raise MCPError(protocol.INTERNAL_ERROR, exc.get_message()) from exc
+    return _alert_schema.dump(result)
+
+
+@mcp_tool(
+    name='iris_alerts_status_list',
+    description=(
+        'List the alert workflow statuses configured on this instance '
+        '(e.g. New, Assigned, In progress, Closed). Returns the numeric '
+        '`status_id` values usable in `iris_alerts_update.alert_status_id` '
+        'and in `iris_alerts_list` filters.'
+    ),
+    input_schema={'type': 'object', 'properties': {}},
+    permissions=(Permissions.alerts_read,),
+    mvp=True,
+)
+def iris_alerts_status_list(args: dict) -> dict:
+    rows = AlertStatus.query.order_by(AlertStatus.status_id).all()
+    return {
+        'data': [
+            {
+                'status_id': r.status_id,
+                'status_name': r.status_name,
+                'status_description': r.status_description,
+            }
+            for r in rows
+        ]
+    }
+
+
+@mcp_tool(
+    name='iris_alerts_resolution_list',
+    description=(
+        'List the alert resolution statuses (e.g. True positive, False '
+        'positive, Benign, Not applicable). Returns numeric '
+        '`resolution_status_id` values usable in '
+        '`iris_alerts_update.alert_resolution_status_id`.'
+    ),
+    input_schema={'type': 'object', 'properties': {}},
+    permissions=(Permissions.alerts_read,),
+    mvp=True,
+)
+def iris_alerts_resolution_list(args: dict) -> dict:
+    rows = AlertResolutionStatus.query.order_by(AlertResolutionStatus.resolution_status_id).all()
+    return {
+        'data': [
+            {
+                'resolution_status_id': r.resolution_status_id,
+                'resolution_status_name': r.resolution_status_name,
+                'resolution_status_description': r.resolution_status_description,
+            }
+            for r in rows
+        ]
+    }
+
+
+@mcp_tool(
+    name='iris_alerts_severity_list',
+    description=(
+        'List the severity levels configured on this instance (e.g. Low, '
+        'Medium, High, Critical). Returns numeric `severity_id` values '
+        'usable in `iris_alerts_update.alert_severity_id`.'
+    ),
+    input_schema={'type': 'object', 'properties': {}},
+    permissions=(Permissions.alerts_read,),
+    mvp=True,
+)
+def iris_alerts_severity_list(args: dict) -> dict:
+    rows = Severity.query.order_by(Severity.severity_id).all()
+    return {
+        'data': [
+            {
+                'severity_id': r.severity_id,
+                'severity_name': r.severity_name,
+                'severity_description': r.severity_description,
+            }
+            for r in rows
+        ]
+    }
+
+
+@mcp_tool(
+    name='iris_alerts_classification_list',
+    description=(
+        'List the alert / case classifications configured on this '
+        'instance (MITRE-style categories). Returns numeric `id` values '
+        'usable in `iris_alerts_update.alert_classification_id`.'
+    ),
+    input_schema={'type': 'object', 'properties': {}},
+    permissions=(Permissions.alerts_read,),
+    mvp=True,
+)
+def iris_alerts_classification_list(args: dict) -> dict:
+    rows = CaseClassification.query.order_by(CaseClassification.id).all()
+    return {
+        'data': [
+            {
+                'id': r.id,
+                'name': r.name,
+                'name_expanded': r.name_expanded,
+                'description': r.description,
+            }
+            for r in rows
+        ]
+    }

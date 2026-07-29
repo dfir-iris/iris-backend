@@ -25,6 +25,7 @@ from flask_socketio import Namespace, emit, join_room, leave_room
 
 from app.blueprints.access_controls import (
     ac_fast_check_current_user_has_case_access,
+    ac_fast_check_current_user_has_war_room_access,
     is_user_authenticated,
 )
 from app.blueprints.iris_user import iris_current_user
@@ -35,7 +36,7 @@ from app.blueprints.rest.v2.case_chat.approve_tool import (
 from app.blueprints.rest.v2.case_chat.loop import ChatEvent, run_one_iteration
 from app.business import case_chat as case_chat_biz
 from app.business.auth import validate_auth_token
-from app.models.authorization import CaseAccessLevel
+from app.models.authorization import CaseAccessLevel, WarRoomAccessLevel
 from app.models.case_chat import ROLE_USER
 from app.models.errors import ObjectNotFoundError
 
@@ -186,6 +187,12 @@ class ChatNamespace(Namespace):
                     [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
                 emit('error', {'message': f'No access to case #{conv.case_id}.'})
                 return
+        if conv.war_room_id is not None:
+            if not ac_fast_check_current_user_has_war_room_access(
+                    conv.war_room_id,
+                    [WarRoomAccessLevel.read_only, WarRoomAccessLevel.full_access]):
+                emit('error', {'message': f'No access to war-room #{conv.war_room_id}.'})
+                return
         join_room(f'conv-{conv.id}')
         emit('joined', {'conversation_id': conv.id})
 
@@ -222,6 +229,12 @@ class ChatNamespace(Namespace):
                     conv.case_id,
                     [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
                 emit('error', {'message': f'No access to case #{conv.case_id}.'})
+                return
+        if conv.war_room_id is not None:
+            if not ac_fast_check_current_user_has_war_room_access(
+                    conv.war_room_id,
+                    [WarRoomAccessLevel.read_only, WarRoomAccessLevel.full_access]):
+                emit('error', {'message': f'No access to war-room #{conv.war_room_id}.'})
                 return
 
         text = user_text.strip()
@@ -283,6 +296,28 @@ def _int(data: Any, key: str) -> int | None:
         return None
 
 
+def _json_safe(value: Any) -> Any:
+    """Walk a structure and coerce non-JSON-serializable leaves to str.
+
+    SocketIO uses stdlib `json.dumps` internally, which chokes on
+    `datetime`, `Decimal`, `UUID`, and every other rich Python type
+    that our tool results happily contain (search results, entity
+    rows, ...). Rather than teach socket.io a custom encoder — the
+    library doesn't expose that seam cleanly — we normalise at the
+    emit boundary. The persistence path already coerces via
+    `_tool_result_content` in loop.py; this catches the parallel emit
+    path for `assistant_tool_result` events.
+    """
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    # datetime, Decimal, UUID, sets, custom objects — stringify.
+    return str(value)
+
+
 def _emit_for_conv(conversation_id: int):
     """Return an `Emitter` bound to a per-conversation room, so every
     panel the analyst has open on this conversation sees the stream."""
@@ -291,7 +326,7 @@ def _emit_for_conv(conversation_id: int):
         from app import socket_io
         socket_io.emit(
             event.name,
-            {'conversation_id': conversation_id, **event.payload},
+            _json_safe({'conversation_id': conversation_id, **event.payload}),
             namespace=NAMESPACE,
             to=f'conv-{conversation_id}',
         )
@@ -302,7 +337,7 @@ def _emit_direct():
     """Emit back to the caller's sid only. Used for pre-conversation
     errors (bad payload, wrong user) where no conversation room exists."""
     def _emit(event: ChatEvent) -> None:
-        emit(event.name, event.payload)
+        emit(event.name, _json_safe(event.payload))
     return _emit
 
 
