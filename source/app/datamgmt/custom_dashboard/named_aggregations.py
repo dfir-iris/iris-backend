@@ -25,10 +25,18 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-from flask_login import current_user
 from sqlalchemy import func, or_, select
 
 from app import db
+# NOTE: use `iris_current_user`, not `flask_login.current_user`. IRIS's
+# v2 REST endpoints authenticate via JWT — the request-scoped user
+# lives in `g.auth_user` (populated by `ac_api_requires`) and Flask-
+# Login's `current_user` is `AnonymousUserMixin`. Using `current_user`
+# here made every non-admin dashboard silently return zero rows
+# (`Alert.alert_id == -1` fallback), because is_authenticated=False +
+# id=None. `iris_current_user` transparently returns the TokenUser
+# under JWT and falls back to flask-login for session auth.
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
@@ -38,9 +46,9 @@ from app.models.cases import Cases
 
 
 def _current_user_is_server_admin() -> bool:
-    if not getattr(current_user, 'is_authenticated', False):
+    if not getattr(iris_current_user, 'is_authenticated', False):
         return False
-    perms = ac_get_effective_permissions_of_user(current_user)
+    perms = ac_get_effective_permissions_of_user(iris_current_user)
     return ac_flag_match_mask(perms, Permissions.server_administrator.value)
 
 
@@ -104,7 +112,7 @@ def _average_seconds(deltas: Iterable[timedelta]) -> Optional[float]:
 def _apply_access_filter_to_alert_query(stmt):
     if _current_user_is_server_admin():
         return stmt
-    user_id = getattr(current_user, 'id', None)
+    user_id = getattr(iris_current_user, 'id', None)
     if not user_id:
         return stmt.where(Alert.alert_id == -1)
     client_ids = get_user_clients_id(user_id) or []
@@ -125,7 +133,7 @@ def _apply_access_filter_to_alert_query(stmt):
 def _apply_access_filter_to_case_query(stmt):
     if _current_user_is_server_admin():
         return stmt
-    user_id = getattr(current_user, 'id', None)
+    user_id = getattr(iris_current_user, 'id', None)
     if not user_id:
         return stmt.where(Cases.case_id == -1)
     case_ids = ac_get_fast_user_cases_access(user_id) or []

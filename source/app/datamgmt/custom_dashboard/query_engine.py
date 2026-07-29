@@ -6,11 +6,15 @@ import math
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Set
 
-from flask_login import current_user
 from sqlalchemy import func, or_, select, cast, Integer, case, literal
 from sqlalchemy.orm import Query, aliased
 
 from app import db
+# NOTE: use `iris_current_user` (JWT-aware) instead of `flask_login.current_user`.
+# Under JWT auth `flask_login.current_user` is AnonymousUserMixin, which made
+# _apply_access_filters short-circuit to `Alert.alert_id == -1` — every widget
+# returned zero rows for non-admin token users.
+from app.blueprints.iris_user import iris_current_user
 from app.datamgmt.manage.manage_access_control_db import get_user_clients_id
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
@@ -919,12 +923,12 @@ class WidgetQueryExecutor:
         self._promote_time_group()
 
     def _apply_access_filters(self):
-        if getattr(current_user, 'is_authenticated', False):
-            _perms = ac_get_effective_permissions_of_user(current_user)
+        if getattr(iris_current_user, 'is_authenticated', False):
+            _perms = ac_get_effective_permissions_of_user(iris_current_user)
             if ac_flag_match_mask(_perms, Permissions.server_administrator.value):
                 return
 
-        user_id = getattr(current_user, 'id', None)
+        user_id = getattr(iris_current_user, 'id', None)
         if not user_id:
             # Without a logged-in user we cannot determine scope; deny by default.
             self.builder.filters.append(Alert.alert_id == -1)
