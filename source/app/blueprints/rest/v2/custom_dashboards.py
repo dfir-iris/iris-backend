@@ -145,6 +145,45 @@ def _widget_references_computed(widget: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _format_duration_seconds(seconds: float) -> str:
+    """Render a duration in the shortest human form that keeps two units.
+
+    Examples: 42s, 3m 15s, 2h 07m, 1d 04h, 12d 03h. Below one second we
+    round up to "<1s" so the KPI never renders as "0s" when the delta is
+    a legitimate sub-second value.
+    """
+    if seconds < 1:
+        return '<1s'
+    seconds = int(round(seconds))
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, secs = divmod(rem, 60)
+    if days:
+        return f'{days}d {hours:02d}h'
+    if hours:
+        return f'{hours}h {minutes:02d}m'
+    if minutes:
+        return f'{minutes}m {secs:02d}s'
+    return f'{secs}s'
+
+
+def _format_computed_value(value: Optional[float], options: Dict[str, Any]) -> Optional[str]:
+    if value is None:
+        return None
+    value_format = (options or {}).get('value_format')
+    if value_format == 'duration':
+        try:
+            return _format_duration_seconds(float(value))
+        except (TypeError, ValueError):
+            return None
+    if value_format == 'percentage':
+        try:
+            return f'{float(value):.1f}%'
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _render_widget(
     widget: Dict[str, Any],
     timeframe: Tuple[Optional[datetime], Optional[datetime]],
@@ -156,14 +195,19 @@ def _render_widget(
             value = compute_named_aggregation(computed_name, timeframe, filters)
         except NamedAggregationError as e:
             raise QueryExecutionError(str(e))
-        return {
+        options = widget.get('options') or {}
+        payload: Dict[str, Any] = {
             'name': widget.get('name'),
             'chart_type': widget.get('chart_type', 'number'),
             'computed': computed_name,
             'value': value,
-            'options': widget.get('options') or {},
+            'options': options,
             'layout': widget.get('layout') or {},
         }
+        formatted = _format_computed_value(value, options)
+        if formatted is not None:
+            payload['formatted_value'] = formatted
+        return payload
 
     executor = WidgetQueryExecutor(widget)
     result = executor.execute(timeframe)

@@ -354,14 +354,40 @@ def alerts_exists(user, permissions, identifier, fallback_customer_access=None) 
 
 
 def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
+    from datetime import datetime as _dt
 
     do_resolution_hook = False
     do_status_hook = False
 
-    if alert.alert_resolution_status_id != updated_alert.alert_resolution_status_id:
+    resolution_changed = (
+        alert.alert_resolution_status_id != updated_alert.alert_resolution_status_id
+    )
+    if resolution_changed:
         do_resolution_hook = True
     if alert.alert_status_id != updated_alert.alert_status_id:
         do_status_hook = True
+
+    # Maintain resolved_at as the authoritative "when did the analyst
+    # first pick a verdict" timestamp. Set on null→non-null transition,
+    # clear on non-null→null revert. Left untouched when the resolution
+    # is edited between two non-null values so we keep the *first*
+    # resolution time (MTTR should measure how long it took to reach a
+    # verdict, not how many times the verdict got tweaked).
+    if resolution_changed:
+        if (
+            alert.alert_resolution_status_id is None
+            and updated_alert.alert_resolution_status_id is not None
+            and updated_alert.resolved_at is None
+        ):
+            updated_alert.resolved_at = _dt.utcnow()
+        elif updated_alert.alert_resolution_status_id is None:
+            updated_alert.resolved_at = None
+
+    # Bump date_update on every write. add_obj_history_entry below also
+    # stamps a modification_history key, but a dedicated column is much
+    # cheaper to sort/index than a JSON scan and matches the pattern on
+    # cases/notes/etc.
+    updated_alert.date_update = _dt.utcnow()
 
     updated_alert = call_modules_hook('on_postload_alert_update', updated_alert)
 

@@ -69,6 +69,16 @@ class Alert(db.Model):
     alert_resolution_status_id = Column(ForeignKey('alert_resolution_status.resolution_status_id'), nullable=True)
     alert_investigation_flow_id = Column(ForeignKey('investigation_flows.flow_id'), nullable=True)
 
+    # Timestamps for lifecycle tracking. `date_update` mirrors the pattern
+    # used on cases/notes/etc — bumped on every persistent write via
+    # add_obj_history_entry. `resolved_at` is set the first time an
+    # analyst assigns a non-null alert_resolution_status_id, and cleared
+    # if the resolution is later reverted to null. These give us clean
+    # SQL for MTTR (resolved_at − alert_creation_time) without walking
+    # modification_history keys.
+    date_update = Column(DateTime, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+
     owner = relationship('User', foreign_keys=[alert_owner_id])
     severity = relationship('Severity')
     status = relationship('AlertStatus')
