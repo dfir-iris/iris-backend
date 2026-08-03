@@ -530,3 +530,5 @@ resolved_by  # unused variable (source/app/models/case_chat.py:184) — ORM rela
 is_classified  # helper for future runtime refuse-unknown-tool path in loop.py
 partial_json  # unused variable (source/app/iris_engine/llm/providers/base.py:42) — dataclass field written+read via getattr
 provider_code  # unused variable (source/app/iris_engine/llm/providers/base.py:68) — dataclass field on Error events
+######### Banners: model column + marshmallow field read reflectively
+dismissable  # unused variable (source/app/models/banners.py, source/app/schema/marshables.py) — ORM column + marshmallow field, consumed reflectively

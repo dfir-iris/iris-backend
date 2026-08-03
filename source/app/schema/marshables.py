@@ -32,8 +32,10 @@ from marshmallow import fields
 from marshmallow import post_dump
 from marshmallow import post_load
 from marshmallow import pre_load
+from marshmallow import validates_schema
 from marshmallow.exceptions import ValidationError
 from marshmallow.validate import Length
+from marshmallow.validate import OneOf
 from marshmallow_sqlalchemy import auto_field
 from pathlib import Path
 from sqlalchemy import func
@@ -67,6 +69,8 @@ from app.models.assets import AssetsType, CaseAssets, AnalysisStatus
 from app.models.models import CaseTasks
 from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent
+from app.models.banners import Banner
+from app.models.banners import BANNER_PURPOSES
 from app.models.customers import Client
 from app.models.comments import Comments
 from app.models.models import Contact
@@ -3186,3 +3190,50 @@ class AlertClusterInvestigationProgressSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
         load_instance = True
         unknown = EXCLUDE
+
+
+class BannerSchema(ma.SQLAlchemyAutoSchema):
+    """Marshmallow schema for the admin-managed top banners.
+
+    `purpose` is validated against the same tuple the DB `CHECK` uses so
+    the two layers can't drift. Both timespan bounds are optional — an
+    empty string on the wire is normalised to `None` in `pre_load` so
+    the SPA can clear a bound by sending `""` from a `datetime-local`
+    input.
+    """
+
+    text = fields.String(required=True, validate=Length(min=1, max=2000))
+    purpose = fields.String(required=True, validate=OneOf(BANNER_PURPOSES))
+    dismissable = fields.Boolean(load_default=True)
+    start_at = fields.AwareDateTime(required=False, allow_none=True,
+                                    load_default=None,
+                                    default_timezone=datetime.timezone.utc)
+    end_at = fields.AwareDateTime(required=False, allow_none=True,
+                                  load_default=None,
+                                  default_timezone=datetime.timezone.utc)
+
+    class Meta:
+        model = Banner
+        load_instance = True
+        include_fk = True
+        exclude = ('created_by',)
+        unknown = EXCLUDE
+
+    @pre_load
+    def _blank_dates_to_none(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        # `<input type="datetime-local">` emits an empty string when the
+        # admin clears the field; marshmallow's AwareDateTime would reject
+        # that as "Not a valid datetime". Coerce to None so the field can
+        # actually be cleared without a bespoke frontend contract.
+        for key in ('start_at', 'end_at'):
+            if key in data and data[key] == '':
+                data[key] = None
+        return data
+
+    @validates_schema
+    def _check_timespan(self, data: Dict[str, Any], **kwargs: Any) -> None:
+        start = data.get('start_at')
+        end = data.get('end_at')
+        if start is not None and end is not None and end <= start:
+            raise ValidationError('end_at must be strictly after start_at',
+                                  field_name='end_at')
