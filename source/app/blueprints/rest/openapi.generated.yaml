@@ -1672,6 +1672,32 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: rename_conversation_patch
+      summary: Rename a conversation
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/case-chat/global/conversations:
     get:
       operationId: list_global_conversations_get
@@ -1724,6 +1750,59 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/case-chat/war-rooms/{war_room_id}/conversations:
+    get:
+      operationId: list_war_room_conversations_get
+      summary: List the caller's chat conversations for a war room
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: war_room_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_war_room_conversation_post
+      summary: Start a new chat conversation scoped to a war room
+      tags:
+      - CaseChat
+      security:
+      - ApiKey: []
+      parameters:
+      - name: war_room_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseChatConversation'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases:
     get:
       operationId: get_cases_get
@@ -6084,6 +6163,149 @@ paths:
                     type:
                     - integer
                     - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/banners:
+    get:
+      operationId: list_banners_route_get
+      summary: List all banners
+      tags:
+      - ManageBanners
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Banner'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_banner_route_post
+      summary: Create a banner
+      tags:
+      - ManageBanners
+      security:
+      - ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BannerRequest'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Banner'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/banners/{identifier}:
+    delete:
+      operationId: delete_banner_route_delete
+      summary: Delete a banner
+      tags:
+      - ManageBanners
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_banner_route_get
+      summary: Get a banner
+      tags:
+      - ManageBanners
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Banner'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_banner_route_put
+      summary: Update a banner
+      tags:
+      - ManageBanners
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BannerRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Banner'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/banners/active:
+    get:
+      operationId: list_active_banners_route_get
+      summary: List currently-active banners (any authenticated user)
+      tags:
+      - ManageBanners
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Banner'
         '400':
           $ref: '#/components/responses/ApiError'
         '403':
@@ -12453,6 +12675,40 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/ApiError'
+  /api/v2/mcp/tools/iris_alerts_classification_list:
+    post:
+      operationId: mcp_tool_iris_alerts_classification_list
+      summary: List the alert / case classifications configured on this instance (MITRE-style categories).
+        Returns numeric `id` values usable in `iris_alerts_update.alert_classification_id`.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_classification_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_classification_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/mcp/tools/iris_alerts_escalate:
     post:
       operationId: mcp_tool_iris_alerts_escalate
@@ -12712,6 +12968,157 @@ paths:
                   type: integer
               required:
               - alert_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_resolution_list:
+    post:
+      operationId: mcp_tool_iris_alerts_resolution_list
+      summary: List the alert resolution statuses (e.g. True positive, False positive, Benign, Not applicable).
+        Returns numeric `resolution_status_id` values usable in `iris_alerts_update.alert_resolution_status_id`.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_resolution_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_resolution_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_severity_list:
+    post:
+      operationId: mcp_tool_iris_alerts_severity_list
+      summary: List the severity levels configured on this instance (e.g. Low, Medium, High, Critical).
+        Returns numeric `severity_id` values usable in `iris_alerts_update.alert_severity_id`.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_severity_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_severity_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_status_list:
+    post:
+      operationId: mcp_tool_iris_alerts_status_list
+      summary: List the alert workflow statuses configured on this instance (e.g. New, Assigned, In progress,
+        Closed). Returns the numeric `status_id` values usable in `iris_alerts_update.alert_status_id`
+        and in `iris_alerts_list` filters.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_status_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_status_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_alerts_update:
+    post:
+      operationId: mcp_tool_iris_alerts_update
+      summary: "Update an alert. Payload accepts partial fields \u2014 omit fields you do not want to\
+        \ change. Common uses: assign an owner (`alert_owner_id`), set the workflow status (`alert_status_id`),\
+        \ record a resolution (`alert_resolution_status_id`), change severity (`alert_severity_id`), classify\
+        \ (`alert_classification_id`), add tags (`alert_tags`), append an analyst note (`alert_note`).\
+        \ Use the corresponding `iris_alerts_*_list` tools to discover the numeric ids first. Pass `alert_owner_id:\
+        \ -1` (or null) to unassign an owner."
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_alerts_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_alerts_update\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alert_identifier:
+                  type: integer
+                payload:
+                  type: object
+                  description: Partial alert fields to update.
+                  properties: null
+                  additionalProperties: false
+              required:
+              - alert_identifier
+              - payload
       responses:
         '200':
           description: "Tool result \u2014 JSON-RPC content wrapper."
@@ -13137,7 +13544,8 @@ paths:
   /api/v2/mcp/tools/iris_case_notes_create:
     post:
       operationId: mcp_tool_iris_case_notes_create
-      summary: Create a note in a case.
+      summary: "Create a note in a case. `directory_id` is optional \u2014 if omitted, the note is placed\
+        \ in the case root directory automatically."
       tags:
       - MCP
       - MCP:tools
@@ -13160,7 +13568,26 @@ paths:
               properties:
                 payload:
                   type: object
-                  description: "Note fields \u2014 see CaseNoteSchema (note_title, note_content, ...)."
+                  description: Note fields.
+                  properties:
+                    note_title:
+                      type: string
+                      maxLength: 155
+                      description: Note title (short).
+                    note_content:
+                      type: string
+                      description: Note body, markdown accepted.
+                    directory_id:
+                      type: integer
+                      description: Target directory id. Omit to place the note in the case root directory
+                        (auto-resolved).
+                    custom_attributes:
+                      type: object
+                      description: Optional per-note custom attributes.
+                  required:
+                  - note_title
+                  - note_content
+                  additionalProperties: false
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -13580,7 +14007,14 @@ paths:
               properties:
                 payload:
                   type: object
-                  description: "Case fields \u2014 see CaseSchemaForAPIV2."
+                  description: Case fields.
+                  properties: null
+                  required:
+                  - case_name
+                  - case_description
+                  - case_soc_id
+                  - case_customer_id
+                  additionalProperties: false
                 case_template_id:
                   type: integer
                   description: Optional case template to seed the case with.
@@ -13773,7 +14207,9 @@ paths:
   /api/v2/mcp/tools/iris_cases_update:
     post:
       operationId: mcp_tool_iris_cases_update
-      summary: Update a case. Payload accepts partial fields.
+      summary: "Update a case. Payload accepts partial fields \u2014 omit fields you do not want to change.\
+        \ To attach a closing / post-mortem note, update `case_description` or call `iris_case_notes_create`\
+        \ \u2014 there is no dedicated closing_note field."
       tags:
       - MCP
       - MCP:tools
@@ -13796,6 +14232,9 @@ paths:
               properties:
                 payload:
                   type: object
+                  description: Partial case fields to update.
+                  properties: null
+                  additionalProperties: false
                 protagonists:
                   type: array
                 tags:
@@ -13925,6 +14364,422 @@ paths:
               required:
               - value
               - types
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_chat_list:
+    post:
+      operationId: mcp_tool_iris_war_room_chat_list
+      summary: "List the latest messages in a war room stream. Merges chat rows with the attached cases'\
+        \ UserActivity \u2014 same view the UI shows."
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_chat_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_chat_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  description: Max messages to return (default 50).
+                search:
+                  type: string
+                  description: Free-text substring match on message body.
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_chat_post:
+    post:
+      operationId: mcp_tool_iris_war_room_chat_post
+      summary: "Post a chat message to a war room. Plain text body; markdown is rendered by the client.\
+        \ Never attach files this way \u2014 file attachments require the drag-drop UI path."
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_chat_post
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_chat_post\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  description: Message text. Markdown accepted.
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - body
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_notes_create:
+    post:
+      operationId: mcp_tool_iris_war_room_notes_create
+      summary: Create a note in a war room. Body accepts markdown.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_notes_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_notes_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                content:
+                  type: string
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - title
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_notes_list:
+    post:
+      operationId: mcp_tool_iris_war_room_notes_list
+      summary: List notes in a war room.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_notes_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_notes_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_sitreps_create:
+    post:
+      operationId: mcp_tool_iris_war_room_sitreps_create
+      summary: "Draft a new sitrep. Body accepts markdown. Draft only \u2014 an analyst still has to publish\
+        \ it from the UI."
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_sitreps_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_sitreps_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                body_md:
+                  type: string
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - title
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_sitreps_list:
+    post:
+      operationId: mcp_tool_iris_war_room_sitreps_list
+      summary: List sitreps in a war room, newest first.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_sitreps_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_sitreps_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_tasks_create:
+    post:
+      operationId: mcp_tool_iris_war_room_tasks_create
+      summary: Create a task in a war room.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_tasks_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_tasks_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - title
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_tasks_list:
+    post:
+      operationId: mcp_tool_iris_war_room_tasks_list
+      summary: List tasks in a war room.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_tasks_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_tasks_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                q:
+                  type: string
+                  description: Free-text search.
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_rooms_get:
+    post:
+      operationId: mcp_tool_iris_war_rooms_get
+      summary: Fetch a war room by id.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_rooms_get
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_rooms_get\"`. The\
+        \ request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_rooms_list:
+    post:
+      operationId: mcp_tool_iris_war_rooms_list
+      summary: List war rooms the current user has access to.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_rooms_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_rooms_list\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state:
+                  type: string
+                  description: Filter by state (e.g. 'open', 'closed').
+                search:
+                  type: string
+                  description: Free-text match on name / description.
       responses:
         '200':
           description: "Tool result \u2014 JSON-RPC content wrapper."
@@ -14204,6 +15059,16 @@ components:
           type:
           - integer
           - 'null'
+        date_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        resolved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
       description: Schema for serializing and deserializing Alert objects.
     AlertCluster:
       type: object
@@ -14457,6 +15322,16 @@ components:
           type:
           - integer
           - 'null'
+        date_update:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        resolved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
       required:
       - alert_customer_id
       - alert_severity_id
@@ -14611,6 +15486,54 @@ components:
       - group_name
       - group_permissions
       description: Schema for serializing and deserializing AuthorizationGroup objects.
+    Banner:
+      type: object
+      properties:
+        text:
+          type: string
+        purpose:
+          type: string
+        dismissable:
+          type: boolean
+        start_at: {}
+        end_at: {}
+        id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - purpose
+      - text
+      description: Marshmallow schema for the admin-managed top banners.
+    BannerRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        purpose:
+          type: string
+        dismissable:
+          type: boolean
+        start_at: {}
+        end_at: {}
+        id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - purpose
+      - text
+      description: Marshmallow schema for the admin-managed top banners.
     Case:
       type: object
       properties:
@@ -14896,6 +15819,11 @@ components:
           type: integer
           format: int64
         case_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        war_room_id:
           type:
           - integer
           - 'null'
@@ -17637,8 +18565,6 @@ components:
           - string
           - 'null'
           format: date-time
-        mcp_allowed:
-          type: boolean
       required:
       - user_email
       - user_isadmin
@@ -17757,8 +18683,6 @@ components:
           - string
           - 'null'
           format: date-time
-        mcp_allowed:
-          type: boolean
       required:
       - user_active
       - user_email
@@ -17842,8 +18766,6 @@ components:
           - string
           - 'null'
           format: date-time
-        mcp_allowed:
-          type: boolean
       required:
       - user_active
       - user_email
