@@ -113,7 +113,12 @@ def iris_case_assets_create(args: dict) -> dict:
 
 @mcp_tool(
     name='iris_case_assets_update',
-    description='Update an existing case asset (partial payload accepted).',
+    description=(
+        'Update an existing case asset (partial payload accepted). To set '
+        '`analysis_status_id`, `asset_type_id`, or `asset_compromise_status_id`, '
+        'first call `iris_taxonomies_list` to resolve the target name '
+        '(e.g. "Done") to its numeric id — do NOT probe by trial-updating.'
+    ),
     input_schema={
         'type': 'object',
         'properties': {

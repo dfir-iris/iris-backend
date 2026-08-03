@@ -268,6 +268,31 @@ class TestsRestMcp(TestCase):
         self.assertIn('data', payload)
         self.assertGreaterEqual(payload['total'], 1)
 
+    def test_mcp_tools_call_iris_taxonomies_list_exposes_analysis_statuses(self):
+        # Regression: without this tool, AI clients probe `iris_case_assets_update`
+        # with trial `analysis_status_id` values (1..6) to discover "Done".
+        self._enable_mcp()
+        response = self._mcp_post(_rpc('tools/list'), api_key=self._admin_key())
+        names = [t['name'] for t in response.json()['result']['tools']]
+        self.assertIn('iris_taxonomies_list', names)
+
+        response = self._mcp_post(_rpc('tools/call', {
+            'name': 'iris_taxonomies_list', 'arguments': {},
+        }), api_key=self._admin_key())
+        self.assertEqual(200, response.status_code)
+        import json as _json
+        payload = _json.loads(response.json()['result']['content'][0]['text'])
+        # Seed statuses from post_init.create_safe_analysis_status().
+        analysis_names = {row['name'] for row in payload['analysis_statuses']}
+        self.assertEqual(
+            {'Unspecified', 'To be done', 'Started', 'Pending', 'Canceled', 'Done'},
+            analysis_names,
+        )
+        # Sibling taxonomies present so callers get them in one round-trip.
+        for key in ('task_statuses', 'case_states', 'severities', 'tlps',
+                    'ioc_types', 'asset_types', 'asset_compromise_statuses'):
+            self.assertIn(key, payload)
+
     def test_mcp_resources_list_includes_case_template(self):
         self._enable_mcp()
         response = self._mcp_post(_rpc('resources/templates/list'),

@@ -235,7 +235,9 @@ def iris_cases_create(args: dict) -> dict:
     description=(
         'Update a case. Payload accepts partial fields — omit fields you do not want to '
         'change. To attach a closing / post-mortem note, update `case_description` or call '
-        '`iris_case_notes_create` — there is no dedicated closing_note field.'
+        '`iris_case_notes_create` — there is no dedicated closing_note field. For fields '
+        'like `state_id`, `classification_id`, or `severity_id`, call '
+        '`iris_taxonomies_list` first to resolve names to numeric ids.'
     ),
     input_schema={
         'type': 'object',

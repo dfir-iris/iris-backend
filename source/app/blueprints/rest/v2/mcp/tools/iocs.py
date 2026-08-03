@@ -105,7 +105,11 @@ def iris_case_iocs_create(args: dict) -> dict:
 
 @mcp_tool(
     name='iris_case_iocs_update',
-    description='Update an existing case IOC (partial payload accepted).',
+    description=(
+        'Update an existing case IOC (partial payload accepted). For '
+        '`ioc_type_id` and `ioc_tlp_id`, call `iris_taxonomies_list` first '
+        'to resolve names (e.g. "domain", "amber") to numeric ids.'
+    ),
     input_schema={
         'type': 'object',
         'properties': {

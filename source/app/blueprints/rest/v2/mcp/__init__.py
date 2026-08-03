@@ -56,4 +56,5 @@ from app.blueprints.rest.v2.mcp.tools import notes as _tools_notes
 from app.blueprints.rest.v2.mcp.tools import tasks as _tools_tasks
 from app.blueprints.rest.v2.mcp.tools import search as _tools_search
 from app.blueprints.rest.v2.mcp.tools import profile as _tools_profile
+from app.blueprints.rest.v2.mcp.tools import taxonomies as _tools_taxonomies
 from app.blueprints.rest.v2.mcp.tools import war_rooms as _tools_war_rooms

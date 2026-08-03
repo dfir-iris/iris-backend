@@ -137,9 +137,9 @@ def iris_case_tasks_update(args: dict) -> dict:
 @mcp_tool(
     name='iris_case_tasks_set_status',
     description=(
-        'Set the status of a task by ID. To find the numeric status ids '
-        'call `iris_case_tasks_get` on any task and inspect its `status` '
-        'nested object, or query the case-objects admin surface.'
+        'Set the status of a task by ID. Call `iris_taxonomies_list` first '
+        'to resolve the target status name (e.g. "Done") to its numeric id '
+        'via the `task_statuses` taxonomy.'
     ),
     input_schema={
         'type': 'object',
