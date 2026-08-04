@@ -550,6 +550,32 @@ def _finalise_turn(
             tool_use_id=tu['id'],
         )
 
+    # Full-throttle mode: admin opted to skip the Approve/Deny card
+    # for writes. Dispatch each write immediately through the same path
+    # reads use (scope override, emit start/result, audit-log). The
+    # `pending` flag on the event stays False so the SPA renders the
+    # write as a live tool card, not an Approve card.
+    if writes_to_pend and cfg.auto_approve_write_tools:
+        for tu in writes_to_pend:
+            result = _dispatch_and_track(
+                conversation=conversation,
+                tool_use=tu,
+                emit=emit,
+            )
+            case_chat_biz.append_message(
+                conversation=conversation,
+                role=ROLE_TOOL,
+                content=[{
+                    'type': 'tool_result',
+                    'tool_use_id': tu['id'],
+                    'content': _tool_result_content(result),
+                }],
+                tool_use_id=tu['id'],
+            )
+        # Fall through — treat this like an all-reads turn so the caller
+        # re-enters the loop with the fresh tool_result messages.
+        return _TurnResult()
+
     # Pending writes: persist rows, emit assistant_tool_start events.
     # Apply the scope override at persist time so a tab-close-and-
     # resume-tomorrow flow doesn't lose the case scope, and so the

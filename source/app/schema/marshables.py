@@ -1638,6 +1638,8 @@ class ServerSettingsSchema(ma.SQLAlchemyAutoSchema):
         required=False, validate=lambda v: 1 <= v <= 64)
     chatbot_auto_execute_read_tools: Optional[bool] = fields.Boolean(
         required=False)
+    chatbot_auto_approve_write_tools: Optional[bool] = fields.Boolean(
+        required=False)
     chatbot_daily_token_budget_per_user: Optional[int] = fields.Integer(
         required=False, validate=lambda v: 0 <= v <= 100_000_000)
     chatbot_daily_token_budget_org: Optional[int] = fields.Integer(

@@ -106,6 +106,7 @@ _CHATBOT_TRACKED_FIELDS = (
     'chatbot_max_turns_per_conversation',
     'chatbot_max_tool_calls_per_turn',
     'chatbot_auto_execute_read_tools',
+    'chatbot_auto_approve_write_tools',
     'chatbot_daily_token_budget_per_user',
     'chatbot_daily_token_budget_org',
     'chatbot_redact_ips',
