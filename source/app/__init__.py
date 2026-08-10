@@ -147,6 +147,278 @@ with app.app_context():
     from sqlalchemy import event
     event.listen(db.engine, 'handle_error', _iris_db_error_handler)
 
+    # ---- Greenlet-race instrumentation (opt-in) ------------------
+    # Set IRIS_DEBUG_GREENLET_RACE=1 in the container env to enable.
+    # When enabled, logs any time two greenlets share a psycopg2
+    # connection — the direct cause of the "lost synchronization with
+    # server" / "NoSuchColumnError" / "ResourceClosedError" family of
+    # errors. We hook TWO layers so we catch it wherever it happens:
+    #
+    #   1. pool checkout/checkin — a connection can only legally be
+    #      checked out by one owner at a time. If a second greenlet
+    #      checks out a connection that's already checked out, the
+    #      pool is broken (or someone is calling `pool._do_get` past
+    #      the semaphore).
+    #   2. before/after cursor execute — an owner can hold a
+    #      connection but yield mid-fetch; if another greenlet issues
+    #      SQL on the same DBAPI connection in the yield window, the
+    #      cursor state gets scrambled (mixed column metadata → the
+    #      IndexError / NoSuchColumnError signature we've been seeing).
+    #
+    # Also dumps `db.session` identity + scope on every checkout so
+    # we can confirm whether the scoped_session is actually per-greenlet.
+    # Off by default because per-cursor bookkeeping + traceback capture
+    # aren't free; only turn on to hunt the race.
+    if os.environ.get('IRIS_DEBUG_GREENLET_RACE') == '1':
+        import traceback as _tb
+
+        # {dbapi_conn_id: (greenlet_id, stack_str, statement_snippet)}
+        _in_flight: dict[int, tuple[int, str, str]] = {}
+        # {dbapi_conn_id: (greenlet_id, checkout_stack)}
+        _checked_out: dict[int, tuple[int, str]] = {}
+
+        def _greenlet_id() -> int:
+            try:
+                import gevent
+                return id(gevent.getcurrent())
+            except Exception:
+                import threading as _th
+                return _th.get_ident()
+
+        def _on_checkout(dbapi_conn, conn_record, conn_proxy):
+            conn_key = id(dbapi_conn)
+            me = _greenlet_id()
+            prev = _checked_out.get(conn_key)
+            if prev and prev[0] != me:
+                app.logger.error(
+                    'iris.db.race[pool]: greenlet %s checked out connection %s '
+                    'that greenlet %s already has checked out.\n'
+                    '  prior checkout stack:\n%s\n'
+                    '  new checkout stack:\n%s\n'
+                    '  session id=%s scope=%s',
+                    me, conn_key, prev[0], prev[1],
+                    ''.join(_tb.format_stack()),
+                    id(db.session()),
+                    getattr(db.session, 'registry', None)
+                    and db.session.registry.scopefunc()
+                    if hasattr(db.session, 'registry') else '<n/a>',
+                )
+            _checked_out[conn_key] = (me, ''.join(_tb.format_stack()))
+
+        def _on_checkin(dbapi_conn, conn_record):
+            conn_key = id(dbapi_conn)
+            _checked_out.pop(conn_key, None)
+            _in_flight.pop(conn_key, None)
+
+        def _on_before_execute(conn, cursor, statement, parameters,
+                                context, executemany):
+            conn_key = id(conn.connection)  # id of the DBAPI conn
+            me = _greenlet_id()
+            holder = _in_flight.get(conn_key)
+            if holder and holder[0] != me:
+                app.logger.error(
+                    'iris.db.race[cursor]: greenlet %s issued SQL on '
+                    'connection %s while greenlet %s is still mid-query.\n'
+                    '  holder stmt: %s\n  intruder stmt: %s\n'
+                    '  holder stack:\n%s\n'
+                    '  intruder stack:\n%s',
+                    me, conn_key, holder[0],
+                    holder[2], statement[:200],
+                    holder[1],
+                    ''.join(_tb.format_stack()),
+                )
+            _in_flight[conn_key] = (me, ''.join(_tb.format_stack()),
+                                     statement[:200])
+
+        def _on_after_execute(conn, cursor, statement, parameters,
+                               context, executemany):
+            conn_key = id(conn.connection)
+            me = _greenlet_id()
+            holder = _in_flight.get(conn_key)
+            if holder and holder[0] != me:
+                # We finished executing but someone else is now the
+                # recorded holder — they stole the connection while we
+                # were yielded inside psycopg2's C-level wait_callback.
+                # This is the exact shape of the desync bug.
+                app.logger.error(
+                    'iris.db.race[stolen]: greenlet %s finished SQL on '
+                    'connection %s but greenlet %s took ownership mid-flight.\n'
+                    '  our stmt: %s\n  thief stmt: %s\n'
+                    '  our stack:\n%s\n  thief stack:\n%s',
+                    me, conn_key, holder[0],
+                    statement[:200], holder[2],
+                    ''.join(_tb.format_stack()),
+                    holder[1],
+                )
+            if holder and holder[0] == me:
+                _in_flight.pop(conn_key, None)
+
+        event.listen(db.engine, 'checkout', _on_checkout)
+        event.listen(db.engine, 'checkin', _on_checkin)
+        event.listen(db.engine, 'before_cursor_execute', _on_before_execute)
+        event.listen(db.engine, 'after_cursor_execute', _on_after_execute)
+
+        # ---- psycopg2-level instrumentation ---------------------------
+        # SQLAlchemy events fire around `cursor.execute()` but NOT around:
+        #   - `connection.rollback()` / `.commit()` (used by SA's own
+        #     transaction bookkeeping — these bytes go on the same wire
+        #     as user queries and the desync signatures we see happen
+        #     inside `do_rollback`).
+        #   - `cursor.fetchone/fetchmany/fetchall` (each fetch is a
+        #     separate psycopg2 call and each can yield the greenlet
+        #     under psycogreen's wait_callback).
+        #   - cursors created directly from a checked-out DBAPI conn
+        #     bypassing SQLAlchemy's ExecutionContext.
+        #
+        # psycopg2's `connection` and `cursor` are immutable C types so
+        # method assignment on them fails. The supported hook is
+        # `connection_factory` (used at connect time) + `cursor_factory`
+        # (set on the connection instance). We install a subclass of
+        # each, and each overridden method logs (greenlet_id, conn_id).
+        # Any time a method starts while another greenlet is mid-call
+        # on the same connection, we log a race.
+        try:
+            import psycopg2.extensions as _psy_ext
+
+            # {conn_id: (greenlet_id, method_name, stack)}
+            _psy_active: dict[int, tuple[int, str, str]] = {}
+
+            def _psy_race_log(conn_key, method_name, extra=''):
+                me = _greenlet_id()
+                active = _psy_active.get(conn_key)
+                if active and active[0] != me:
+                    app.logger.error(
+                        'iris.db.race[psycopg2.%s]: greenlet %s entered '
+                        '%s on connection %s while greenlet %s is still '
+                        'inside %s.%s\n'
+                        '  prior stack:\n%s\n'
+                        '  intruder stack:\n%s',
+                        method_name, me, method_name, conn_key,
+                        active[0], active[1],
+                        f'\n  {extra}' if extra else '',
+                        active[2],
+                        ''.join(_tb.format_stack()),
+                    )
+                _psy_active[conn_key] = (
+                    me, method_name, ''.join(_tb.format_stack()))
+                return me
+
+            def _psy_race_clear(conn_key, me):
+                current = _psy_active.get(conn_key)
+                if current and current[0] == me:
+                    _psy_active.pop(conn_key, None)
+
+            class _TracedCursor(_psy_ext.cursor):
+                def _key(self):
+                    conn = self.connection
+                    return id(conn) if conn is not None else id(self)
+
+                def execute(self, query, vars=None):
+                    key = self._key()
+                    stmt = ''
+                    try:
+                        stmt = (query.decode() if isinstance(query, bytes)
+                                else str(query))[:200]
+                    except Exception:
+                        stmt = '<unrepr>'
+                    me = _psy_race_log(key, 'cursor.execute',
+                                       f'stmt: {stmt}')
+                    try:
+                        return super().execute(query, vars)
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def executemany(self, query, vars_list):
+                    key = self._key()
+                    me = _psy_race_log(key, 'cursor.executemany')
+                    try:
+                        return super().executemany(query, vars_list)
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def callproc(self, procname, parameters=None):
+                    key = self._key()
+                    me = _psy_race_log(key, 'cursor.callproc')
+                    try:
+                        return super().callproc(procname, parameters)
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def fetchone(self):
+                    key = self._key()
+                    me = _psy_race_log(key, 'cursor.fetchone')
+                    try:
+                        return super().fetchone()
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def fetchmany(self, size=None):
+                    key = self._key()
+                    me = _psy_race_log(key, 'cursor.fetchmany')
+                    try:
+                        return super().fetchmany(
+                            size if size is not None else self.arraysize)
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def fetchall(self):
+                    key = self._key()
+                    me = _psy_race_log(key, 'cursor.fetchall')
+                    try:
+                        return super().fetchall()
+                    finally:
+                        _psy_race_clear(key, me)
+
+            class _TracedConnection(_psy_ext.connection):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    # Default every cursor from this connection to the
+                    # traced cursor unless a caller explicitly overrides.
+                    self.cursor_factory = _TracedCursor
+
+                def commit(self):
+                    key = id(self)
+                    me = _psy_race_log(key, 'connection.commit')
+                    try:
+                        return super().commit()
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def rollback(self):
+                    key = id(self)
+                    me = _psy_race_log(key, 'connection.rollback')
+                    try:
+                        return super().rollback()
+                    finally:
+                        _psy_race_clear(key, me)
+
+                def cursor(self, *args, **kwargs):
+                    # If caller passed cursor_factory=..., respect it;
+                    # otherwise use our traced cursor.
+                    kwargs.setdefault('cursor_factory', _TracedCursor)
+                    return super().cursor(*args, **kwargs)
+
+            # Install the connection factory on every new DBAPI
+            # connection SQLAlchemy opens. Using SA's `do_connect` event
+            # is the officially-supported way to intercept before
+            # psycopg2.connect is called.
+            @event.listens_for(db.engine, 'do_connect')
+            def _use_traced_connection(dialect, conn_rec, cargs, cparams):
+                cparams['connection_factory'] = _TracedConnection
+
+            # Any existing connections in the pool were created before
+            # the factory was installed. Dispose so they're recreated
+            # with the traced factory on next checkout.
+            db.engine.dispose()
+
+            app.logger.warning(
+                'iris.db.race: psycopg2-level instrumentation ENABLED')
+        except Exception:
+            app.logger.exception(
+                'iris.db.race: failed to install psycopg2 instrumentation')
+
+        app.logger.warning('iris.db.race: greenlet-race instrumentation ENABLED')
+
 bc.init_app(app)
 
 lm = LoginManager()  # flask-loginmanager
@@ -252,9 +524,34 @@ register_request_id_middleware(app)
 
 register_blueprints(app)
 
+# Serialize `post_init.run()` across workers via a Postgres advisory
+# lock. Without `--preload` each of the 4 workers imports `wsgi:app`
+# independently and would otherwise race on `CREATE TABLE IF NOT
+# EXISTS`, admin-user seeding, base-data seeding, etc. `post_init` is
+# already idempotent (it explicitly logs "Module already exists" when
+# it hits a row that another run created), so the blocking-lock
+# pattern is correct: the first worker runs it, the others block on
+# `pg_advisory_lock`, unblock when the first releases, then re-run
+# post_init as a no-op. Lock key is an arbitrary constant chosen to
+# be recognizable in `pg_locks` — `0x69726973` is 'iris' in ASCII.
+_POST_INIT_LOCK_KEY = 0x69726973
 try:
-    post_init = PostInit(app)
-    post_init.run()
+    from sqlalchemy import text as _sa_text
+    with app.app_context():
+        with db.engine.connect() as _lock_conn:
+            _lock_conn.execute(
+                _sa_text('SELECT pg_advisory_lock(:k)'),
+                {'k': _POST_INIT_LOCK_KEY},
+            )
+            try:
+                post_init = PostInit(app)
+                post_init.run()
+            finally:
+                _lock_conn.execute(
+                    _sa_text('SELECT pg_advisory_unlock(:k)'),
+                    {'k': _POST_INIT_LOCK_KEY},
+                )
+                _lock_conn.commit()
 
 except Exception as e:
     app.logger.exception('Post init failed. IRIS not started')

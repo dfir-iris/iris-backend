@@ -429,8 +429,53 @@ def war_room_attach_case(war_room_id, case_id, attached_by_id=None, note=None):
         f'attached case "{case.name}" to war room "{war_room.name}"',
         caseid=case_id, war_room_id=war_room_id,
     )
+    # If this attach raises the war room's chatbot-policy ceiling, any
+    # in-flight conversation stamped at the OLD level would now be
+    # running on a weaker provider than the (now-stricter) mix of
+    # customers requires. Archive those conversations so the analyst
+    # opens a new one under the updated policy. The loop also
+    # double-checks on every send() — this hook just makes the
+    # transition visible immediately rather than on the next turn.
+    _archive_stale_war_room_conversations(war_room_id)
+
     link = call_modules_hook('on_postload_war_room_case_attach', link, caseid=case_id)
     return link
+
+
+def _archive_stale_war_room_conversations(war_room_id: int) -> None:
+    """Archive every open war-room conversation whose stamped
+    restriction level is below the current resolution.
+
+    Detach never lowers the ceiling in practice (a customer leaving
+    the war room means their policy no longer binds), but it does
+    invalidate the stamped level — analysts may want to continue on
+    the LOOSER provider once the strict customer is gone. Rather than
+    silently migrating (which we can't — the old thread's egress
+    context is bound to the old provider), we archive and let the
+    analyst reopen a fresh chat under the new resolution.
+    """
+    from datetime import datetime, timezone
+    from app.iris_engine.llm.policy import resolve_for_war_room
+    from app.models.case_chat import CaseChatConversation
+
+    live = resolve_for_war_room(war_room_id)
+    live_level = live.restriction_level
+
+    stale = (
+        CaseChatConversation.query
+        .filter(
+            CaseChatConversation.war_room_id == war_room_id,
+            CaseChatConversation.archived_at.is_(None),
+            CaseChatConversation.resolved_restriction_level < live_level,
+        )
+        .all()
+    )
+    if not stale:
+        return
+    now = datetime.now(timezone.utc)
+    for conv in stale:
+        conv.archived_at = now
+    db.session.commit()
 
 
 def war_room_detach_case(war_room_id, case_id):

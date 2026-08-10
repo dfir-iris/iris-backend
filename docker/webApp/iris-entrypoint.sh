@@ -150,7 +150,18 @@ else
     # with server" fatal). Flags below override the config file's
     # `bind` / `workers` / `timeout` / `worker-class` — the config
     # file exists mostly for the hook now.
-    gunicorn wsgi:app --config scripts/gunicorn-cfg.py --bind 0.0.0.0:8000 --timeout 300 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 -w 4 --preload --log-level=info &
+    # NOTE: `--preload` deliberately dropped. With preload, the arbiter
+    # imports `wsgi:app` and runs `post_init.run()` at module scope,
+    # which opens psycopg2 sockets. Those live fds get dup()'d into
+    # every worker at fork(); a fresh psycopg2 connection in worker A
+    # can end up sharing an fd number with an inherited-but-forgotten
+    # socket in worker B, and `gevent.socket.wait_read` reads bytes off
+    # the wrong wire → "lost synchronization with server" desync.
+    # Without preload, each worker imports the app independently after
+    # fork, so no fd inheritance is possible. `post_init.run()` is
+    # gated by a Postgres advisory lock so only the first worker
+    # actually runs it — see app/post_init.py.
+    gunicorn wsgi:app --config scripts/gunicorn-cfg.py --bind 0.0.0.0:8000 --timeout 300 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 -w 4 --log-level=info &
 fi
 
 while :; do tail -f /dev/null & wait $!; done

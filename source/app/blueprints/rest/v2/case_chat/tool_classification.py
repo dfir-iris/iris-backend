@@ -31,6 +31,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset({
     'iris_case_tasks_list', 'iris_case_tasks_get',
     'iris_search',
     'iris_me_get', 'iris_me_context_get',
+    'iris_taxonomies_list',
     # War rooms — reads
     'iris_war_rooms_list', 'iris_war_rooms_get',
     'iris_war_room_chat_list',

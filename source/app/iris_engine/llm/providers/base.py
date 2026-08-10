@@ -54,10 +54,18 @@ class ToolUseEnd:
 class MessageEnd:
     """Terminator emitted after the model finishes a turn. `stop_reason`
     is Anthropic-shaped: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop'.
-    Adapters map their provider's native stop reason to this set."""
+    Adapters map their provider's native stop reason to this set.
+
+    `cache_read_tokens` / `cache_creation_tokens` come from providers
+    that report prompt-cache accounting: Anthropic emits both on
+    `message_start.usage`, OpenAI emits cache_read only (cached_tokens
+    on prompt_tokens_details), Ollama emits neither and leaves both None.
+    """
     stop_reason: str
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    cache_read_tokens: int | None = None
+    cache_creation_tokens: int | None = None
 
 
 @dataclass(frozen=True)

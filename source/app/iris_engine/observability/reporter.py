@@ -112,11 +112,18 @@ def _do_init(dsn: Optional[str], *, environment: Optional[str],
 
     integrations: list[Any] = [
         FlaskIntegration(transaction_style='endpoint'),
+        # `level=None` disables breadcrumb capture from stdlib logging.
+        # Under gevent + psycogreen, INFO-level breadcrumb capture walks
+        # frames and touches shared Sentry Hub state on every log call,
+        # which yields the greenlet at unpredictable points and widens
+        # the window for two greenlets to step on the same psycopg2
+        # connection ("lost synchronization with server" desync). We
+        # keep `event_level=ERROR` so ERROR logs still surface as
+        # Sentry events — that's the important half of this integration.
         LoggingIntegration(
-            level=logging.INFO,
+            level=None,
             event_level=logging.ERROR,
         ),
-        SqlalchemyIntegration(),
     ]
     try:
         from sentry_sdk.integrations.celery import CeleryIntegration
@@ -124,6 +131,19 @@ def _do_init(dsn: Optional[str], *, environment: Optional[str],
     except ImportError:
         pass
 
+    # SqlalchemyIntegration installs `before_cursor_execute` /
+    # `after_cursor_execute` listeners on every engine. Under gevent +
+    # psycogreen those listeners run in the same greenlet as the query
+    # and can widen the window in which two greenlets step on the same
+    # psycopg2 connection, producing the "lost synchronization with
+    # server" desync. With traces_sample_rate=0 we get no spans out of
+    # it anyway, so it's pure downside — opt out via
+    # `disabled_integrations` (also blocks sentry-sdk's auto-enable).
+    #
+    # `attach_stacktrace=False` matches: on-error events already carry
+    # their own traceback; the flag only adds a synthetic stack to
+    # message-level captures, which under gevent means frame-walking on
+    # every capture call — another yield opportunity we don't need.
     sentry_sdk.init(
         dsn=dsn,
         environment=environment,
@@ -132,10 +152,23 @@ def _do_init(dsn: Optional[str], *, environment: Optional[str],
         traces_sample_rate=0.0,
         send_default_pii=False,
         max_breadcrumbs=30,
-        attach_stacktrace=True,
+        attach_stacktrace=False,
+        # Never walk frame locals at capture time. Sentry's default
+        # serializer calls `repr()` on every value in `frame.f_locals`
+        # while building the event payload. Under gevent + psycogreen a
+        # `repr()` on a SQLAlchemy Cursor / Connection / Result can
+        # lazy-fetch, which enters psycopg2's C wait_callback and
+        # yields the greenlet — while the traceback we're serializing
+        # holds a checked-out connection mid-transaction-abort. That
+        # yield is where two greenlets end up sharing the same
+        # psycopg2 socket ("lost synchronization with server"). Frame
+        # locals stripping in `before_send` runs too late — the yield
+        # already happened during serialize.
+        include_local_variables=False,
         before_send=make_before_send(strict_frame_vars=strict_frame_vars),
         before_breadcrumb=before_breadcrumb,
         integrations=integrations,
+        disabled_integrations=[SqlalchemyIntegration()],
     )
 
 

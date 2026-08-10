@@ -271,6 +271,11 @@ def get_conversation(conversation_id: int):
         .all()
     )
     payload['pending_tool_calls'] = _pending_schema.dump(pending, many=True)
+    # Aggregate token/context stats for the footer indicator. Cheap
+    # (one SUM query); the socket also pushes fresh usage on every
+    # assistant_end, so this GET call is only load-bearing on panel-open.
+    payload['usage'] = case_chat_biz.get_conversation_usage(
+        conversation_id, user_id=conv.user_id)
     return response_api_success(payload)
 
 

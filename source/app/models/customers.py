@@ -25,6 +25,7 @@ from sqlalchemy import DateTime
 from sqlalchemy import func
 from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.orm import relationship
 
 from app.db import db
 
@@ -42,3 +43,15 @@ class Client(db.Model):
     last_update_date = Column(DateTime, server_default=func.now(), nullable=True)
 
     custom_attributes = Column(JSON)
+
+    # Optional per-customer chatbot policy override. NULL = fall back to
+    # the global `ServerSettings.chatbot_*` block. See models/chatbot_policy.py.
+    # ON DELETE SET NULL so deleting a policy doesn't cascade into
+    # customer rows — the customer just reverts to the global default.
+    chatbot_policy_id = Column(
+        BigInteger,
+        ForeignKey('chatbot_policy.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+    chatbot_policy = relationship(
+        'ChatbotPolicy', back_populates='clients', lazy='joined')

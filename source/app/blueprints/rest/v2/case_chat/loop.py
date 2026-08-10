@@ -46,6 +46,8 @@ from app.iris_engine.llm.client import (
     get_llm_provider,
     load_config,
 )
+from app.iris_engine.llm.policy import resolve_for_conversation
+from app.models.chatbot_policy import ChatbotPolicy
 from app.iris_engine.llm.providers.base import (
     ChatMessage,
     Error,
@@ -98,8 +100,39 @@ def run_one_iteration(
     `for event in provider.stream_completion(...)` yields cooperatively
     between tokens, so a long stream never blocks the worker.
     """
+    # Re-resolve the policy on every send() so a war-room case attach
+    # that raised the ceiling since the conversation was created is
+    # caught HERE — the loop refuses to run against a weaker provider
+    # than the current scope requires. The war-room hook also archives
+    # the conversation up front, so this is a belt-and-braces check.
+    live = resolve_for_conversation(conversation)
+    stamped_level = int(conversation.resolved_restriction_level or 0)
+    if live.restriction_level > stamped_level:
+        # Something changed — a case was attached whose customer has a
+        # stricter policy than this conversation. Archive and tell the
+        # user to open a new chat under the new ceiling.
+        case_chat_biz.archive_conversation(conversation)
+        emit(ChatEvent('error', {
+            'message': (
+                'This conversation\'s customer policy has become '
+                'stricter since it was started. It has been archived — '
+                'please open a new chat to continue under the updated '
+                'policy.'
+            ),
+        }))
+        return
+
+    # Load the stamped policy, if any, and hand it to load_config.
+    stamped_policy: ChatbotPolicy | None = None
+    if conversation.resolved_policy_id is not None:
+        stamped_policy = (
+            ChatbotPolicy.query
+            .filter_by(id=conversation.resolved_policy_id)
+            .first()
+        )
+
     try:
-        cfg = load_config()
+        cfg = load_config(policy=stamped_policy)
     except Exception as exc:
         logger.exception('failed to load chatbot config')
         emit(ChatEvent('error', {
@@ -168,6 +201,7 @@ def run_one_iteration(
             model=cfg.model,
             request_bytes=request_bytes,
             redacted=redacted,
+            request_snapshot=_build_request_snapshot(system, history, tools),
         )
 
         turn_result = _consume_stream(
@@ -426,6 +460,8 @@ def _consume_stream(
                 response_bytes=response_bytes,
                 prompt_tokens=event.prompt_tokens,
                 completion_tokens=event.completion_tokens,
+                cache_read_tokens=event.cache_read_tokens,
+                cache_creation_tokens=event.cache_creation_tokens,
             )
             return _finalise_turn(
                 text=''.join(text_buffer),
@@ -494,9 +530,14 @@ def _finalise_turn(
     )
 
     if not tool_uses:
+        # Attach live usage so the panel's footer refreshes on every turn
+        # without a REST round-trip. `get_conversation_usage` is one SUM
+        # query over egress rows scoped to this conversation — cheap.
         emit(ChatEvent('assistant_end', {
             'message_id': assistant_msg.id,
             'stop_reason': stop_reason,
+            'usage': case_chat_biz.get_conversation_usage(
+                conversation.id, user_id=conversation.user_id),
         }))
         return _TurnResult(terminated=True)
 
@@ -520,9 +561,20 @@ def _finalise_turn(
             }))
             return _TurnResult(terminated=True)
 
-    # Auto-execute reads if allowed.
+    # Auto-execute reads if allowed. Loads config through the
+    # conversation's stamped policy so per-customer overrides for
+    # `auto_execute_read_tools` / `auto_approve_write_tools` bind here
+    # too — otherwise a strict-local customer would silently fall back
+    # to the global auto-approve toggle.
     from app.iris_engine.llm.client import load_config
-    cfg = load_config()
+    stamped = None
+    if conversation.resolved_policy_id is not None:
+        stamped = (
+            ChatbotPolicy.query
+            .filter_by(id=conversation.resolved_policy_id)
+            .first()
+        )
+    cfg = load_config(policy=stamped)
 
     for tu in reads_to_execute:
         if not cfg.auto_execute_read_tools:
@@ -705,6 +757,36 @@ def _dispatch_and_track(
     except Exception:
         logger.exception('chatbot: assistant_tool_result emit failed for %s', name)
     return result
+
+
+def _build_request_snapshot(
+    system: str,
+    history: list[ChatMessage],
+    tools: list[ToolSpec],
+) -> dict:
+    """Build a stripped snapshot of what is sent to the model this turn.
+
+    Captures the system prompt, the full tools list (names + descriptions
+    + schemas), and only the triggering user message — not the full
+    conversation history. Stored on the egress-audit row so admins can
+    verify exactly which tools the model received without replaying the
+    whole conversation.
+    """
+    last_user = next(
+        (m.content for m in reversed(history) if m.role == 'user'), None
+    )
+    return {
+        'system': system,
+        'tools': [
+            {
+                'name': t.name,
+                'description': t.description,
+                'input_schema': t.input_schema,
+            }
+            for t in tools
+        ],
+        'user_message': last_user,
+    }
 
 
 def _event_bytes(event: LLMEvent) -> int:

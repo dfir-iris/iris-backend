@@ -1,0 +1,22 @@
+[project]
+name = "th4-to-iris"
+version = "0.1.0"
+description = "One-way migration from TheHive 4 to IRIS v3"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "SQLAlchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "tqdm>=4.66",
+]
+
+[project.scripts]
+th4-to-iris = "th4_to_iris.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["th4_to_iris*"]

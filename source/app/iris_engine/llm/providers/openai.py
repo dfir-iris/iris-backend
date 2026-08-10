@@ -110,12 +110,20 @@ class OpenAIProvider(LLMProvider):
         finish_reason: str = 'end_turn'
         prompt_tokens: int | None = None
         completion_tokens: int | None = None
+        cache_read_tokens: int | None = None
 
         for chunk in _iter_openai_chunks(resp):
             usage = chunk.get('usage')
             if usage:
                 prompt_tokens = usage.get('prompt_tokens')
                 completion_tokens = usage.get('completion_tokens')
+                # Cache hits (`prompt_tokens_details.cached_tokens`) —
+                # emitted on models with automatic prompt caching. OpenAI
+                # has no cache-write concept, so `cache_creation_tokens`
+                # stays None here.
+                details = usage.get('prompt_tokens_details') or {}
+                if details.get('cached_tokens') is not None:
+                    cache_read_tokens = details['cached_tokens']
                 # `usage` typically appears in the final chunk with
                 # `choices: []`; safe to continue processing this frame.
 
@@ -174,6 +182,7 @@ class OpenAIProvider(LLMProvider):
             stop_reason=finish_reason,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            cache_read_tokens=cache_read_tokens,
         )
 
     # -----------------------------------------------------------------

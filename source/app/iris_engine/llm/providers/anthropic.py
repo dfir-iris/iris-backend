@@ -111,6 +111,8 @@ class AnthropicProvider(LLMProvider):
         stop_reason: str = 'end_turn'
         prompt_tokens: int | None = None
         completion_tokens: int | None = None
+        cache_read_tokens: int | None = None
+        cache_creation_tokens: int | None = None
 
         for event_type, payload in _iter_sse(resp):
             if event_type in ('ping', ''):
@@ -118,6 +120,14 @@ class AnthropicProvider(LLMProvider):
             if event_type == 'message_start':
                 usage = payload.get('message', {}).get('usage') or {}
                 prompt_tokens = usage.get('input_tokens')
+                # Prompt-cache counters — present when the request used
+                # `cache_control` blocks and the model supports caching.
+                # Absent on non-cache models; leave as None so the audit
+                # row doesn't misreport "0 cache" as if caching was on.
+                if usage.get('cache_read_input_tokens') is not None:
+                    cache_read_tokens = usage['cache_read_input_tokens']
+                if usage.get('cache_creation_input_tokens') is not None:
+                    cache_creation_tokens = usage['cache_creation_input_tokens']
                 continue
             if event_type == 'content_block_start':
                 block = payload.get('content_block') or {}
@@ -191,6 +201,8 @@ class AnthropicProvider(LLMProvider):
             stop_reason=stop_reason,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_creation_tokens=cache_creation_tokens,
         )
 
     # -----------------------------------------------------------------

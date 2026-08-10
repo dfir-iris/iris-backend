@@ -105,6 +105,7 @@ from app.models.case_chat import CaseChatConversation
 from app.models.case_chat import CaseChatEgressAudit
 from app.models.case_chat import CaseChatMessage
 from app.models.case_chat import CaseChatPendingToolCall
+from app.models.chatbot_policy import ChatbotPolicy
 from app.models.cases import CaseState
 from app.models.cases import CaseProtagonist
 from app.schema.utils import assert_type_mml
@@ -1666,6 +1667,47 @@ class ServerSettingsSchema(ma.SQLAlchemyAutoSchema):
         unknown = EXCLUDE
 
 
+class ChatbotPolicySchema(ma.SQLAlchemyAutoSchema):
+    """Admin CRUD schema for `ChatbotPolicy`.
+
+    `api_key` is write-only on the wire — the frontend never receives
+    the encrypted blob (or plaintext) back. Callers pass raw plaintext
+    on create/update; the REST layer encrypts before persist.
+    """
+    id: int = auto_field('id', dump_only=True)
+    name: str = auto_field('name', required=True, validate=Length(min=2, max=120))
+    description: str = auto_field('description', required=False, allow_none=True)
+    restriction_level: int = auto_field(
+        'restriction_level', required=False)
+    provider: str = auto_field('provider', required=False)
+    model: str = auto_field('model', required=False)
+    api_key = auto_field('api_key', load_only=True, required=False, allow_none=True)
+    base_url: str = auto_field('base_url', required=False)
+    auto_execute_read_tools: bool = auto_field(
+        'auto_execute_read_tools', required=False)
+    auto_approve_write_tools: bool = auto_field(
+        'auto_approve_write_tools', required=False)
+    max_turns_per_conversation: int = auto_field(
+        'max_turns_per_conversation', required=False)
+    max_tool_calls_per_turn: int = auto_field(
+        'max_tool_calls_per_turn', required=False)
+    daily_token_budget_per_user: int = auto_field(
+        'daily_token_budget_per_user', required=False)
+    daily_token_budget_org: int = auto_field(
+        'daily_token_budget_org', required=False)
+    redact_ips: bool = auto_field('redact_ips', required=False)
+    redact_emails: bool = auto_field('redact_emails', required=False)
+    redact_hashes: bool = auto_field('redact_hashes', required=False)
+    retention_days: int = auto_field('retention_days', required=False)
+    created_at = auto_field('created_at', dump_only=True)
+    updated_at = auto_field('updated_at', dump_only=True)
+
+    class Meta:
+        model = ChatbotPolicy
+        load_instance = True
+        unknown = EXCLUDE
+
+
 class CaseChatConversationSchema(ma.SQLAlchemyAutoSchema):
     """Serialize a `CaseChatConversation` row.
 
@@ -1684,6 +1726,10 @@ class CaseChatConversationSchema(ma.SQLAlchemyAutoSchema):
     created_at = auto_field('created_at', dump_only=True)
     updated_at = auto_field('updated_at', dump_only=True)
     archived_at = auto_field('archived_at', dump_only=True)
+    resolved_policy_id: Optional[int] = auto_field(
+        'resolved_policy_id', dump_only=True)
+    resolved_restriction_level: int = auto_field(
+        'resolved_restriction_level', dump_only=True)
 
     class Meta:
         model = CaseChatConversation
@@ -1748,6 +1794,7 @@ class CaseChatEgressAuditSchema(ma.SQLAlchemyAutoSchema):
     completion_tokens: Optional[int] = auto_field(
         'completion_tokens', dump_only=True)
     redacted: bool = auto_field('redacted', dump_only=True)
+    request_snapshot = auto_field('request_snapshot', dump_only=True)
     created_at = auto_field('created_at', dump_only=True)
 
     class Meta:

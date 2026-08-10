@@ -98,6 +98,20 @@ class CaseChatConversation(db.Model):
                         server_default=text('now()'))
     archived_at = Column(DateTime, nullable=True)
 
+    # Policy snapshot — the resolver stamps this at creation and on
+    # every send() re-checks whether the current scope still resolves
+    # to the same restriction level. A change (case attached to a war
+    # room that raises the ceiling) archives this row and opens a new
+    # conversation on the stricter provider. NULL = resolved to the
+    # global default (no policy applied).
+    resolved_policy_id = Column(
+        BigInteger,
+        ForeignKey('chatbot_policy.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+    resolved_restriction_level = Column(Integer, nullable=False, default=0,
+                                        server_default=text('0'))
+
     user = relationship('User')
     # No ORM `case` relationship — same reason `UserActivity.case`
     # was left off: `Cases` may not be mapper-ready at import time in
@@ -232,8 +246,18 @@ class CaseChatEgressAudit(db.Model):
                             server_default=text('0'))
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
+    # Prompt-cache accounting. Populated when the provider reports it
+    # (Anthropic: both; OpenAI: cache_read only; Ollama: neither).
+    # NULL for pre-cache-tracking rows — the aggregate coalesces to 0.
+    cache_read_tokens = Column(Integer, nullable=True)
+    cache_creation_tokens = Column(Integer, nullable=True)
     redacted = Column(Boolean, nullable=False, default=False,
                       server_default=text('false'))
+    # Snapshot of what was sent to the provider on this turn — system
+    # prompt, tools list, and the triggering user message — with
+    # conversation history stripped. Lets admins verify exactly which
+    # tools a model received without replaying the full conversation.
+    request_snapshot = Column(JSONB, nullable=True)
     created_at = Column(DateTime, nullable=False,
                         server_default=text('now()'))
 
