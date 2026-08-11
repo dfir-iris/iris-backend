@@ -196,8 +196,13 @@ def add_user_case_effective_access(user_identifier, case_identifier, access_leve
         UserCaseEffectiveAccess.case_id == case_identifier
     )).first()
     if uac:
-        uac = uac[0]
         uac.access_level = access_level
+    else:
+        uac = UserCaseEffectiveAccess()
+        uac.user_id = user_identifier
+        uac.case_id = case_identifier
+        uac.access_level = access_level
+        db.session.add(uac)
     db.session.commit()
 
 

@@ -100,8 +100,6 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
             return None
         set_case_effective_access_for_user(user_id, cid, access_level)
 
-        return access_level
-
     if ac_flag_match_mask(access_level, CaseAccessLevel.deny_all.value):
         return None
 
