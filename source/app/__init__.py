@@ -19,10 +19,10 @@
 import os
 from flask import Flask
 from flask import g
+from flask import request
 from flask import session
 from flask_bcrypt import Bcrypt
 from flask_caching import Cache
-from flask_cors import CORS
 
 from flask_login import LoginManager
 from flask_marshmallow import Marshmallow
@@ -31,6 +31,10 @@ from flask_socketio import Namespace
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from app.cors import DEV_ORIGINS
+from app.cors import ANY_ORIGIN
+from app.cors import apply_cors_headers
+from app.cors import preflight_response
 from app.flask_dropzone import Dropzone
 from app.configuration import Config
 from app.iris_engine.tasker.celery import make_celery
@@ -429,18 +433,19 @@ dropzone = Dropzone(app)
 
 set_celery_flask_context(celery, app)
 
-#if app.config.get('DEVELOPMENT_ENABLED'):
-CORS(app,
-     supports_credentials=True,
-     resources={r"/api/*": {"origins": [
-         "https://127.0.0.1:5137",
-         "https://localhost:5173",
-         "https://localhost",
-         "https://127.0.0.1",
-         "http://app:8000",
-         "http://frontend:5173",
-     ]}})
-
+# Effective browser origins for this instance: whatever the operator
+# configured, plus the loopback origins the dev stack uses. `flask_cors`
+# used to own the second half of that list while the `after_request`
+# below owned the first, and the two disagreed — each appended its own
+# `Access-Control-Allow-Origin`, and a response carrying two of them is
+# rejected by every browser. One layer now, in `app/cors.py`.
+#
+# The wildcard swallows the dev entries: once any origin is allowed,
+# enumerating six of them adds nothing.
+_allowed_origins = list(app.config['IRIS_ALLOWED_ORIGINS'])
+if ANY_ORIGIN not in _allowed_origins:
+    _allowed_origins += [o for o in DEV_ORIGINS if o not in _allowed_origins]
+app.config['IRIS_ALLOWED_ORIGINS'] = _allowed_origins
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 #app.wsgi_app = store.wsgi_middleware(app.wsgi_app)
@@ -448,10 +453,11 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 # `cors_allowed_origins` is narrowed from the historical `'*'` — a
 # wide-open handshake acceptor lets any cross-origin page complete a
 # WS upgrade against a victim's `SameSite=Lax` session cookie, which
-# with the chatbot in place becomes an LLM-token-burning attack. The
-# config key mirrors the existing `IRIS_ALLOW_ORIGIN` used by the
-# HTTP CORS layer (see `after_request` below). Falls back to `'*'`
-# only if the config value is unset (existing dev workflow).
+# with the chatbot in place becomes an LLM-token-burning attack. It
+# takes the same list the HTTP CORS layer uses (see `after_request`
+# below), so an instance answering on several hostnames accepts a
+# handshake from each of them rather than only the first. Falls back
+# to `'*'` only if the config value is unset (existing dev workflow).
 #
 # `async_mode` is set from the gunicorn side: `source/wsgi.py`
 # monkey-patches gevent before importing `app`, so `sys.modules` has
@@ -466,7 +472,13 @@ if 'gevent' in _sys.modules:
     _socket_async_mode = 'gevent'
 else:
     _socket_async_mode = None  # let Flask-SocketIO pick
-_socket_allowed_origins = app.config.get('IRIS_ALLOW_ORIGIN') or '*'
+# python-socketio takes either the literal '*' or a list of origins;
+# handing it a one-element list containing '*' is NOT the same thing
+# there, so unwrap the wildcard.
+if ANY_ORIGIN in _allowed_origins:
+    _socket_allowed_origins = ANY_ORIGIN
+else:
+    _socket_allowed_origins = _allowed_origins
 _socket_kwargs = {'cors_allowed_origins': _socket_allowed_origins}
 if _socket_async_mode is not None:
     _socket_kwargs['async_mode'] = _socket_async_mode
@@ -498,22 +510,21 @@ def shutdown_session(exception=None):
     g.pop('auth_user_permissions', None)
 
 
+@app.before_request
+def before_request_cors():
+    # Answer preflights here rather than letting them reach a view.
+    # Flask's automatic OPTIONS response still runs every before_request
+    # hook, so an auth check can reject a preflight — and the browser
+    # reports that as an opaque CORS failure with no hint that the
+    # credentials on the real request would have been fine. Returns
+    # None for everything that is not a preflight from an allowed
+    # origin, which leaves normal dispatch untouched.
+    return preflight_response(request, app.config['IRIS_ALLOWED_ORIGINS'])
+
+
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', app.config['IRIS_ALLOW_ORIGIN'])
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    # PATCH was missing — preflight for `PATCH /api/v2/war-rooms/<id>`
-    # (and any other v2 PATCH endpoint we add) failed the CORS check
-    # because this list didn't include the verb. Browsers cache failed
-    # preflights for a few seconds, so a stale tab may keep failing
-    # briefly after this lands.
-    response.headers.add(
-        'Access-Control-Allow-Methods',
-        'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    )
-
-    return response
+    return apply_cors_headers(response, request, app.config['IRIS_ALLOWED_ORIGINS'])
 
 
 # Request-ID middleware BEFORE blueprints so every route (including

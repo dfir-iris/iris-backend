@@ -86,6 +86,9 @@ class Permissions(enum.Enum):
     investigation_flows_read = 0x800000
     investigation_flows_write = 0x1000000
 
+    asset_manager_read = 0x2000000
+    asset_manager_write = 0x4000000
+
 
 class WarRoomAccessLevel(enum.Enum):
     deny_all = 0x1

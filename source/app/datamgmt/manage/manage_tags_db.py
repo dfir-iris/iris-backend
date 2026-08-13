@@ -64,6 +64,45 @@ def get_filtered_tags(tag_title, tag_namespace, pagination_parameters: Paginatio
     return filtered_tags
 
 
+def register_db_tags_from_string(tags_value):
+    """Index a comma-separated tag string into the global `tags` table.
+
+    The owning row's own `tags` column stays the source of truth; this
+    table is only the suggestion index behind tag autocomplete. A write
+    that succeeded must not be undone because indexing it failed, so
+    every title is attempted independently and failures are logged
+    rather than raised.
+
+    Callers must invoke this *after* their own commit: `Tags.save()`
+    commits, which would otherwise flush their still-open transaction.
+
+    :param tags_value: Comma-separated tag titles, or None
+    :return: The list of tag titles registered
+    """
+    if not tags_value:
+        return []
+
+    titles = []
+    for part in tags_value.split(','):
+        title = part.strip()
+        if title and title not in titles:
+            titles.append(title)
+
+    registered = []
+    for title in titles:
+        try:
+            # `Tags.save()` is get-or-create — a title that already exists
+            # returns the existing row instead of tripping the unique
+            # constraint.
+            Tags(tag_title=title).save()
+            registered.append(title)
+        except Exception:
+            db.session.rollback()
+            logger.exception(f'Failed to register tag "{title}"')
+
+    return registered
+
+
 def add_db_tag(tag_title, tag_namespace=None):
     """
     Adds a tag to the database.

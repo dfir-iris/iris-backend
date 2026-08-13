@@ -34,6 +34,7 @@ from app.datamgmt.manage.manage_users_db import get_user_cases_fast as get_user_
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
 from app.datamgmt.case.case_assets_db import delete_asset
+from app.business.managed_assets import managed_assets_observe_asset
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
@@ -56,6 +57,9 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
 
     if asset:
         track_activity(f'added asset "{asset.asset_name}"', caseid=case_identifier)
+        # Mirror the observation into the customer's asset registry. Never
+        # raises — a registry write must not be able to fail an asset create.
+        managed_assets_observe_asset(asset)
         return asset
 
     raise BusinessProcessingError('Unable to create asset for internal reasons')
@@ -107,6 +111,10 @@ def assets_update(asset: CaseAssets):
 
     if asset:
         track_activity(f'updated asset "{asset.asset_name}"', caseid=asset.case_id)
+        # A rename creates a new registry identity; the old row keeps its
+        # metadata and its sighting count simply drops as observations
+        # stop matching it.
+        managed_assets_observe_asset(asset)
         return asset
 
     raise BusinessProcessingError('Unable to update asset for internal reasons')

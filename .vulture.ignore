@@ -532,3 +532,22 @@ partial_json  # unused variable (source/app/iris_engine/llm/providers/base.py:42
 provider_code  # unused variable (source/app/iris_engine/llm/providers/base.py:68) — dataclass field on Error events
 ######### Banners: model column + marshmallow field read reflectively
 dismissable  # unused variable (source/app/models/banners.py, source/app/schema/marshables.py) — ORM column + marshmallow field, consumed reflectively
+######### Asset manager: config keys read through app.config[...] by name
+MANAGED_ASSETS_MAX_IMPORT_BYTES
+MANAGED_ASSETS_MAX_IMPORT_ROWS
+MANAGED_ASSETS_MAX_EXPORT_ROWS
+MANAGED_ASSETS_STAGING_TTL_MINUTES
+MANAGED_ASSETS_MAX_PER_PAGE
+######### Asset manager: ORM columns + marshmallow fields read reflectively
+managed_asset_uuid  # ORM column (server-generated) + dump-only schema field
+case_sighting_count  # dump-only field, set on the instance by the route before dumping
+alert_sighting_count
+timeline_event_count
+observation_description
+observation_tags
+reference_id
+reference_name
+total_rows  # ManagedAssetImportReportSchema field, dumped from the importer report dict
+rows_truncated
+compromise_status_id  # dump-only field on the detail + sighting schemas
+_query_items  # _RowPagination override, called by flask_sqlalchemy's Pagination.__init__

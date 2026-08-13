@@ -17,6 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import configparser
+from app.cors import parse_allowed_origins
+from app.cors import primary_public_url
 from app.logger import logger
 import logging
 import os
@@ -285,7 +287,21 @@ class Config:
     if DEVELOPMENT_ENABLED == 'True':
         DEVELOPMENT_ENABLED = True
 
-    IRIS_ALLOW_ORIGIN = config.load('IRIS', 'ALLOW_ORIGIN', fallback='*')
+    # `IRIS_ALLOW_ORIGIN` accepts a comma- or whitespace-separated list:
+    # one deployment can answer on several hostnames (a hostname assigned
+    # at deploy time plus any further domain pointed at the same stack),
+    # and every one of them is a legitimate browser origin for the same
+    # application. A single value only ever authorised one of them. See
+    # `app/cors.py` for the parsing and matching rules.
+    IRIS_ALLOWED_ORIGINS = parse_allowed_origins(
+        config.load('IRIS', 'ALLOW_ORIGIN', fallback='*'))
+
+    # Canonical public URL, used for links built server-side (e-mail
+    # notifications). Kept under the historical name because that is
+    # what those call sites read; it is now the *first* configured
+    # origin rather than the whole raw value, so a wildcard deployment
+    # no longer produces links beginning with a literal `*`.
+    IRIS_ALLOW_ORIGIN = primary_public_url(IRIS_ALLOWED_ORIGINS)
 
     WTF_CSRF_TIME_LIMIT = None
 
@@ -319,6 +335,32 @@ class Config:
     ASSET_STORE_PATH = config.load('IRIS', 'ASSET_STORE_PATH', fallback="/home/iris/server_data/custom_assets")
     DATASTORE_PATH = config.load('IRIS', 'DATASTORE_PATH', fallback="/home/iris/server_data/datastore")
     ASSET_SHOW_PATH = "/static/assets/img/graph"
+
+    """ Case transfer (export / import between instances)
+    Uploaded bundles are staged under UPLOADED_PATH before being applied. The size cap
+    applies to both the compressed upload and the cumulative decompressed size, so a zip
+    bomb is rejected before it can fill the disk.
+    """
+    CASE_TRANSFER_MAX_ARCHIVE_BYTES = int(config.load('IRIS', 'CASE_TRANSFER_MAX_ARCHIVE_BYTES',
+                                                      fallback=5 * 1024 * 1024 * 1024))
+    CASE_TRANSFER_STAGING_TTL_MINUTES = int(config.load('IRIS', 'CASE_TRANSFER_STAGING_TTL_MINUTES',
+                                                        fallback=120))
+
+    """ Asset manager (Manage > Assets) import / export
+    Only flat text formats are accepted (CSV, JSON), so there is no decompression
+    step and no archive-bomb class to defend against — the byte cap is the whole
+    story. Row caps bound the work a single request can ask the database to do.
+    """
+    MANAGED_ASSETS_MAX_IMPORT_BYTES = int(config.load('IRIS', 'MANAGED_ASSETS_MAX_IMPORT_BYTES',
+                                                      fallback=32 * 1024 * 1024))
+    MANAGED_ASSETS_MAX_IMPORT_ROWS = int(config.load('IRIS', 'MANAGED_ASSETS_MAX_IMPORT_ROWS',
+                                                     fallback=20000))
+    MANAGED_ASSETS_MAX_EXPORT_ROWS = int(config.load('IRIS', 'MANAGED_ASSETS_MAX_EXPORT_ROWS',
+                                                     fallback=50000))
+    MANAGED_ASSETS_STAGING_TTL_MINUTES = int(config.load('IRIS', 'MANAGED_ASSETS_STAGING_TTL_MINUTES',
+                                                         fallback=30))
+    MANAGED_ASSETS_MAX_PER_PAGE = int(config.load('IRIS', 'MANAGED_ASSETS_MAX_PER_PAGE',
+                                                  fallback=100))
 
     ORGANISATION_NAME = config.load('IRIS', 'ORGANISATION_NAME', fallback='')
     LOGIN_BANNER_TEXT = config.load('IRIS', 'LOGIN_BANNER_TEXT', fallback='')

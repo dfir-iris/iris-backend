@@ -29,6 +29,7 @@ from app.business.assets import assets_delete
 from app.business.assets import assets_create
 from app.business.assets import assets_get
 from app.business.assets import assets_update
+from app.business.managed_assets import managed_assets_observe_case
 from app.blueprints.iris_user import iris_current_user
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -269,6 +270,12 @@ def case_upload_asset(caseid):
             track_activity(f"added asset {asset.asset_name}", caseid=caseid)
 
             index += 1
+
+        # This legacy path calls `create_asset` directly rather than going
+        # through `business.assets`, so it misses the registry hook there.
+        # Observed once for the whole upload — the statement is set-based
+        # over the case's assets, so per-row calls would repeat the work.
+        managed_assets_observe_case(caseid)
 
         if len(errors) == 0:
             msg = "Successfully imported data."

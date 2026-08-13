@@ -1073,6 +1073,9 @@ def create_safe_attributes():
     create_safe_attr(db.session, attribute_display_name='Customers',
                      attribute_description='Defines default attributes for Customers', attribute_for='client',
                      attribute_content={})
+    create_safe_attr(db.session, attribute_display_name='Managed assets',
+                     attribute_description='Defines default attributes for the asset registry',
+                     attribute_for='managed_asset', attribute_content={})
 
 
 def create_safe_ioctypes():

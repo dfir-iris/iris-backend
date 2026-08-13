@@ -59,6 +59,9 @@ _ALLOWED_OBJECT_TYPES = {
     'evidence',
     'event',
     'client',
+    # The customer-bounded asset registry (Manage > Assets). Distinct
+    # from 'asset', which is the per-case `case_assets` row.
+    'managed_asset',
 }
 
 

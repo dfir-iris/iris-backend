@@ -30,6 +30,7 @@ from app.models.cases import CasesEvent
 from app.models.customers import Client
 from app.models.models import CustomAttribute
 from app.models.iocs import Ioc
+from app.models.managed_assets import ManagedAsset
 from app.models.models import Notes
 
 log = logger.getLogger(__name__)
@@ -54,6 +55,8 @@ def update_all_attributes(object_type, previous_attribute, partial_overwrite=Fal
         obj_list = Cases.query.all()
     elif object_type == 'client':
         obj_list = Client.query.all()
+    elif object_type == 'managed_asset':
+        obj_list = ManagedAsset.query.all()
 
     target_attr = get_default_custom_attributes(object_type)
 
@@ -184,6 +187,8 @@ def merge_custom_attributes(data, obj_id, object_type, overwrite=False):
             obj = Cases.query.filter(Cases.case_id == obj_id).first()
         elif object_type == 'client':
             obj = Client.query.filter(Client.client_id == obj_id).first()
+        elif object_type == 'managed_asset':
+            obj = ManagedAsset.query.filter(ManagedAsset.managed_asset_id == obj_id).first()
 
         if not obj:
             return data

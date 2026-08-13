@@ -31,6 +31,9 @@ class User:
     def get_identifier(self):
         return self._identifier
 
+    def get_login(self):
+        return self._login
+
     def create(self, path, payload):
         return self._api.post(path, payload)
 

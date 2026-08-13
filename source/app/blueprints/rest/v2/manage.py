@@ -31,6 +31,7 @@ from app.blueprints.rest.v2.manage_routes.report_templates import report_templat
 from app.blueprints.rest.v2.manage_routes.access_control import access_control_blueprint
 from app.blueprints.rest.v2.manage_routes.case_chat import case_chat_admin_blueprint
 from app.blueprints.rest.v2.manage_routes.taxonomies import taxonomies_blueprint
+from app.blueprints.rest.v2.manage_routes.managed_assets import managed_assets_blueprint
 
 manage_v2_blueprint = Blueprint("manage", __name__, url_prefix="/manage")
 
@@ -47,3 +48,4 @@ manage_v2_blueprint.register_blueprint(report_templates_blueprint)
 manage_v2_blueprint.register_blueprint(access_control_blueprint)
 manage_v2_blueprint.register_blueprint(case_chat_admin_blueprint)
 manage_v2_blueprint.register_blueprint(taxonomies_blueprint)
+manage_v2_blueprint.register_blueprint(managed_assets_blueprint)

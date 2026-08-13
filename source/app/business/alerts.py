@@ -21,6 +21,8 @@ from datetime import datetime
 from typing import Optional
 
 from app.business.access_controls import access_controls_user_has_customer_access
+from app.business.managed_assets import managed_assets_observe_alert
+from app.business.managed_assets import managed_assets_observe_case
 from app.db import db
 from app import socket_io
 from app.models.alerts import Alert
@@ -126,6 +128,9 @@ def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Al
     }), namespace='/alerts')
 
     _enqueue_rule_evaluation(alert.alert_id)
+
+    # Register the alert's assets in the customer's registry. Never raises.
+    managed_assets_observe_alert(alert.alert_id)
 
     return alert
 
@@ -456,6 +461,12 @@ def alerts_escalate(alert: Alert, iocs_import_list: Optional[list] = None,
     add_obj_history_entry(alert, f'Alert escalated to case #{case.case_id}')
     call_modules_hook('on_postload_alert_escalate', alert)
 
+    # Observed against the *case*, not the alert: escalation may create
+    # assets from `assets_import_list` that were never on the alert, and
+    # it flips an alert-only asset's `case_id` in place. Only the case's
+    # own asset set is guaranteed to contain all of them.
+    managed_assets_observe_case(case.case_id)
+
     return case
 
 
@@ -487,6 +498,9 @@ def alerts_merge(alert: Alert, target_case_id: int,
     track_activity(f'merge alert #{alert.alert_id} into existing case #{target_case_id}',
                    caseid=target_case_id)
     add_obj_history_entry(alert, f'Alert merged into existing case #{target_case_id}')
+
+    managed_assets_observe_case(case.case_id)
+
     return case
 
 
@@ -547,6 +561,11 @@ def alerts_batch_merge(alert_ids: list, target_case_id: int,
 
     track_activity(f'batched merge alerts {alert_ids} into existing case #{target_case_id}',
                    caseid=target_case_id)
+
+    # Once for the batch: the statement is set-based over the case's whole
+    # asset set, so running it per alert would repeat identical work.
+    managed_assets_observe_case(case.case_id)
+
     return case
 
 
@@ -595,5 +614,7 @@ def alerts_batch_escalate(alert_ids: list,
 
     for alert in alerts_list:
         add_obj_history_entry(alert, f'Alert escalated into new case #{case.case_id}')
+
+    managed_assets_observe_case(case.case_id)
 
     return case

@@ -45,6 +45,7 @@ from app.blueprints.rest.v2.case_routes.events import case_events_blueprint
 from app.blueprints.rest.v2.case_routes.timelines import case_timelines_blueprint
 from app.blueprints.rest.v2.case_routes.datastore import case_datastore_blueprint
 from app.blueprints.rest.v2.case_routes.dim_hooks import case_dim_hooks_blueprint
+from app.blueprints.rest.v2.case_transfer import case_transfer_blueprint
 from app.blueprints.iris_user import iris_current_user
 from app.business.cases import case_unlink_alert
 from app.business.cases import case_unlink_alert_cluster
@@ -417,6 +418,7 @@ cases_blueprint.register_blueprint(case_events_blueprint)
 cases_blueprint.register_blueprint(case_timelines_blueprint)
 cases_blueprint.register_blueprint(case_datastore_blueprint)
 cases_blueprint.register_blueprint(case_dim_hooks_blueprint)
+cases_blueprint.register_blueprint(case_transfer_blueprint)
 
 cases_operations = CasesOperations()
 

@@ -72,6 +72,9 @@ from app.models.cases import CasesEvent
 from app.models.banners import Banner
 from app.models.banners import BANNER_PURPOSES
 from app.models.customers import Client
+from app.models.managed_assets import MANAGED_ASSET_CRITICALITIES
+from app.models.managed_assets import MANAGED_ASSET_ENVIRONMENTS
+from app.models.managed_assets import ManagedAsset
 from app.models.comments import Comments
 from app.models.models import Contact
 from app.models.models import DataStoreFile
@@ -3286,3 +3289,217 @@ class BannerSchema(ma.SQLAlchemyAutoSchema):
         if start is not None and end is not None and end <= start:
             raise ValidationError('end_at must be strictly after start_at',
                                   field_name='end_at')
+
+
+class ManagedAssetSchema(ma.SQLAlchemyAutoSchema):
+    """The customer-bounded asset registry row (Manage > Assets).
+
+    `client_id` and `asset_type_id` are loadable but the routes strip
+    them from update payloads: together with the name they form the
+    dedup identity, so letting a PUT change one would silently move the
+    asset to a different customer and orphan its audit trail.
+
+    `normalized_name` is never accepted from the wire. It is derived in
+    the business layer, and a caller-supplied value would break the
+    `UNIQUE (client_id, normalized_name, asset_type_id)` dedup guarantee
+    while still satisfying the DB CHECK.
+    """
+
+    name: str = auto_field('name', required=True, validate=Length(min=1, max=512))
+    client_id: int = auto_field('client_id', required=True)
+    asset_type_id: int = auto_field('asset_type_id', required=True)
+    criticality: str = auto_field('criticality', required=False,
+                                  validate=OneOf(MANAGED_ASSET_CRITICALITIES))
+    environment: str = auto_field('environment', required=False, allow_none=True,
+                                  validate=OneOf(MANAGED_ASSET_ENVIRONMENTS))
+    source: str = fields.String(dump_only=True)
+    normalized_name: str = fields.String(dump_only=True)
+    managed_asset_uuid = fields.UUID(dump_only=True)
+    created_at = fields.DateTime(dump_only=True)
+    updated_at = fields.DateTime(dump_only=True)
+    created_by = fields.Integer(dump_only=True, allow_none=True)
+    updated_by = fields.Integer(dump_only=True, allow_none=True)
+
+    asset_type = ma.Nested(AssetTypeSchema, dump_only=True)
+    client = ma.Nested('CustomerSchema', dump_only=True, only=['customer_id', 'customer_name'])
+
+    class Meta:
+        model = ManagedAsset
+        sqla_session = db.session
+        load_instance = True
+        include_fk = True
+        unknown = EXCLUDE
+
+    @pre_load
+    def verify_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        """Resolve foreign keys before the ORM sees them.
+
+        A bad `asset_type_id` would otherwise surface as an
+        `IntegrityError` at flush time — a 500 that names a constraint,
+        instead of a 400 that names the field.
+        """
+        if data.get('asset_type_id'):
+            asset_type = AssetsType.query.filter(
+                AssetsType.asset_id == data.get('asset_type_id')
+            ).count()
+            if not asset_type:
+                raise ValidationError('Invalid asset type ID', field_name='asset_type_id')
+
+        if data.get('client_id'):
+            client = Client.query.filter(Client.client_id == data.get('client_id')).count()
+            if not client:
+                raise ValidationError('Invalid customer ID', field_name='client_id')
+
+        # Empty string is what a cleared <select> sends; treat it as "unset"
+        # rather than letting OneOf reject it.
+        for key in ('environment', 'criticality'):
+            if data.get(key) == '':
+                data[key] = None if key == 'environment' else 'unknown'
+
+        # Postgres cannot store a NUL in a text column: psycopg raises at
+        # flush time and takes the whole transaction with it. Rejected
+        # here so it is a 400 naming the field rather than a 500.
+        for key, value in data.items():
+            if isinstance(value, str) and '\x00' in value:
+                raise ValidationError('Value must not contain NUL characters', field_name=key)
+
+        return data
+
+    @post_load
+    def merge_attributes(self, data: Any, **kwargs: Any) -> Any:
+        if not isinstance(data, ManagedAsset):
+            return data
+        new_attr = data.custom_attributes
+        if new_attr is not None:
+            data.custom_attributes = merge_custom_attributes(new_attr, data.managed_asset_id,
+                                                             'managed_asset')
+        return data
+
+
+class ManagedAssetDetailSchema(ManagedAssetSchema):
+    """A registry row plus the derived facts the caller is allowed to see.
+
+    Every count and timestamp here is computed over the *visible*
+    sightings only, and the response carries a top-level
+    `scope.restricted` flag saying so. True totals are deliberately never
+    reported: "seen in 4 cases" to somebody who can open 2 of them
+    discloses the existence of two investigations they are not cleared
+    for. For the same reason there is no per-asset "hidden sightings"
+    indicator, in any form.
+
+    `timeline_event_count` is null on list responses. Counting timeline
+    events needs one query per asset, so the list endpoint does not pay
+    for it; the field is present and null rather than absent so clients
+    get one shape for both endpoints.
+
+    `compromised_at` is the earliest visible sighting marked compromised
+    — "compromised since", not the instant somebody flipped the flag,
+    which nothing records. It is null unless `compromise_status_id` is
+    `compromised`.
+    """
+
+    case_sighting_count = fields.Integer(dump_only=True)
+    alert_sighting_count = fields.Integer(dump_only=True)
+    timeline_event_count = fields.Integer(dump_only=True, allow_none=True)
+    first_seen_at = fields.DateTime(dump_only=True, allow_none=True)
+    last_seen_at = fields.DateTime(dump_only=True, allow_none=True)
+    compromise_status_id = fields.Integer(dump_only=True, allow_none=True)
+    compromised_at = fields.DateTime(dump_only=True, allow_none=True)
+
+
+class ManagedAssetSightingSchema(Schema):
+    """One observation of an asset, in a case or an alert.
+
+    A plain Schema, not an auto-schema: the rows are a UNION projection
+    over `case_assets` joined to either `cases` or `alerts`, not a mapped
+    entity.
+    """
+
+    kind = fields.String(dump_only=True)
+    reference_id = fields.Integer(dump_only=True)
+    reference_name = fields.String(dump_only=True, allow_none=True)
+    observation_id = fields.Integer(dump_only=True)
+    compromise_status_id = fields.Integer(dump_only=True, allow_none=True)
+    observation_description = fields.String(dump_only=True, allow_none=True)
+    observation_tags = fields.String(dump_only=True, allow_none=True)
+    seen_at = fields.DateTime(dump_only=True, allow_none=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+
+class ManagedAssetTimelineSchema(Schema):
+    """A case timeline event that references a visible sighting."""
+
+    event_id = fields.Integer(dump_only=True)
+    event_title = fields.String(dump_only=True, allow_none=True)
+    event_content = fields.String(dump_only=True, allow_none=True)
+    event_date = fields.DateTime(dump_only=True, allow_none=True)
+    event_tz = fields.String(dump_only=True, allow_none=True)
+    event_tags = fields.String(dump_only=True, allow_none=True)
+    event_color = fields.String(dump_only=True, allow_none=True)
+    case_id = fields.Integer(dump_only=True)
+    case_name = fields.String(dump_only=True, allow_none=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+
+class ManagedAssetAuditSchema(Schema):
+    """One entry of the append-only change log.
+
+    `user_login` is resolved from `user_id` when the account still
+    exists and falls back to the snapshot taken at write time, so an
+    entry stays readable after the acting user is deleted.
+    """
+
+    audit_id = fields.Integer(dump_only=True)
+    managed_asset_id = fields.Integer(dump_only=True, allow_none=True)
+    asset_name_snapshot = fields.String(dump_only=True)
+    action = fields.String(dump_only=True)
+    changes = fields.Dict(dump_only=True, allow_none=True)
+    user_id = fields.Integer(dump_only=True, allow_none=True)
+    user_login = fields.String(dump_only=True, allow_none=True)
+    source = fields.String(dump_only=True)
+    occurred_at = fields.DateTime(dump_only=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+
+class ManagedAssetImportRowSchema(Schema):
+    """What the importer would do with one row of the uploaded file."""
+
+    row = fields.Integer(dump_only=True)
+    name = fields.String(dump_only=True, allow_none=True)
+    asset_type = fields.String(dump_only=True, allow_none=True)
+    action = fields.String(dump_only=True)
+    errors = fields.List(fields.String(), dump_only=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+
+class ManagedAssetImportReportSchema(Schema):
+    """The dry-run report, and the apply result that mirrors it.
+
+    `staging_token` is a capability: it names a staged upload and only
+    its uploader can spend it. It is absent from the apply response
+    because the token is consumed by that call.
+    """
+
+    staging_token = fields.String(dump_only=True)
+    client_id = fields.Integer(dump_only=True)
+    format = fields.String(dump_only=True)
+    total_rows = fields.Integer(dump_only=True)
+    counts = fields.Dict(dump_only=True)
+    rows = fields.List(fields.Nested(ManagedAssetImportRowSchema), dump_only=True)
+    rows_truncated = fields.Boolean(dump_only=True)
+    created = fields.Integer(dump_only=True)
+    updated = fields.Integer(dump_only=True)
+    skipped = fields.Integer(dump_only=True)
+    unchanged = fields.Integer(dump_only=True)
+    errors = fields.Integer(dump_only=True)
+
+    class Meta:
+        unknown = EXCLUDE
