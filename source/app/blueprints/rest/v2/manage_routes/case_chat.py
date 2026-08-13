@@ -103,17 +103,22 @@ def list_policies():
         ChatbotPolicy.restriction_level.desc(),
         ChatbotPolicy.name.asc(),
     ).all()
-    # Attach a `customer_count` so the admin table can show how many
-    # customers each policy binds without a per-row round-trip.
-    counts = dict(
-        db.session.query(Client.chatbot_policy_id, db.func.count(Client.client_id))
+    # Attach the bound customers so the admin table can show both the
+    # count and *which* customers each policy binds without a per-row
+    # round-trip — the binding editor needs the ids to pre-select.
+    bindings: dict[int, list[int]] = {}
+    for policy_id, client_id in (
+        db.session.query(Client.chatbot_policy_id, Client.client_id)
         .filter(Client.chatbot_policy_id.isnot(None))
-        .group_by(Client.chatbot_policy_id)
+        .order_by(Client.name.asc())
         .all()
-    )
+    ):
+        bindings.setdefault(int(policy_id), []).append(int(client_id))
     dumped = _policy_schema.dump(rows, many=True)
     for row, entry in zip(rows, dumped):
-        entry['customer_count'] = int(counts.get(row.id, 0))
+        bound = bindings.get(row.id, [])
+        entry['customer_ids'] = bound
+        entry['customer_count'] = len(bound)
     return response_api_success({'policies': dumped})
 
 

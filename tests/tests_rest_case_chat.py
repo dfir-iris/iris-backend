@@ -13,6 +13,8 @@ Covers:
   * Case ACL — user without access to the case gets 403 on
     `POST /conversations`.
   * Runtime-config surface — `chatbot.enabled` reflects the toggle.
+  * Admin policies — customer bindings round-trip through the list
+    response the settings page renders.
 
 Socket-namespace behaviour (tool-use loop, streaming, approve/deny) is
 exercised by the more focused unit tests in
@@ -21,6 +23,7 @@ the tests don't need a running provider.
 """
 
 from unittest import TestCase
+from uuid import uuid4
 
 from iris import API_URL, Iris  # noqa: F401
 
@@ -193,3 +196,81 @@ class TestsRestCaseChat(TestCase):
             f'/api/v2/case-chat/cases/{case_id}/conversations'
         ).json()['data']['conversations']
         self.assertFalse(any(c['id'] == conv['id'] for c in listed))
+
+    # ---- policies / customer binding -------------------------------
+    #
+    # `clear_database()` doesn't know about chatbot policies, so every
+    # test here deletes the ones it creates.
+
+    def _create_policy(self, **overrides) -> int:
+        body = {'name': f'policy{uuid4()}', 'restriction_level': 10}
+        body.update(overrides)
+        response = self._subject.create(
+            '/api/v2/manage/case-chat/policies', body)
+        self.assertEqual(201, response.status_code)
+        return response.json()['data']['id']
+
+    def _read_policy(self, policy_id: int) -> dict:
+        policies = self._subject.get(
+            '/api/v2/manage/case-chat/policies'
+        ).json()['data']['policies']
+        return next(p for p in policies if p['id'] == policy_id)
+
+    def _bind(self, customer_id: int, policy_id):
+        return self._subject.update(
+            f'/api/v2/manage/case-chat/customers/{customer_id}/policy',
+            {'policy_id': policy_id},
+        )
+
+    def test_list_policies_should_report_the_bound_customers(self):
+        customer_id = self._subject.create_dummy_customer()
+        policy_id = self._create_policy()
+        try:
+            self.assertEqual(200, self._bind(customer_id, policy_id).status_code)
+            entry = self._read_policy(policy_id)
+            self.assertEqual([customer_id], entry['customer_ids'])
+            self.assertEqual(1, entry['customer_count'])
+        finally:
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{policy_id}')
+
+    def test_list_policies_should_report_no_customer_when_unbound(self):
+        policy_id = self._create_policy()
+        try:
+            entry = self._read_policy(policy_id)
+            self.assertEqual([], entry['customer_ids'])
+            self.assertEqual(0, entry['customer_count'])
+        finally:
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{policy_id}')
+
+    def test_clearing_a_binding_should_drop_the_customer_from_the_policy(self):
+        customer_id = self._subject.create_dummy_customer()
+        policy_id = self._create_policy()
+        try:
+            self._bind(customer_id, policy_id)
+            self.assertEqual(200, self._bind(customer_id, None).status_code)
+            entry = self._read_policy(policy_id)
+            self.assertEqual([], entry['customer_ids'])
+            self.assertEqual(0, entry['customer_count'])
+        finally:
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{policy_id}')
+
+    def test_binding_a_customer_should_move_it_off_its_previous_policy(self):
+        # A customer carries at most one policy — the binding editor
+        # relies on the second bind implicitly releasing the first.
+        customer_id = self._subject.create_dummy_customer()
+        first_id = self._create_policy()
+        second_id = self._create_policy()
+        try:
+            self._bind(customer_id, first_id)
+            self._bind(customer_id, second_id)
+            self.assertEqual([], self._read_policy(first_id)['customer_ids'])
+            self.assertEqual(
+                [customer_id], self._read_policy(second_id)['customer_ids'])
+        finally:
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{first_id}')
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{second_id}')
