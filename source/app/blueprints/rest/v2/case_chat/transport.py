@@ -42,6 +42,8 @@ from app.models.authorization import (
     Permissions,
     WarRoomAccessLevel,
 )
+from app.models.case_chat import CaseChatConversation
+from app.models.chatbot_policy import ChatbotPolicy
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.schema.marshables import (
     CaseChatConversationSchema,
@@ -53,6 +55,62 @@ from app.schema.marshables import (
 _conv_schema = CaseChatConversationSchema()
 _msg_schema = CaseChatMessageSchema()
 _pending_schema = CaseChatPendingToolCallSchema()
+
+
+# ---- Conversation dump + policy badge -------------------------------
+
+def _policy_summary(policy: ChatbotPolicy | None) -> dict | None:
+    """The policy facts a chatting analyst is entitled to see.
+
+    Deliberately not the whole row: no `api_key`, and no budgets (the
+    usage bar already reports those). What's left is what actually
+    changes the analyst's experience — which provider/model their
+    customer's data goes to, what gets scrubbed on the way out, and how
+    long the transcript survives — so the SPA can say "a policy is
+    enforced here" instead of leaving it invisible.
+    """
+    if policy is None:
+        return None
+    return {
+        'id': policy.id,
+        'name': policy.name,
+        'description': policy.description or '',
+        'restriction_level': int(policy.restriction_level or 0),
+        'provider': policy.provider or '',
+        'model': policy.model or '',
+        'redact_ips': bool(policy.redact_ips),
+        'redact_emails': bool(policy.redact_emails),
+        'redact_hashes': bool(policy.redact_hashes),
+        'retention_days': int(policy.retention_days or 0),
+    }
+
+
+def _dump_conversation(conv: CaseChatConversation) -> dict:
+    """Serialize one conversation with its enforced policy attached."""
+    payload = _conv_schema.dump(conv)
+    policy = None
+    if conv.resolved_policy_id is not None:
+        policy = ChatbotPolicy.query.filter_by(
+            id=conv.resolved_policy_id).first()
+    payload['policy'] = _policy_summary(policy)
+    return payload
+
+
+def _dump_conversations(convs: list[CaseChatConversation]) -> list[dict]:
+    """Same for a list — one policy query for the page, not one per row."""
+    dumped = _conv_schema.dump(convs, many=True)
+    wanted = {c.resolved_policy_id for c in convs
+              if c.resolved_policy_id is not None}
+    summaries: dict[int, dict] = {}
+    if wanted:
+        summaries = {
+            p.id: _policy_summary(p)
+            for p in ChatbotPolicy.query.filter(
+                ChatbotPolicy.id.in_(wanted)).all()
+        }
+    for conv, entry in zip(convs, dumped):
+        entry['policy'] = summaries.get(conv.resolved_policy_id)
+    return dumped
 
 
 def _require_case_access(case_id: int):
@@ -108,7 +166,7 @@ def list_case_conversations(case_id: int):
         iris_current_user, case_id,
     )
     return response_api_success({
-        'conversations': _conv_schema.dump(conversations, many=True),
+        'conversations': _dump_conversations(conversations),
     })
 
 
@@ -139,7 +197,7 @@ def create_case_conversation(case_id: int):
         model=cfg.model,
         title=title,
     )
-    return response_api_created(_conv_schema.dump(conv))
+    return response_api_created(_dump_conversation(conv))
 
 
 # ---- War-room-scoped conversation CRUD -----------------------------
@@ -158,7 +216,7 @@ def list_war_room_conversations(war_room_id: int):
         iris_current_user, war_room_id,
     )
     return response_api_success({
-        'conversations': _conv_schema.dump(conversations, many=True),
+        'conversations': _dump_conversations(conversations),
     })
 
 
@@ -190,7 +248,7 @@ def create_war_room_conversation(war_room_id: int):
         model=cfg.model,
         title=title,
     )
-    return response_api_created(_conv_schema.dump(conv))
+    return response_api_created(_dump_conversation(conv))
 
 
 # ---- Global (no-case-scope) conversation CRUD ----------------------
@@ -204,7 +262,7 @@ def create_war_room_conversation(war_room_id: int):
 def list_global_conversations():
     conversations = case_chat_biz.list_global_conversations(iris_current_user)
     return response_api_success({
-        'conversations': _conv_schema.dump(conversations, many=True),
+        'conversations': _dump_conversations(conversations),
     })
 
 
@@ -232,7 +290,7 @@ def create_global_conversation():
         model=cfg.model,
         title=title,
     )
-    return response_api_created(_conv_schema.dump(conv))
+    return response_api_created(_dump_conversation(conv))
 
 
 # ---- Per-conversation reads ----------------------------------------
@@ -259,7 +317,7 @@ def get_conversation(conversation_id: int):
         if acl_err is not None:
             return acl_err
     messages = case_chat_biz.list_messages(conversation_id)
-    payload = _conv_schema.dump(conv)
+    payload = _dump_conversation(conv)
     payload['messages'] = _msg_schema.dump(messages, many=True)
     # Include any pending tool calls so the SPA can render the
     # Approve/Deny card even if the user closed the tab mid-turn.
@@ -313,7 +371,7 @@ def rename_conversation(conversation_id: int):
     if not isinstance(title, str):
         return response_api_error('title must be a string')
     conv = case_chat_biz.rename_conversation(conv, title)
-    return response_api_success(_conv_schema.dump(conv))
+    return response_api_success(_dump_conversation(conv))
 
 
 # ---- Configuration health probe (used by the SPA to render the

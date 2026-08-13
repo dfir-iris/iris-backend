@@ -16,7 +16,8 @@ Covers:
   * Admin policies — customer bindings round-trip through the list
     response the settings page renders.
   * Policy enforcement — a bound customer's policy pins the model
-    stamped on the conversation.
+    stamped on the conversation and rides along on every conversation
+    payload so the panel can say a policy is enforced.
 
 Socket-namespace behaviour (tool-use loop, streaming, approve/deny) is
 exercised by the more focused unit tests in
@@ -296,3 +297,46 @@ class TestsRestCaseChat(TestCase):
         finally:
             self._subject.delete(
                 f'/api/v2/manage/case-chat/policies/{policy_id}')
+
+    def test_conversation_payloads_should_carry_the_enforced_policy(self):
+        # The panel's "a policy is enforced" banner reads this off every
+        # payload shape it can receive a conversation from.
+        self._enable_chatbot()
+        customer_id = self._subject.create_dummy_customer()
+        policy_id = self._create_policy(retention_days=30, redact_ips=True)
+        try:
+            self._bind(customer_id, policy_id)
+            case_id = self._subject.create_dummy_case(customer_id)
+            created = self._subject.create(
+                f'/api/v2/case-chat/cases/{case_id}/conversations', {},
+            ).json()['data']
+            self.assertEqual(policy_id, created['policy']['id'])
+            self.assertEqual(30, created['policy']['retention_days'])
+            self.assertTrue(created['policy']['redact_ips'])
+            # No credentials on the analyst-facing summary.
+            self.assertNotIn('api_key', created['policy'])
+
+            detail = self._subject.get(
+                f'/api/v2/case-chat/conversations/{created["id"]}'
+            ).json()['data']
+            self.assertEqual(policy_id, detail['policy']['id'])
+
+            listed = self._subject.get(
+                f'/api/v2/case-chat/cases/{case_id}/conversations'
+            ).json()['data']['conversations']
+            entry = next(c for c in listed if c['id'] == created['id'])
+            self.assertEqual(policy_id, entry['policy']['id'])
+        finally:
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{policy_id}')
+
+    def test_conversation_should_carry_no_policy_when_customer_unbound(self):
+        # Null policy is what keeps the banner hidden on ordinary chats.
+        self._enable_chatbot()
+        customer_id = self._subject.create_dummy_customer()
+        case_id = self._subject.create_dummy_case(customer_id)
+        conv = self._subject.create(
+            f'/api/v2/case-chat/cases/{case_id}/conversations', {},
+        ).json()['data']
+        self.assertIsNone(conv['policy'])
+        self.assertEqual('claude-sonnet-5', conv['model'])
