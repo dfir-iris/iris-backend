@@ -19099,6 +19099,11 @@ components:
           type:
           - integer
           - 'null'
+        compromised_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
       description: A registry row plus the derived facts the caller is allowed to see.
     ManagedAssetDetailRequest:
       type: object
