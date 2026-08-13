@@ -15,6 +15,8 @@ Covers:
   * Runtime-config surface — `chatbot.enabled` reflects the toggle.
   * Admin policies — customer bindings round-trip through the list
     response the settings page renders.
+  * Policy enforcement — a bound customer's policy pins the model
+    stamped on the conversation.
 
 Socket-namespace behaviour (tool-use loop, streaming, approve/deny) is
 exercised by the more focused unit tests in
@@ -274,3 +276,23 @@ class TestsRestCaseChat(TestCase):
                 f'/api/v2/manage/case-chat/policies/{first_id}')
             self._subject.delete(
                 f'/api/v2/manage/case-chat/policies/{second_id}')
+
+    # ---- policy enforcement on a conversation ----------------------
+
+    def test_conversation_should_be_stamped_with_the_policy_model(self):
+        # The stored model is what the panel header reports, so a policy
+        # pinning its own model has to win over the global setting —
+        # otherwise the chat claims to run on a model it never calls.
+        self._enable_chatbot()
+        customer_id = self._subject.create_dummy_customer()
+        policy_id = self._create_policy(model='claude-opus-5')
+        try:
+            self._bind(customer_id, policy_id)
+            case_id = self._subject.create_dummy_case(customer_id)
+            conv = self._subject.create(
+                f'/api/v2/case-chat/cases/{case_id}/conversations', {},
+            ).json()['data']
+            self.assertEqual('claude-opus-5', conv['model'])
+        finally:
+            self._subject.delete(
+                f'/api/v2/manage/case-chat/policies/{policy_id}')

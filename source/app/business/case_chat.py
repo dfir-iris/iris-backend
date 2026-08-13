@@ -44,10 +44,7 @@ def create_conversation(
     # to relax later if we ever want to link both.
     #
     # Stamp the resolved policy at creation. `model` here is the model
-    # NAME chosen by the caller (default from server settings); the
-    # policy resolver may override it downstream on the actual LLM
-    # call — the stored `model` is only informational for the header
-    # badge, so keeping it as-passed is fine.
+    # NAME chosen by the caller, read from the global server settings.
     from app.iris_engine.llm.policy import (
         resolve_for_case,
         resolve_for_war_room,
@@ -60,11 +57,20 @@ def create_conversation(
         from app.iris_engine.llm.policy import ResolvedPolicy
         resolved = ResolvedPolicy(None, 0)
 
+    # The stored model is what the chat header reports, so it has to be
+    # the model the loop will actually call — a policy that pins its own
+    # model overrides the global one the caller passed in. Same
+    # precedence as `load_config`'s `_pick`: empty string means the
+    # policy doesn't override, so the global value stands.
+    effective_model = model
+    if resolved.policy is not None and resolved.policy.model:
+        effective_model = resolved.policy.model
+
     conv = CaseChatConversation(
         user_id=user.id,
         case_id=case_id,
         war_room_id=war_room_id,
-        model=model,
+        model=effective_model,
         title=(title or '')[:200],
         resolved_policy_id=resolved.policy.id if resolved.policy else None,
         resolved_restriction_level=resolved.restriction_level,
