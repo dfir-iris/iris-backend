@@ -35,6 +35,7 @@ from app.logger import logger
 from app.business.users import retrieve_user_by_username
 from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
 from app.iris_engine.access_control.ldap_handler import ldap_authenticate
+from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import User
@@ -127,14 +128,30 @@ def _filter_next_url(next_url, context_case):
     return next_url
 
 
-def wrap_login_user(user, is_oidc=False):
+def mfa_is_enforced() -> bool:
+    """Effective server-wide MFA policy.
 
-    session['username'] = user.user
+    Reads `enforce_mfa` off the cached settings row, except in demo
+    mode where MFA is forced off whatever the row says: demo accounts
+    are shared, so a second factor bound to one visitor's authenticator
+    locks everyone else out. Every reader of the policy must go through
+    here so the demo override can't be bypassed by one forgotten call
+    site.
+    """
+    if demo_mode_blocks_mfa():
+        return False
 
     if 'SERVER_SETTINGS' not in app.config:
         app.config['SERVER_SETTINGS'] = get_server_settings_as_dict()
 
-    if app.config['SERVER_SETTINGS']['enforce_mfa'] is True and is_oidc is False:
+    return bool(app.config['SERVER_SETTINGS'].get('enforce_mfa'))
+
+
+def wrap_login_user(user, is_oidc=False):
+
+    session['username'] = user.user
+
+    if mfa_is_enforced() and is_oidc is False:
         # MFA state must be bound to the specific user who verified — a flat
         # boolean would let a prior verified session admit a different user on
         # the same browser (shared device, attacker knows user B's password
@@ -186,12 +203,8 @@ def update_session_current_case(user: User):
 
 
 def _mfa_required_for_user(user) -> bool:
-    if 'SERVER_SETTINGS' not in app.config:
-        app.config['SERVER_SETTINGS'] = get_server_settings_as_dict()
-
-    enforce_mfa = bool(app.config['SERVER_SETTINGS'].get('enforce_mfa'))
     user_has_mfa = bool(getattr(user, 'mfa_setup_complete', False)) and bool(getattr(user, 'mfa_secrets', None))
-    return enforce_mfa and user_has_mfa
+    return mfa_is_enforced() and user_has_mfa
 
 
 def generate_auth_tokens(user, mfa_verified: bool = False):

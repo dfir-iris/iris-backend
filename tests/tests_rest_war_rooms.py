@@ -20,6 +20,7 @@ unwind in the right order).
 from unittest import TestCase
 
 from iris import Iris
+from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
 
 
 class TestsRestWarRoomsCrud(TestCase):
@@ -190,3 +191,98 @@ class TestsRestWarRoomsCaseAttachment(TestCase):
         listed = self._subject.get(f'/api/v2/cases/{case_id}/war-rooms').json()
         room_ids = [r['war_room_id'] for r in listed]
         self.assertIn(room_id, room_ids)
+
+
+class TestsRestWarRoomsChatEdit(TestCase):
+    """Author-only editing of war-room chat messages.
+
+    The delete path deliberately grants server administrators an
+    override; the edit path deliberately does not — nobody rewrites
+    someone else's words. That asymmetry is easy to lose in a refactor,
+    so both halves are pinned here.
+    """
+
+    def setUp(self) -> None:
+        self._subject = Iris()
+
+    def tearDown(self):
+        self._subject.clear_database()
+
+    def _room(self, name='Chat Room'):
+        response = self._subject.create('/api/v2/war-rooms', {'name': name})
+        return response.json()['war_room_id']
+
+    def _post(self, room_id, body):
+        response = self._subject.create(f'/api/v2/war-rooms/{room_id}/chat',
+                                        {'body': body})
+        return response.json()['message_id']
+
+    def _fetch(self, room_id, message_id):
+        listed = self._subject.get(f'/api/v2/war-rooms/{room_id}/chat').json()
+        return next(m for m in listed if m['message_id'] == message_id)
+
+    def test_edit_should_replace_the_body_and_stamp_edited_at(self):
+        room_id = self._room()
+        message_id = self._post(room_id, 'inital finding')
+        response = self._subject.patch(
+            f'/api/v2/war-rooms/{room_id}/chat/{message_id}',
+            {'body': 'initial finding'}
+        )
+        self.assertEqual(200, response.status_code)
+        row = self._fetch(room_id, message_id)
+        self.assertEqual('initial finding', row['body'])
+        # The "(edited)" tag in the UI keys off this field being set.
+        self.assertIsNotNone(row['edited_at'])
+
+    def test_message_should_not_be_flagged_edited_before_any_edit(self):
+        room_id = self._room()
+        message_id = self._post(room_id, 'untouched')
+        self.assertIsNone(self._fetch(room_id, message_id)['edited_at'])
+
+    def test_edit_should_reject_a_user_who_is_not_the_author(self):
+        room_id = self._room()
+        message_id = self._post(room_id, 'mine')
+        # A server administrator has full access to every war room, so
+        # this isolates the author check from the access check: the call
+        # is authorised to touch the room, just not this message.
+        other = self._subject.create_dummy_user(
+            permissions=IRIS_PERMISSION_SERVER_ADMINISTRATOR)
+        response = other.patch(
+            f'/api/v2/war-rooms/{room_id}/chat/{message_id}',
+            {'body': 'rewritten by someone else'}
+        )
+        self.assertEqual(400, response.status_code)
+        row = self._fetch(room_id, message_id)
+        self.assertEqual('mine', row['body'])
+        self.assertIsNone(row['edited_at'])
+
+    def test_edit_should_reject_a_deleted_message(self):
+        room_id = self._room()
+        message_id = self._post(room_id, 'gone')
+        self._subject.delete(f'/api/v2/war-rooms/{room_id}/chat/{message_id}')
+        response = self._subject.patch(
+            f'/api/v2/war-rooms/{room_id}/chat/{message_id}',
+            {'body': 'back from the dead'}
+        )
+        self.assertEqual(400, response.status_code)
+
+    def test_edit_should_reject_an_empty_body(self):
+        room_id = self._room()
+        message_id = self._post(room_id, 'keep me')
+        response = self._subject.patch(
+            f'/api/v2/war-rooms/{room_id}/chat/{message_id}', {'body': '   '}
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertEqual('keep me', self._fetch(room_id, message_id)['body'])
+
+    def test_edit_should_reject_a_message_from_another_war_room(self):
+        room_id = self._room('Room A')
+        other_room_id = self._room('Room B')
+        message_id = self._post(room_id, 'scoped to room A')
+        response = self._subject.patch(
+            f'/api/v2/war-rooms/{other_room_id}/chat/{message_id}',
+            {'body': 'cross-room write'}
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertEqual('scoped to room A',
+                         self._fetch(room_id, message_id)['body'])

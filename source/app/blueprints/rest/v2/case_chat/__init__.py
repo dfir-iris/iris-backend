@@ -9,9 +9,12 @@ Structure (mirrors the mcp/ package):
   * namespace.py         — SocketIO `/chat` namespace (send + approve + deny)
   * loop.py              — stateless tool-use loop; one iteration per event
   * approve_tool.py      — dispatch the write, append role='tool', re-run loop
-  * tool_classification.py — READ_ONLY_TOOLS + WRITE_TOOLS enumerations
   * diff_renderers.py    — human-readable "this will delete IOC #42" text
   * persistence.py       — thin business-layer facade
+
+Which tools auto-execute and which need an approval click comes from
+`mcp/classification.py` — the same enumeration dispatch uses to decide
+whether a call needs `full_access`.
 
 REST is registered on the v2 blueprint; the socket namespace is bound
 inside `app/__init__.py` alongside the other class-based namespaces.

@@ -281,6 +281,11 @@ class Config:
         DEMO_DOMAIN = config.load('IRIS_DEMO', 'DOMAIN', fallback=None)
         DEMO_USERS_SEED = config.load('IRIS_DEMO', 'USERS_SEED', fallback=0)
         DEMO_ADM_SEED = config.load('IRIS_DEMO', 'ADM_SEED', fallback=0)
+        # Whole-request ceiling for a demo instance — Werkzeug rejects
+        # anything larger before a view runs. Individual file parts are
+        # held to the tighter `DEMO_MODE_UPLOAD_MAX_BYTES` inside the
+        # upload routes; this is the outer bound covering multipart
+        # overhead and multi-part posts.
         MAX_CONTENT_LENGTH = 200000
 
     DEVELOPMENT_ENABLED = config.load('DEVELOPMENT', 'ENABLED', fallback=False)

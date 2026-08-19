@@ -24,6 +24,8 @@ from app.business.war_room_datastore import (
     war_room_datastore_open,
     war_room_datastore_save,
 )
+from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 
@@ -77,6 +79,9 @@ def upload_file(war_room_id):
     file_storage = request.files['file']
     if not file_storage.filename:
         return response_api_error('Empty filename')
+
+    if demo_mode_over_upload_cap(file_storage):
+        return response_api_error(demo_mode_upload_cap_message())
 
     try:
         row = war_room_datastore_save(

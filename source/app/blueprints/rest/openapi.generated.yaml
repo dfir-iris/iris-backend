@@ -14048,7 +14048,45 @@ paths:
                 payload:
                   type: object
                   description: Partial alert fields to update.
-                  properties: null
+                  properties:
+                    alert_title:
+                      type: string
+                    alert_description:
+                      type: string
+                    alert_source:
+                      type: string
+                    alert_source_ref:
+                      type: string
+                    alert_source_link:
+                      type: string
+                    alert_source_event_time:
+                      type: string
+                      description: ISO-8601 datetime.
+                    alert_note:
+                      type: string
+                      description: Free-form analyst note.
+                    alert_tags:
+                      type: string
+                      description: Comma-separated tags.
+                    alert_severity_id:
+                      type: integer
+                    alert_status_id:
+                      type: integer
+                    alert_resolution_status_id:
+                      type:
+                      - integer
+                      - 'null'
+                    alert_classification_id:
+                      type:
+                      - integer
+                      - 'null'
+                    alert_owner_id:
+                      type:
+                      - integer
+                      - 'null'
+                      description: User id to assign as owner. Use -1 or null to unassign.
+                    alert_context:
+                      type: object
                   additionalProperties: false
               required:
               - alert_identifier
@@ -14211,6 +14249,18 @@ paths:
             schema:
               type: object
               properties:
+                page:
+                  type: integer
+                  description: 1-indexed page number.
+                per_page:
+                  type: integer
+                  description: Items per page (default 25, max 100).
+                order_by:
+                  type: string
+                  description: Field name to sort by.
+                sort_dir:
+                  type: string
+                  description: '''asc'' or ''desc''.'
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -14419,6 +14469,18 @@ paths:
             schema:
               type: object
               properties:
+                page:
+                  type: integer
+                  description: 1-indexed page number.
+                per_page:
+                  type: integer
+                  description: Items per page (default 25, max 100).
+                order_by:
+                  type: string
+                  description: Field name to sort by.
+                sort_dir:
+                  type: string
+                  description: '''asc'' or ''desc''.'
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -14482,7 +14544,8 @@ paths:
     post:
       operationId: mcp_tool_iris_case_notes_create
       summary: "Create a note in a case. `directory_id` is optional \u2014 if omitted, the note is placed\
-        \ in the case root directory automatically."
+        \ in the case top-level directory automatically (one is created when the case has no directory\
+        \ yet)."
       tags:
       - MCP
       - MCP:tools
@@ -14516,7 +14579,7 @@ paths:
                       description: Note body, markdown accepted.
                     directory_id:
                       type: integer
-                      description: Target directory id. Omit to place the note in the case root directory
+                      description: Target directory id. Omit to place the note in the case top-level directory
                         (auto-resolved).
                     custom_attributes:
                       type: object
@@ -14530,6 +14593,103 @@ paths:
                   description: Numeric ID of the IRIS case this call targets.
               required:
               - payload
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_notes_directories_create:
+    post:
+      operationId: mcp_tool_iris_case_notes_directories_create
+      summary: Create a note directory (folder) in a case. Omit `parent_id` for a top-level directory,
+        or pass the id of an existing directory of the same case to nest the new one under it.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_notes_directories_create
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_notes_directories_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Directory name.
+                parent_id:
+                  type: integer
+                  description: Parent directory id. Omit to create a top-level directory.
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - name
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_notes_directories_list:
+    post:
+      operationId: mcp_tool_iris_case_notes_directories_list
+      summary: List the note directories (folders) of a case. Use it to resolve a folder name to the `directory_id`
+        expected by iris_case_notes_create.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_notes_directories_list
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_notes_directories_list\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: integer
+                  description: 1-indexed page number.
+                per_page:
+                  type: integer
+                  description: Items per page (default 25, max 100).
+                order_by:
+                  type: string
+                  description: Field name to sort by.
+                sort_dir:
+                  type: string
+                  description: '''asc'' or ''desc''.'
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
               - case_identifier
       responses:
         '200':
@@ -14775,6 +14935,18 @@ paths:
             schema:
               type: object
               properties:
+                page:
+                  type: integer
+                  description: 1-indexed page number.
+                per_page:
+                  type: integer
+                  description: Items per page (default 25, max 100).
+                order_by:
+                  type: string
+                  description: Field name to sort by.
+                sort_dir:
+                  type: string
+                  description: '''asc'' or ''desc''.'
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -14945,7 +15117,48 @@ paths:
                 payload:
                   type: object
                   description: Case fields.
-                  properties: null
+                  properties:
+                    case_name:
+                      type: string
+                      minLength: 2
+                      description: Case title.
+                    case_description:
+                      type: string
+                      minLength: 2
+                      description: "Case description / summary. Update this to attach a closing note or\
+                        \ post-mortem \u2014 there is no separate closing_note field."
+                    case_soc_id:
+                      type: integer
+                      description: SOC ticket / ID.
+                    case_customer_id:
+                      type: integer
+                      description: Customer (client) id. Required on create; on update it must match the
+                        case's existing customer or an admin-configured allow-list.
+                    case_organisations:
+                      type: array
+                      items:
+                        type: integer
+                      description: Organisation ids attached to the case.
+                    case_tags:
+                      type: string
+                      description: Comma-separated tag list.
+                    initial_date:
+                      type: string
+                      description: ISO datetime for when the incident began.
+                    classification_id:
+                      type: integer
+                      description: Case classification id.
+                    reviewer_id:
+                      type: integer
+                      description: User id of the case reviewer.
+                    access_level:
+                      type: integer
+                      description: Numeric access-level enum.
+                    protagonists:
+                      type: array
+                      items:
+                        type: object
+                      description: Structured protagonist entries.
                   required:
                   - case_name
                   - case_description
@@ -14991,6 +15204,18 @@ paths:
             schema:
               type: object
               properties:
+                page:
+                  type: integer
+                  description: 1-indexed page number.
+                per_page:
+                  type: integer
+                  description: Items per page (default 25, max 100).
+                order_by:
+                  type: string
+                  description: Field name to sort by.
+                sort_dir:
+                  type: string
+                  description: '''asc'' or ''desc''.'
                 case_name:
                   type: string
                 case_description:
@@ -15088,6 +15313,18 @@ paths:
             schema:
               type: object
               properties:
+                page:
+                  type: integer
+                  description: 1-indexed page number.
+                per_page:
+                  type: integer
+                  description: Items per page (default 25, max 100).
+                order_by:
+                  type: string
+                  description: Field name to sort by.
+                sort_dir:
+                  type: string
+                  description: '''asc'' or ''desc''.'
                 quick_search:
                   type: string
                   description: Free-text match on case name, customer name, or numeric ID.
@@ -15171,7 +15408,48 @@ paths:
                 payload:
                   type: object
                   description: Partial case fields to update.
-                  properties: null
+                  properties:
+                    case_name:
+                      type: string
+                      minLength: 2
+                      description: Case title.
+                    case_description:
+                      type: string
+                      minLength: 2
+                      description: "Case description / summary. Update this to attach a closing note or\
+                        \ post-mortem \u2014 there is no separate closing_note field."
+                    case_soc_id:
+                      type: integer
+                      description: SOC ticket / ID.
+                    case_customer_id:
+                      type: integer
+                      description: Customer (client) id. Required on create; on update it must match the
+                        case's existing customer or an admin-configured allow-list.
+                    case_organisations:
+                      type: array
+                      items:
+                        type: integer
+                      description: Organisation ids attached to the case.
+                    case_tags:
+                      type: string
+                      description: Comma-separated tag list.
+                    initial_date:
+                      type: string
+                      description: ISO datetime for when the incident began.
+                    classification_id:
+                      type: integer
+                      description: Case classification id.
+                    reviewer_id:
+                      type: integer
+                      description: User id of the case reviewer.
+                    access_level:
+                      type: integer
+                      description: Numeric access-level enum.
+                    protagonists:
+                      type: array
+                      items:
+                        type: object
+                      description: Structured protagonist entries.
                   additionalProperties: false
                 protagonists:
                   type: array
@@ -15288,7 +15566,6 @@ paths:
                   description: Text to search for.
                 types:
                   type: array
-                  description: null
                 page:
                   type: integer
                 per_page:

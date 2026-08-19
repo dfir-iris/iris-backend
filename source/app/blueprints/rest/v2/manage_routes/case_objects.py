@@ -58,6 +58,8 @@ from app.business.db_operations import db_create
 from app.business.db_operations import db_delete
 from app.business.pagination import paginate
 from app.db import db
+from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.iris_engine.utils.tracker import track_activity
 from app.models.assets import AssetsType
 from app.models.authorization import Permissions
@@ -397,6 +399,9 @@ def upload_asset_type_icon(identifier: int, field: str) -> Response:
     upload = request.files.get('file')
     if upload is None or not upload.filename:
         return response_api_error('No file uploaded')
+
+    if demo_mode_over_upload_cap(upload):
+        return response_api_error(demo_mode_upload_cap_message())
 
     stored_filename, message = store_icon(upload)
     if stored_filename is None:

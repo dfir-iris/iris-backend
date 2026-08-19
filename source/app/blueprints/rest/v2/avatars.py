@@ -52,6 +52,8 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.users import users_get
 from app.db import db
+from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.models.authorization import Permissions
 from app.models.authorization import User
 from app.models.errors import ObjectNotFoundError
@@ -134,6 +136,10 @@ def _handle_upload(user) -> Response:
     file = request.files.get('avatar')
     if file is None or file.filename == '':
         return response_api_error('Missing avatar file part')
+
+    # Demo mode caps every upload well below `MAX_AVATAR_BYTES`.
+    if demo_mode_over_upload_cap(file):
+        return response_api_error(demo_mode_upload_cap_message())
 
     # `content_length` is set by Flask when the multipart parser
     # discovers a Content-Length header. We also check the body

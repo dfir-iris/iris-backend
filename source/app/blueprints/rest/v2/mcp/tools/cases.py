@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from marshmallow import ValidationError
 
+from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.v2.mcp import protocol
 from app.blueprints.rest.v2.mcp.dispatch import MCPError
@@ -260,8 +261,20 @@ def iris_cases_create(args: dict) -> dict:
 def iris_cases_update(args: dict) -> dict:
     try:
         case = cases_get_by_identifier(args['case_identifier'])
+        payload = dict(args['payload'])
+        customer_identifier = payload.get('case_customer_id')
+        # Re-homing a case under another customer needs an entitlement to
+        # that customer — same guard as PUT /api/v2/cases/<id>. The schema
+        # only checks the client row exists, so without this a case could
+        # be handed to a customer the caller can't even see.
+        if customer_identifier and customer_identifier != case.client_id \
+                and not ac_current_user_has_customer_access(customer_identifier):
+            raise MCPError(
+                protocol.IRIS_ACCESS_DENIED,
+                f'Not entitled to customer #{customer_identifier}.',
+            )
         updated = _case_schema.load(
-            args['payload'], instance=case, partial=True, session=db.session
+            payload, instance=case, partial=True, session=db.session
         )
         case = cases_update(
             case, updated,

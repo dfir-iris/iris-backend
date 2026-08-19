@@ -10,6 +10,12 @@ enforces access before invocation — the loop also overrides the id
 with the conversation's scope on every call (see loop.py §7 for the
 prompt-injection defence rationale).
 
+Authorization mirrors `war_rooms/access.py`: reads declare
+`war_rooms_read` and need `read_only` on the room, writes declare
+`war_rooms_write` and need `full_access` (dispatch derives the level
+from `mcp/classification.py`). Server admins pass either way, as they
+do on the REST routes.
+
 Only read + creation tools are exposed in v1. Delete / archive is
 deliberately excluded — the analyst can perform those from the UI,
 and letting an LLM propose them would be a common footgun.
@@ -51,7 +57,7 @@ from app.models.errors import BusinessProcessingError, ObjectNotFoundError
             },
         },
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
     mvp=True,
 )
 def iris_war_rooms_list(args: dict) -> dict:
@@ -72,7 +78,7 @@ def iris_war_rooms_list(args: dict) -> dict:
     name='iris_war_rooms_get',
     description='Fetch a war room by id.',
     input_schema={'type': 'object', 'properties': {}},
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -105,7 +111,7 @@ def iris_war_rooms_get(args: dict) -> dict:
             },
         },
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -139,7 +145,7 @@ def iris_war_room_chat_list(args: dict) -> dict:
         },
         'required': ['body'],
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_write, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -162,7 +168,7 @@ def iris_war_room_chat_post(args: dict) -> dict:
     name='iris_war_room_sitreps_list',
     description='List sitreps in a war room, newest first.',
     input_schema={'type': 'object', 'properties': {}},
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -185,7 +191,7 @@ def iris_war_room_sitreps_list(args: dict) -> dict:
         },
         'required': ['title'],
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_write, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -209,7 +215,7 @@ def iris_war_room_sitreps_create(args: dict) -> dict:
     name='iris_war_room_notes_list',
     description='List notes in a war room.',
     input_schema={'type': 'object', 'properties': {}},
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -229,7 +235,7 @@ def iris_war_room_notes_list(args: dict) -> dict:
         },
         'required': ['title'],
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_write, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -259,7 +265,7 @@ def iris_war_room_notes_create(args: dict) -> dict:
             'q': {'type': 'string', 'description': 'Free-text search.'},
         },
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )
@@ -282,7 +288,7 @@ def iris_war_room_tasks_list(args: dict) -> dict:
         },
         'required': ['title'],
     },
-    permissions=(Permissions.standard_user,),
+    permissions=(Permissions.war_rooms_write, Permissions.server_administrator),
     war_room_scoped=True,
     mvp=True,
 )

@@ -43,6 +43,9 @@ class User:
     def update(self, path, body):
         return self._api.put(path, body)
 
+    def patch(self, path, body):
+        return self._api.patch(path, body)
+
     def delete(self, path):
         return self._api.delete(path)
 

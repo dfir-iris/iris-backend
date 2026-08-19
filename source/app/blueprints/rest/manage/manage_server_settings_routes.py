@@ -25,6 +25,8 @@ from app import celery
 from app.db import db
 from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
 from app.iris_engine.backup.backup import backup_iris_db
+from app.iris_engine.demo_builder import demo_mode_blocks_mfa
+from app.iris_engine.demo_builder import demo_mode_restricts_server_settings
 from app.iris_engine.updater.updater import remove_periodic_update_checks
 from app.iris_engine.updater.updater import setup_periodic_update_checks
 from app.iris_engine.utils.tracker import track_activity
@@ -44,6 +46,9 @@ manage_server_settings_rest_blueprint = Blueprint('manage_server_settings_rest',
 @ac_api_requires(Permissions.server_administrator)
 def manage_make_db_backup():
 
+    if demo_mode_restricts_server_settings():
+        return response_error('Server settings are not available in demo mode', status=403)
+
     has_error, logs = backup_iris_db()
     if has_error:
         rep = response_error('Backup failed', data=logs)
@@ -60,6 +65,13 @@ def manage_make_db_backup():
 def manage_update_settings():
     if not request.is_json:
         return response_error('Invalid request')
+
+    if demo_mode_restricts_server_settings():
+        return response_error('Server settings are not available in demo mode', status=403)
+
+    # MFA is pinned off in demo mode — see `app.business.auth.mfa_is_enforced`.
+    if demo_mode_blocks_mfa() and (request.get_json() or {}).get('enforce_mfa'):
+        return response_error('MFA cannot be enabled in demo mode')
 
     srv_settings_schema = ServerSettingsSchema()
     server_settings = get_srv_settings()

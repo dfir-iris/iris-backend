@@ -51,6 +51,7 @@ from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
+from app.iris_engine.demo_builder import demo_mode_blocks_password_change
 from app.iris_engine.demo_builder import protect_demo_mode_user
 
 manage_users_rest_blueprint = Blueprint('manage_users_rest', __name__)
@@ -346,6 +347,10 @@ def update_user_api(cur_id):
         user_schema = UserSchema()
         jsdata = _filter_admin_user_payload(request.get_json())
         jsdata['user_id'] = cur_id
+
+        if jsdata.get('user_password') and demo_mode_blocks_password_change():
+            return response_error('Password changes are disabled in demo mode')
+
         cuser = user_schema.load(jsdata, instance=user, partial=True)
         update_user(user, password=jsdata.get('user_password'))
         db.session.commit()

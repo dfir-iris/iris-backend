@@ -68,6 +68,8 @@ from app.business.reports.reports import generate_activities_report
 from app.business.reports.reports import generate_investigation_report
 from app.business.pagination import paginate
 from app.db import db
+from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Permissions
@@ -204,6 +206,9 @@ def create_report_template() -> Response:
         return response_api_error(
             f"File extension not allowed. Use one of: {', '.join(sorted(_ALLOWED_EXTENSIONS))}"
         )
+
+    if demo_mode_over_upload_cap(upload):
+        return response_api_error(demo_mode_upload_cap_message())
 
     name = (request.form.get('name') or '').strip()
     if not name:
@@ -376,6 +381,9 @@ def replace_report_template_file(identifier: int) -> Response:
         return response_api_error(
             f"File extension not allowed. Use one of: {', '.join(sorted(_ALLOWED_EXTENSIONS))}"
         )
+
+    if demo_mode_over_upload_cap(upload):
+        return response_api_error(demo_mode_upload_cap_message())
 
     safe_name = secure_filename(upload.filename)
     _, extension = os.path.splitext(safe_name)

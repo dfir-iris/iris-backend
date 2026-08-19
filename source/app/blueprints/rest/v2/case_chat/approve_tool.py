@@ -18,12 +18,12 @@ import logging
 from typing import Any
 
 from app.blueprints.iris_user import iris_current_user
-from app.blueprints.rest.v2.case_chat import tool_classification
 from app.blueprints.rest.v2.case_chat.loop import (
     ChatEvent,
     Emitter,
     run_one_iteration,
 )
+from app.blueprints.rest.v2.mcp import classification as tool_classification
 from app.blueprints.rest.v2.mcp.dispatch import MCPError, dispatch_tool_call
 from app.business import case_chat as case_chat_biz
 from app.iris_engine.utils.tracker import track_activity

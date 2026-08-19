@@ -49,7 +49,8 @@ from app.business.auth import validate_ldap_login
 from app.business.auth import validate_local_login
 from app.business.users import users_get_active
 from app.business.auth import generate_auth_tokens
-from app.iris_engine.demo_builder import is_demo_seeded_user
+from app.business.auth import mfa_is_enforced
+from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
 
@@ -103,16 +104,17 @@ def _mfa_status_for(user):
     """
     Compact MFA hint pair the SPA uses to pick its post-login route.
 
-    `mfa_required` mirrors the server-wide policy (`SERVER_SETTINGS.enforce_mfa`)
-    so the client can distinguish "user hasn't set up MFA because policy is
-    off" from "must set up MFA before reaching the app". `mfa_setup_complete`
+    `mfa_required` mirrors the effective server-wide policy (`enforce_mfa`,
+    forced off in demo mode — see `mfa_is_enforced`) so the client can
+    distinguish "user hasn't set up MFA because policy is off" from
+    "must set up MFA before reaching the app". `mfa_setup_complete`
     reflects the user's row. OIDC users bypass MFA entirely (handled in
     `wrap_login_user`); for the local/LDAP login surface that calls this
     helper, the pair is sufficient to route to mfa-setup vs mfa-verify vs
     straight into the app.
     """
     return {
-        'mfa_required': bool(app.config['SERVER_SETTINGS'].get('enforce_mfa')),
+        'mfa_required': mfa_is_enforced(),
         'mfa_setup_complete': bool(getattr(user, 'mfa_setup_complete', False)),
     }
 
@@ -263,18 +265,18 @@ def mfa_setup():
 
         user = users_get_active(user_id)
 
-        # Demo mode: refuse to bind an MFA secret to a seeded demo
-        # account. The demo landing page publishes those credentials
-        # for every visitor — letting the first visitor enroll their
-        # own authenticator would lock everyone else out of the shared
-        # account.
-        if is_demo_seeded_user(user):
+        # Demo mode: refuse to bind an MFA secret to any account. The
+        # demo landing page publishes the seeded credentials for every
+        # visitor and accounts created during a session are just as
+        # shared — letting one visitor enroll their own authenticator
+        # would lock everyone else out.
+        if demo_mode_blocks_mfa():
             track_activity(
                 f"Refused MFA setup for user {user.user}: demo mode.",
                 ctx_less=True,
                 display_in_ui=False,
             )
-            return response_api_error('MFA setup is disabled in demo mode')
+            return response_api_error('MFA is disabled in demo mode')
 
         # Refuse to overwrite an existing enrollment from this endpoint.
         # Re-running setup with a fresh secret would silently invalidate

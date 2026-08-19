@@ -52,29 +52,48 @@ Guidelines:
 """.strip()
 
 
+_READ_ONLY_SCOPE = (
+    '\n\nThe analyst has read-only access here, so the mutating tools have '
+    'been withheld from your tool list. Work from what you can read, and if '
+    'they ask for a change, tell them plainly that it needs full access on '
+    'this case or war room — do not look for a way around it.'
+)
+
+
 def system_prompt(
     *, case_id: int | None, war_room_id: int | None = None,
+    read_only_scope: bool = False,
 ) -> str:
     """Build the effective system prompt. Case- or war-room-scoped
     conversations get a small extra paragraph telling the model which
     entity they're embedded in. All scoped tool calls still have their
     identifier overridden at dispatch — this paragraph is for narrative
     context only.
+
+    `read_only_scope` says the analyst only holds read access on that
+    entity; the tool list has already been trimmed accordingly (see
+    `case_chat/loop.py::_prepare_tools`), and this tells the model why so
+    it explains the limit instead of improvising around it.
     """
     if war_room_id is not None:
-        return (
+        prompt = (
             _BASE
             + f'\n\nThis conversation is scoped to IRIS war-room #{war_room_id}. '
             + 'All war-room-scoped tool calls (chat post, sitrep draft, notes, '
             + 'tasks) are automatically bound to this war-room; you do not '
             + 'need to (and should not) supply a war_room_id argument.'
         )
-    if case_id is not None:
-        return (
+    elif case_id is not None:
+        prompt = (
             _BASE
             + f'\n\nThis conversation is scoped to IRIS case #{case_id}. '
             + 'All case-scoped tool calls are automatically bound to this '
             + 'case; you do not need to (and should not) supply a case '
             + 'identifier.'
         )
-    return _BASE
+    else:
+        prompt = _BASE
+
+    if read_only_scope:
+        prompt += _READ_ONLY_SCOPE
+    return prompt

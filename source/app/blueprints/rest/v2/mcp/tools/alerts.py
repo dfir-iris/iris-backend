@@ -17,6 +17,7 @@ from app.blueprints.rest.v2.mcp.tools._common import (
     DEFAULT_PER_PAGE,
     MAX_PER_PAGE,
 )
+from app.business.access_controls import check_ua_case_client
 from app.business.alerts import (
     alerts_escalate,
     alerts_get,
@@ -234,10 +235,19 @@ def iris_alerts_escalate(args: dict) -> dict:
 )
 def iris_alerts_merge(args: dict) -> dict:
     alert = _get_alert(args['alert_identifier'])
+    target_case_id = args['target_case_id']
+    # Same entitlement REST's merge_alert enforces: being allowed to read
+    # the alert says nothing about the *target* case, so without this an
+    # alert could be walked into a case belonging to another customer.
+    if not check_ua_case_client(iris_current_user.id, target_case_id):
+        raise MCPError(
+            protocol.IRIS_ACCESS_DENIED,
+            f'Not entitled to merge alerts into case #{target_case_id}.',
+        )
     try:
         case = alerts_merge(
             alert,
-            args['target_case_id'],
+            target_case_id,
             iocs_import_list=args.get('iocs_import_list'),
             assets_import_list=args.get('assets_import_list'),
             note=args.get('note'),

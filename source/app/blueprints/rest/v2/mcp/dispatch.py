@@ -9,6 +9,11 @@ transport layer has already established authentication (`ac_api_requires`)
 so `iris_current_user` is populated; the checks below are the fine-grained
 per-tool authorization. All denials raise `MCPError` with a well-known
 JSON-RPC error code that `transport.py` converts to the wire response.
+
+A scoped tool is held to the same access level as the REST route that
+does the same thing: reads need `read_only` on the case / war room,
+writes need `full_access` (see `required_case_levels`). Going through an
+LLM must not be a way around what the UI would refuse.
 """
 from __future__ import annotations
 
@@ -22,6 +27,7 @@ from app.blueprints.access_controls import (
 )
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.v2.mcp import protocol
+from app.blueprints.rest.v2.mcp.classification import mutates
 from app.blueprints.rest.v2.mcp.registry import (
     RESOURCE_REGISTRY,
     TOOL_REGISTRY,
@@ -116,6 +122,31 @@ def _augmented_input_schema(spec: ToolSpec) -> dict:
     return schema
 
 
+# ---- Scoped access levels ------------------------------------------------
+
+def required_case_levels(tool_name: str) -> list[CaseAccessLevel]:
+    """Case access levels that let `tool_name` run.
+
+    A mutating tool demands `full_access`, exactly like the REST route
+    doing the same thing — the business layer does NOT re-check it
+    (`notes_create`, `tasks_create` & co. write unconditionally), so this
+    is the only thing standing between a read-only case member and a
+    mutation. Reads accept `read_only`. `mutates()` is fail-closed: a
+    tool nobody classified is treated as a write.
+    """
+    if mutates(tool_name):
+        return [CaseAccessLevel.full_access]
+    return [CaseAccessLevel.read_only, CaseAccessLevel.full_access]
+
+
+def required_war_room_levels(tool_name: str) -> list[WarRoomAccessLevel]:
+    """War-room equivalent of `required_case_levels` — mirrors
+    `require_war_room_read` / `require_war_room_write`."""
+    if mutates(tool_name):
+        return [WarRoomAccessLevel.full_access]
+    return [WarRoomAccessLevel.read_only, WarRoomAccessLevel.full_access]
+
+
 # ---- Tool call -----------------------------------------------------------
 
 def dispatch_tool_call(tool_name: str, raw_args: dict) -> Any:
@@ -177,30 +208,25 @@ def dispatch_tool_call(tool_name: str, raw_args: dict) -> Any:
     if error:
         raise MCPError(protocol.INVALID_PARAMS, f'Invalid arguments: {error}')
 
+    is_mutating = mutates(tool_name)
+
     if spec.case_scoped:
         case_id = args.get('case_identifier')
-        # Read-only tools should be accessible to callers with read_only
-        # access; the tool body decides between mutating and non-mutating
-        # by choosing which business helper to call. We check for either
-        # level here — mutating business calls that require full_access
-        # will raise BusinessProcessingError downstream on their own.
         if not ac_fast_check_current_user_has_case_access(
-                case_id,
-                [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
-            raise MCPError(
-                protocol.IRIS_ACCESS_DENIED,
-                f'No access to case #{case_id}.',
-            )
+                case_id, required_case_levels(tool_name)):
+            denial = (f'Full access to case #{case_id} is required to run '
+                      f'{tool_name!r}.') if is_mutating else \
+                     f'No access to case #{case_id}.'
+            raise MCPError(protocol.IRIS_ACCESS_DENIED, denial)
 
     if spec.war_room_scoped:
         war_room_id = args.get('war_room_id')
         if not ac_fast_check_current_user_has_war_room_access(
-                war_room_id,
-                [WarRoomAccessLevel.read_only, WarRoomAccessLevel.full_access]):
-            raise MCPError(
-                protocol.IRIS_ACCESS_DENIED,
-                f'No access to war room #{war_room_id}.',
-            )
+                war_room_id, required_war_room_levels(tool_name)):
+            denial = (f'Full access to war room #{war_room_id} is required to '
+                      f'run {tool_name!r}.') if is_mutating else \
+                     f'No access to war room #{war_room_id}.'
+            raise MCPError(protocol.IRIS_ACCESS_DENIED, denial)
 
     try:
         result = spec.handler(args)

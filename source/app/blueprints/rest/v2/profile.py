@@ -43,7 +43,7 @@ from app.business.users import api_keys_list
 from app.business.users import api_keys_revoke
 from app.business.users import users_get
 from app.business.users import users_update
-from app.iris_engine.demo_builder import protect_demo_mode_user
+from app.iris_engine.demo_builder import demo_mode_blocks_password_change
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
 from app.models.authorization import CaseAccessLevel
@@ -83,7 +83,7 @@ class ProfileOperations:
             new_password = raw.get('user_password')
             current_password = raw.get('user_current_password')
 
-            if new_password and protect_demo_mode_user(user):
+            if new_password and demo_mode_blocks_password_change():
                 return response_api_error('Password changes are disabled in demo mode')
 
             if new_password:
@@ -202,6 +202,11 @@ class ProfileOperations:
         return response_api_success({
             'iris_version': current_app.config.get('IRIS_VERSION'),
             'demo_mode': demo_mode,
+            # The SPA pairs this with `demo_mode` to hide the server
+            # settings section from everyone but the instance owner —
+            # the mirror of `demo_mode_restricts_server_settings` on the
+            # API side. Purely cosmetic: the routes enforce it too.
+            'user_id': iris_current_user.id,
             'permissions': {
                 'mask': mask,
                 'names': names,

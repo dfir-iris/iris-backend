@@ -39,16 +39,65 @@ from app.models.authorization import User
 log = app.logger
 
 
-DEMO_MODE_DS_UPLOAD_MAX_BYTES = 10 * 1024
+# Per-file upload ceiling. Started life as a datastore-only guard and
+# now applies to every upload surface (datastore, war-room datastore
+# and chat attachments, avatars, report templates, asset-type icons,
+# case and managed-asset imports). `MAX_CONTENT_LENGTH` in
+# `app.configuration` caps the whole request on top of this.
+DEMO_MODE_UPLOAD_MAX_BYTES = 10 * 1024
+
+# The account that owns a demo instance. Everything an operator needs
+# to keep the demo running (server settings, backups, SMTP probe) stays
+# reachable for this user and nobody else — see
+# `demo_mode_restricts_server_settings`.
+DEMO_MODE_OWNER_USER_ID = 1
 
 
 def is_demo_mode_enabled():
     return app.config.get('DEMO_MODE_ENABLED') == 'True'
 
 
+def demo_mode_blocks_password_change():
+    """True when demo mode forbids setting a password — for any account.
+
+    The demo publishes its credentials on the landing page, so a
+    visitor changing *any* password (their own, another account's, via
+    the admin user editor) locks the next visitor out of that account.
+    Unlike `protect_demo_mode_user` this is not scoped to the seeded
+    accounts: an account created during a demo session is just as
+    shared as a seeded one.
+    """
+    return is_demo_mode_enabled()
+
+
+def demo_mode_blocks_mfa():
+    """True when demo mode forbids MFA entirely.
+
+    Demo accounts are shared, so a second factor bound to one visitor's
+    authenticator app locks out everyone else. Demo mode therefore
+    forces the server-wide policy off (`enforce_mfa` is ignored, see
+    `app.business.auth`), refuses enrolment, and refuses admin resets —
+    there is nothing to reset.
+    """
+    return is_demo_mode_enabled()
+
+
+def demo_mode_restricts_server_settings():
+    """True when the *caller* must not reach the server-settings surface.
+
+    Server settings carry SMTP credentials, DSNs, the chatbot API key
+    and the backup trigger. On a demo instance every visitor is an
+    admin, so `server_administrator` alone is not a meaningful gate;
+    the surface is narrowed to `DEMO_MODE_OWNER_USER_ID`.
+    """
+    if not is_demo_mode_enabled():
+        return False
+    return getattr(iris_current_user, 'id', None) != DEMO_MODE_OWNER_USER_ID
+
+
 def demo_mode_over_upload_cap(file_storage):
     """Return True when demo mode is on and the pending upload exceeds
-    `DEMO_MODE_DS_UPLOAD_MAX_BYTES` (10 KB).
+    `DEMO_MODE_UPLOAD_MAX_BYTES` (10 KB).
 
     The size is read from the underlying stream by seeking to end and
     then rewinding. `FileStorage.content_length` is only populated when
@@ -65,22 +114,13 @@ def demo_mode_over_upload_cap(file_storage):
         size = stream.tell()
     finally:
         stream.seek(0)
-    return size > DEMO_MODE_DS_UPLOAD_MAX_BYTES
+    return size > DEMO_MODE_UPLOAD_MAX_BYTES
 
 
-def is_demo_seeded_user(user):
-    """True when `user` is one of the seeded demo accounts (adm_* / user_std_*).
-
-    Unlike `protect_demo_mode_user`, this does not depend on
-    `iris_current_user` — safe to call from pre-auth flows (e.g. the
-    legacy `/auth/mfa-setup` page where flask-login has not yet
-    promoted the user).
-    """
-    if not is_demo_mode_enabled():
-        return False
-    users_p = [f'user_std_{i}' for i in range(1, int(app.config.get('DEMO_USERS_COUNT', 10)))]
-    users_p += [f'adm_{i}' for i in range(1, int(app.config.get('DEMO_ADM_COUNT', 4)))]
-    return user is not None and getattr(user, 'user', None) in users_p
+def demo_mode_upload_cap_message():
+    """Single wording for the over-cap rejection, used by every upload route."""
+    return (f'Uploads are limited to {DEMO_MODE_UPLOAD_MAX_BYTES // 1024} KB '
+            f'in demo mode')
 
 
 def protect_demo_mode_user(user):

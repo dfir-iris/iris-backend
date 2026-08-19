@@ -42,8 +42,9 @@ from app.datamgmt.datastore.datastore_db import datastore_get_path_node
 from app.datamgmt.datastore.datastore_db import datastore_get_standard_path
 from app.datamgmt.datastore.datastore_db import datastore_rename_node
 from app.datamgmt.datastore.datastore_db import ds_list_tree
-from app.iris_engine.demo_builder import DEMO_MODE_DS_UPLOAD_MAX_BYTES
+from app.iris_engine.demo_builder import DEMO_MODE_UPLOAD_MAX_BYTES
 from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.iris_engine.demo_builder import is_demo_mode_enabled
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
@@ -140,9 +141,7 @@ def datastore_update_file(cur_id: int, caseid: int):
         return response_error('Invalid file ID for this case')
 
     if demo_mode_over_upload_cap(request.files.get('file_content')):
-        return response_error(
-            f'Datastore uploads are limited to {DEMO_MODE_DS_UPLOAD_MAX_BYTES} bytes in demo mode'
-        )
+        return response_error(demo_mode_upload_cap_message())
 
     dsf_schema = DSFileSchema()
     try:
@@ -279,9 +278,7 @@ def datastore_add_file(cur_id: int, caseid: int):
         return response_error('Invalid path node for this case')
 
     if demo_mode_over_upload_cap(request.files.get('file_content')):
-        return response_error(
-            f'Datastore uploads are limited to {DEMO_MODE_DS_UPLOAD_MAX_BYTES} bytes in demo mode'
-        )
+        return response_error(demo_mode_upload_cap_message())
 
     dsf_schema = DSFileSchema()
     try:
@@ -345,10 +342,8 @@ def datastore_add_interactive_file(caseid: int):
         except Exception as e:
             return response_error(msg=str(e))
 
-        if is_demo_mode_enabled() and len(file_content) > DEMO_MODE_DS_UPLOAD_MAX_BYTES:
-            return response_error(
-                f'Datastore uploads are limited to {DEMO_MODE_DS_UPLOAD_MAX_BYTES} bytes in demo mode'
-            )
+        if is_demo_mode_enabled() and len(file_content) > DEMO_MODE_UPLOAD_MAX_BYTES:
+            return response_error(demo_mode_upload_cap_message())
 
         dsf_sc, existed = dsf_schema.ds_store_file_b64(filename, file_content, dsp, caseid)
 

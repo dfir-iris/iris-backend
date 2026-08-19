@@ -29,9 +29,13 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from app.blueprints.access_controls import (
+    ac_fast_check_current_user_has_case_access,
+    ac_fast_check_current_user_has_war_room_access,
+)
 from app.blueprints.iris_user import iris_current_user
-from app.blueprints.rest.v2.case_chat import tool_classification
-from app.blueprints.rest.v2.case_chat.tool_classification import (
+from app.blueprints.rest.v2.mcp import classification as tool_classification
+from app.blueprints.rest.v2.mcp.classification import (
     UnclassifiedToolError,
 )
 from app.blueprints.rest.v2.mcp.dispatch import (
@@ -39,6 +43,7 @@ from app.blueprints.rest.v2.mcp.dispatch import (
     build_tools_list,
     dispatch_tool_call,
 )
+from app.blueprints.rest.v2.mcp.registry import TOOL_REGISTRY
 from app.business import case_chat as case_chat_biz
 from app.iris_engine.llm.client import (
     ChatbotConfig,
@@ -60,6 +65,7 @@ from app.iris_engine.llm.providers.base import (
 from app.iris_engine.llm.redaction import redact_content_blocks
 from app.iris_engine.llm.system_prompt import system_prompt
 from app.iris_engine.utils.tracker import track_activity
+from app.models.authorization import CaseAccessLevel, WarRoomAccessLevel
 from app.models.case_chat import (
     ROLE_ASSISTANT,
     ROLE_TOOL,
@@ -183,10 +189,12 @@ def run_one_iteration(
     max_iterations = max(1, cfg.max_tool_calls_per_turn)
     for _turn in range(max_iterations):
         history = _load_history(conversation, cfg)
-        tools = _prepare_tools(conversation)
+        read_only_scope = _scope_is_read_only(conversation)
+        tools = _prepare_tools(conversation, read_only_scope=read_only_scope)
         system = system_prompt(
             case_id=conversation.case_id,
             war_room_id=conversation.war_room_id,
+            read_only_scope=read_only_scope,
         )
 
         request_bytes = _estimate_request_bytes(system, history, tools)
@@ -366,13 +374,38 @@ def _history_was_redacted(
     return False
 
 
-def _prepare_tools(conversation: CaseChatConversation) -> list[ToolSpec]:
+def _scope_is_read_only(conversation: CaseChatConversation) -> bool:
+    """True when the caller only holds read access on the conversation's scope.
+
+    Dispatch refuses the write anyway, so this is about not dangling
+    actions the analyst can't take: the write tools are dropped from the
+    list and the system prompt says why.
+    """
+    if conversation.case_id is not None and not \
+            ac_fast_check_current_user_has_case_access(
+                conversation.case_id, [CaseAccessLevel.full_access]):
+        return True
+    if conversation.war_room_id is not None and not \
+            ac_fast_check_current_user_has_war_room_access(
+                conversation.war_room_id, [WarRoomAccessLevel.full_access]):
+        return True
+    return False
+
+
+def _prepare_tools(
+    conversation: CaseChatConversation, read_only_scope: bool = False,
+) -> list[ToolSpec]:
     """Build the tool list the LLM sees.
 
     Strips `case_identifier` from case-scoped tools' input_schema when
     the conversation itself is case-scoped, and `war_room_id` when
     war-room-scoped — the LLM shouldn't be asked to guess or supply
     them, and dispatch will override anyway.
+
+    When `read_only_scope`, tools that would mutate the scoped entity are
+    dropped entirely: the loop pins every scoped call to the
+    conversation's case / war room, so those calls could only ever come
+    back access-denied.
     """
     raw = build_tools_list()
     is_case_scoped = conversation.case_id is not None
@@ -384,6 +417,9 @@ def _prepare_tools(conversation: CaseChatConversation) -> list[ToolSpec]:
         strip_keys.append('war_room_id')
     out: list[ToolSpec] = []
     for entry in raw:
+        if read_only_scope and _mutates_the_scope(
+                entry['name'], is_case_scoped, is_war_room_scoped):
+            continue
         schema = dict(entry.get('inputSchema') or {})
         if strip_keys:
             props = dict(schema.get('properties') or {})
@@ -402,6 +438,22 @@ def _prepare_tools(conversation: CaseChatConversation) -> list[ToolSpec]:
             input_schema=schema,
         ))
     return out
+
+
+def _mutates_the_scope(
+    tool_name: str, is_case_scoped: bool, is_war_room_scoped: bool,
+) -> bool:
+    """True when the tool would write to the conversation's own scope.
+
+    Write tools that target something else (creating a case, updating an
+    alert) stay available — they're gated on their own permissions, not
+    on this case's access level.
+    """
+    spec = TOOL_REGISTRY.get(tool_name)
+    if spec is None or not tool_classification.mutates(tool_name):
+        return False
+    return ((spec.case_scoped and is_case_scoped)
+            or (spec.war_room_scoped and is_war_room_scoped))
 
 
 def _estimate_request_bytes(

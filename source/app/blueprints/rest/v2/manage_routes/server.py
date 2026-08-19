@@ -32,6 +32,8 @@ backup is a side-effecting action that shouldn't ride on GET.
 """
 
 import marshmallow
+from functools import wraps
+
 from flask import Blueprint
 from flask import Response
 from flask import request
@@ -46,6 +48,9 @@ from app.business.server_settings import get_server_settings_as_dict
 from app.business.server_settings import get_srv_settings
 from app.db import db
 from app.iris_engine.backup.backup import backup_iris_db
+from app.iris_engine.demo_builder import demo_mode_blocks_mfa
+from app.iris_engine.demo_builder import demo_mode_restricts_server_settings
+from app.iris_engine.demo_builder import is_demo_mode_enabled
 from app.iris_engine.mail.outbound import mail_send_system
 from app.iris_engine.mail.secrets import encrypt_secret
 from app.iris_engine.llm.reload import reload_llm_client
@@ -222,6 +227,41 @@ def _redact_secrets_in_changes(changes: list) -> list:
     return out
 
 
+def demo_mode_owner_only(view):
+    """403 the whole server-settings surface for non-owners in demo mode.
+
+    On a demo instance every visitor holds `server_administrator`, so
+    that permission alone doesn't protect the SMTP credentials, the
+    error-reporting DSNs, the chatbot API key or the backup trigger
+    sitting behind these routes. Demo mode narrows them to the instance
+    owner (`DEMO_MODE_OWNER_USER_ID` in `app.iris_engine.demo_builder`);
+    outside demo mode the decorator is inert.
+    """
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if demo_mode_restricts_server_settings():
+            return response_api_error(
+                'Server settings are not available in demo mode', status=403
+            )
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def _apply_demo_mode_overrides(settings_dump: dict) -> dict:
+    """Report the *effective* policy, not the stored one.
+
+    Demo mode ignores `enforce_mfa` at login time (see
+    `app.business.auth.mfa_is_enforced`), so echoing back whatever the
+    row happens to hold would show the owner a toggle that claims MFA
+    is on while every login sails past it. `demo_mode` rides along so
+    the SPA can disable the control and say why.
+    """
+    settings_dump['demo_mode'] = is_demo_mode_enabled()
+    if demo_mode_blocks_mfa():
+        settings_dump['enforce_mfa'] = False
+    return settings_dump
+
+
 def _snapshot_error_reporting(settings) -> dict:
     """Read the six error-reporting fields off the settings row.
 
@@ -250,7 +290,9 @@ class ServerOperations:
         try:
             auth_requirements = {
                 "oidc_enabled": app.config.get("AUTHENTICATION_TYPE") == "oidc",
-                "mfa_enabled": app.config.get("MFA_ENABLED"),
+                # Demo mode forces MFA off — the login page must not
+                # offer a second factor it will never be able to honour.
+                "mfa_enabled": False if demo_mode_blocks_mfa() else app.config.get("MFA_ENABLED"),
                 "local_fallback_enabled": bool(app.config.get("AUTHENTICATION_LOCAL_FALLBACK")),
             }
             return response_api_success(auth_requirements)
@@ -279,6 +321,7 @@ class ServerOperations:
         settings_dump.update(_mail_password_flags(settings))
         settings_dump.update(_error_reporting_flags(settings))
         settings_dump.update(_chatbot_flags(settings))
+        _apply_demo_mode_overrides(settings_dump)
 
         return response_api_success({
             'settings': settings_dump,
@@ -307,6 +350,17 @@ class ServerOperations:
             return response_api_error('Invalid request')
 
         body = request.get_json() or {}
+
+        # Demo mode owns the MFA policy: shared accounts can't carry a
+        # second factor, so `enforce_mfa` is pinned off and refusing the
+        # write is more honest than accepting one the login path ignores.
+        if demo_mode_blocks_mfa() and 'enforce_mfa' in body:
+            if body.get('enforce_mfa'):
+                return response_api_error('MFA cannot be enabled in demo mode')
+            # A no-op `enforce_mfa: false` from a full-body client is
+            # harmless — drop the key rather than fail the whole PUT.
+            body.pop('enforce_mfa')
+
         settings = get_srv_settings()
         original_update_check = settings.enable_updates_check
 
@@ -378,7 +432,10 @@ class ServerOperations:
             settings_dump.update(_error_reporting_flags(updated))
             settings_dump.update(_chatbot_flags(updated))
             app.config['SERVER_SETTINGS'] = settings_dump
-            return response_api_success(settings_dump)
+            # Overrides are applied to a copy: the cached dict must keep
+            # the stored values so nothing downstream mistakes a demo
+            # presentation tweak for a real setting.
+            return response_api_success(_apply_demo_mode_overrides(dict(settings_dump)))
 
         except marshmallow.exceptions.ValidationError as exc:
             return response_api_error('Data error', data=exc.messages)
@@ -444,6 +501,7 @@ def server_get_authsettings() -> Response:
 
 @server_blueprint.get('/settings')
 @ac_api_requires(Permissions.server_administrator)
+@demo_mode_owner_only
 @api_doc(tags=['ManageServer'], summary='Get server settings')
 def server_get_settings() -> Response:
     return server_operations.read_settings()
@@ -451,6 +509,7 @@ def server_get_settings() -> Response:
 
 @server_blueprint.put('/settings')
 @ac_api_requires(Permissions.server_administrator)
+@demo_mode_owner_only
 @api_doc(request=ServerSettingsSchema, response=ServerSettingsSchema,
          tags=['ManageServer'], summary='Update server settings')
 def server_put_settings() -> Response:
@@ -459,6 +518,7 @@ def server_put_settings() -> Response:
 
 @server_blueprint.post('/backups/db')
 @ac_api_requires(Permissions.server_administrator)
+@demo_mode_owner_only
 @api_doc(tags=['ManageServer'], summary='Trigger a database backup')
 def server_make_db_backup() -> Response:
     return server_operations.make_db_backup()
@@ -466,6 +526,7 @@ def server_make_db_backup() -> Response:
 
 @server_blueprint.post('/mail/test-send')
 @ac_api_requires(Permissions.server_administrator)
+@demo_mode_owner_only
 @api_doc(tags=['ManageServer'], summary='Send an SMTP test email')
 def server_send_test_mail() -> Response:
     return server_operations.send_test_mail()

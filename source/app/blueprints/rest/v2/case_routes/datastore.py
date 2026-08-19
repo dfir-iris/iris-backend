@@ -48,8 +48,9 @@ from app.business.datastore import datastore_get_path_node
 from app.business.datastore import datastore_get_standard_path
 from app.business.datastore import datastore_rename_node
 from app.business.datastore import ds_list_tree
-from app.iris_engine.demo_builder import DEMO_MODE_DS_UPLOAD_MAX_BYTES
+from app.iris_engine.demo_builder import DEMO_MODE_UPLOAD_MAX_BYTES
 from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.iris_engine.demo_builder import is_demo_mode_enabled
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
@@ -226,9 +227,7 @@ class DatastoreOperations:
 
         uploaded = request.files.get('file_content')
         if demo_mode_over_upload_cap(uploaded):
-            return response_api_error(
-                f'Datastore uploads are limited to {DEMO_MODE_DS_UPLOAD_MAX_BYTES} bytes in demo mode'
-            )
+            return response_api_error(demo_mode_upload_cap_message())
 
         try:
             dsf_sc = self._file_schema.load(_filter_ds_file_form(request.form), partial=True)
@@ -287,9 +286,7 @@ class DatastoreOperations:
 
         uploaded = request.files.get('file_content')
         if demo_mode_over_upload_cap(uploaded):
-            return response_api_error(
-                f'Datastore uploads are limited to {DEMO_MODE_DS_UPLOAD_MAX_BYTES} bytes in demo mode'
-            )
+            return response_api_error(demo_mode_upload_cap_message())
 
         try:
             dsf_sc = self._file_schema.load(_filter_ds_file_form(request.form), instance=dsf, partial=True)
@@ -509,10 +506,8 @@ class DatastoreOperations:
             if not filename:
                 return response_api_error('Data error', data={'file_original_name': ['Missing filename']})
 
-            if is_demo_mode_enabled() and len(file_content) > DEMO_MODE_DS_UPLOAD_MAX_BYTES:
-                return response_api_error(
-                    f'Datastore uploads are limited to {DEMO_MODE_DS_UPLOAD_MAX_BYTES} bytes in demo mode'
-                )
+            if is_demo_mode_enabled() and len(file_content) > DEMO_MODE_UPLOAD_MAX_BYTES:
+                return response_api_error(demo_mode_upload_cap_message())
 
             dsf_sc, existed = self._file_schema.ds_store_file_b64(filename, file_content, dsp, case_identifier)
 

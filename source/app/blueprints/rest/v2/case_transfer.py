@@ -50,6 +50,8 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
+from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.business.case_transfer.crypto import ArchiveDecryptionError
 from app.business.case_transfer.crypto import ArchiveEncryptedError
 from app.business.case_transfer.exporter import build_case_archive
@@ -148,6 +150,9 @@ def inspect_import():
     uploaded = request.files.get(_UPLOAD_FIELD)
     if uploaded is None:
         return response_api_error(f'No archive supplied — expected a `{_UPLOAD_FIELD}` file field')
+
+    if demo_mode_over_upload_cap(uploaded):
+        return response_api_error(demo_mode_upload_cap_message())
 
     passphrase = _optional_string(request.form.get('passphrase'))
 

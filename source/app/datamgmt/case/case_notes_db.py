@@ -56,6 +56,19 @@ def get_directory(directory_id):
     )).first()
 
 
+def get_case_root_directory(case_id):
+    """Return the case's top-level note directory, or None if it has none.
+
+    A case has no directory at all until someone creates one (only case
+    templates pre-populate the tree), so callers that need a directory
+    to write into must handle the None.
+    """
+    return NoteDirectory.query.filter(and_(
+        NoteDirectory.case_id == case_id,
+        NoteDirectory.parent_id.is_(None)
+    )).order_by(NoteDirectory.id).first()
+
+
 def delete_directory(directory: NoteDirectory):
     # Proceed to delete directory, but remove all associated notes and subdirectories recursively
     if directory:

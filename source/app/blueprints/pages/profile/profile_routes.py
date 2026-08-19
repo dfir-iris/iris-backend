@@ -22,8 +22,7 @@ from flask import render_template
 from flask import url_for
 from flask_wtf import FlaskForm
 
-from app import app
-from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
+from app.business.auth import mfa_is_enforced
 from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
 from app.blueprints.access_controls import ac_requires
 
@@ -38,10 +37,7 @@ def user_settings(caseid, url_redir):
     if url_redir:
         return redirect(url_for('profile.user_settings', cid=caseid))
 
-    if 'SERVER_SETTINGS' not in app.config:
-        app.config['SERVER_SETTINGS'] = get_server_settings_as_dict()
-
-    return render_template('profile.html', mfa_enabled=app.config['SERVER_SETTINGS']['enforce_mfa'])
+    return render_template('profile.html', mfa_enabled=mfa_is_enforced())
 
 
 @profile_blueprint.route('/user/update/modal', methods=['GET'])

@@ -40,6 +40,28 @@ def page_not_found(e):
     return render_template('pages/error-404.html', template_folder=TEMPLATE_PATH), 404
 
 
+# 413 handler. `MAX_CONTENT_LENGTH` (set on a demo instance, see
+# app/configuration.py) makes Werkzeug abort the request before any
+# view runs, so the upload routes never get to return their own
+# friendly message. Without this the SPA receives an HTML error page
+# for what is a perfectly ordinary "file too big" outcome.
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    # Uploads arrive as multipart, so the content-type sniff the 404/500
+    # handlers use doesn't identify an API caller here — match on the
+    # `/api/v2` mount instead, plus the JSON sniff for the legacy REST
+    # routes that live at the root.
+    message = 'Upload is too large for this instance'
+    if request.path.startswith('/api/') or (
+            request.content_type and 'application/json' in request.content_type):
+        return response_error(message, status=413)
+
+    return render_template(
+        'pages/error-404.html',
+        template_folder=TEMPLATE_PATH,
+    ), 413
+
+
 # 500 handler — the FlaskIntegration in
 # app/iris_engine/observability/reporter.py captures the exception
 # BEFORE this runs (via `flask.got_request_exception`), so no manual

@@ -78,6 +78,8 @@ from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_boolean
 from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.iris_engine.demo_builder import demo_mode_over_upload_cap
+from app.iris_engine.demo_builder import demo_mode_upload_cap_message
 from app.business.managed_assets import managed_assets_audit
 from app.business.managed_assets import managed_assets_audit_log
 from app.business.managed_assets import managed_assets_create
@@ -522,6 +524,9 @@ class ManagedAssetsOperations:
         uploaded = request.files.get(_UPLOAD_FIELD)
         if uploaded is None:
             return response_api_error(f'No file supplied — expected a `{_UPLOAD_FIELD}` file field')
+
+        if demo_mode_over_upload_cap(uploaded):
+            return response_api_error(demo_mode_upload_cap_message())
 
         try:
             client_id = int(request.form.get('client_id', ''))

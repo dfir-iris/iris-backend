@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import copy
 import re
 import sys
 from pathlib import Path
@@ -1565,37 +1566,79 @@ MCP_RESOURCES_FILE = REPO_ROOT / 'app' / 'blueprints' / 'rest' / 'v2' / 'mcp' / 
 MCP_ENDPOINT_PATH = '/api/v2/mcp'
 
 
-def _literal_dict(node: ast.AST) -> Any:
+# Returned in place of any expression the static evaluator can't reduce
+# to a JSON value. Callers drop the enclosing key/element entirely — a
+# `null` leaking into the spec is not merely cosmetic: Redoc calls
+# `Object.keys()` on `properties` while building the request body and
+# dies with "can't convert null to object", taking the whole docs page
+# down. A missing key degrades gracefully; a null one does not. We use
+# a sentinel rather than `None` so a genuine `None` literal in a schema
+# (e.g. `'default': None`) still round-trips.
+_UNRESOLVED = object()
+
+
+def _literal_dict(node: ast.AST, consts: dict[str, Any] | None = None) -> Any:
     """Safely evaluate a JSON-Schema-like AST literal to a Python value.
 
     Supports the subset used in MCP `input_schema=` declarations:
-    dicts, lists, strings, ints, bools, None. Any node outside this
-    subset returns None so the caller can decide whether that's a
-    degraded-but-valid result or a hard error.
+    dicts, lists, strings, ints, bools, None, plus references to
+    module-level constants passed in via `consts` (see
+    `_collect_module_fragments`). Any node outside this subset returns
+    `_UNRESOLVED` so the caller can drop it.
     """
+    consts = consts or {}
     if isinstance(node, ast.Constant):
         return node.value
+    if isinstance(node, ast.Name):
+        # `'properties': _ALERT_UPDATE_PROPERTIES` — a bare reference to
+        # a module-level constant. Deep-copied because callers mutate
+        # the schema they get back (injecting `case_identifier` &c.).
+        if node.id in consts:
+            return copy.deepcopy(consts[node.id])
+        return _UNRESOLVED
     if isinstance(node, ast.Dict):
         out: dict[Any, Any] = {}
         for k, v in zip(node.keys, node.values):
             if k is None:
-                # `{**x}` splat — skip; nothing in MCP schemas uses this.
+                # `{**x}` splat — handled by _resolve_dict_with_fragments.
+                splat = _literal_dict(v, consts)
+                if isinstance(splat, dict):
+                    out.update(splat)
                 continue
-            key = _literal_dict(k)
-            out[key] = _literal_dict(v)
+            key = _literal_dict(k, consts)
+            value = _literal_dict(v, consts)
+            if key is _UNRESOLVED or value is _UNRESOLVED:
+                continue
+            out[key] = value
         return out
     if isinstance(node, ast.List):
-        return [_literal_dict(e) for e in node.elts]
+        return [e for e in (_literal_dict(x, consts) for x in node.elts)
+                if e is not _UNRESOLVED]
     if isinstance(node, ast.Tuple):
-        return tuple(_literal_dict(e) for e in node.elts)
+        return tuple(e for e in (_literal_dict(x, consts) for x in node.elts)
+                     if e is not _UNRESOLVED)
     if isinstance(node, ast.Set):
-        return {_literal_dict(e) for e in node.elts}
-    # Common at-schema-declaration idiom is `{**PAGINATION_SCHEMA_FRAGMENT,
-    # 'foo': {...}}` — the dict merge is handled by the caller (below)
-    # using a manual walk that stitches in the fragment before this
-    # function runs. Anything else that isn't a bare literal we don't
-    # try to eval — leave it as `None` so the operation still emits.
-    return None
+        return {e for e in (_literal_dict(x, consts) for x in node.elts)
+                if e is not _UNRESOLVED}
+    if isinstance(node, ast.JoinedStr):
+        # f-string: usable only if every interpolation resolves to a
+        # constant. `f'One or more of {sorted(SUPPORTED_TYPES)}.'` calls
+        # a function, so it doesn't — better no description than a
+        # truncated sentence.
+        parts: list[str] = []
+        for value in node.values:
+            if isinstance(value, ast.Constant):
+                parts.append(str(value.value))
+                continue
+            if isinstance(value, ast.FormattedValue):
+                inner = _literal_dict(value.value, consts)
+                if inner is _UNRESOLVED:
+                    return _UNRESOLVED
+                parts.append(str(inner))
+                continue
+            return _UNRESOLVED
+        return ''.join(parts)
+    return _UNRESOLVED
 
 
 def _resolve_dict_with_fragments(
@@ -1607,44 +1650,80 @@ def _resolve_dict_with_fragments(
 
     Used for MCP input schemas which commonly splat
     `PAGINATION_SCHEMA_FRAGMENT` (from tools/_common.py) into their
-    `properties`. The generator's static AST evaluator can't see the
-    fragment values, so callers pass in a pre-computed lookup.
+    `properties`, or name a constant outright
+    (`'properties': _CASE_PAYLOAD_PROPERTIES`). The generator's static
+    AST evaluator can't import the module, so callers pass in a
+    pre-computed lookup.
     """
     out: dict[str, Any] = {}
     for k, v in zip(node.keys, node.values):
         if k is None and isinstance(v, ast.Name) and v.id in fragments:
             # `{**FRAGMENT, ...}` — merge.
-            out.update(fragments[v.id])
+            out.update(copy.deepcopy(fragments[v.id]))
             continue
         if k is None:
             # Splat of a non-literal expression — skip.
             continue
-        key = _literal_dict(k)
+        key = _literal_dict(k, fragments)
+        if key is _UNRESOLVED:
+            continue
         if isinstance(v, ast.Dict):
             out[key] = _resolve_dict_with_fragments(v, fragments)
-        else:
-            out[key] = _literal_dict(v)
+            continue
+        value = _literal_dict(v, fragments)
+        if value is _UNRESOLVED:
+            continue
+        out[key] = value
     return out
 
 
-def _collect_module_fragments(tree: ast.Module) -> dict[str, dict[str, Any]]:
-    """Harvest module-level `NAME = {...}` dict assignments as fragments.
+def _collect_module_fragments(tree: ast.Module) -> dict[str, Any]:
+    """Harvest module-level `NAME = {...}` / `NAME: T = {...}` constants.
 
     We use this to resolve `{**PAGINATION_SCHEMA_FRAGMENT, ...}` splats
-    inside tool `input_schema=` declarations. Only bare dict literals
-    are captured; anything else is silently ignored (the fragment lookup
-    just misses and the property is dropped from the emitted schema).
+    and bare `'properties': _SOME_CONSTANT` references inside tool
+    `input_schema=` declarations. Assignments are walked in source order
+    so a constant may reference one declared above it. Anything that
+    doesn't reduce to a literal is silently ignored (the lookup just
+    misses and the key is dropped from the emitted schema).
     """
-    out: dict[str, dict[str, Any]] = {}
+    out: dict[str, Any] = {}
     for node in tree.body:
-        if not isinstance(node, ast.Assign):
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            # `_ALERT_UPDATE_PROPERTIES: dict[str, dict] = {...}`
+            targets = [node.target]
+        else:
             continue
-        if not isinstance(node.value, ast.Dict):
+        if node.value is None:
             continue
-        for target in node.targets:
+        value = (
+            _resolve_dict_with_fragments(node.value, out)
+            if isinstance(node.value, ast.Dict)
+            else _literal_dict(node.value, out)
+        )
+        if value is _UNRESOLVED:
+            continue
+        for target in targets:
             if isinstance(target, ast.Name):
-                out[target.id] = _resolve_dict_with_fragments(node.value, {})
+                out[target.id] = value
     return out
+
+
+def _strip_nulls(value: Any) -> Any:
+    """Drop `None`-valued keys from a synthesised schema, recursively.
+
+    Backstop for the `_UNRESOLVED` handling above: whatever the
+    evaluator does, the emitted spec must never contain a null where
+    Redoc expects an object (see `_UNRESOLVED`). Keys are dropped rather
+    than defaulted so the omission is visible in the spec diff.
+    """
+    if isinstance(value, dict):
+        return {k: _strip_nulls(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_strip_nulls(v) for v in value if v is not None]
+    return value
 
 
 def _mcp_decorator_kwargs(dec: ast.expr) -> dict[str, Any] | None:
@@ -1663,7 +1742,7 @@ def _mcp_decorator_kwargs(dec: ast.expr) -> dict[str, Any] | None:
     return kwargs
 
 
-def _load_mcp_common_fragments() -> dict[str, dict[str, Any]]:
+def _load_mcp_common_fragments() -> dict[str, Any]:
     """Load the fragment table from tools/_common.py.
 
     `PAGINATION_SCHEMA_FRAGMENT` is the only fragment used by MVP tools
@@ -1691,6 +1770,10 @@ def _discover_mcp_tools() -> list[dict[str, Any]]:
         except SyntaxError as exc:
             print(f'openapi/mcp: skipping {f} ({exc})', file=sys.stderr)
             continue
+        # Constants declared in the tool file itself shadow the shared
+        # ones from _common.py — several tools keep their payload
+        # property table next to the tool that uses it.
+        file_consts = {**fragments, **_collect_module_fragments(tree)}
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
@@ -1709,17 +1792,17 @@ def _discover_mcp_tools() -> list[dict[str, Any]]:
                 )
                 schema_node = kw.get('input_schema')
                 if isinstance(schema_node, ast.Dict):
-                    schema = _resolve_dict_with_fragments(schema_node, fragments)
+                    schema = _resolve_dict_with_fragments(schema_node, file_consts)
                 elif schema_node is None:
                     # `input_schema` omitted — decorator supplies the default
                     # empty-object schema at runtime.
                     schema = {'type': 'object', 'properties': {}}
                 else:
-                    # Non-literal expression (e.g. reference to a module
-                    # constant not in the fragment table). Fall back to
-                    # an empty shape so the operation still emits.
-                    schema = {'type': 'object', 'properties': {}}
-                if not isinstance(schema, dict):
+                    # `input_schema=_SOME_CONSTANT`, or an expression we
+                    # can't evaluate. Fall back to an empty shape so the
+                    # operation still emits.
+                    schema = _literal_dict(schema_node, file_consts)
+                if not isinstance(schema, dict) or not schema:
                     schema = {'type': 'object', 'properties': {}}
                 # Augment with the scoping fields dispatch injects at
                 # runtime so the OpenAPI shape matches what a caller
@@ -1753,7 +1836,7 @@ def _discover_mcp_tools() -> list[dict[str, Any]]:
                 tools.append({
                     'name': name,
                     'description': description,
-                    'input_schema': schema,
+                    'input_schema': _strip_nulls(schema),
                     'admin_only': admin_only,
                     'case_scoped': case_scoped,
                     'war_room_scoped': war_room_scoped,
@@ -2105,12 +2188,40 @@ def generate() -> dict[str, Any]:
     return spec
 
 
+def _find_null_paths(node: Any, path: str = '') -> list[str]:
+    """Return JSON-pointer-ish paths of every `null` value in the spec."""
+    out: list[str] = []
+    if isinstance(node, dict):
+        items: Any = node.items()
+    elif isinstance(node, list):
+        items = enumerate(node)
+    else:
+        return out
+    for key, value in items:
+        here = f'{path}/{key}'
+        if value is None:
+            out.append(here)
+        else:
+            out.extend(_find_null_paths(value, here))
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True, help='Path to write the YAML spec to.')
     args = parser.parse_args()
 
     spec = generate()
+    # A null anywhere in the spec is a generator bug, and a fatal one:
+    # Redoc walks the document with `Object.keys()` and blanks the whole
+    # docs page with "can't convert null to object" rather than skipping
+    # the offending operation. Fail the build instead of shipping it.
+    nulls = _find_null_paths(spec)
+    if nulls:
+        print('openapi: refusing to write — null values in the spec:', file=sys.stderr)
+        for p in nulls:
+            print(f'  {p}', file=sys.stderr)
+        return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(yaml.safe_dump(spec, sort_keys=False, width=100))
     print(f'openapi: wrote {args.output}', file=sys.stderr)

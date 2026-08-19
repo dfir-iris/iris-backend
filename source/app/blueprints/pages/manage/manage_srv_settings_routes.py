@@ -25,6 +25,7 @@ from werkzeug.utils import redirect
 from app import app
 from app.datamgmt.manage.manage_srv_settings_db import get_alembic_revision
 from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
+from app.iris_engine.demo_builder import demo_mode_restricts_server_settings
 from app.models.authorization import Permissions
 from app.blueprints.access_controls import ac_requires
 
@@ -40,6 +41,12 @@ manage_srv_settings_blueprint = Blueprint(
 def manage_settings(caseid, url_redir):
     if url_redir:
         return redirect(url_for('manage_srv_settings_blueprint.manage_settings', cid=caseid))
+
+    # Demo mode: every visitor is an admin, so the page — SMTP
+    # credentials, DSNs, backup trigger — is narrowed to the instance
+    # owner. Same gate as the v2 `/server/settings` routes.
+    if demo_mode_restricts_server_settings():
+        return redirect(url_for('index.index', cid=caseid))
 
     form = FlaskForm()
 

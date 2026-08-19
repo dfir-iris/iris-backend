@@ -29,7 +29,7 @@ from app.datamgmt.manage.manage_users_db import get_user_primary_org
 from app.datamgmt.manage.manage_users_db import update_user
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
-from app.iris_engine.demo_builder import protect_demo_mode_user
+from app.iris_engine.demo_builder import demo_mode_blocks_password_change
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.models import ServerSettings
@@ -101,7 +101,7 @@ def update_user_view():
 
         jsdata['user_primary_organisation_id'] = puo.org_id
 
-        if jsdata.get('user_password') and protect_demo_mode_user(user):
+        if jsdata.get('user_password') and demo_mode_blocks_password_change():
             return response_error('Password changes are disabled in demo mode')
 
         cuser = user_schema.load(jsdata, instance=user, partial=True)
