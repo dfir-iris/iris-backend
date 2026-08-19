@@ -84,8 +84,6 @@ def validate_local_login(username: str, password: str):
         return None
 
     if bc.check_password_hash(user.password, password):
-        wrap_login_user(user)
-
         return user
 
     track_activity(f'wrong login password for user \'{username}\' using local auth', ctx_less=True, display_in_ui=False)

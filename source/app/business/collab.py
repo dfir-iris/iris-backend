@@ -221,7 +221,11 @@ def resolve_doc(doc_name, user_id):
 #   1 — GFM pipe tables (Jul 2026). The CommonMark parser silently
 #       dropped tables, so any legacy note with a table lost its
 #       tabular structure after the first open.
-_CURRENT_SEEDER_VERSION = 1
+#   2 — Soft line breaks (Aug 2026). Single newlines inside a paragraph
+#       were collapsed to spaces (CommonMark's rule), which ran every
+#       line of a scanner export or `key: value` block together. They
+#       now seed as `hardBreak` nodes.
+_CURRENT_SEEDER_VERSION = 2
 
 
 def ensure_snapshot(doc_name, current_content):

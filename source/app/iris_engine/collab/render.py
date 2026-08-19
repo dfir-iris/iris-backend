@@ -482,7 +482,19 @@ def _build_inline_into(block_el, inline_tokens: list[Token]) -> None:
         if ct == 'text':
             _emit_text(c.content)
         elif ct == 'softbreak':
-            _emit_text(' ')
+            # A bare newline inside a paragraph. CommonMark says "render
+            # as a space", but IRIS content is overwhelmingly operational
+            # text — scanner exports, host lists, `key: value` blocks —
+            # where every newline the analyst typed carries meaning. We
+            # map it to a `hardBreak` node so the line survives the trip
+            # into the CRDT and back out to markdown as `  \n`.
+            #
+            # (markdown-it's own `breaks` option is not the lever here: it
+            # only changes the HTML *renderer*, and we walk tokens
+            # directly. The frontend counterpart is `Markdown.configure({
+            # breaks: true })` in `MarkDownEditor.svelte` plus showdown's
+            # `simpleLineBreaks` in `MarkDown/converter.ts`.)
+            block_el.children.append(XmlElement('hardBreak'))
         elif ct == 'hardbreak':
             block_el.children.append(XmlElement('hardBreak'))
         elif ct == 'em_open':
@@ -589,6 +601,12 @@ def ydoc_update_to_markdown(update: bytes | None) -> str:
     return '\n'.join(lines) + ('\n' if lines else '')
 
 
+# Matches a hardBreak as `_render_inline_children` emits it (`'  \n'`,
+# plus any whitespace the neighbouring text contributed) so callers that
+# can't host a line break — headings — can collapse it back to a space.
+_HARD_BREAK_RE = re.compile(r'[ \t]*\n[ \t]*')
+
+
 def _render_block(node, lines: list[str], *, list_context) -> None:
     """Append the markdown lines for a single block node to `lines`.
 
@@ -608,14 +626,24 @@ def _render_block(node, lines: list[str], *, list_context) -> None:
     if tag == 'heading':
         level = _int_attr(node, 'level', default=1)
         level = max(1, min(6, level))
-        lines.append('#' * level + ' ' + _render_inline_children(node))
+        # ATX headings are single-line by definition. A hardBreak inside
+        # one is reachable in the editor (Shift-Enter), so collapse it to
+        # a space — emitting the second line raw would re-parse as a
+        # separate paragraph and silently split the heading in two.
+        text = _HARD_BREAK_RE.sub(' ', _render_inline_children(node))
+        lines.append('#' * level + ' ' + text)
         lines.append('')
         return
 
     if tag == 'paragraph':
         text = _render_inline_children(node)
         if text.strip():
-            lines.append(text)
+            # `_render_inline_children` emits `'  \n'` per hardBreak, so a
+            # paragraph with line breaks comes back as a multi-line string.
+            # Split it: `lines` is the unit that blockquote and list-item
+            # rendering prefix/indent, and an embedded newline would slip
+            # past that prefixing and break the block on re-parse.
+            lines.extend(text.split('\n'))
             lines.append('')
         return
 
