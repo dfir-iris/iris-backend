@@ -14,7 +14,7 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ matrix.runner }}
+    runs-on: self-hosted
     permissions:
       packages: write
       contents: read
