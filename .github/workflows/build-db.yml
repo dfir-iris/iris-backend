@@ -110,6 +110,27 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }}-amd64 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }}-arm64
 
+      - name: Best-effort cleanup scratch tags
+        if: always()
+        continue-on-error: true
+        run: |
+          refs=(
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }}-amd64"
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }}-arm64"
+          )
+
+          if command -v oras >/dev/null 2>&1; then
+            for ref in "${refs[@]}"; do
+              oras manifest delete "$ref"
+            done
+          elif command -v crane >/dev/null 2>&1; then
+            for ref in "${refs[@]}"; do
+              crane delete "$ref"
+            done
+          else
+            echo "No registry cleanup CLI available; leaving scratch tags in place."
+          fi
+
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
