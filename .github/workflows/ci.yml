@@ -14,6 +14,12 @@
 name: Continuous Integration
 on: [push, pull_request]
 
+env:
+  REGISTRY: ghcr.io
+  CI_DB_IMAGE: ghcr.io/dfir-iris/iris-db:ci-${{ github.run_id }}-${{ github.run_attempt }}
+  CI_APP_IMAGE: ghcr.io/dfir-iris/iris-backend:ci-${{ github.run_id }}-${{ github.run_attempt }}
+  DOCKER_BUILD_RECORD_UPLOAD: "false"
+
 jobs:
 
   static-checks:
@@ -51,67 +57,78 @@ jobs:
   build-docker-db:
     name: Build docker db
     runs-on: self-hosted
+    permissions:
+      packages: write
+      contents: read
     steps:
       - name: Check out iris-backend
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
           context: docker/db
-          tags: iris-db:ci
-          outputs: type=docker,dest=${{ runner.temp }}/iris-db.tar
+          tags: ${{ env.CI_DB_IMAGE }}
+          push: true
           cache-from: type=gha
           cache-to: type=gha,mode=min
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: iris-db
-          path: ${{ runner.temp }}/iris-db.tar
-          retention-days: 1
 
   build-docker-app:
     name: Build docker backend
     runs-on: self-hosted
+    permissions:
+      packages: write
+      contents: read
     steps:
       - name: Check out iris-backend
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/webApp/Dockerfile
-          tags: iris-backend:ci
-          outputs: type=docker,dest=${{ runner.temp }}/iris-backend.tar
+          tags: ${{ env.CI_APP_IMAGE }}
+          push: true
           cache-from: type=gha
           cache-to: type=gha,mode=min
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: iris-backend
-          path: ${{ runner.temp }}/iris-backend.tar
-          retention-days: 1
 
   test-api:
     name: Test API
     runs-on: self-hosted
+    permissions:
+      packages: read
+      contents: read
     needs:
       - build-docker-db
       - build-docker-app
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
         with:
-          pattern: iris-*
-          path: ${{ runner.temp }}
-          merge-multiple: true
-      - name: Load docker images
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull docker images for tests
         run: |
-          docker load --input "${{ runner.temp }}/iris-db.tar"
-          docker load --input "${{ runner.temp }}/iris-backend.tar"
+          docker pull "${{ env.CI_DB_IMAGE }}"
+          docker pull "${{ env.CI_APP_IMAGE }}"
+          docker tag "${{ env.CI_DB_IMAGE }}" iris-db:ci
+          docker tag "${{ env.CI_APP_IMAGE }}" iris-backend:ci
       - name: Check out iris-backend
         uses: actions/checkout@v4
       - name: Start test stack
@@ -143,6 +160,7 @@ jobs:
       - name: Upload artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: Test API logs
           path: ${{ runner.temp }}/iris-backend.log
@@ -151,20 +169,25 @@ jobs:
   test-database-migration:
     name: Database migration tests
     runs-on: self-hosted
+    permissions:
+      packages: read
+      contents: read
     needs:
       - build-docker-db
       - build-docker-app
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
         with:
-          pattern: iris-*
-          path: ${{ runner.temp }}
-          merge-multiple: true
-      - name: Load docker images
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull docker images for tests
         run: |
-          docker load --input "${{ runner.temp }}/iris-db.tar"
-          docker load --input "${{ runner.temp }}/iris-backend.tar"
+          docker pull "${{ env.CI_DB_IMAGE }}"
+          docker pull "${{ env.CI_APP_IMAGE }}"
+          docker tag "${{ env.CI_DB_IMAGE }}" iris-db:ci
+          docker tag "${{ env.CI_APP_IMAGE }}" iris-backend:ci
       - name: Check out iris-backend
         uses: actions/checkout@v4
       - name: Set up .env file
@@ -176,3 +199,40 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
           PYTHONUNBUFFERED=true python -m unittest --verbose
+
+  cleanup-ci-images:
+    name: Cleanup temporary CI images
+    if: ${{ always() }}
+    runs-on: self-hosted
+    permissions:
+      packages: write
+      contents: read
+    needs:
+      - test-api
+      - test-database-migration
+    steps:
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Best-effort cleanup temporary CI tags
+        continue-on-error: true
+        run: |
+          refs=(
+            "${{ env.CI_DB_IMAGE }}"
+            "${{ env.CI_APP_IMAGE }}"
+          )
+
+          if command -v oras >/dev/null 2>&1; then
+            for ref in "${refs[@]}"; do
+              oras manifest delete "$ref"
+            done
+          elif command -v crane >/dev/null 2>&1; then
+            for ref in "${refs[@]}"; do
+              crane delete "$ref"
+            done
+          else
+            echo "No registry cleanup CLI available; leaving temporary CI tags in place."
+          fi
