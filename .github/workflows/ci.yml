@@ -18,7 +18,7 @@ jobs:
 
   static-checks:
     name: Static analysis checks
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Check out iris-backend
         uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
 
   build-docker-db:
     name: Build docker db
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Check out iris-backend
         uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
 
   build-docker-app:
     name: Build docker backend
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
       - name: Check out iris-backend
         uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
 
   test-api:
     name: Test API
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     needs:
       - build-docker-db
       - build-docker-app
@@ -150,7 +150,7 @@ jobs:
 
   test-database-migration:
     name: Database migration tests
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     needs:
       - build-docker-db
       - build-docker-app
