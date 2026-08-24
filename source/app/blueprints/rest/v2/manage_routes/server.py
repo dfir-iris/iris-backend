@@ -51,6 +51,8 @@ from app.iris_engine.backup.backup import backup_iris_db
 from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.demo_builder import demo_mode_restricts_server_settings
 from app.iris_engine.demo_builder import is_demo_mode_enabled
+from app.iris_engine.demo_builder import gen_demo_admins
+from app.iris_engine.demo_builder import gen_demo_users
 from app.iris_engine.mail.outbound import mail_send_system
 from app.iris_engine.mail.secrets import encrypt_secret
 from app.iris_engine.llm.reload import reload_llm_client
@@ -262,6 +264,32 @@ def _apply_demo_mode_overrides(settings_dump: dict) -> dict:
     return settings_dump
 
 
+def _demo_accounts() -> list:
+    """The seeded demo credentials, regenerated from the boot seeds.
+
+    Same generators `post_init` used to create the accounts, so the
+    passwords match what is actually in the database. Returns an empty
+    list outside demo mode.
+    """
+    if not is_demo_mode_enabled():
+        return []
+
+    adm_count = int(app.config.get('DEMO_ADM_COUNT', 4))
+    users_count = int(app.config.get('DEMO_USERS_COUNT', 10))
+    seed_adm = app.config.get('DEMO_ADM_SEED')
+    seed_user = app.config.get('DEMO_USERS_SEED')
+
+    accounts = [
+        {'username': username, 'password': pwd, 'role': 'Admin'}
+        for _, username, pwd, _ in gen_demo_admins(adm_count, seed_adm)
+    ]
+    accounts += [
+        {'username': username, 'password': pwd, 'role': 'User'}
+        for _, username, pwd, _ in gen_demo_users(users_count, seed_user)
+    ]
+    return accounts
+
+
 def _snapshot_error_reporting(settings) -> dict:
     """Read the six error-reporting fields off the settings row.
 
@@ -294,6 +322,11 @@ class ServerOperations:
                 # offer a second factor it will never be able to honour.
                 "mfa_enabled": False if demo_mode_blocks_mfa() else app.config.get("MFA_ENABLED"),
                 "local_fallback_enabled": bool(app.config.get("AUTHENTICATION_LOCAL_FALLBACK")),
+                "demo_mode": is_demo_mode_enabled(),
+                # Seeded demo credentials are already public by design on a
+                # demo instance; the login page uses them to offer one-click
+                # sign-in. Empty on any non-demo deployment.
+                "demo_accounts": _demo_accounts(),
             }
             return response_api_success(auth_requirements)
         except Exception as e:

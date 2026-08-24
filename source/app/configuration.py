@@ -280,7 +280,7 @@ class Config:
     if DEMO_MODE_ENABLED == 'True':
         DEMO_DOMAIN = config.load('IRIS_DEMO', 'DOMAIN', fallback=None)
         DEMO_USERS_SEED = config.load('IRIS_DEMO', 'USERS_SEED', fallback=0)
-        DEMO_ADM_SEED = config.load('IRIS_DEMO', 'ADM_SEED', fallback=0)
+        DEMO_ADM_SEED = config.load('IRIS_DEMO', 'ADM_SEED', fallback=1)
         # Whole-request ceiling for a demo instance — Werkzeug rejects
         # anything larger before a view runs. Individual file parts are
         # held to the tighter `DEMO_MODE_UPLOAD_MAX_BYTES` inside the
