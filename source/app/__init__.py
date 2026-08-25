@@ -535,45 +535,67 @@ register_request_id_middleware(app)
 
 register_blueprints(app)
 
-# Serialize `post_init.run()` across workers via a Postgres advisory
-# lock. Without `--preload` each of the 4 workers imports `wsgi:app`
-# independently and would otherwise race on `CREATE TABLE IF NOT
-# EXISTS`, admin-user seeding, base-data seeding, etc. `post_init` is
-# already idempotent (it explicitly logs "Module already exists" when
-# it hits a row that another run created), so the blocking-lock
-# pattern is correct: the first worker runs it, the others block on
-# `pg_advisory_lock`, unblock when the first releases, then re-run
-# post_init as a no-op. Lock key is an arbitrary constant chosen to
-# be recognizable in `pg_locks` — `0x69726973` is 'iris' in ASCII.
+# Database bootstrap + base-data seeding. Deliberately NOT executed at
+# import time — the entrypoint runs it once via
+# `python -m scripts.run_post_init` before starting gunicorn (see
+# `docker/webApp/iris-entrypoint.sh`). Gunicorn runs without
+# `--preload`, so each of the 4 workers imports this module
+# independently; at module scope this meant one full post-init pass per
+# worker on every boot.
+#
+# The advisory lock stays even though the caller is now a single
+# one-shot process: the `app` and `worker` containers boot
+# concurrently, replicated deployments can start two init steps at
+# once, and it is what keeps post_init's check-then-insert seeding
+# (notably the demo seeder) free of duplicate-row races. Lock key is an
+# arbitrary constant chosen to be recognizable in `pg_locks` —
+# `0x69726973` is 'iris' in ASCII.
 _POST_INIT_LOCK_KEY = 0x69726973
-try:
-    from sqlalchemy import text as _sa_text
-    with app.app_context():
-        with db.engine.connect() as _lock_conn:
-            _lock_conn.execute(
-                _sa_text('SELECT pg_advisory_lock(:k)'),
-                {'k': _POST_INIT_LOCK_KEY},
-            )
-            try:
-                post_init = PostInit(app)
-                post_init.run()
-            finally:
-                _lock_conn.execute(
-                    _sa_text('SELECT pg_advisory_unlock(:k)'),
+
+
+def run_post_init():
+    """Run post-init once, serialized cluster-wide by a Postgres advisory lock.
+
+    The lock is blocking, not `try`-style: a concurrent caller waits
+    for the holder to finish rather than failing, then re-runs
+    post_init as a no-op. That is safe because post_init is idempotent
+    — it explicitly logs "Module already exists" when it hits a row
+    another run created.
+
+    Logs and re-raises on failure. Callers must exit non-zero: IRIS
+    must not serve traffic on a half-migrated database.
+    """
+    from sqlalchemy import text as sa_text
+
+    try:
+        with app.app_context():
+            with db.engine.connect() as lock_conn:
+                lock_conn.execute(
+                    sa_text('SELECT pg_advisory_lock(:k)'),
                     {'k': _POST_INIT_LOCK_KEY},
                 )
-                _lock_conn.commit()
+                try:
+                    PostInit(app).run()
+                finally:
+                    lock_conn.execute(
+                        sa_text('SELECT pg_advisory_unlock(:k)'),
+                        {'k': _POST_INIT_LOCK_KEY},
+                    )
+                    lock_conn.commit()
 
-except Exception as e:
-    app.logger.exception('Post init failed. IRIS not started')
-    raise e
+    except Exception:
+        app.logger.exception('Post init failed. IRIS not started')
+        raise
 
-# Error reporter init runs AFTER PostInit — that's what guarantees
-# the singleton ServerSettings row exists (PostInit seeds it on cold
-# boot). Reads the six error_reporting_* fields and calls
-# sentry_sdk.init(...) if enabled; else installs a null client. Any
-# failure here is logged and swallowed — the reporter is optional
-# and must never block boot.
+# Error reporter init reads the singleton ServerSettings row, which
+# `run_post_init()` seeds on cold boot. The entrypoint runs post-init
+# to completion before gunicorn starts, so the row is present by the
+# time any worker imports this module. Reads the six error_reporting_*
+# fields and calls sentry_sdk.init(...) if enabled; else installs a
+# null client. Every failure here is logged and swallowed — the
+# reporter is optional and must never block boot, so importing the app
+# against a database that was never initialized (ad-hoc scripts,
+# tests) leaves the reporter disabled instead of raising.
 from app.iris_engine.observability.reporter import init_error_reporter_from_settings
 init_error_reporter_from_settings(app)
 

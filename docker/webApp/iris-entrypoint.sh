@@ -120,17 +120,37 @@ if [[ "${target}" == iris-worker ]] ; then
         celery -A app.celery worker -c $NUMBER_OF_CHILD -E -B -l $LOG_LEVEL &
     fi
 else
+    # One-shot database bootstrap, in the foreground, before any
+    # worker starts. `post_init` (tables, alembic upgrade, base data,
+    # admin user, demo data) used to run at `app/__init__.py` module
+    # scope; with `--preload` dropped that meant one full pass per
+    # gunicorn worker — 4 per boot, serialized by a Postgres advisory
+    # lock, the last 3 no-ops.
+    #
+    # Hard gate: on failure IRIS must not serve traffic against a
+    # half-migrated schema. Exiting here surfaces a single clean
+    # traceback and lets the container's restart policy retry, instead
+    # of 4 workers crash-looping on import.
+    #
+    # Only on this branch — the iris-worker target above must not
+    # bootstrap the database. `post_init.run()` already self-gated on
+    # $IRIS_WORKER, so celery never did the work anyway.
+    printf "Running database initialisation ...\n"
+    if ! python -m scripts.run_post_init; then
+      printf "Database initialisation failed. IRIS not started.\n" >&2
+      exit 1
+    fi
+
     # gevent worker: cooperative concurrency, one greenlet per open
     # connection. `wsgi:app` (source/wsgi.py) does gevent.monkey.patch_all()
     # + psycogreen.gevent.patch_psycopg() BEFORE `from app import app`
     # so socket / ssl / threading / psycopg2 are all patched by the
     # time Flask-SocketIO's `async_mode='gevent'` engages.
     #
-    # `--preload` imports the app ONCE in the arbiter and forks into
-    # workers. Load-bearing: `app/__init__.py` runs `post_init.run()`
-    # at module scope, which calls `db.create_all()`; without
-    # preload every worker would race on `CREATE TABLE` and one wins,
-    # the rest crash with `UniqueViolation` on `pg_class_relname_nsp_index`.
+    # `--preload` would import the app ONCE in the arbiter and fork
+    # into workers; see the note below for why it is not used. Schema
+    # creation is no longer a factor either way — the app no longer
+    # touches the database at import time, the init step above owns it.
     # Gunicorn's gevent worker re-runs monkey-patching post-fork so
     # cooperative concurrency still works in each child.
     #
@@ -158,9 +178,9 @@ else
     # socket in worker B, and `gevent.socket.wait_read` reads bytes off
     # the wrong wire → "lost synchronization with server" desync.
     # Without preload, each worker imports the app independently after
-    # fork, so no fd inheritance is possible. `post_init.run()` is
-    # gated by a Postgres advisory lock so only the first worker
-    # actually runs it — see app/post_init.py.
+    # fork, so no fd inheritance is possible. Importing the app is now
+    # side-effect-free with respect to the database, so N independent
+    # imports cost nothing beyond the imports themselves.
     gunicorn wsgi:app --config scripts/gunicorn-cfg.py --bind 0.0.0.0:8000 --timeout 300 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --worker-connections 1000 -w 4 --log-level=info &
 fi
 

@@ -64,10 +64,12 @@ def post_fork(server, worker):
        same desync signature as (1), same evictor catches it, but
        the root cause is the fork not the pool.
 
-    The `--preload` flag is load-bearing (see the entrypoint comment
-    for `post_init.run()` / `db.create_all()` — dropping preload lets
-    all four workers race on `CREATE TABLE` at boot), so rebuilding
-    these resources post-fork is the correct fix, not `--no-preload`.
+    The entrypoint does not pass `--preload` (its comment explains
+    why: inherited psycopg2 fds desync under gevent), so in the
+    current configuration there is no arbiter-side app import to
+    inherit from. This hook stays regardless — it is cheap, it is
+    correct either way, and it keeps the config file safe to run with
+    preload re-enabled.
     """
     try:
         from app import db

@@ -67,8 +67,14 @@ services:
     networks:
       - iris_backend
     healthcheck:
+      # Database initialisation runs to completion before gunicorn
+      # binds :8000, so nothing answers until the schema is created
+      # and every alembic migration has applied. CI drives this with
+      # `up --wait`, which fails the job on an unhealthy service —
+      # `start_interval` still flips it healthy the moment it responds,
+      # so the headroom only costs anything on a genuinely stuck boot.
       test: curl --head --fail http://localhost:8000 || exit 1
-      start_period: 60s
+      start_period: 180s
       start_interval: 1s
 
   worker:

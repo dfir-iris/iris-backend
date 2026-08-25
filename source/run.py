@@ -18,6 +18,7 @@
 import logging
 
 from app import app
+from app import run_post_init
 from app import socket_io
 
 if __name__ != '__main__':
@@ -27,4 +28,13 @@ if __name__ != '__main__':
 
 
 if __name__ == "__main__":
+    # Importing the app no longer bootstraps the database — in the
+    # container that is a separate one-shot step run before gunicorn
+    # (`python -m scripts.run_post_init`, see the entrypoint). This dev
+    # runner is a single process, so it just does it inline and keeps
+    # `python run.py` working against an empty database as before.
+    # Under __main__ only: a WSGI server importing this module must not
+    # trigger post-init once per worker.
+    run_post_init()
+
     socket_io.run(app, host='127.0.0.1', port=8000, debug=True)
