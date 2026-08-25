@@ -14,6 +14,12 @@ env:
 
 jobs:
   build:
+    # Both arch legs run on the self-hosted fleet. The matrix used to
+    # carry a `runner:` key naming GitHub-hosted runners, but `runs-on`
+    # never referenced it — it was dead config that read as though
+    # arm64 built natively on `ubuntu-24.04-arm`. Dropped rather than
+    # wired up: arm64 is cross-built here under emulation, see the
+    # QEMU step below.
     runs-on: self-hosted
     permissions:
       packages: write
@@ -23,15 +29,43 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            runner: ubuntu-24.04
             arch: amd64
           - platform: linux/arm64
-            runner: ubuntu-24.04-arm
             arch: arm64
 
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      # Give each matrix leg its own Docker credential store. Both legs
+      # run concurrently on the same self-hosted runner and would
+      # otherwise share $HOME/.docker/config.json — one leg's login
+      # clobbering the other's mid-push surfaces as
+      # "failed to fetch oauth token: denied". A fresh directory also
+      # sidesteps any credsStore configured on the host, whose helper
+      # binary may not exist on a headless runner (docker login then
+      # reports success but stores nothing retrievable, and the push
+      # goes out anonymous).
+      #
+      # Set through $GITHUB_ENV rather than a job-level `env:` because
+      # the `runner` context is not available there. $RUNNER_TEMP is,
+      # and the runner clears it between jobs — unlike $HOME, which
+      # persists on a self-hosted box.
+      - name: Isolate Docker config
+        run: |
+          mkdir -p "${RUNNER_TEMP}/docker-${{ matrix.arch }}"
+          echo "DOCKER_CONFIG=${RUNNER_TEMP}/docker-${{ matrix.arch }}" >> "$GITHUB_ENV"
+
+      # Registers binfmt handlers so buildx can emulate arm64 on an
+      # x64 runner. Declared per run rather than relying on whatever
+      # the host happens to have installed: on a persistent self-hosted
+      # runner that state is invisible, unversioned, and vanishes on a
+      # host rebuild. Must precede the buildx setup below.
+      - name: Set up QEMU
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
