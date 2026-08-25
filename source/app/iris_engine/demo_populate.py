@@ -77,6 +77,7 @@ from app.models.comments import TaskComments
 from app.models.evidences import CaseReceivedFile
 from app.models.evidences import EvidenceTypes
 from app.models.iocs import Ioc
+from app.models.iocs import Tlp
 from app.models.models import CaseEventCategory
 from app.models.models import CaseEventsAssets
 from app.models.models import CaseEventsIoc
@@ -87,7 +88,6 @@ from app.models.models import NoteDirectory
 from app.models.models import Notes
 from app.models.models import TaskAssignee
 from app.models.models import TaskStatus
-from app.models.models import Tlp
 from app.models.war_rooms import WarRoom
 from app.models.war_rooms import WarRoomCase
 from app.models.war_rooms import WarRoomChatMessage
@@ -705,6 +705,13 @@ def _add_demo_alerts(case, scenario, user, analysts, assets, iocs, base_time):
         alert_iocs = [iocs[v] for v in ioc_values if v in iocs]
         alert.assets = alert_assets
         alert.iocs = alert_iocs
+
+        # 'Escalated' is defined as "alert converted to a new case" and
+        # 'Merged' as "merged into an existing case" — the alert card only
+        # renders its case chips off this association, so an escalated alert
+        # without one contradicts its own status.
+        if status_name in ('Escalated', 'Merged'):
+            alert.cases.append(case)
 
         db.session.add(alert)
         db.session.commit()
