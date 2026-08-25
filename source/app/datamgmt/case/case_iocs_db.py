@@ -282,7 +282,10 @@ def delete_ioc_comment(user_identifier, ioc_id, comment_id):
 
 def get_ioc_by_value(ioc_value, caseid=None):
     if caseid:
-        Ioc.query.filter(Ioc.ioc_value == ioc_value, Ioc.case_id == caseid).first()
+        # Scoped lookups must not fall through to the unscoped one: returning
+        # another case's IOC here makes callers link a foreign row into the
+        # current case.
+        return Ioc.query.filter(Ioc.ioc_value == ioc_value, Ioc.case_id == caseid).first()
 
     return Ioc.query.filter(Ioc.ioc_value == ioc_value).first()
 
