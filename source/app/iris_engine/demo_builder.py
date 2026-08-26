@@ -32,6 +32,10 @@ from app.datamgmt.manage.manage_users_db import add_user_to_group
 from app.datamgmt.manage.manage_users_db import add_user_to_organisation
 from app.datamgmt.manage.manage_users_db import user_exists
 from app.iris_engine.access_control.utils import ac_add_users_multi_effective_access
+from app.iris_engine.demo_policy import coerce_user_ids
+from app.iris_engine.demo_policy import is_protected_demo_group
+from app.iris_engine.demo_policy import is_protected_demo_user
+from app.iris_engine.demo_policy import protected_demo_logins
 from app.iris_engine.demo_populate import demo_actor
 from app.iris_engine.demo_populate import populate_demo_case
 from app.iris_engine.demo_scenarios import scenario_for_index
@@ -128,30 +132,88 @@ def demo_mode_upload_cap_message():
             f'in demo mode')
 
 
+# Wording for the two refusals below. Every route that turns a
+# `protect_demo_mode_*` verdict into a response uses these so a visitor
+# poking at the Access Control page gets the same explanation wherever
+# they hit the wall.
+DEMO_MODE_PROTECTED_USER_MESSAGE = (
+    'This account is part of the demo dataset and cannot be modified in demo mode'
+)
+DEMO_MODE_PROTECTED_GROUP_MESSAGE = (
+    'This group is part of the demo dataset and cannot be modified in demo mode'
+)
+
+
+def demo_mode_protected_logins():
+    """Logins demo mode freezes — the seeded accounts and the admin."""
+    return protected_demo_logins(app.config.get('DEMO_USERS_COUNT', 10),
+                                 app.config.get('DEMO_ADM_COUNT', 4),
+                                 app.config.get('IRIS_ADM_USERNAME'))
+
+
 def protect_demo_mode_user(user):
+    """True when `user` is off-limits to the caller in demo mode.
+
+    Config and current-user plumbing around `is_protected_demo_user`,
+    where the rule itself lives and is unit tested.
+    """
     if not is_demo_mode_enabled():
         return False
 
-    users_p = [f'user_std_{i}' for i in range(1, int(app.config.get('DEMO_USERS_COUNT', 10)))]
-    users_p += [f'adm_{i}' for i in range(1, int(app.config.get('DEMO_ADM_COUNT', 4)))]
+    # `getattr` rather than a plain attribute read: the serialisers call
+    # this outside a request context too, where `iris_current_user`
+    # proxies to None.
+    caller_id = getattr(iris_current_user, 'id', None)
 
-    if iris_current_user.id != 1 and user.id == 1:
-        return True
+    return is_protected_demo_user(user.id, user.user, caller_id,
+                                  DEMO_MODE_OWNER_USER_ID,
+                                  demo_mode_protected_logins())
 
-    if user.user in users_p:
-        return True
 
-    return False
+def protect_demo_mode_user_id(user_id):
+    """`protect_demo_mode_user` for routes that only hold an id.
+
+    An unknown id is *not* protected — the caller gets the route's own
+    404 rather than a misleading 403.
+    """
+    if not is_demo_mode_enabled():
+        return False
+
+    user = User.query.filter(User.id == user_id).first()
+    if user is None:
+        return False
+
+    return protect_demo_mode_user(user)
+
+
+def protect_demo_mode_users(user_ids):
+    """True when any id in `user_ids` names a protected demo account.
+
+    Used by the group-membership routes: those edit a group but the
+    thing they actually change is the *members'* effective permissions,
+    so a demo account must not be added to or removed from any group —
+    including a brand-new group the visitor just created and granted
+    `server_administrator`.
+    """
+    if not is_demo_mode_enabled():
+        return False
+
+    ids = coerce_user_ids(user_ids)
+    if not ids:
+        return False
+
+    return any(protect_demo_mode_user(user)
+               for user in User.query.filter(User.id.in_(ids)).all())
 
 
 def protect_demo_mode_group(group):
+    """True when `group` is off-limits to the caller in demo mode."""
     if not is_demo_mode_enabled():
         return False
 
-    if iris_current_user.id != 1 and group.group_id in [1, 2]:
-        return True
-
-    return False
+    return is_protected_demo_group(group.group_id,
+                                   getattr(iris_current_user, 'id', None),
+                                   DEMO_MODE_OWNER_USER_ID)
 
 
 def gen_demo_admins(count, seed_adm):

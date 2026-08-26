@@ -437,6 +437,8 @@ def remove_case_access_from_user(user_id, case_id):
 
 
 def get_user_details(user_id, include_api_key=False):
+    # Imported lazily — `demo_builder` imports this module.
+    from app.iris_engine.demo_builder import protect_demo_mode_user
 
     user = User.query.filter(User.id == user_id).first()
 
@@ -451,6 +453,10 @@ def get_user_details(user_id, include_api_key=False):
     row['user_email'] = user.email
     row['user_active'] = user.active
     row['user_is_service_account'] = user.is_service_account
+    # Same key `UserSchemaForAPIV2` dumps — the SPA patches list rows
+    # with whatever a sub-action returns, so both projections have to
+    # carry the flag or a row would silently lose it.
+    row['user_is_demo_protected'] = protect_demo_mode_user(user)
 
     if include_api_key:
         row['user_api_key'] = user.api_key

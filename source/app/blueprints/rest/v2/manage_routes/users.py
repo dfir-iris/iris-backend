@@ -74,8 +74,10 @@ from app.db import db
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac
 from app.iris_engine.access_control.utils import ac_trace_effective_user_permissions
 from app.iris_engine.access_control.utils import ac_trace_user_effective_cases_access_2
+from app.iris_engine.demo_builder import DEMO_MODE_PROTECTED_USER_MESSAGE
 from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.demo_builder import demo_mode_blocks_password_change
+from app.iris_engine.demo_builder import protect_demo_mode_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError
@@ -108,6 +110,20 @@ def _filter_admin_user_payload(data):
     if not isinstance(data, dict):
         return {}
     return {k: v for k, v in data.items() if k in _ADMIN_USER_WRITABLE_FIELDS}
+
+
+def _demo_protected(user):
+    """403 response when `user` belongs to the demo dataset, else None.
+
+    Demo instances hand `server_administrator` to every visitor, so the
+    permission gate on these routes is not a gate at all — without this
+    check one visitor could re-group, rename, disable or delete the
+    seeded accounts the next visitor logs in with. Outside demo mode
+    `protect_demo_mode_user` is always False and this is inert.
+    """
+    if protect_demo_mode_user(user):
+        return response_api_error(DEMO_MODE_PROTECTED_USER_MESSAGE, status=403)
+    return None
 
 
 class Users:
@@ -173,6 +189,9 @@ class Users:
 
         try:
             user = users_get(identifier)
+            denied = _demo_protected(user)
+            if denied is not None:
+                return denied
             request_data = _filter_admin_user_payload(request.get_json())
             request_data['user_id'] = identifier
             if request_data.get('user_password') and demo_mode_blocks_password_change():
@@ -191,6 +210,9 @@ class Users:
     def delete(self, identifier):
         try:
             user = users_get(identifier)
+            denied = _demo_protected(user)
+            if denied is not None:
+                return denied
             users_delete(user)
             return response_api_deleted()
 
@@ -243,11 +265,21 @@ def delete_user(identifier):
 
 # ---- Subresources ----------------------------------------------------
 
-def _require_user(user_id: int):
-    """Internal: load + 404 if missing."""
+def _require_user(user_id: int, mutating: bool = False):
+    """Internal: load + 404 if missing.
+
+    `mutating=True` also refuses demo-protected accounts, so a write
+    route picks up both checks from the one call it already makes.
+    Read-only routes leave it False — inspecting a demo account is fine,
+    it's changing one that isn't.
+    """
     user = get_user(user_id)
     if user is None:
         return None, response_api_not_found()
+    if mutating:
+        denied = _demo_protected(user)
+        if denied is not None:
+            return None, denied
     return user, None
 
 
@@ -289,7 +321,7 @@ def put_user_groups(identifier: int) -> Response:
     if not isinstance(groups, list):
         return response_api_error('`groups` must be a list of group IDs')
 
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -321,7 +353,7 @@ def put_user_customers(identifier: int) -> Response:
         if not isinstance(cid, int):
             return response_api_error(f'Invalid customer id: {cid}')
 
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -370,7 +402,7 @@ def add_user_cases_access(identifier: int) -> Response:
         except (TypeError, ValueError):
             return response_api_error('`access_level` must be an int')
 
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -401,7 +433,7 @@ def delete_user_cases_access(identifier: int) -> Response:
     if not isinstance(cases, list):
         return response_api_error('`cases` must be a list')
 
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -426,7 +458,7 @@ def delete_user_cases_access(identifier: int) -> Response:
 @ac_api_requires(Permissions.server_administrator)
 @api_doc(response=UserSchemaForAPIV2, tags=['ManageUsers'], summary='Activate a user')
 def activate_user(identifier: int) -> Response:
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
     user.active = True
@@ -449,7 +481,7 @@ def deactivate_user(identifier: int) -> Response:
         return response_api_error(
             'Refusing to deactivate yourself — you would lock yourself out.'
         )
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
     user.active = False
@@ -465,7 +497,7 @@ def renew_user_api_key(identifier: int) -> Response:
     """Rotate the user's API key. Returns the *new* key in the body
     once — the admin should copy it immediately; we don't surface it
     again on subsequent reads."""
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
     new_key = secrets.token_urlsafe(nbytes=64)
@@ -507,7 +539,7 @@ def create_user_api_key(identifier: int) -> Response:
     values AND-ed with the target user's effective mask on every
     request authenticated with the key.
     """
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
     body = request.get_json(silent=True) or {}
@@ -535,7 +567,7 @@ def create_user_api_key(identifier: int) -> Response:
 @api_doc(response_shape='deleted', tags=['ManageUsers'],
          summary='Revoke a user\'s named API key (admin, idempotent)')
 def revoke_user_api_key(identifier: int, key_id: int) -> Response:
-    user, err = _require_user(identifier)
+    user, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
     try:
@@ -557,7 +589,7 @@ def reset_user_mfa(identifier: int) -> Response:
     helper raises `BusinessProcessingError` when the user can't be
     found (rather than a typed not-found) — surface both paths
     cleanly."""
-    _, err = _require_user(identifier)
+    _, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
     # Demo mode keeps MFA switched off wholesale, so there is no

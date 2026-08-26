@@ -2398,12 +2398,22 @@ class AuthorizationGroupSchema(ma.SQLAlchemyAutoSchema):
     group_members: Optional[List[Dict[str, Any]]] = fields.List(fields.Dict, required=False, allow_none=True)
     group_permissions_list: Optional[List[Dict[str, Any]]] = fields.List(fields.Dict, required=False, allow_none=True)
     group_cases_access: Optional[List[Dict[str, Any]]] = fields.List(fields.Dict, required=False, allow_none=True)
+    # Mirror of `protect_demo_mode_group` so the Access Control page can
+    # grey out the controls the API would refuse anyway. Always False
+    # outside demo mode.
+    group_is_demo_protected: bool = fields.Method('get_is_demo_protected', dump_only=True)
 
     class Meta:
         model = Group
         load_instance = True
         include_fk = True
         unknown = EXCLUDE
+
+    def get_is_demo_protected(self, obj) -> bool:
+        # Imported lazily: `demo_builder` reaches into the business
+        # layer, which imports this module.
+        from app.iris_engine.demo_builder import protect_demo_mode_group
+        return protect_demo_mode_group(obj)
 
     @pre_load
     def verify_unique(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
@@ -2888,6 +2898,10 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     user_cases_access = ma.Nested(CaseSchemaForAPIV2, many=True, attribute='cases_access', only=['access_level', 'case_id', 'case_name'])
     user_organisations = fields.Method('get_user_organisations', only=['org_name', 'org_id', 'org_uuid', 'is_primary_org'])
     user_primary_organisation_id = fields.Method('get_user_primary_organisation', only=['id'])
+    # Mirror of `protect_demo_mode_user` so the Access Control page can
+    # grey out the controls the API would refuse anyway. Always False
+    # outside demo mode.
+    user_is_demo_protected: bool = fields.Method('get_is_demo_protected', dump_only=True)
 
     class Meta:
         model = User
@@ -2912,6 +2926,12 @@ class UserSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
 
     def get_user_organisations(self, obj):
         return get_organisations(obj.id)
+
+    def get_is_demo_protected(self, obj) -> bool:
+        # Imported lazily: `demo_builder` reaches into the business
+        # layer, which imports this module.
+        from app.iris_engine.demo_builder import protect_demo_mode_user
+        return protect_demo_mode_user(obj)
 
     @pre_load()
     def verify_username(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:

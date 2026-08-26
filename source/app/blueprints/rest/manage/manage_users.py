@@ -53,6 +53,7 @@ from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.iris_engine.demo_builder import demo_mode_blocks_password_change
 from app.iris_engine.demo_builder import protect_demo_mode_user
+from app.iris_engine.demo_builder import protect_demo_mode_user_id
 
 manage_users_rest_blueprint = Blueprint('manage_users_rest', __name__)
 
@@ -200,6 +201,9 @@ def manage_user_group_(cur_id):
     if not user:
         return response_error("Invalid user ID")
 
+    if protect_demo_mode_user_id(cur_id):
+        return ac_api_return_access_denied()
+
     groups = request.json.get('groups_membership')
     for group_identifier in groups:
         if not groups_exist(group_identifier):
@@ -229,6 +233,9 @@ def manage_user_customers_(cur_id):
     user = get_user_details(cur_id)
     if not user:
         return response_error('Invalid user ID')
+
+    if protect_demo_mode_user_id(cur_id):
+        return ac_api_return_access_denied()
 
     update_user_customers(user_id=cur_id, customers=request.json.get('customers_membership'))
 
@@ -269,6 +276,9 @@ def manage_user_cac_add_case(cur_id):
     if not user:
         return response_error("Invalid user ID")
 
+    if protect_demo_mode_user(user):
+        return ac_api_return_access_denied()
+
     if not isinstance(data.get('access_level'), int):
         try:
             data['access_level'] = int(data.get('access_level'))
@@ -298,6 +308,9 @@ def manage_user_cac_delete_cases(cur_id):
     user = get_user(cur_id)
     if not user:
         return response_error("Invalid user ID")
+
+    if protect_demo_mode_user(user):
+        return ac_api_return_access_denied()
 
     if not request.is_json:
         return response_error("Invalid request")

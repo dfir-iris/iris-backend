@@ -47,6 +47,9 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.responses import response_error
 from app.blueprints.responses import response_success
 from app.iris_engine.demo_builder import protect_demo_mode_group
+from app.iris_engine.demo_builder import protect_demo_mode_user
+from app.iris_engine.demo_builder import protect_demo_mode_users
+from app.iris_engine.demo_policy import membership_change
 from app.business.groups import groups_create
 from app.blueprints.rest.endpoints import endpoint_deprecated
 
@@ -191,6 +194,14 @@ def manage_groups_members_update(cur_id):
     if not isinstance(data.get('group_members'), list):
         return response_error("Expecting a list of IDs")
 
+    # Adding a demo account to — or dropping it from — any group
+    # rewrites its effective permissions from the group side. Only the
+    # accounts whose membership actually changes are checked, so
+    # replaying the current list is still a no-op success.
+    current_ids = {member['id'] for member in (group.group_members or [])}
+    if protect_demo_mode_users(membership_change(current_ids, data.get('group_members'))):
+        return ac_api_return_access_denied()
+
     update_group_members(group, data.get('group_members'))
     group = get_group_with_members(cur_id)
 
@@ -212,6 +223,9 @@ def manage_groups_members_delete(cur_id, cur_id_2):
     user = get_user(cur_id_2)
     if not user:
         return response_error("Invalid user ID")
+
+    if protect_demo_mode_user(user):
+        return ac_api_return_access_denied()
 
     if ac_ldp_group_removal(user_id=user.id, group_id=group.group_id):
         return response_error('I cannot let you do that Dave', data="Removing you from the group will make you "

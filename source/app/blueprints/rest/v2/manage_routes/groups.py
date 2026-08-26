@@ -65,11 +65,29 @@ from app.db import db
 from app.iris_engine.access_control.utils import ac_ldp_group_removal
 from app.iris_engine.access_control.utils import ac_ldp_group_update
 from app.iris_engine.access_control.utils import ac_recompute_effective_ac_from_users_list
+from app.iris_engine.demo_builder import DEMO_MODE_PROTECTED_GROUP_MESSAGE
+from app.iris_engine.demo_builder import DEMO_MODE_PROTECTED_USER_MESSAGE
+from app.iris_engine.demo_builder import protect_demo_mode_group
+from app.iris_engine.demo_builder import protect_demo_mode_user
+from app.iris_engine.demo_builder import protect_demo_mode_users
+from app.iris_engine.demo_policy import membership_change
 from app.models.authorization import Permissions
 from app.models.authorization import ac_flag_match_mask
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.schema.marshables import AuthorizationGroupSchema
+
+
+def _demo_protected(group):
+    """403 response when `group` is one of the demo groups, else None.
+
+    The seeded groups carry the permissions every demo account inherits;
+    since demo mode hands `server_administrator` to every visitor, only
+    the instance owner may touch them. Inert outside demo mode.
+    """
+    if protect_demo_mode_group(group):
+        return response_api_error(DEMO_MODE_PROTECTED_GROUP_MESSAGE, status=403)
+    return None
 
 
 class Groups:
@@ -144,6 +162,9 @@ class Groups:
     def update(self, identifier):
         try:
             group = groups_get(identifier)
+            denied = _demo_protected(group)
+            if denied is not None:
+                return denied
             request_data = request.get_json()
             request_data['group_id'] = identifier
             updated_group = self._schema.load(request_data, instance=group, partial=True)
@@ -171,6 +192,9 @@ class Groups:
     def delete(self, identifier):
         try:
             group = groups_get(identifier)
+            denied = _demo_protected(group)
+            if denied is not None:
+                return denied
             groups_delete(iris_current_user, group)
             return response_api_deleted()
 
@@ -224,11 +248,19 @@ def delete_group(identifier):
 
 # ---- Members ---------------------------------------------------------
 
-def _require_group(group_id: int):
-    """Internal: load with members + 404 if missing."""
+def _require_group(group_id: int, mutating: bool = False):
+    """Internal: load with members + 404 if missing.
+
+    `mutating=True` also refuses the demo groups, so a write route picks
+    up both checks from the one call it already makes.
+    """
     group = get_group_with_members(group_id)
     if group is None:
         return None, response_api_not_found()
+    if mutating:
+        denied = _demo_protected(group)
+        if denied is not None:
+            return None, denied
     return group, None
 
 
@@ -264,9 +296,20 @@ def put_group_members(identifier: int) -> Response:
         if not isinstance(uid, int):
             return response_api_error(f'Invalid user id: {uid}')
 
-    group, err = _require_group(identifier)
+    group, err = _require_group(identifier, mutating=True)
     if err is not None:
         return err
+
+    # A demo account must not be pulled into — or dropped out of — any
+    # group, including one the visitor just created and handed
+    # `server_administrator`: that would rewrite the account's effective
+    # permissions from the group side, past the guard on
+    # `PUT /users/<id>/groups`. Only the accounts whose membership
+    # actually changes are checked, so a no-op replay of the current
+    # member list still succeeds.
+    current_ids = {member['id'] for member in (group.group_members or [])}
+    if protect_demo_mode_users(membership_change(current_ids, members)):
+        return response_api_error(DEMO_MODE_PROTECTED_USER_MESSAGE, status=403)
 
     update_group_members(group, members)
     refreshed = get_group_with_members(identifier)
@@ -283,12 +326,15 @@ def remove_group_member(identifier: int, user_id: int) -> Response:
     Refuses if the caller removing this user would lock the caller
     out — `ac_ldp_group_removal` does the transitive check.
     """
-    group, err = _require_group(identifier)
+    group, err = _require_group(identifier, mutating=True)
     if err is not None:
         return err
     user = get_user(user_id)
     if user is None:
         return response_api_not_found()
+
+    if protect_demo_mode_user(user):
+        return response_api_error(DEMO_MODE_PROTECTED_USER_MESSAGE, status=403)
 
     if ac_ldp_group_removal(user_id=user.id, group_id=group.group_id):
         return response_api_error(
@@ -351,7 +397,7 @@ def add_group_cases_access(identifier: int) -> Response:
     if not auto_follow and not isinstance(cases_list, list):
         return response_api_error('`cases_list` must be a list when `auto_follow_cases` is false')
 
-    group, err = _require_group(identifier)
+    group, err = _require_group(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -390,7 +436,7 @@ def delete_group_cases_access(identifier: int) -> Response:
     if not isinstance(cases, list):
         return response_api_error('`cases` must be a list')
 
-    group, err = _require_group(identifier)
+    group, err = _require_group(identifier, mutating=True)
     if err is not None:
         return err
 
