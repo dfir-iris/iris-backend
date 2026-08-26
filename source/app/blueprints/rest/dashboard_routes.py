@@ -90,7 +90,7 @@ def logout():
                     state=session["oidc_state"])
                 logout_url = logout_request.request(
                     oidc_client.provider_info["end_session_endpoint"])
-                track_activity(f"user '{iris_current_user.user}' is been logged-out", ctx_less=True, display_in_ui=False)
+                track_activity(f"user '{iris_current_user.user}' is been logged-out", ctx_less=True, display_in_ui=True)
                 logout_user()
                 session.clear()
                 return redirect(logout_url)
@@ -102,7 +102,7 @@ def logout():
                 )
 
     track_activity(f"user '{iris_current_user.user}' is been logged-out",
-                   ctx_less=True, display_in_ui=False)
+                   ctx_less=True, display_in_ui=True)
     logout_user()
     session.clear()
 

@@ -148,7 +148,7 @@ def login():
 
     if authed_user is None:
 
-        track_activity(f'User {username} tried to login. Invalid credentials', ctx_less=True, display_in_ui=False)
+        track_activity(f'User {username} tried to login. Invalid credentials', ctx_less=True, display_in_ui=True)
         return response_api_error('Invalid credentials')
 
     user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(authed_user)
@@ -161,7 +161,7 @@ def login():
     user_data.update({'tokens': tokens})
     user_data.update(_mfa_status_for(authed_user))
 
-    track_activity(f'User {username} logged in', ctx_less=True, display_in_ui=False)
+    track_activity(f'User {username} logged in', ctx_less=True)
     return response_api_success(data=user_data)
 
 
@@ -274,7 +274,7 @@ def mfa_setup():
             track_activity(
                 f"Refused MFA setup for user {user.user}: demo mode.",
                 ctx_less=True,
-                display_in_ui=False,
+                display_in_ui=True,
             )
             return response_api_error('MFA is disabled in demo mode')
 
@@ -288,7 +288,7 @@ def mfa_setup():
             track_activity(
                 f"Refused MFA setup for user {user.user}: already enrolled.",
                 ctx_less=True,
-                display_in_ui=False,
+                display_in_ui=True,
             )
             return response_api_error('MFA already configured for this account')
 
@@ -298,7 +298,7 @@ def mfa_setup():
             track_activity(
                 f"Failed MFA setup for user {user.user}. Invalid token.",
                 ctx_less=True,
-                display_in_ui=False,
+                display_in_ui=True,
             )
             return response_api_error('Invalid token')
 
@@ -320,7 +320,7 @@ def mfa_setup():
             track_activity(
                 f"Failed MFA setup for user {user.user}. Invalid password.",
                 ctx_less=True,
-                display_in_ui=False,
+                display_in_ui=True,
             )
             return response_api_error('Invalid password')
 
@@ -332,7 +332,7 @@ def mfa_setup():
         track_activity(
             f"MFA setup successful for user {user.user}",
             ctx_less=True,
-            display_in_ui=False,
+            display_in_ui=True,
         )
 
         return response_api_success({'mfa_setup_complete': True})
@@ -388,7 +388,7 @@ def mfa_verify():
             track_activity(
                 f"Failed MFA verification for user {user.user}. Invalid token.",
                 ctx_less=True,
-                display_in_ui=False,
+                display_in_ui=True,
             )
             return response_api_error('Invalid token')
 
@@ -396,7 +396,7 @@ def mfa_verify():
         track_activity(
             f"MFA verification successful for user {user.user}",
             ctx_less=True,
-            display_in_ui=False,
+            display_in_ui=True,
         )
 
         tokens = generate_auth_tokens(user, mfa_verified=True)
@@ -454,7 +454,7 @@ def logout():
                 logout_url = logout_request.request(
                     oidc_client.provider_info["end_session_endpoint"])
                 track_activity(f'user \'{iris_current_user.user}\' has been logged-out',
-                               ctx_less=True, display_in_ui=False)
+                               ctx_less=True, display_in_ui=True)
                 logout_user()
                 session.clear()
                 return redirect(logout_url)
@@ -466,7 +466,7 @@ def logout():
                 )
 
     track_activity(f'user \'{iris_current_user.user}\' has been logged-out',
-                   ctx_less=True, display_in_ui=False)
+                   ctx_less=True, display_in_ui=True)
     logout_user()
     session.clear()
 

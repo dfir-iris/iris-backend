@@ -459,7 +459,7 @@ def _authenticate_with_email(user_email):
         return False
 
     login_user(user)
-    track_activity(f'User "{user.id}" successfully logged-in', ctx_less=True)
+    track_activity(f'User "{user.id}" successfully logged-in', ctx_less=True, display_in_ui=True)
 
     update_session_current_case(user)
 

@@ -69,7 +69,7 @@ def retrieve_user_by_username(username: str):
     user = get_active_user_by_login(username)
     if not user:
         track_activity(f'someone tried to log in with user "{username}", which does not exist',
-                       ctx_less=True, display_in_ui=False)
+                       ctx_less=True, display_in_ui=True)
     return user
 
 

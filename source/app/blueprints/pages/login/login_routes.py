@@ -92,7 +92,7 @@ def _validate_local_login(username, password):
     track_activity(
         f"wrong login password for user '{username}' using local auth",
         ctx_less=True,
-        display_in_ui=False,
+        display_in_ui=True,
     )
     return None
 
@@ -131,7 +131,7 @@ def _authenticate_password(form, username, password):
     track_activity(
         f"wrong login password for user '{username}' using local auth",
         ctx_less=True,
-        display_in_ui=False,
+        display_in_ui=True,
     )
     return _render_template_login(form, "Wrong credentials. Please try again.")
 
@@ -226,7 +226,7 @@ if is_authentication_oidc():
             track_activity(
                 f"OIDC session state '{auth_resp['state']}' does not match authorization state '{session['oidc_state']}'",
                 ctx_less=True,
-                display_in_ui=False,
+                display_in_ui=True,
             )
             return redirect(url_for("login.login"))
 
@@ -314,7 +314,7 @@ if is_authentication_oidc():
                 track_activity(
                     f"OIDC user {user_login} not found in database",
                     ctx_less=True,
-                    display_in_ui=False,
+                    display_in_ui=True,
                 )
                 return response_error("User not found in IRIS", 404)
 
@@ -427,7 +427,7 @@ def _register_mfa_failure(user, reason):
     track_activity(
         f"Failed MFA {reason} for user {user.user} "
         f"(attempt {session['mfa_fail_count']}/{_MFA_MAX_ATTEMPTS})",
-        ctx_less=True, display_in_ui=False,
+        ctx_less=True, display_in_ui=True,
     )
     if session["mfa_fail_count"] >= _MFA_MAX_ATTEMPTS:
         session["mfa_lockout_until"] = time.time() + _MFA_LOCKOUT_SECONDS
@@ -502,7 +502,7 @@ def mfa_setup():
             db.session.commit()
             track_activity(
                 f"MFA setup successful for user {user.user}",
-                ctx_less=True, display_in_ui=False,
+                ctx_less=True, display_in_ui=True,
             )
 
             # Setup succeeded — promote this session to MFA-verified for this
@@ -542,7 +542,7 @@ def mfa_verify():
     if not user.mfa_secrets or not user.mfa_setup_complete:
         track_activity(
             f"MFA setup required for user {user.user}",
-            ctx_less=True, display_in_ui=False,
+            ctx_less=True, display_in_ui=True,
         )
         return redirect(url_for("mfa_setup"))
 
@@ -563,7 +563,7 @@ def mfa_verify():
         if totp.verify(token):
             track_activity(
                 f"MFA verification successful for user {user.user}",
-                ctx_less=True, display_in_ui=False,
+                ctx_less=True, display_in_ui=True,
             )
             # Bind the MFA-verified marker to this specific user id so that a
             # later login attempt for a different user on the same browser
