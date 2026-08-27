@@ -58,6 +58,40 @@ from app.schema.marshables import UserSchema
 auth_blueprint = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+# Name of the HttpOnly cookie the SPA stores its refresh token in. Kept in
+# sync with `COOKIE_REFRESH_TOKEN` in the frontend's
+# `src/lib/server/token-cookies.ts`.
+_REFRESH_TOKEN_COOKIE = 'iris_rt'
+
+
+def _read_refresh_token(data):
+    """Pull the refresh token out of the request body, else the cookie.
+
+    The SPA never holds its refresh token: it lives in an HttpOnly cookie
+    that JS cannot read, so the browser posts an empty body and expects
+    something in front to splice the value in. The SvelteKit node server
+    does exactly that (`hooks.server.ts` → `injectRefreshToken`), but it
+    only gets the chance when it is actually in the request path.
+
+    Deployments that route the API straight at this backend bypass it —
+    iris-plane's Traefik config sends `/api/` to the Flask container at
+    priority 100 while the node server serves everything else, so the
+    body arrives as `{}` and the cookie arrives unread. Falling back to
+    the cookie here makes the endpoint correct under either topology
+    rather than depending on a proxy being deployed in front.
+
+    Reading the credential from a cookie is safe against CSRF here: the
+    cookie is set `SameSite=Lax`, so a cross-site POST does not carry it,
+    and a same-site forgery could at most rotate the victim's own tokens
+    — the response is not readable cross-origin.
+    """
+    token = (data or {}).get('refresh_token')
+    if token:
+        return token
+
+    return request.cookies.get(_REFRESH_TOKEN_COOKIE)
+
+
 # Per-user brute-force throttle on the API MFA endpoints. The legacy
 # pages flow tracks fail count + lockout in the Flask session, but the
 # SPA presents a bearer token without a session, so we keep an in-process
@@ -239,7 +273,7 @@ def mfa_setup():
     """
     data = request.get_json(silent=True) or {}
 
-    refresh_token = data.get('refresh_token')
+    refresh_token = _read_refresh_token(data)
     token = data.get('token')
     mfa_secret = data.get('mfa_secret')
     user_password = data.get('user_password') or data.get('password')
@@ -354,7 +388,7 @@ def mfa_verify():
     """
     data = request.get_json(silent=True) or {}
 
-    refresh_token = data.get('refresh_token')
+    refresh_token = _read_refresh_token(data)
     token = data.get('token')
 
     if not refresh_token or not token:
@@ -480,7 +514,7 @@ def refresh_token_endpoint():
     Refresh authentication tokens using a valid refresh token
     """
     data = request.get_json(silent=True) or {}
-    refresh_token = data.get('refresh_token')
+    refresh_token = _read_refresh_token(data)
     if not refresh_token:
         return response_api_error('Refresh token is required')
 
