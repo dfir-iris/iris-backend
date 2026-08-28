@@ -139,7 +139,7 @@ def _first_id(model, id_column):
     return row[0] if row else None
 
 
-def _asset_type_id(name, _cache={}):
+def _asset_type_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = AssetsType.query.filter(AssetsType.asset_name == name).first()
         if row is None:
@@ -148,7 +148,7 @@ def _asset_type_id(name, _cache={}):
     return _cache[name]
 
 
-def _ioc_type_id(name, _cache={}):
+def _ioc_type_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = IocType.query.filter(IocType.type_name == name).first()
         if row is None:
@@ -157,7 +157,7 @@ def _ioc_type_id(name, _cache={}):
     return _cache[name]
 
 
-def _event_category_id(name, _cache={}):
+def _event_category_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = EventCategory.query.filter(EventCategory.name == name).first()
         if row is None:
@@ -166,21 +166,21 @@ def _event_category_id(name, _cache={}):
     return _cache[name]
 
 
-def _severity_id(name, _cache={}):
+def _severity_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = Severity.query.filter(Severity.severity_name == name).first()
         _cache[name] = row.severity_id if row else _first_id(Severity, Severity.severity_id)
     return _cache[name]
 
 
-def _alert_status_id(name, _cache={}):
+def _alert_status_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = AlertStatus.query.filter(AlertStatus.status_name == name).first()
         _cache[name] = row.status_id if row else _first_id(AlertStatus, AlertStatus.status_id)
     return _cache[name]
 
 
-def _resolution_status_id(name, _cache={}):
+def _resolution_status_id(name, _cache={}):  # noqa: B006
     if not name:
         return None
     if name not in _cache:
@@ -190,7 +190,7 @@ def _resolution_status_id(name, _cache={}):
     return _cache[name]
 
 
-def _task_status_id(name, _cache={}):
+def _task_status_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = TaskStatus.query.filter(TaskStatus.status_name == name).first()
         if row is None:
@@ -199,35 +199,35 @@ def _task_status_id(name, _cache={}):
     return _cache[name]
 
 
-def _case_state_id(name, _cache={}):
+def _case_state_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = CaseState.query.filter(CaseState.state_name == name).first()
         _cache[name] = row.state_id if row else None
     return _cache[name]
 
 
-def _classification_id(name, _cache={}):
+def _classification_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = CaseClassification.query.filter(CaseClassification.name == name).first()
         _cache[name] = row.id if row else None
     return _cache[name]
 
 
-def _analysis_status_id(name, _cache={}):
+def _analysis_status_id(name, _cache={}):  # noqa: B006
     if name not in _cache:
         row = AnalysisStatus.query.filter(AnalysisStatus.name == name).first()
         _cache[name] = row.id if row else _first_id(AnalysisStatus, AnalysisStatus.id)
     return _cache[name]
 
 
-def _amber_tlp_id(_cache={}):
+def _amber_tlp_id(_cache={}):  # noqa: B006
     if 'id' not in _cache:
         row = Tlp.query.filter(Tlp.tlp_name == 'amber').first()
         _cache['id'] = row.tlp_id if row else _first_id(Tlp, Tlp.tlp_id)
     return _cache['id']
 
 
-def _evidence_type_id(name, _cache={}):
+def _evidence_type_id(name, _cache={}):  # noqa: B006
     """Resolve an evidence type, creating it if the deployment lacks it.
 
     Unlike asset types, ``evidence_type`` rows carry no icon files, so adding

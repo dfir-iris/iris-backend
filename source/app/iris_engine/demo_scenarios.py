@@ -1441,4 +1441,3 @@ SCENARIOS = [
 def scenario_for_index(index):
     """Pick a scenario deterministically for a zero-based case index."""
     return SCENARIOS[index % len(SCENARIOS)]
-

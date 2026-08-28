@@ -280,7 +280,7 @@ def ac_requires_case_identifier(*access_level):
 
 
 def get_case_access_from_api(request_data, access_level):
-    redir, caseid, has_access = _get_caseid_from_request_data(request_data, False)
+    redir, caseid, _ = _get_caseid_from_request_data(request_data, False)
     redir = False
 
     if not hasattr(iris_current_user, 'id'):

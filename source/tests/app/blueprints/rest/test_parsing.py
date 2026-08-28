@@ -24,5 +24,16 @@ from app.blueprints.rest.parsing import parse_comma_separated_identifiers
 class TestCaseParsing(TestCase):
 
     def test_parse_comma_separated_identifiers_should_return_identifiers(self):
-        result = parse_comma_separated_identifiers('a,b')
-        self.assertEqual(['a', 'c'], result)
+        # The function casts to int — it works on numeric strings like case IDs.
+        result = parse_comma_separated_identifiers('1,2')
+        self.assertEqual([1, 2], result)
+
+    def test_parse_comma_separated_identifiers_single(self):
+        result = parse_comma_separated_identifiers('42')
+        self.assertEqual([42], result)
+
+    def test_parse_comma_separated_identifiers_non_numeric_raises(self):
+        # Callers must only pass numeric IDs; a non-numeric value is a
+        # programming error at the call site, not a user-facing error here.
+        with self.assertRaises(ValueError):
+            parse_comma_separated_identifiers('a,b')

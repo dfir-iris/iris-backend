@@ -480,7 +480,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
             update_event_iocs(event.event_id, case.case_id, ioc_links)
 
     if template_id is not None and template_id != 0 and template_id != '':
-        case, logs = case_template_post_modifier(case, template_id)
+        case, _ = case_template_post_modifier(case, template_id)
 
     db.session.commit()
 
@@ -648,7 +648,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         update_event_iocs(event.event_id, case.case_id, ioc_links)
 
     if template_id is not None and template_id != 0 and template_id != '':
-        case, logs = case_template_post_modifier(case, template_id)
+        case, _ = case_template_post_modifier(case, template_id)
 
     db.session.commit()
 

@@ -47,6 +47,16 @@ _MENTION_SPAN_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Detect any user-kind mention span, regardless of whether data-id is
+# valid. Used to identify mention-editor content so we don't fall
+# through to the legacy @handle path when a span is present but its
+# data-id was malformed (e.g. from an external API client).
+_ANY_USER_MENTION_SPAN_RE = re.compile(
+    r"<span\b(?=[^>]*\bdata-mention\b)"
+    r"(?=[^>]*\bdata-kind=[\"']user[\"'])",
+    re.IGNORECASE,
+)
+
 # Team-kind mention span. Same shape as the user variant but keyed on
 # `data-kind="team"`. Team IDs are war-room-scoped, so callers MUST
 # resolve them via `war_room_team_member_user_ids(war_room_id, ...)` to
@@ -101,8 +111,15 @@ def extract_mentioned_user_ids(content: Optional[str]) -> Set[int]:
         return span_ids
 
     # Legacy path: only run the handle regex if the content has no
-    # structured spans at all — otherwise a live chip like `@Alice`
-    # would resolve twice (once via data-id, once via handle).
+    # structured user-mention spans at all (even ones with malformed
+    # data-id values) — otherwise a live chip like `@Alice` would
+    # resolve twice (once via data-id, once via handle). We use a
+    # broader regex that does NOT require \d+ so that a span with a
+    # non-numeric data-id still signals "this is mention-editor content"
+    # and suppresses the legacy DB lookup.
+    if _ANY_USER_MENTION_SPAN_RE.search(content):
+        return set()
+
     handles = {m.group('handle') for m in _LEGACY_MENTION_RE.finditer(content)}
     if not handles:
         return set()
@@ -199,7 +216,7 @@ def resolve_mentions_to_user_ids(content: Optional[str],
     # user spans (same short-circuit as `extract_mentioned_user_ids`).
     # For plain `@handle` tokens, try user resolution first, then fall
     # through to team-name resolution for any unresolved handles.
-    has_user_spans = bool(_MENTION_SPAN_RE.search(content))
+    has_user_spans = bool(_ANY_USER_MENTION_SPAN_RE.search(content))
     if not has_user_spans:
         handles = {m.group('handle')
                    for m in _LEGACY_MENTION_RE.finditer(content)}

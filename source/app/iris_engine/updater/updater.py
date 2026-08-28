@@ -76,7 +76,7 @@ def notify_server_has_updated():
 
 
 def inner_init_server_update():
-    has_updates, updates_content, release_config = is_updates_available()
+    _, __, release_config = is_updates_available()
     init_server_update(release_config)
 
 
@@ -282,7 +282,7 @@ def verify_archive_fingerprint(update_archive, archive_sha256):
                 sha256_hash.update(byte_block)
 
         current_sha256 = sha256_hash.hexdigest().upper()
-        if current_sha256 == archive_sha256:
+        if current_sha256 == archive_sha256.upper():
             return True
 
         update_log_error(f'Fingerprint mismatch. Expected {archive_sha256} but got {current_sha256}')

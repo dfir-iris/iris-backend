@@ -58,13 +58,13 @@ def build_upload_path(case_customer, case_name, module, create=False):
 def parse_bf_date_format(input_str):
     date_value = input_str.strip()
 
-    if len(date_value) == 10 and '-' not in date_value and '.' not in date_value and '/' not in date_value:
+    if len(date_value) == 10 and date_value.isdigit():
         # Assume linux timestamp, from 1966 to 2286
         date = datetime.fromtimestamp(int(date_value))
         return date
 
-    if len(date_value) == 13 and '-' not in date_value and '.' not in date_value and '/' not in date_value:
-        # Assume microsecond timestamp
+    if len(date_value) == 13 and date_value.isdigit():
+        # Assume millisecond timestamp
         date = datetime.fromtimestamp(int(date_value) / 1000)
 
         return date

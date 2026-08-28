@@ -321,7 +321,7 @@ def put_user_groups(identifier: int) -> Response:
     if not isinstance(groups, list):
         return response_api_error('`groups` must be a list of group IDs')
 
-    user, err = _require_user(identifier, mutating=True)
+    _, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -353,7 +353,7 @@ def put_user_customers(identifier: int) -> Response:
         if not isinstance(cid, int):
             return response_api_error(f'Invalid customer id: {cid}')
 
-    user, err = _require_user(identifier, mutating=True)
+    _, err = _require_user(identifier, mutating=True)
     if err is not None:
         return err
 
@@ -613,7 +613,7 @@ def recompute_user_access(identifier: int) -> Response:
     Useful after a manual DB poke or to debug effective-access
     drift. The legacy UI exposed this on the User Audit modal.
     """
-    user, err = _require_user(identifier)
+    _, err = _require_user(identifier)
     if err is not None:
         return err
     ac_recompute_effective_ac(identifier)
@@ -636,7 +636,7 @@ def audit_user(identifier: int) -> Response:
     Both projections are computed on-the-fly by the iris_engine
     helpers; nothing is persisted.
     """
-    user, err = _require_user(identifier)
+    _, err = _require_user(identifier)
     if err is not None:
         return err
     return response_api_success({

@@ -1482,7 +1482,7 @@ class PostInit:
                 # — if IMAP is disabled the task itself short-circuits
                 # each tick. Import for side-effects.
                 self._logger.info("Registering mail Celery tasks + beat schedule")
-                import app.iris_engine.mail  # noqa: F401  side-effects only
+                import app.iris_engine.mail
 
                 # Register the cluster-rules evaluator so the Celery worker
                 # discovers it at boot. Import for side-effects only.

@@ -152,7 +152,7 @@ def _make_comment_listener(kind: str):
         builder = _COMMENT_HOOK_LINKS.get(kind)
         if builder is None:
             return
-        link, source_type, source_id, _case_id = builder(payload)
+        link, source_type, _, _case_id = builder(payload)
 
         notify_many(
             user_ids=user_ids,

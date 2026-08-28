@@ -587,6 +587,7 @@ def run_post_init():
         app.logger.exception('Post init failed. IRIS not started')
         raise
 
+
 # Error reporter init reads the singleton ServerSettings row, which
 # `run_post_init()` seeds on cold boot. The entrypoint runs post-init
 # to completion before gunicorn starts, so the row is present by the
@@ -597,6 +598,7 @@ def run_post_init():
 # against a database that was never initialized (ad-hoc scripts,
 # tests) leaves the reporter disabled instead of raising.
 from app.iris_engine.observability.reporter import init_error_reporter_from_settings
+
 init_error_reporter_from_settings(app)
 
 lm.user_loader(load_user)
