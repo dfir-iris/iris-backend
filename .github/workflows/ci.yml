@@ -48,7 +48,7 @@ jobs:
           # fail with a hint to regenerate.
           pip install pyyaml
           cd source
-          python -m scripts.generate_openapi --output /tmp/openapi.generated.yaml
+          python3 -m scripts.generate_openapi --output /tmp/openapi.generated.yaml
           if ! diff -u app/blueprints/rest/openapi.generated.yaml /tmp/openapi.generated.yaml; then
             echo '::error::OpenAPI spec is out of date. Run `cd source && python -m scripts.generate_openapi --output app/blueprints/rest/openapi.generated.yaml` and commit.'
             exit 1
@@ -145,10 +145,10 @@ jobs:
       - name: Run tests
         working-directory: tests
         run: |
-          python -m venv venv
+          python3 -m venv venv
           source venv/bin/activate
           pip install -r requirements.txt
-          PYTHONUNBUFFERED=true python -m unittest --verbose
+          PYTHONUNBUFFERED=true python3 -m unittest --verbose
       - name: Check the absence of errors/stack traces in logs
         run: |
           ! docker compose --file docker-compose.test.yml logs app | grep Traceback -A100
@@ -195,10 +195,10 @@ jobs:
       - name: Run tests
         working-directory: tests_database_migration
         run: |
-          python -m venv venv
+          python3 -m venv venv
           source venv/bin/activate
           pip install -r requirements.txt
-          PYTHONUNBUFFERED=true python -m unittest --verbose
+          PYTHONUNBUFFERED=true python3 -m unittest --verbose
 
   cleanup-ci-images:
     name: Cleanup temporary CI images
