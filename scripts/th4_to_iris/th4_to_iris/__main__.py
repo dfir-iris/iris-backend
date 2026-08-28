@@ -38,16 +38,23 @@ def main(argv: list[str] | None = None) -> int:
         p7_verify.run(cfg, th4, iris, mapping, orgs)
         return 0
 
-    run(1); p1_reference.run(cfg, th4, iris, mapping)
-    run(2); p2_identities.run(cfg, th4, iris, mapping, orgs, migration_uid)
-    run(3); p3_cases.run(cfg, th4, iris, mapping, orgs, migration_uid)
-    run(4); p4_tasks.run(cfg, th4, iris, mapping, orgs, migration_uid)
-    run(5); p5_observables.run(cfg, th4, iris, mapping, orgs, migration_uid)
+    run(1)
+    p1_reference.run(cfg, th4, iris, mapping)
+    run(2)
+    p2_identities.run(cfg, th4, iris, mapping, orgs, migration_uid)
+    run(3)
+    p3_cases.run(cfg, th4, iris, mapping, orgs, migration_uid)
+    run(4)
+    p4_tasks.run(cfg, th4, iris, mapping, orgs, migration_uid)
+    run(5)
+    p5_observables.run(cfg, th4, iris, mapping, orgs, migration_uid)
     if cfg.include_alerts:
-        run(6); p6_alerts.run(cfg, th4, iris, mapping, orgs, migration_uid)
+        run(6)
+        p6_alerts.run(cfg, th4, iris, mapping, orgs, migration_uid)
     else:
         log.info("--include-alerts not set; skipping phase 6")
-    run(7); p7_verify.run(cfg, th4, iris, mapping, orgs)
+    run(7)
+    p7_verify.run(cfg, th4, iris, mapping, orgs)
 
     iris.close()
     mapping.close()

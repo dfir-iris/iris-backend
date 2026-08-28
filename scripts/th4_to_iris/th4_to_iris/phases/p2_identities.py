@@ -11,10 +11,10 @@ from __future__ import annotations
 import logging
 import secrets
 
-from ..config import Config
-from ..iris_writer import IrisWriter
-from ..mapping import Mapping
-from ..th4_client import Th4Client
+from th4_to_iris.config import Config
+from th4_to_iris.iris_writer import IrisWriter
+from th4_to_iris.mapping import Mapping
+from th4_to_iris.th4_client import Th4Client
 
 
 log = logging.getLogger("th4-to-iris.p2")

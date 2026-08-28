@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import logging
 
-from ..config import Config
-from ..iris_writer import IrisWriter
-from ..mapping import Mapping
-from ..th4_client import Th4Client
+from th4_to_iris.config import Config
+from th4_to_iris.iris_writer import IrisWriter
+from th4_to_iris.mapping import Mapping
+from th4_to_iris.th4_client import Th4Client
 
 
 log = logging.getLogger("th4-to-iris.p1")
@@ -35,9 +35,9 @@ EVIDENCE_TYPES = ("Digital", "Physical", "Other")
 
 def run(cfg: Config, th4: Th4Client, iris: IrisWriter, mapping: Mapping) -> None:
     with iris.txn() as s:
-        for i, name in enumerate(SEVERITY_NAMES, start=1):
+        for name in SEVERITY_NAMES:
             iris.upsert_by_key(s, "severities", {"severity_name": name}, {}, "severity_id")
-        for i, name in enumerate(TLP_NAMES, start=1):
+        for name in TLP_NAMES:
             iris.upsert_by_key(s, "tlp", {"tlp_name": name}, {"tlp_bscolor": ""}, "tlp_id")
         for name in CASE_STATES:
             iris.upsert_by_key(s, "case_state", {"state_name": name}, {}, "state_id")

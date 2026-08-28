@@ -14,11 +14,11 @@ from datetime import datetime
 
 from tqdm import tqdm
 
-from ..config import Config
-from ..iris_writer import IrisWriter
-from ..mapping import Mapping
-from ..th4_client import Th4Client
-from ..transforms import observable_split, tags, tlp as tlp_x
+from th4_to_iris.config import Config
+from th4_to_iris.iris_writer import IrisWriter
+from th4_to_iris.mapping import Mapping
+from th4_to_iris.th4_client import Th4Client
+from th4_to_iris.transforms import observable_split, tags, tlp as tlp_x
 from ._attachments import ingest as ingest_attachment
 from ._common import lookup_id, resolve_owner, th4_ts_to_datetime
 
@@ -109,7 +109,6 @@ def run(
                             per_case.setdefault(key, {})["asset_id"] = asset_id
                             total_assets += 1
                         mapping.put("observables", th4_obs_id, asset_id, org=org)
-                        primary_iid = asset_id
                     else:
                         itype_name = observable_split.ioc_type_for_datatype(dt)
                         itype_id = lookup_id(iris, s, "ioc_type", "type_name", itype_name, "type_id")
@@ -123,7 +122,6 @@ def run(
                             per_case.setdefault(key, {})["ioc_id"] = ioc_id
                             total_iocs += 1
                         mapping.put("observables", th4_obs_id, ioc_id, org=org)
-                        primary_iid = ioc_id
 
                     seen = per_case.get(key, {})
                     if "asset_id" in seen and "ioc_id" in seen:

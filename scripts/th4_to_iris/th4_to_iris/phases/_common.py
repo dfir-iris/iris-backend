@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from ..iris_writer import IrisWriter
+from th4_to_iris.iris_writer import IrisWriter
 
 
 def th4_ts_to_datetime(ts: int | None) -> datetime | None:
@@ -31,7 +31,7 @@ def resolve_owner(mapping, org: str, th4_login: str | None, fallback: int) -> in
 
 
 def upsert_tag(iris: IrisWriter, s, tag_title: str) -> int:
-    from ..transforms.tags import namespace_of
+    from th4_to_iris.transforms.tags import namespace_of
     return iris.upsert_by_key(
         s,
         "tags",

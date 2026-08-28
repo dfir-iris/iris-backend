@@ -12,8 +12,8 @@ import logging
 import os
 from datetime import datetime
 
-from ..iris_writer import IrisWriter
-from ..th4_client import Th4Client
+from th4_to_iris.iris_writer import IrisWriter
+from th4_to_iris.th4_client import Th4Client
 
 
 log = logging.getLogger("th4-to-iris.attachments")

@@ -14,11 +14,11 @@ from datetime import datetime
 
 from tqdm import tqdm
 
-from ..config import Config
-from ..iris_writer import IrisWriter
-from ..mapping import Mapping
-from ..th4_client import Th4Client
-from ..transforms import customfields, observable_split, severity, status, tags, tlp as tlp_x
+from th4_to_iris.config import Config
+from th4_to_iris.iris_writer import IrisWriter
+from th4_to_iris.mapping import Mapping
+from th4_to_iris.th4_client import Th4Client
+from th4_to_iris.transforms import customfields, observable_split, severity, status, tags, tlp as tlp_x
 from ._common import lookup_id, resolve_owner, th4_ts_to_datetime
 
 

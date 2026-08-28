@@ -20,10 +20,10 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import func, select
 
-from ..config import Config
-from ..iris_writer import IrisWriter
-from ..mapping import Mapping
-from ..th4_client import Th4Client
+from th4_to_iris.config import Config
+from th4_to_iris.iris_writer import IrisWriter
+from th4_to_iris.mapping import Mapping
+from th4_to_iris.th4_client import Th4Client
 
 
 log = logging.getLogger("th4-to-iris.p7")
@@ -54,13 +54,13 @@ def run(
     r = VerifyResult()
 
     for entity, (table, pk) in {
-        "orgs":   ("client",     "client_id"),
-        "users":  ("user",       "id"),
-        "cases":  ("cases",      "case_id"),
+        "orgs":   ("client", "client_id"),
+        "users":  ("user", "id"),
+        "cases":  ("cases", "case_id"),
         "tasks":  ("case_tasks", "id"),
-        "task_logs": ("notes",   "note_id"),
+        "task_logs": ("notes", "note_id"),
         "observables": ("case_assets", "asset_id"),  # split; see below
-        "alerts": ("alerts",     "alert_id"),
+        "alerts": ("alerts", "alert_id"),
     }.items():
         m = mapping.count(entity)
         i = _count_iris(iris, table, pk)

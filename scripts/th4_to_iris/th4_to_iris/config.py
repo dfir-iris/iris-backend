@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 ENTITY_TYPES = ("cases", "tasks", "task_logs", "observables", "alerts", "users", "orgs")
