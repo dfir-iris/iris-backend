@@ -480,6 +480,8 @@ def logout():
         iris_current_user.ctx_case = session['current_case']['case_id']
         db.session.commit()
 
+    logout_username = g.api_user.user
+
     if is_authentication_oidc():
         if oidc_client.provider_info.get('end_session_endpoint'):
             try:
@@ -487,19 +489,19 @@ def logout():
                     state=session['oidc_state'])
                 logout_url = logout_request.request(
                     oidc_client.provider_info["end_session_endpoint"])
-                track_activity(f'user \'{iris_current_user.user}\' has been logged-out',
+                track_activity(f'user \'{logout_username}\' has been logged-out',
                                ctx_less=True, display_in_ui=True)
                 logout_user()
                 session.clear()
                 return redirect(logout_url)
             except GrantError:
                 track_activity(
-                    f'no oidc session found for user \'{iris_current_user.user}\', skipping oidc provider logout and continuing to logout local user',
+                    f'no oidc session found for user \'{logout_username}\', skipping oidc provider logout and continuing to logout local user',
                     ctx_less=True,
                     display_in_ui=False
                 )
 
-    track_activity(f'user \'{iris_current_user.user}\' has been logged-out',
+    track_activity(f'user \'{logout_username}\' has been logged-out',
                    ctx_less=True, display_in_ui=True)
     logout_user()
     session.clear()

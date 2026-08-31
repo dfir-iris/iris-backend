@@ -78,6 +78,12 @@ class TestsAuth(TestCase):
         response = requests.get(url, cookies=cookies)
         self.assertEqual(200, response.status_code)
 
+    def test_logout_with_bearer_token_should_not_crash(self):
+        # Regression: logout read iris_current_user.user which is AnonymousUserMixin
+        # when the request carries a Bearer token (no Flask session). Fix: use g.api_user.
+        response = self._subject.create('/api/v2/auth/logout', {})
+        self.assertNotEqual(500, response.status_code)
+
     @skip
     def test_logout_should_forbid_later_requests_from_the_same_user(self):
         password = 'aA.1234567890'
