@@ -110,6 +110,16 @@ class TestsRestWarRoomsCrud(TestCase):
         response = self._subject.delete(f'/api/v2/war-rooms/{room_id}')
         self.assertEqual(204, response.status_code)
 
+    def test_delete_should_succeed_when_user_activity_rows_exist(self):
+        # Regression for GlitchTip #11: war_room_create writes a user_activity
+        # row with war_room_id set. Without ON DELETE SET NULL on that FK,
+        # deleting the room raised IntegrityError (ForeignKeyViolation).
+        room_id = self._create().json()['war_room_id']
+        # Patch the room to generate a second user_activity row for it.
+        self._subject.patch(f'/api/v2/war-rooms/{room_id}', {'name': 'Updated'})
+        response = self._subject.delete(f'/api/v2/war-rooms/{room_id}')
+        self.assertEqual(204, response.status_code)
+
 
 class TestsRestWarRoomsMembers(TestCase):
 
