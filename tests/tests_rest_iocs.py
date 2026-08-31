@@ -241,3 +241,10 @@ class TestsRestIocs(TestCase):
         body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8'}
         response = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body)
         self.assertEqual(404, response.status_code)
+
+    def test_get_iocs_on_deleted_case_should_return_404_not_integrity_error(self):
+        # Regression: same FK violation triggered via the GET /iocs endpoint.
+        case_identifier = self._subject.create_dummy_case()
+        self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/iocs')
+        self.assertEqual(404, response.status_code)
