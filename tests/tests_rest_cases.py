@@ -252,3 +252,11 @@ class TestsRestCases(TestCase):
         identifier = self._subject.create_dummy_case()
         response = self._subject.create(f'/manage/cases/close/{identifier}', {}).json()
         self.assertIsNotNone(response['data']['close_date'])
+
+    def test_update_deleted_case_should_return_404_not_integrity_error(self):
+        # Regression: admin bypassed the case-existence check in check_ua_case_client,
+        # causing a FK violation when attempting to cache effective access for a deleted case.
+        identifier = self._subject.create_dummy_case()
+        self._subject.delete(f'/api/v2/cases/{identifier}')
+        response = self._subject.update(f'/api/v2/cases/{identifier}', {'case_name': 'new name'})
+        self.assertEqual(404, response.status_code)

@@ -92,7 +92,8 @@ def check_ua_case_client(user_id: int, case_id: int) -> Optional[int]:
                     None otherwise
     """
     if ac_current_user_has_permission(Permissions.server_administrator):
-        # Return a dummy object
+        if not Cases.query.filter_by(case_id=case_id).first():
+            return None
         return CaseAccessLevel.full_access.value
 
     result = UserClient.query.filter(
