@@ -139,6 +139,21 @@ class TestsRestAlerts(TestCase):
         response = self._subject.get('/api/v2/alerts', query_parameters={'custom_conditions': conditions})
         self.assertEqual(400, response.status_code)
 
+    def test_alerts_with_gte_custom_condition_should_return_200(self):
+        # Regression: the conditions builder offers '>= greater or equal', but
+        # build_condition implemented gte/lte only for JSON paths, so a gte on
+        # a real column raised ValueError: Unsupported operator: gte -> 400.
+        import json
+        conditions = json.dumps({'logic': 'and', 'conditions': [{'field': 'alert_severity_id', 'operator': 'gte', 'value': '1'}]})
+        response = self._subject.get('/api/v2/alerts', query_parameters={'custom_conditions': conditions})
+        self.assertEqual(200, response.status_code)
+
+    def test_alerts_with_lte_custom_condition_should_return_200(self):
+        import json
+        conditions = json.dumps({'logic': 'and', 'conditions': [{'field': 'alert_severity_id', 'operator': 'lte', 'value': '5'}]})
+        response = self._subject.get('/api/v2/alerts', query_parameters={'custom_conditions': conditions})
+        self.assertEqual(200, response.status_code)
+
     def test_get_alerts_filter_should_show_newly_created_alert_for_administrator(self):
         alert_title = 'title_test'
         body = {

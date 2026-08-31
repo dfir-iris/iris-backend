@@ -62,6 +62,66 @@ class TestBuildConditionScalarOperators(TestCase):
             build_condition(_INT_COL, 'contains', 'x')
 
 
+class TestBuildConditionOrderedComparisons(TestCase):
+    """The rule builder offers '≥ greater or equal' / '≤ less or equal' on
+    every field, but build_condition implemented neither — only
+    build_json_condition did. Selecting one on any non-JSON field raised
+    `ValueError: Unsupported operator: gte`, which surfaced as an empty
+    rule preview or a 400 on alert filtering.
+    """
+
+    def test_gte_renders_a_greater_or_equal_comparison(self):
+        expr = build_condition(_INT_COL, 'gte', 3)
+        self.assertIn('>=', str(expr))
+
+    def test_lte_renders_a_less_or_equal_comparison(self):
+        expr = build_condition(_INT_COL, 'lte', 3)
+        self.assertIn('<=', str(expr))
+
+    def test_gte_works_on_a_text_column(self):
+        # Lexicographic ordering is valid SQL for text — no cast required.
+        expr = build_condition(_STR_COL, 'gte', 'm')
+        self.assertIn('>=', str(expr))
+
+    def test_gte_is_not_cast(self):
+        # The column carries its own type, so Postgres coerces the bound
+        # literal; casting would defeat any index on the column.
+        expr = build_condition(_INT_COL, 'gte', 3)
+        self.assertNotIn('CAST', str(expr).upper())
+
+    def test_operator_outside_the_vocabulary_still_raises(self):
+        # 'gt'/'lt' are not offered by the builder and remain unsupported —
+        # adding gte/lte must not open the door to arbitrary operators.
+        with self.assertRaises(ValueError):
+            build_condition(_INT_COL, 'gt', 3)
+
+
+class TestBuildConditionIlikeOnNonTextColumns(TestCase):
+    """Regression for GlitchTip #214.
+
+    `like` on an integer column compiled to `integer ~~* unknown`, which
+    Postgres only rejects at execution time — so it escaped the try/except
+    around query construction in `rule_dry_run` and surfaced as a 500.
+    """
+
+    def test_like_on_integer_column_casts_to_text(self):
+        expr = build_condition(_INT_COL, 'like', 0)
+        self.assertIn('CAST', str(expr).upper())
+
+    def test_not_like_on_integer_column_casts_to_text(self):
+        expr = build_condition(_INT_COL, 'not_like', 0)
+        self.assertIn('CAST', str(expr).upper())
+
+    def test_like_on_string_column_is_not_cast(self):
+        # Text columns must stay uncast so existing indexes still apply.
+        expr = build_condition(_STR_COL, 'like', 'foo')
+        self.assertNotIn('CAST', str(expr).upper())
+
+    def test_not_like_on_string_column_is_not_cast(self):
+        expr = build_condition(_STR_COL, 'not_like', 'foo')
+        self.assertNotIn('CAST', str(expr).upper())
+
+
 # ---------------------------------------------------------------------------
 # get_field_from_model
 # ---------------------------------------------------------------------------

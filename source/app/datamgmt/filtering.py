@@ -17,7 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import json
 
-from sqlalchemy import JSON, String, Text, inspect, or_, not_, and_
+from sqlalchemy import JSON, String, Text, cast, inspect, or_, not_, and_
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app import app
@@ -51,6 +51,26 @@ def apply_filters(query, model, filter_params: dict):
     return query
 
 
+def _ilike_target(column):
+    """Return `column` in a form ILIKE can be applied to.
+
+    Postgres only defines `~~*` (ILIKE) for text types, so applying it to
+    an int/enum/uuid column fails at *execution* time with
+    `UndefinedFunction: operator does not exist: integer ~~* unknown`.
+    SQLAlchemy compiles the expression happily, so the error escapes any
+    try/except wrapped around query construction.
+
+    Casting keeps the substring semantics the caller asked for (rule
+    builders let operators be picked independently of field type) instead
+    of 500-ing. Text columns are returned untouched so existing indexes
+    still apply.
+    """
+    column_type = getattr(column, 'type', None)
+    if isinstance(column_type, (String, Text)):
+        return column
+    return cast(column, Text)
+
+
 def build_condition(column, operator, value):
     """
     Build a SQLAlchemy condition based on a column, an operator, and a value.
@@ -80,9 +100,24 @@ def build_condition(column, operator, value):
     if operator == 'eq':
         return column == value
     if operator == 'like':
-        return column.ilike(f"%{value}%")
+        return _ilike_target(column).ilike(f"%{value}%")
     if operator == 'not_like':
-        return ~column.ilike(f"%{value}%")
+        return ~_ilike_target(column).ilike(f"%{value}%")
+    # Ordered comparisons. `build_json_condition` has supported these on
+    # JSON paths since it was written, but the column path did not — so the
+    # rule builder offered '≥ greater or equal' on every field while the
+    # backend raised "Unsupported operator: gte" for anything that wasn't a
+    # JSON key. Ranges over severities, ids and timestamps are the whole
+    # point of the operator, so implement it here rather than withdraw it
+    # from the UI.
+    #
+    # No cast: the column carries its own type, so Postgres coerces the
+    # bound literal (unlike the JSON case, where `->>` yields text and
+    # would otherwise compare lexicographically).
+    if operator == 'gte':
+        return column >= value
+    if operator == 'lte':
+        return column <= value
     raise ValueError(f"Unsupported operator: {operator}")
 
 

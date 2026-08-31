@@ -180,7 +180,18 @@ def _rule_matches_alert(rule: ClusterRule, alert_id: int) -> bool:
     combined = combine_conditions(extra, logic)
     if combined is not None:
         query = query.filter(combined)
-    return db.session.query(query.exists()).scalar()
+    try:
+        return db.session.query(query.exists()).scalar()
+    except Exception as exc:
+        # Conditions can compile and still be rejected by Postgres (a value
+        # that doesn't fit the column's type, say). The caller invokes this
+        # outside its own try, so letting it escape would abort evaluation
+        # of every *remaining* rule for this alert. Treat it as no-match,
+        # matching the compile guard above. Broad catch: the import-linter
+        # contract forbids sqlalchemy imports in the business layer.
+        db.session.rollback()
+        logger.warning(f'Rule #{rule.rule_id} failed to evaluate: {exc}')
+        return False
 
 
 def _dedupe_key(alert: Alert, rule: ClusterRule) -> str:
@@ -297,7 +308,18 @@ def rule_dry_run(rule: ClusterRule, sample_days: int = 7, limit: int = 50) -> Li
     combined = combine_conditions(extra, logic)
     if combined is not None:
         query = query.filter(combined)
-    rows = query.order_by(Alert.alert_creation_time.desc()).limit(limit).all()
+    try:
+        rows = query.order_by(Alert.alert_creation_time.desc()).limit(limit).all()
+    except Exception as exc:
+        # A condition can compile cleanly and still be rejected by Postgres
+        # (operator/type mismatches surface only at execution). A rule
+        # preview must never 500 — report no matches like the compile guard.
+        # Broad catch, matching the compile guard above: the import-linter
+        # contract forbids sqlalchemy imports in the business layer, so the
+        # concrete DBAPI error types aren't nameable here.
+        db.session.rollback()
+        logger.warning(f'Dry-run for rule #{rule.rule_id} failed to execute: {exc}')
+        return []
     return [r.alert_id for r in rows]
 
 
@@ -339,7 +361,14 @@ def backfill_rule(rule: ClusterRule, sample_days: int = 30) -> dict:
     errors = 0
     # Materialise once — the create-cluster action commits, which
     # would otherwise invalidate a streaming query cursor mid-iteration.
-    matches = query.order_by(Alert.alert_creation_time.asc()).all()
+    try:
+        matches = query.order_by(Alert.alert_creation_time.asc()).all()
+    except Exception as exc:
+        # Compiles fine, rejected at execution (value/column type mismatch).
+        # Report it the same way as a compile failure rather than 500.
+        db.session.rollback()
+        logger.warning(f'Back-fill for rule #{rule.rule_id} failed to execute: {exc}')
+        return {'attached': 0, 'skipped_already_in_cluster': 0, 'errors': 1}
     for alert in matches:
         # Respect analyst intent: leave alerts alone if they're already
         # grouped into a cluster (manually or by an earlier rule).
