@@ -268,7 +268,11 @@ def get_filtered_alerts(
         if isinstance(custom_conditions, dict) and 'conditions' in custom_conditions:
             custom_conditions = [custom_conditions]
 
-        query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
+        try:
+            query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
+        except ValueError as e:
+            logger.warning(f"Invalid custom_conditions: {e}")
+            return None
         conditions.extend(conditions_tmp)
 
     # Combine conditions

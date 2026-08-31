@@ -121,6 +121,15 @@ class TestsRestAlerts(TestCase):
         response = self._subject.get('api/v2/alerts', query_parameters={'alert_iocs': 'some ioc value'})
         self.assertEqual(200, response.status_code)
 
+    def test_alerts_with_unknown_custom_condition_field_should_return_400_not_500(self):
+        # Regression for GlitchTip #222: a typo in the custom_conditions field name
+        # (e.g. "alert_stat" instead of "alert_status_id") raised an unhandled
+        # ValueError -> 500. Should return 400 instead.
+        import json
+        conditions = json.dumps({'logic': 'and', 'conditions': [{'field': 'alert_stat', 'operator': 'eq', 'value': ''}]})
+        response = self._subject.get('/api/v2/alerts', query_parameters={'custom_conditions': conditions})
+        self.assertEqual(400, response.status_code)
+
     def test_get_alerts_filter_should_show_newly_created_alert_for_administrator(self):
         alert_title = 'title_test'
         body = {
