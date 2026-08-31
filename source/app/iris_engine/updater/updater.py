@@ -557,8 +557,8 @@ def task_update_get_version(self):
 
 
 @celery.on_after_finalize.connect
-def setup_periodic_update_checks(self, **kwargs):
-    self.add_periodic_task(
+def setup_periodic_update_checks(sender, **kwargs):
+    sender.add_periodic_task(
         crontab(hour=0, minute=0),
         task_check_available_updates.s(),
         name='iris_auto_check_updates'
