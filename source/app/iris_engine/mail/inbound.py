@@ -30,6 +30,7 @@ from typing import Tuple
 
 from sqlalchemy.exc import IntegrityError
 
+from app import app as flask_app
 from app import celery
 from app.db import db
 from app.iris_engine.mail.config import ImapConfig
@@ -400,7 +401,8 @@ def _register_mail_beat_schedule(sender, **_kwargs):
     """
     from celery.schedules import schedule as _schedule
 
-    interval = _current_interval_sec()
+    with flask_app.app_context():
+        interval = _current_interval_sec()
     sender.conf.beat_schedule = dict(sender.conf.beat_schedule or {})
     sender.conf.beat_schedule[_BEAT_ENTRY] = {
         'task': 'iris.mail.poll_inbound_mail',
