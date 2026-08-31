@@ -146,6 +146,14 @@ def apply_custom_conditions(query, model, custom_conditions, relationship_model_
         field_path = cond.get('field')
         operator = cond.get('operator')
         value = cond.get('value')
+
+        # Skip conditions with an empty-string value: the frontend sends
+        # these when a filter row exists but hasn't been filled in yet.
+        # Passing '' to a non-text column (e.g. bigint) causes a
+        # DataError: invalid input syntax for type bigint.
+        if value == '':
+            continue
+
         if '.' in field_path:
             head, tail = field_path.split('.', 1)
             # A dotted path can mean two things:

@@ -121,6 +121,15 @@ class TestsRestAlerts(TestCase):
         response = self._subject.get('api/v2/alerts', query_parameters={'alert_iocs': 'some ioc value'})
         self.assertEqual(200, response.status_code)
 
+    def test_alerts_with_empty_value_custom_condition_on_integer_field_should_return_200(self):
+        # Regression for GlitchTip #221: a custom_conditions leaf with value=""
+        # on a bigint column (e.g. alert_owner_id) caused a DataError:
+        # invalid input syntax for type bigint. Empty-value leaves should be skipped.
+        import json
+        conditions = json.dumps({'logic': 'and', 'conditions': [{'field': 'alert_owner_id', 'operator': 'eq', 'value': ''}]})
+        response = self._subject.get('/api/v2/alerts', query_parameters={'custom_conditions': conditions})
+        self.assertEqual(200, response.status_code)
+
     def test_alerts_with_unknown_custom_condition_field_should_return_400_not_500(self):
         # Regression for GlitchTip #222: a typo in the custom_conditions field name
         # (e.g. "alert_stat" instead of "alert_status_id") raised an unhandled
