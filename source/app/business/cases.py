@@ -220,7 +220,7 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
     case.owner_id = user.id
     case.severity_id = 4
 
-    if case_template_id and len(case_template_id) > 0:
+    if case_template_id:
         case = case_template_pre_modifier(case, case_template_id)
         if case is None:
             raise BusinessProcessingError(f'Invalid Case template ID {case_template_id}')
@@ -229,7 +229,7 @@ def cases_create(user, case: Cases, case_template_id) -> Cases:
 
     case_db_save(case)
 
-    if case_template_id and len(case_template_id) > 0:
+    if case_template_id:
         try:
             case, logs = case_template_post_modifier(case, case_template_id)
             if len(logs) > 0:

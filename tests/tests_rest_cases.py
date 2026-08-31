@@ -253,6 +253,19 @@ class TestsRestCases(TestCase):
         response = self._subject.create(f'/manage/cases/close/{identifier}', {}).json()
         self.assertIsNotNone(response['data']['close_date'])
 
+    def test_create_case_with_integer_template_id_should_not_crash(self):
+        # Regression: cases_create called len() on case_template_id, which crashes
+        # when the value is an integer (valid API usage) instead of a string.
+        response = self._subject.create('/api/v2/cases', {
+            'case_name': 'name',
+            'case_description': 'description',
+            'case_customer_id': 1,
+            'case_soc_id': '',
+            'case_template_id': 1,
+        })
+        # 400 is acceptable (template not found), but not 500
+        self.assertIn(response.status_code, [201, 400])
+
     def test_update_deleted_case_should_return_404_not_integrity_error(self):
         # Regression: admin bypassed the case-existence check in check_ua_case_client,
         # causing a FK violation when attempting to cache effective access for a deleted case.
