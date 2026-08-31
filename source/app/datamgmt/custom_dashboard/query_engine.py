@@ -6,7 +6,7 @@ import math
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Set
 
-from sqlalchemy import func, or_, select, cast, Integer, case, literal
+from sqlalchemy import func, or_, select, cast, Integer, case, literal, Numeric, Float
 from sqlalchemy.orm import Query, aliased
 
 from app import db
@@ -1052,8 +1052,22 @@ class WidgetQueryExecutor:
 
         return expression
 
+    @staticmethod
+    def _is_numeric_column(column) -> bool:
+        try:
+            col_type = column.type
+        except AttributeError:
+            return False
+        return isinstance(col_type, (Numeric, Integer, Float))
+
     def _build_aggregate_expression(self, aggregation: str, column, filter_expression):
         normalized = aggregation.lower()
+
+        _NUMERIC_ONLY = {'sum', 'avg'}
+        if normalized in _NUMERIC_ONLY and not self._is_numeric_column(column):
+            raise QueryExecutionError(
+                f"Aggregation '{aggregation}' requires a numeric column."
+            )
 
         if filter_expression is not None:
             if normalized == 'count':

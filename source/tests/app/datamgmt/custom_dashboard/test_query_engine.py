@@ -15,6 +15,11 @@ from datetime import datetime
 from decimal import Decimal
 from unittest import TestCase
 
+from unittest.mock import MagicMock
+
+from sqlalchemy import Integer, Text
+from sqlalchemy import Numeric, Float
+
 from app.datamgmt.custom_dashboard.query_engine import (
     _advance_datetime_by_bucket,
     _canonical_label_key,
@@ -29,6 +34,8 @@ from app.datamgmt.custom_dashboard.query_engine import (
     _normalize_display_mode,
     _time_sort_key,
     _MAX_TIME_BUCKET_POINTS,
+    QueryExecutionError,
+    WidgetQueryExecutor,
 )
 
 
@@ -594,3 +601,65 @@ class TestNormalizeDisplayMode(TestCase):
 
     def test_number_explicit(self):
         self.assertEqual('number', _normalize_display_mode('number'))
+
+
+def _make_column(sa_type):
+    col = MagicMock()
+    col.type = sa_type
+    return col
+
+
+class TestIsNumericColumn(TestCase):
+
+    def test_integer_column_is_numeric(self):
+        self.assertTrue(WidgetQueryExecutor._is_numeric_column(_make_column(Integer())))
+
+    def test_numeric_column_is_numeric(self):
+        self.assertTrue(WidgetQueryExecutor._is_numeric_column(_make_column(Numeric())))
+
+    def test_float_column_is_numeric(self):
+        self.assertTrue(WidgetQueryExecutor._is_numeric_column(_make_column(Float())))
+
+    def test_text_column_is_not_numeric(self):
+        self.assertFalse(WidgetQueryExecutor._is_numeric_column(_make_column(Text())))
+
+    def test_column_without_type_attr_is_not_numeric(self):
+        self.assertFalse(WidgetQueryExecutor._is_numeric_column(object()))
+
+
+class TestBuildAggregateExpressionNumericValidation(TestCase):
+    """Regression: sum/avg on a text column must raise QueryExecutionError, not
+    reach the database as `SELECT sum(text_column)` which PostgreSQL rejects."""
+
+    def setUp(self):
+        self._executor = WidgetQueryExecutor({})
+
+    def test_sum_on_text_column_raises(self):
+        # Regression for GlitchTip #223: sum(client.name) crashed with
+        # ProgrammingError: function sum(text) does not exist.
+        with self.assertRaises(QueryExecutionError):
+            self._executor._build_aggregate_expression('sum', _make_column(Text()), None)
+
+    def test_avg_on_text_column_raises(self):
+        with self.assertRaises(QueryExecutionError):
+            self._executor._build_aggregate_expression('avg', _make_column(Text()), None)
+
+    def test_sum_on_integer_column_does_not_raise(self):
+        result = self._executor._build_aggregate_expression('sum', _make_column(Integer()), None)
+        self.assertIsNotNone(result)
+
+    def test_avg_on_numeric_column_does_not_raise(self):
+        result = self._executor._build_aggregate_expression('avg', _make_column(Numeric()), None)
+        self.assertIsNotNone(result)
+
+    def test_count_on_text_column_does_not_raise(self):
+        result = self._executor._build_aggregate_expression('count', _make_column(Text()), None)
+        self.assertIsNotNone(result)
+
+    def test_min_on_text_column_does_not_raise(self):
+        result = self._executor._build_aggregate_expression('min', _make_column(Text()), None)
+        self.assertIsNotNone(result)
+
+    def test_max_on_text_column_does_not_raise(self):
+        result = self._executor._build_aggregate_expression('max', _make_column(Text()), None)
+        self.assertIsNotNone(result)
