@@ -46,7 +46,7 @@ class TestGetIocLinksDoesNotReReadTheIoc(TestCase):
     def test_takes_the_ioc_and_never_looks_it_up_by_id(self):
         model = _patched_model()
         with patch('app.datamgmt.case.case_iocs_db.Ioc', model), \
-                patch('app.datamgmt.case.case_iocs_db.and_', lambda *a: MagicMock()):
+                patch('app.datamgmt.case.case_iocs_db.and_', lambda *_: MagicMock()):
             get_ioc_links(_fake_ioc(), [3532])
         # `Ioc.query.filter(...)` was the re-read; the related-IOCs query
         # goes through `with_entities` instead.
@@ -56,7 +56,7 @@ class TestGetIocLinksDoesNotReReadTheIoc(TestCase):
         related = [MagicMock()]
         model = _patched_model(related)
         with patch('app.datamgmt.case.case_iocs_db.Ioc', model), \
-                patch('app.datamgmt.case.case_iocs_db.and_', lambda *a: MagicMock()):
+                patch('app.datamgmt.case.case_iocs_db.and_', lambda *_: MagicMock()):
             self.assertEqual(related, get_ioc_links(_fake_ioc(), [3532]))
 
     def test_returns_empty_list_for_a_missing_ioc(self):
@@ -74,7 +74,7 @@ class TestGetIocLinksDoesNotReReadTheIoc(TestCase):
         related = [MagicMock()]
         model = _patched_model(related)
         with patch('app.datamgmt.case.case_iocs_db.Ioc', model), \
-                patch('app.datamgmt.case.case_iocs_db.and_', lambda *a: MagicMock()):
+                patch('app.datamgmt.case.case_iocs_db.and_', lambda *_: MagicMock()):
             self.assertEqual(related, get_ioc_links(row, [3532]))
 
     def test_runs_without_case_access_limitations(self):
@@ -82,5 +82,5 @@ class TestGetIocLinksDoesNotReReadTheIoc(TestCase):
         related = [MagicMock()]
         model = _patched_model(related)
         with patch('app.datamgmt.case.case_iocs_db.Ioc', model), \
-                patch('app.datamgmt.case.case_iocs_db.and_', lambda *a: MagicMock()):
+                patch('app.datamgmt.case.case_iocs_db.and_', lambda *_: MagicMock()):
             self.assertEqual(related, get_ioc_links(_fake_ioc(), []))

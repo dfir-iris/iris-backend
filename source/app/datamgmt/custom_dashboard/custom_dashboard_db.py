@@ -34,6 +34,10 @@ def list_dashboards_for_user(user_id: int) -> List[CustomDashboard]:
 
 
 def get_dashboard_by_uuid(dashboard_uuid: str) -> Optional[CustomDashboard]:
+    try:
+        uuid.UUID(dashboard_uuid)
+    except (ValueError, AttributeError):
+        return None
     stmt = select(CustomDashboard).where(CustomDashboard.dashboard_uuid == dashboard_uuid)
     return db.session.execute(stmt).scalar_one_or_none()
 

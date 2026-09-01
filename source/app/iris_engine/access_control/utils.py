@@ -1,3 +1,4 @@
+from flask import g
 from sqlalchemy import and_
 
 from app.db import db
@@ -533,6 +534,20 @@ def ac_set_case_access_for_users(users, case_id, access_level):
 
 
 def ac_get_fast_user_cases_access(user_id):
+    # Cache the result on flask.g for the lifetime of the current request.
+    # `IocSchemaForAPIV2.get_link` calls this once per serialized IOC, so on
+    # list endpoints it fires N times per page — always for the same user,
+    # always returning the same rows. `flask.g` is request-scoped and
+    # greenlet-local (gevent), so there is no cross-request or cross-user
+    # leakage. The cache is only wrong if something in the same request both
+    # (a) reads the cache and (b) mutates `UserCaseEffectiveAccess` —
+    # group/user/case-membership writes never share a request with IOC reads,
+    # so that scenario does not arise in the current codebase.
+    cache_key = f'_cases_access_{user_id}'
+    cached = g.get(cache_key)
+    if cached is not None:
+        return cached
+
     ucea = UserCaseEffectiveAccess.query.with_entities(
         UserCaseEffectiveAccess.case_id
     ).filter(and_(
@@ -540,7 +555,9 @@ def ac_get_fast_user_cases_access(user_id):
         UserCaseEffectiveAccess.access_level != CaseAccessLevel.deny_all.value
     )).all()
 
-    return [e.case_id for e in ucea]
+    result = [e.case_id for e in ucea]
+    setattr(g, cache_key, result)
+    return result
 
 
 def ac_get_user_case_counts(user_id):

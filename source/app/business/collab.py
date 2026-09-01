@@ -330,6 +330,29 @@ def apply_wire_update(doc_name, update_b64, user_id):
     return update_bytes
 
 
+def _write_source_column(model, filters, values):
+    """Write the flushed markdown to a source row, tolerating its deletion.
+
+    `flush_to_source` runs on last-client-disconnect, arbitrarily long after
+    the doc was opened, and nothing ever deletes the CollabDoc row — so the
+    source row it targets may well be gone by now. Under READ COMMITTED the
+    SELECT that loaded the row can still see it while a concurrent delete
+    commits before our UPDATE lands.
+
+    Assigning to the loaded instance and committing makes the ORM assert it
+    updated exactly one row, so a vanished row raised StaleDataError
+    (GlitchTip #237). That also left the session needing a rollback, which
+    broke every *later* flush in the same disconnect loop.
+
+    A criteria-scoped UPDATE reports a rowcount instead of raising, so a
+    vanished row is simply a no-op. Returns True if the row was written.
+    """
+    updated = model.query.filter_by(**filters).update(values,
+                                                      synchronize_session=False)
+    db.session.commit()
+    return bool(updated)
+
+
 def flush_to_source(doc_name):
     """Render the Y.Doc to markdown and write it to the source column
     if it changed.
@@ -372,47 +395,55 @@ def flush_to_source(doc_name):
     # buffered update), so we hand it to track_activity directly.
     author_id = row.updated_by_id
 
+    # Each branch below reads what `track_activity` needs *before* writing.
+    # The commit expires the loaded instance, so a later attribute access
+    # would re-SELECT it — and raise if the row was deleted meanwhile.
+
     if kind == 'note':
         note = Notes.query.filter_by(note_id=obj_id).first()
         if note is None or note.note_content == new_content:
             return
-        note.note_content = new_content
-        db.session.commit()
-        track_activity(f'updated note "{note.note_title}"',
-                       caseid=note.note_case_id,
-                       user_id_override=author_id)
+        title, case_id = note.note_title, note.note_case_id
+        if _write_source_column(Notes, {'note_id': obj_id},
+                                {'note_content': new_content}):
+            track_activity(f'updated note "{title}"',
+                           caseid=case_id,
+                           user_id_override=author_id)
         return
 
     if kind == 'case-summary':
         case = Cases.query.filter_by(case_id=obj_id).first()
         if case is None or case.description == new_content:
             return
-        case.description = new_content
-        db.session.commit()
-        track_activity('updated case summary', caseid=case.case_id,
-                       user_id_override=author_id)
+        case_id = case.case_id
+        if _write_source_column(Cases, {'case_id': obj_id},
+                                {'description': new_content}):
+            track_activity('updated case summary', caseid=case_id,
+                           user_id_override=author_id)
         return
 
     if kind == 'war-room-note':
         wrn = WarRoomNote.query.filter_by(note_id=obj_id).first()
         if wrn is None or wrn.content == new_content:
             return
-        wrn.content = new_content
-        db.session.commit()
-        track_activity(f'updated war room note "{wrn.title}"',
-                       war_room_id=wrn.war_room_id,
-                       user_id_override=author_id)
+        title, war_room_id = wrn.title, wrn.war_room_id
+        if _write_source_column(WarRoomNote, {'note_id': obj_id},
+                                {'content': new_content}):
+            track_activity(f'updated war room note "{title}"',
+                           war_room_id=war_room_id,
+                           user_id_override=author_id)
         return
 
     if kind == 'war-room-summary':
         room = WarRoom.query.filter_by(war_room_id=obj_id).first()
         if room is None or room.description == new_content:
             return
-        room.description = new_content
-        db.session.commit()
-        track_activity('updated war room summary',
-                       war_room_id=room.war_room_id,
-                       user_id_override=author_id)
+        war_room_id = room.war_room_id
+        if _write_source_column(WarRoom, {'war_room_id': obj_id},
+                                {'description': new_content}):
+            track_activity('updated war room summary',
+                           war_room_id=war_room_id,
+                           user_id_override=author_id)
         return
 
     if kind == 'sitrep':
@@ -422,11 +453,15 @@ def flush_to_source(doc_name):
         # rogue queued flush from mutating a locked report.
         if sit is None or sit.published or sit.body_md == new_content:
             return
-        sit.body_md = new_content
-        db.session.commit()
-        track_activity(
-            f'updated sitrep "{sit.title}" (v{sit.version})',
-            war_room_id=sit.war_room_id,
-            user_id_override=author_id,
-        )
+        title, version, war_room_id = sit.title, sit.version, sit.war_room_id
+        # `published` is re-checked in the UPDATE criteria: publishing races
+        # with this flush the same way deletion does.
+        if _write_source_column(WarRoomSitRep,
+                                {'sitrep_id': obj_id, 'published': False},
+                                {'body_md': new_content}):
+            track_activity(
+                f'updated sitrep "{title}" (v{version})',
+                war_room_id=war_room_id,
+                user_id_override=author_id,
+            )
         return

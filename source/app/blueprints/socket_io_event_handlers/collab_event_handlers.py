@@ -48,6 +48,7 @@ from app.business.collab import apply_wire_update
 from app.business.collab import ensure_snapshot
 from app.business.collab import flush_to_source
 from app.business.collab import resolve_doc
+from app.db import db
 
 
 logger = logging.getLogger(__name__)
@@ -226,6 +227,14 @@ def _maybe_flush_if_empty(doc_name):
         # Never let a flush failure surface as a socket-level error —
         # the client isn't waiting on this. Log and move on.
         logger.exception('collab: flush failed for %s', doc_name)
+        # A failure inside commit() leaves the session needing a rollback.
+        # `on_disconnect` calls us once per doc the sid held, so without
+        # this every *subsequent* doc would fail too and silently lose its
+        # flush — one bad doc used to take the whole disconnect with it.
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.exception('collab: rollback failed for %s', doc_name)
     # Drop the per-doc identity cache so the next fresh open re-broadcasts
     # identities cleanly. Also stops the map from growing forever across
     # doc lifetimes.
