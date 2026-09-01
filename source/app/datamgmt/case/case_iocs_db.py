@@ -118,13 +118,25 @@ def get_detailed_iocs(caseid):
     return detailed_iocs
 
 
-def get_ioc_links(ioc_id, user_search_limitations):
+def get_ioc_links(ioc, user_search_limitations):
+    """Return the other cases in which the same value/type pair was seen.
+
+    Takes the IOC itself rather than its id. Every caller already holds it,
+    and re-reading it here cost an extra SELECT per serialized IOC — on the
+    list endpoints, one per row. Worse, the re-read could come back empty
+    when the row was deleted between the caller's load and this lookup,
+    which crashed the serializer (GlitchTip #209).
+
+    Anything exposing `ioc_id`, `ioc_value` and `ioc_type_id` will do;
+    `get_detailed_iocs` hands us a with_entities row, not a model.
+    """
+    if ioc is None:
+        return []
+
     if user_search_limitations:
         search_condition = and_(Cases.case_id.in_(user_search_limitations))
     else:
         search_condition = and_(Cases.case_id.in_([]))
-
-    ioc = Ioc.query.filter(Ioc.ioc_id == ioc_id).first()
 
     # Search related iocs based on value and type
     related_iocs = (Ioc.query.with_entities(
@@ -134,7 +146,7 @@ def get_ioc_links(ioc_id, user_search_limitations):
     ).filter(and_(
         Ioc.ioc_value == ioc.ioc_value,
         Ioc.ioc_type_id == ioc.ioc_type_id,
-        Ioc.ioc_id != ioc_id,
+        Ioc.ioc_id != ioc.ioc_id,
         search_condition)
     ).join(Ioc.case)
      .join(Cases.client)

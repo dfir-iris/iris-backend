@@ -232,5 +232,5 @@ def get_ioc_other_case_links(case_identifier, identifier):
         return response_api_not_found()
 
     user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-    links = get_ioc_links(ioc.ioc_id, user_search_limitations)
+    links = get_ioc_links(ioc, user_search_limitations)
     return response_api_success([row._asdict() for row in links])

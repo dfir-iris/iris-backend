@@ -158,6 +158,40 @@ class TestsRestIocs(TestCase):
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/iocs/{ioc_identifier}').json()
         self.assertEqual([], response['link'])
 
+    def test_get_ioc_should_include_link_to_other_cases_with_same_value_type_ioc(self):
+        # get_ioc_links now receives the IOC instead of re-reading it by id;
+        # the single-IOC read is the endpoint that crashed (GlitchTip #209)
+        # and it had no cross-case link coverage.
+        case_identifier1 = self._subject.create_dummy_case()
+        case_identifier2 = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        self._subject.create(f'/api/v2/cases/{case_identifier1}/iocs', body).json()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 1, 'ioc_value': '8.8.8.8', 'ioc_description': 'another', 'ioc_tags': ''}
+        ioc_identifier = self._subject.create(f'/api/v2/cases/{case_identifier2}/iocs', body).json()['ioc_id']
+        response = self._subject.get(f'/api/v2/cases/{case_identifier2}/iocs/{ioc_identifier}').json()
+        self.assertEqual([case_identifier1], [link['case_id'] for link in response['link']])
+
+    def test_get_ioc_should_not_link_an_ioc_to_its_own_case(self):
+        # Self-exclusion is `Ioc.ioc_id != ioc.ioc_id`; it reads the id off
+        # the passed IOC now rather than off the argument.
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        ioc_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()['ioc_id']
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/iocs/{ioc_identifier}').json()
+        self.assertNotIn(case_identifier, [link['case_id'] for link in response['link']])
+
+    def test_legacy_ioc_list_should_include_link_to_other_cases(self):
+        # /case/ioc/list passes a with_entities row, not a model instance.
+        case_identifier1 = self._subject.create_dummy_case()
+        case_identifier2 = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        self._subject.create(f'/api/v2/cases/{case_identifier1}/iocs', body).json()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 1, 'ioc_value': '8.8.8.8', 'ioc_description': 'another', 'ioc_tags': ''}
+        self._subject.create(f'/api/v2/cases/{case_identifier2}/iocs', body).json()
+        response = self._subject.get('/case/ioc/list', {'cid': case_identifier2}).json()
+        links = response['data']['ioc'][0]['link']
+        self.assertEqual([case_identifier1], [link['case_id'] for link in links])
+
     def test_create_ioc_should_not_create_two_iocs_with_identical_type_and_value(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}

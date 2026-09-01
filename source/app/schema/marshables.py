@@ -1027,7 +1027,7 @@ class IocSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
 
     def get_link(self, ioc):
         user_search_limitations = ac_get_fast_user_cases_access(iris_current_user.id)
-        ial = get_ioc_links(ioc.ioc_id, user_search_limitations)
+        ial = get_ioc_links(ioc, user_search_limitations)
         return [row._asdict() for row in ial]
 
     link = ma.Method('get_link')
