@@ -38,6 +38,7 @@ from app.blueprints.rest.v2.alerts_routes.investigation_progress import alerts_i
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import check_ua_case_client
 from app.business.alerts import alerts_search
+from app.business.alerts import alerts_search_grouped
 from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
@@ -56,6 +57,7 @@ from app.business.alerts_filters import alert_filter_list
 from app.business.alerts import get_alert_by_id
 from app.models.authorization import Permissions
 from app.schema.marshables import AlertSchema
+from app.schema.marshables import AlertClusterSchema
 from app.schema.marshables import CaseSchema
 from app.schema.marshables import IocSchema
 from app.schema.marshables import CaseAssetsSchema
@@ -89,10 +91,13 @@ class AlertsOperations:
     def __init__(self):
         self._schema = AlertSchema()
 
-    def search(self):
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
+    def _search_arguments(self):
+        """Parse the alert-list query string into `alerts_search` kwargs.
 
+        Shared with the cluster-grouped listing so the two accept exactly
+        the same filters. Raises `ValueError` with a client-facing message
+        on a malformed list parameter; returns `(arguments, fields)`.
+        """
         alert_ids_str = request.args.get('alert_ids')
         alert_ids = None
         if alert_ids_str:
@@ -101,7 +106,7 @@ class AlertsOperations:
                 alert_ids = parse_comma_separated_identifiers(alert_ids_str)
 
             except ValueError:
-                return response_api_error('Invalid alert id')
+                raise ValueError('Invalid alert id')
 
         alert_assets_str = request.args.get('alert_assets')
         alert_assets = None
@@ -111,7 +116,7 @@ class AlertsOperations:
                                 for alert_asset in alert_assets_str.split(',')]
 
             except ValueError:
-                return response_api_error('Invalid alert asset')
+                raise ValueError('Invalid alert asset')
 
         alert_iocs_str = request.args.get('alert_iocs')
         alert_iocs = None
@@ -121,7 +126,7 @@ class AlertsOperations:
                               for alert_ioc in alert_iocs_str.split(',')]
 
             except ValueError:
-                return response_api_error('Invalid alert ioc')
+                raise ValueError('Invalid alert ioc')
 
         fields_str = request.args.get('fields')
         if fields_str:
@@ -134,47 +139,104 @@ class AlertsOperations:
         if ac_current_user_has_permission(Permissions.server_administrator):
             user_identifier_filter = None
 
-        filtered_alerts = alerts_search(
-            request.args.get('creation_start_date'),
-            request.args.get('creation_end_date'),
-            request.args.get('source_start_date'),
-            request.args.get('source_end_date'),
-            request.args.get('alert_title'),
-            request.args.get('alert_description'),
-            request.args.get('alert_status_id', type=int),
-            request.args.get('alert_severity_id', type=int),
-            request.args.get('alert_owner_id', type=int),
-            request.args.get('alert_source'),
-            request.args.get('alert_tags'),
-            request.args.get('case_id', type=int),
-            request.args.get('alert_customer_id'),
-            request.args.get('alert_classification_id', type=int),
-            alert_ids,
-            alert_assets,
-            alert_iocs,
-            request.args.get('alert_resolution_id', type=int),
-            request.args.get('source_reference'),
-            request.args.get('custom_conditions'),
-            user_identifier_filter,
-            page,
-            per_page,
-            request.args.get('sort'),
-            request.args.get('cluster_id', type=int),
-        )
+        arguments = {
+            'start_date': request.args.get('creation_start_date'),
+            'end_date': request.args.get('creation_end_date'),
+            'source_start_date': request.args.get('source_start_date'),
+            'source_end_date': request.args.get('source_end_date'),
+            'title': request.args.get('alert_title'),
+            'description': request.args.get('alert_description'),
+            'status': request.args.get('alert_status_id', type=int),
+            'severity': request.args.get('alert_severity_id', type=int),
+            'owner': request.args.get('alert_owner_id', type=int),
+            'source': request.args.get('alert_source'),
+            'tags': request.args.get('alert_tags'),
+            'case_identifier': request.args.get('case_id', type=int),
+            'customer_identifier': request.args.get('alert_customer_id'),
+            'classification': request.args.get('alert_classification_id', type=int),
+            'alert_identifiers': alert_ids,
+            'assets': alert_assets,
+            'iocs': alert_iocs,
+            'resolution_status': request.args.get('alert_resolution_id', type=int),
+            'source_reference': request.args.get('source_reference'),
+            'custom_conditions': request.args.get('custom_conditions'),
+            'user_identifier_filter': user_identifier_filter,
+            'page': request.args.get('page', 1, type=int),
+            'per_page': request.args.get('per_page', 10, type=int),
+            'sort': request.args.get('sort'),
+            'cluster_identifier': request.args.get('cluster_id', type=int),
+        }
+
+        return arguments, fields
+
+    def _alert_schema_for(self, fields):
+        if not fields:
+            return self._schema
+        try:
+            return AlertSchema(only=fields)
+        except Exception:
+            return self._schema
+
+    def search(self):
+        try:
+            arguments, fields = self._search_arguments()
+        except ValueError as e:
+            return response_api_error(str(e))
+
+        filtered_alerts = alerts_search(**arguments)
 
         if filtered_alerts is None:
             return response_api_error('Filtering error')
 
-        # If fields are provided, use them in the schema
-        if fields:
-            try:
-                alert_schema = AlertSchema(only=fields)
-            except Exception:
-                alert_schema = self._schema
-        else:
-            alert_schema = self._schema
+        return response_api_paginated(self._alert_schema_for(fields), filtered_alerts)
 
-        return response_api_paginated(alert_schema, filtered_alerts)
+    def search_grouped(self):
+        """Alert list where each alert cluster collapses to a single row.
+
+        Same filters and envelope shape as `search`, but `data` holds
+        queue units rather than alerts: `{kind: 'cluster', cluster, alerts,
+        alerts_total, alerts_truncated}` or `{kind: 'alert', alert}`. An
+        alert inside a cluster is only ever reachable through that cluster,
+        and `total`/`last_page` count units so a big cluster no longer
+        swallows a whole page.
+        """
+        try:
+            arguments, fields = self._search_arguments()
+        except ValueError as e:
+            return response_api_error(str(e))
+
+        grouped = alerts_search_grouped(**arguments)
+
+        if grouped is None:
+            return response_api_error('Filtering error')
+
+        alert_schema = self._alert_schema_for(fields)
+        cluster_schema = AlertClusterSchema()
+
+        data = []
+        for item in grouped['items']:
+            if item['kind'] == 'cluster':
+                data.append({
+                    'kind': 'cluster',
+                    'cluster': cluster_schema.dump(item['cluster']),
+                    'alerts': alert_schema.dump(item['alerts'], many=True),
+                    'alerts_total': item['alerts_total'],
+                    'alerts_truncated': item['alerts_truncated'],
+                })
+            else:
+                data.append({
+                    'kind': 'alert',
+                    'alert': alert_schema.dump(item['alert']),
+                })
+
+        return response_api_success({
+            'total': grouped['total'],
+            'total_alerts': grouped['total_alerts'],
+            'data': data,
+            'last_page': grouped['pages'],
+            'current_page': grouped['page'],
+            'next_page': grouped['next_page'],
+        })
 
     def create(self):
         request_data = request.get_json()
@@ -334,6 +396,16 @@ alerts_operations = AlertsOperations()
          summary='List alerts')
 def alerts_list_route() -> Response:
     return alerts_operations.search()
+
+
+# No conflict with `/<int:identifier>` below: the `int` converter cannot
+# match 'grouped', so declaration order between the two is irrelevant.
+@alerts_blueprint.get('/grouped')
+@ac_api_requires(Permissions.alerts_read)
+@api_doc(tags=['Alerts'],
+         summary='List alerts with clustered alerts collapsed into their cluster')
+def alerts_grouped_list_route() -> Response:
+    return alerts_operations.search_grouped()
 
 
 @alerts_blueprint.post('')

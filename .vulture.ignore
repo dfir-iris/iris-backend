@@ -161,6 +161,7 @@ result_extended  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/
 result_serializer  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:226)
 worker_pool_restarts  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:227)
 broker_connection_retry_on_startup  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:228)
+include  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:231)
 CSRF_ENABLED  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:245)
 SECRET_KEY  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:247)
 SECURITY_PASSWORD_SALT  # unused variable (/home/ubuntu/code/dfir-iris/iris-web/source/app/configuration.py:249)
@@ -551,3 +552,52 @@ total_rows  # ManagedAssetImportReportSchema field, dumped from the importer rep
 rows_truncated
 compromise_status_id  # dump-only field on the detail + sighting schemas
 _query_items  # _RowPagination override, called by flask_sqlalchemy's Pagination.__init__
+######### SQLAlchemy/psycopg2 pool instrumentation: event-listener signatures
+# Arity is fixed by the event API — the params are positional and unused here.
+conn_proxy  # unused variable (source/app/__init__.py:192) — pool checkout listener signature
+conn_record  # unused variable (source/app/__init__.py:192,212) — pool checkout/checkin listener signature
+_use_traced_connection  # unused function (source/app/__init__.py:409) — @event.listens_for(db.engine, 'do_connect') callback
+dialect  # unused variable (source/app/__init__.py:410) — do_connect listener signature
+conn_rec  # unused variable (source/app/__init__.py:410) — do_connect listener signature
+cargs  # unused variable (source/app/__init__.py:410) — do_connect listener signature
+_.cursor_factory  # unused attribute (source/app/__init__.py:381) — read by psycopg2 when opening cursors
+######### Entrypoints and framework callbacks invoked outside source/app
+# vulture only scans source/app, so callers in run.py and scripts/ are invisible.
+run_post_init  # unused function (source/app/__init__.py:556) — called by run.py:38 and scripts/run_post_init.py
+_.__apidoc__  # unused attribute (source/app/blueprints/rest/api_doc.py:62) — read by flask-restx
+_cleanup  # unused function (source/app/blueprints/rest/v2/case_transfer.py:126) — @after_this_request callback
+######### Context-manager protocol + zipfile attributes
+tb  # unused variable (source/app/business/case_transfer/manifest.py:94,164) — __exit__ traceback param, arity fixed by the protocol
+_.compress_type  # unused attribute (source/app/business/case_transfer/manifest.py:121) — ZipInfo field read by zipfile
+######### Case transfer: config keys read through app.config[...] by name
+CASE_TRANSFER_MAX_ARCHIVE_BYTES  # read in business/case_transfer/importer.py:86
+CASE_TRANSFER_STAGING_TTL_MINUTES  # read in business/case_transfer/staging.py:108
+######### Case transfer / LLM policy: defined but not yet wired up
+# No callers anywhere (including tests). Kept deliberately as scaffolding —
+# resolve_war_room_after_attach documents its own intent at the definition.
+# Remove these instead of whitelisting them if the features land differently.
+new_export_token  # unused function (source/app/business/case_transfer/exporter.py:174)
+datastore_files_for_case  # unused function (source/app/datamgmt/case_transfer/transfer_db.py:458)
+resolve_war_room_after_attach  # unused function (source/app/iris_engine/llm/policy.py:107)
+new_case_id  # unused variable (source/app/iris_engine/llm/policy.py:108) — param of the above
+######### Chatbot: ORM columns + marshmallow fields, consumed reflectively
+# Each name is both a Column on models.py:ServerSettings and a field on the
+# matching schema in marshables.py — one entry covers both sites.
+chatbot_policy  # unused variable (source/app/models/customers.py:56) — relationship back_populates target
+chatbot_base_url
+chatbot_max_turns_per_conversation
+chatbot_max_tool_calls_per_turn
+chatbot_auto_execute_read_tools
+chatbot_auto_approve_write_tools
+chatbot_daily_token_budget_per_user
+chatbot_daily_token_budget_org
+chatbot_redact_ips
+chatbot_redact_emails
+chatbot_redact_hashes
+######### Demo-mode protection mirrors: marshmallow fields + Method targets
+# `get_is_demo_protected` is named by string in fields.Method(...), which
+# vulture cannot follow. Declared on both the Group and User schemas.
+group_is_demo_protected  # unused variable (source/app/schema/marshables.py:2404)
+user_is_demo_protected  # unused variable (source/app/schema/marshables.py:2904)
+user_permissions  # unused variable (source/app/schema/marshables.py:2896) — ma.Nested field, attribute='permissions'
+_.get_is_demo_protected  # unused method (source/app/schema/marshables.py:2412,2930)

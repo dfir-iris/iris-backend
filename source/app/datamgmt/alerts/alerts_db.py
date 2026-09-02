@@ -30,7 +30,9 @@ _DATE_ONLY_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 from sqlalchemy import desc
 from sqlalchemy import asc
+from sqlalchemy import exists
 from sqlalchemy import func
+from sqlalchemy import literal
 from sqlalchemy import tuple_
 from sqlalchemy import or_
 from sqlalchemy import not_
@@ -69,6 +71,7 @@ from app.models.customers import Client
 from app.models.alerts import Alert
 from app.models.alerts import AlertStatus
 from app.models.alerts import AlertCaseAssociation
+from app.models.alert_clusters import AlertCluster
 from app.models.alert_clusters import AlertClusterAssociation
 from app.models.alerts import SimilarAlertsCache
 from app.models.alerts import AlertResolutionStatus
@@ -126,7 +129,7 @@ def _parse_inclusive_date_range(start_raw, end_raw):
     return start_dt, end_dt
 
 
-def get_filtered_alerts(
+def _alert_filter_conditions(
         start_date: str,
         end_date: str,
         source_start_date: str,
@@ -145,19 +148,20 @@ def get_filtered_alerts(
         assets: List[str],
         iocs: List[str],
         resolution_status: List[int],
-        page: int,
-        per_page: int,
-        sort: str,
         user_identifier: int | None,
         source_reference,
-        custom_conditions: List[dict],
         # `cluster_id`:
         #   * positive int → alerts attached to that alert cluster
         #   * -1           → alerts NOT attached to any cluster
         #                    (analyst filter "orphans only")
         #   * None         → no filter
         cluster_id: int | None = None,
-    ) -> Pagination:
+    ) -> list:
+    """Every scalar/relationship filter the alert list supports, as a list
+    of SQLAlchemy criteria. Shared by the flat listing and the
+    cluster-grouped listing so the two can never drift apart — in
+    particular so grouping never widens what a tenant can see.
+    """
     conditions = []
 
     start_date_dt, end_date_dt = _parse_inclusive_date_range(start_date, end_date)
@@ -238,9 +242,48 @@ def get_filtered_alerts(
         if clients_filters is not None:
             conditions.append(Alert.alert_customer_id.in_(clients_filters))
 
-    query = db.session.query(
-        Alert
-    ).options(
+    return conditions
+
+
+def _apply_alert_custom_conditions(query, conditions: list, custom_conditions):
+    """Fold the generic condition-builder payload into `query`/`conditions`.
+
+    Returns the updated `(query, conditions)` pair, or `None` when the
+    payload is unusable — callers turn that into a "Filtering error".
+    """
+    if not custom_conditions:
+        return query, conditions
+
+    if isinstance(custom_conditions, str):
+        try:
+            custom_conditions = json.loads(custom_conditions)
+        except Exception:
+            logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
+            return None
+
+    # `apply_custom_conditions` expects a *list* of nodes. Historically
+    # legacy callers passed a flat list of leaves. The tree-shaped
+    # payload the frontend condition builder produces has a group at
+    # the root (`{"logic": "and"|"or", "conditions": [...]}`); wrap
+    # it so the group's recursive branch fires and its `logic` is
+    # honored, rather than iterating a dict and yielding stringified
+    # keys.
+    if isinstance(custom_conditions, dict) and 'conditions' in custom_conditions:
+        custom_conditions = [custom_conditions]
+
+    try:
+        query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
+    except ValueError as e:
+        logger.warning(f"Invalid custom_conditions: {e}")
+        return None
+
+    return query, conditions + list(conditions_tmp)
+
+
+def _alert_list_options():
+    """Eager loads shared by every alert-list response. Without these the
+    marshalling step fires one query per alert per relationship."""
+    return (
         selectinload(Alert.severity),
         selectinload(Alert.status),
         selectinload(Alert.customer),
@@ -249,31 +292,47 @@ def get_filtered_alerts(
         selectinload(Alert.assets)
     )
 
-    # Apply custom conditions if provided
-    if custom_conditions:
-        if isinstance(custom_conditions, str):
-            try:
-                custom_conditions = json.loads(custom_conditions)
-            except:
-                logger.exception(f"Error parsing custom_conditions: {custom_conditions}")
-                return
 
-        # `apply_custom_conditions` expects a *list* of nodes. Historically
-        # legacy callers passed a flat list of leaves. The tree-shaped
-        # payload the frontend condition builder produces has a group at
-        # the root (`{"logic": "and"|"or", "conditions": [...]}`); wrap
-        # it so the group's recursive branch fires and its `logic` is
-        # honored, rather than iterating a dict and yielding stringified
-        # keys.
-        if isinstance(custom_conditions, dict) and 'conditions' in custom_conditions:
-            custom_conditions = [custom_conditions]
+def get_filtered_alerts(
+        start_date: str,
+        end_date: str,
+        source_start_date: str,
+        source_end_date: str,
+        title: str,
+        description: str,
+        status: int,
+        severity: int,
+        owner: int,
+        source: str,
+        tags: str,
+        case_id: int,
+        client: int,
+        classification: int,
+        alert_ids: List[int],
+        assets: List[str],
+        iocs: List[str],
+        resolution_status: List[int],
+        page: int,
+        per_page: int,
+        sort: str,
+        user_identifier: int | None,
+        source_reference,
+        custom_conditions: List[dict],
+        cluster_id: int | None = None,
+    ) -> Pagination:
+    conditions = _alert_filter_conditions(
+        start_date, end_date, source_start_date, source_end_date, title, description,
+        status, severity, owner, source, tags, case_id, client, classification,
+        alert_ids, assets, iocs, resolution_status, user_identifier, source_reference,
+        cluster_id
+    )
 
-        try:
-            query, conditions_tmp = apply_custom_conditions(query, Alert, custom_conditions, relationship_model_map)
-        except ValueError as e:
-            logger.warning(f"Invalid custom_conditions: {e}")
-            return None
-        conditions.extend(conditions_tmp)
+    query = db.session.query(Alert).options(*_alert_list_options())
+
+    applied = _apply_alert_custom_conditions(query, conditions, custom_conditions)
+    if applied is None:
+        return None
+    query, conditions = applied
 
     # Combine conditions
     combined_conditions = combine_conditions(conditions, 'and')
@@ -294,6 +353,240 @@ def get_filtered_alerts(
 
     except Exception as e:
         logger.exception(f"Error getting alerts: {str(e)}")
+        return None
+
+
+# A grouped queue row carries its matching member alerts inline so the UI
+# can expand a cluster without a second round-trip. Clusters are unbounded
+# in principle, so cap what we hydrate and report the true match count
+# alongside; the queue links out to the cluster page past the cap.
+ALERT_GROUP_MEMBER_LIMIT = 50
+
+
+def group_alert_units(unit_rows, member_pairs, member_limit=ALERT_GROUP_MEMBER_LIMIT):
+    """Turn the two raw result sets of the grouped query into ordered units.
+
+    `unit_rows` is the paginated `(kind, unit_id)` sequence — one entry per
+    queue slot, already in display order. `member_pairs` is every
+    `(cluster_id, alert_id)` membership among the *matching* alerts, in
+    display order too.
+
+    Returns `(units, alert_ids_to_hydrate)` where each unit is a dict
+    describing one queue row. Pure: no session access, so the ordering and
+    capping rules are unit-testable.
+    """
+    members: dict = {}
+    for cluster_identifier, alert_identifier in member_pairs:
+        members.setdefault(cluster_identifier, []).append(alert_identifier)
+
+    units = []
+    wanted = []
+    for kind, unit_id in unit_rows:
+        if kind == 'cluster':
+            matched = members.get(unit_id, [])
+            shown = matched[:member_limit]
+            wanted.extend(shown)
+            units.append({
+                'kind': 'cluster',
+                'cluster_id': unit_id,
+                'alert_ids': shown,
+                'alerts_total': len(matched),
+                'alerts_truncated': len(matched) > len(shown)
+            })
+        else:
+            wanted.append(unit_id)
+            units.append({'kind': 'alert', 'alert_id': unit_id})
+
+    # Preserve first-seen order while dropping the duplicates an alert in
+    # several clusters produces — it is rendered under each of them, but
+    # only needs loading once.
+    seen = set()
+    unique = []
+    for alert_identifier in wanted:
+        if alert_identifier not in seen:
+            seen.add(alert_identifier)
+            unique.append(alert_identifier)
+
+    return units, unique
+
+
+def get_filtered_alert_groups(
+        start_date: str,
+        end_date: str,
+        source_start_date: str,
+        source_end_date: str,
+        title: str,
+        description: str,
+        status: int,
+        severity: int,
+        owner: int,
+        source: str,
+        tags: str,
+        case_id: int,
+        client: int,
+        classification: int,
+        alert_ids: List[int],
+        assets: List[str],
+        iocs: List[str],
+        resolution_status: List[int],
+        page: int,
+        per_page: int,
+        sort: str,
+        user_identifier: int | None,
+        source_reference,
+        custom_conditions: List[dict],
+        cluster_id: int | None = None,
+    ) -> Optional[dict]:
+    """List alerts as *queue units* instead of as a flat page of alerts.
+
+    A unit is either an alert cluster that holds at least one matching
+    alert, or a matching alert that belongs to no cluster at all. So a
+    clustered alert is never listed at top level — it is only reachable
+    inside its cluster — and an alert that belongs to several clusters is
+    listed under each of them.
+
+    Pagination counts units, which is the whole point: a cluster of forty
+    alerts takes one slot rather than swamping the page. Clusters sort by
+    the most recent event time among their matching members, so a cluster
+    stays where its freshest alert would have been.
+
+    Returns None on the same filtering errors `get_filtered_alerts` does.
+    """
+    conditions = _alert_filter_conditions(
+        start_date, end_date, source_start_date, source_end_date, title, description,
+        status, severity, owner, source, tags, case_id, client, classification,
+        alert_ids, assets, iocs, resolution_status, user_identifier, source_reference,
+        cluster_id
+    )
+
+    matching = db.session.query(
+        Alert.alert_id.label('alert_id'),
+        Alert.alert_source_event_time.label('event_time')
+    )
+
+    applied = _apply_alert_custom_conditions(matching, conditions, custom_conditions)
+    if applied is None:
+        return None
+    matching, conditions = applied
+
+    combined_conditions = combine_conditions(conditions, 'and')
+    if combined_conditions is not None:
+        matching = matching.filter(combined_conditions)
+
+    order_func = desc if sort == 'desc' else asc
+    page = max(page or 1, 1)
+    per_page = max(per_page or 1, 1)
+
+    try:
+        matches = matching.subquery()
+        association = AlertClusterAssociation
+
+        cluster_units = db.session.query(
+            literal('cluster').label('kind'),
+            association.cluster_id.label('unit_id'),
+            func.max(matches.c.event_time).label('sort_time')
+        ).join(
+            matches, matches.c.alert_id == association.alert_id
+        ).group_by(association.cluster_id)
+
+        orphan_units = db.session.query(
+            literal('alert').label('kind'),
+            matches.c.alert_id.label('unit_id'),
+            matches.c.event_time.label('sort_time')
+        ).filter(
+            ~exists().where(association.alert_id == matches.c.alert_id)
+        )
+
+        units = cluster_units.union_all(orphan_units).subquery()
+
+        total = db.session.query(func.count()).select_from(units).scalar() or 0
+        # Units drive pagination, but callers still want to say "N alerts
+        # match" in a heading — a number the unit count can't give them.
+        total_alerts = db.session.query(func.count()).select_from(matches).scalar() or 0
+
+        # `unit_id` is only a tiebreaker; without it Postgres is free to
+        # reorder units sharing a timestamp between pages, which would let
+        # the same row appear twice or not at all while paging.
+        rows = db.session.query(
+            units.c.kind, units.c.unit_id
+        ).order_by(
+            order_func(units.c.sort_time), order_func(units.c.unit_id)
+        ).limit(per_page).offset((page - 1) * per_page).all()
+
+        cluster_ids = [unit_id for kind, unit_id in rows if kind == 'cluster']
+
+        member_pairs = []
+        if cluster_ids:
+            member_pairs = db.session.query(
+                association.cluster_id, matches.c.alert_id
+            ).join(
+                matches, matches.c.alert_id == association.alert_id
+            ).filter(
+                association.cluster_id.in_(cluster_ids)
+            ).order_by(
+                order_func(matches.c.event_time), order_func(matches.c.alert_id)
+            ).all()
+
+        units_out, hydrate_ids = group_alert_units(rows, member_pairs)
+
+        alerts_by_id = {}
+        if hydrate_ids:
+            alerts_by_id = {
+                alert.alert_id: alert
+                for alert in db.session.query(Alert).options(
+                    *_alert_list_options()
+                ).filter(Alert.alert_id.in_(hydrate_ids)).all()
+            }
+
+        clusters_by_id = {}
+        if cluster_ids:
+            clusters_by_id = {
+                cluster.cluster_id: cluster
+                for cluster in db.session.query(AlertCluster).options(
+                    selectinload(AlertCluster.status),
+                    selectinload(AlertCluster.severity),
+                    selectinload(AlertCluster.customer),
+                    selectinload(AlertCluster.owner),
+                    # `AlertClusterSchema.alert_ids` walks this relationship;
+                    # eager-loading turns a query-per-cluster into one query.
+                    selectinload(AlertCluster.alerts)
+                ).filter(AlertCluster.cluster_id.in_(cluster_ids)).all()
+            }
+
+        items = []
+        for unit in units_out:
+            if unit['kind'] == 'cluster':
+                cluster = clusters_by_id.get(unit['cluster_id'])
+                if cluster is None:
+                    # Deleted between the two queries; drop rather than
+                    # emit a row the UI cannot render.
+                    continue
+                items.append({
+                    'kind': 'cluster',
+                    'cluster': cluster,
+                    'alerts': [alerts_by_id[i] for i in unit['alert_ids'] if i in alerts_by_id],
+                    'alerts_total': unit['alerts_total'],
+                    'alerts_truncated': unit['alerts_truncated']
+                })
+            else:
+                alert = alerts_by_id.get(unit['alert_id'])
+                if alert is not None:
+                    items.append({'kind': 'alert', 'alert': alert})
+
+        pages = -(-total // per_page)
+
+        return {
+            'items': items,
+            'total': total,
+            'total_alerts': total_alerts,
+            'page': page,
+            'per_page': per_page,
+            'pages': pages,
+            'next_page': page + 1 if page < pages else None
+        }
+
+    except Exception as e:
+        logger.exception(f"Error grouping alerts by cluster: {str(e)}")
         return None
 
 

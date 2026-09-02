@@ -16682,6 +16682,7 @@ components:
           - 'null'
           items:
             type: object
+        group_is_demo_protected: {}
         group_id:
           type: integer
           format: int64
@@ -20170,6 +20171,7 @@ components:
             $ref: '#/components/schemas/CaseSchemaForAPIV2'
         user_organisations: {}
         user_primary_organisation_id: {}
+        user_is_demo_protected: {}
         uuid:
           type: string
           format: uuid

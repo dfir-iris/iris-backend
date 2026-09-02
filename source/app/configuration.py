@@ -228,6 +228,9 @@ class CeleryConfig:
     result_serializer = "json"
     worker_pool_restarts = True
     broker_connection_retry_on_startup = True
+    include = [
+        'app.iris_engine.cluster_rules.tasks',
+    ]
 
 
 class Config:

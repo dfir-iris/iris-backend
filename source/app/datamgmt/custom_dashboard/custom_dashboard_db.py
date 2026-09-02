@@ -33,12 +33,33 @@ def list_dashboards_for_user(user_id: int) -> List[CustomDashboard]:
     return list(db.session.execute(stmt).scalars().all())
 
 
-def get_dashboard_by_uuid(dashboard_uuid: str) -> Optional[CustomDashboard]:
+def _coerce_dashboard_uuid(value) -> Optional[uuid.UUID]:
+    """Normalise a caller-supplied dashboard id to a UUID, or None.
+
+    The id reaches us straight off the URL, so it is whatever the client
+    sent — the frontend is known to send the literal string 'undefined'
+    when its route param is not yet bound. `dashboard_uuid` is a
+    postgres UUID column, so comparing it against an uncastable literal
+    makes psycopg2 raise DataError and the request 500s. Returning None
+    for anything unparseable lets callers treat it as a plain 404.
+
+    Accepts a uuid.UUID as-is: the model column is UUID(as_uuid=True),
+    so attribute reads hand back UUID objects and round-tripping one
+    through here must not be mistaken for "not found".
+    """
+    if isinstance(value, uuid.UUID):
+        return value
     try:
-        uuid.UUID(dashboard_uuid)
-    except (ValueError, AttributeError):
+        return uuid.UUID(str(value))
+    except (ValueError, AttributeError, TypeError):
         return None
-    stmt = select(CustomDashboard).where(CustomDashboard.dashboard_uuid == dashboard_uuid)
+
+
+def get_dashboard_by_uuid(dashboard_uuid: str) -> Optional[CustomDashboard]:
+    parsed_uuid = _coerce_dashboard_uuid(dashboard_uuid)
+    if parsed_uuid is None:
+        return None
+    stmt = select(CustomDashboard).where(CustomDashboard.dashboard_uuid == parsed_uuid)
     return db.session.execute(stmt).scalar_one_or_none()
 
 
