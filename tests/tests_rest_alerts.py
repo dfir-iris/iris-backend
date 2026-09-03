@@ -83,6 +83,34 @@ class TestsRestAlerts(TestCase):
         response = self._subject.create('/api/v2/alerts', body).json()
         self.assertEqual(1, response['alert_customer_id'])
 
+    def test_create_alert_should_accept_the_fields_sent_by_the_manual_creation_form(self):
+        body = {
+            'alert_title': 'Hotline call from the finance team',
+            'alert_description': 'User reports a convincing invoice phish.',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+            'alert_source': 'SOC hotline',
+            'alert_source_ref': 'CALL-2026-0042',
+            'alert_source_link': 'https://example.org/calls/42',
+            'alert_source_event_time': '2026-09-03T14:30:00',
+            'alert_note': 'Caller is forwarding the mail.',
+            'alert_tags': 'phishing,hotline',
+        }
+        response = self._subject.create('/api/v2/alerts', body)
+        self.assertEqual(201, response.status_code)
+
+    def test_create_alert_should_return_alert_description(self):
+        body = {
+            'alert_title': 'title',
+            'alert_description': 'description',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        response = self._subject.create('/api/v2/alerts', body).json()
+        self.assertEqual('description', response['alert_description'])
+
     def test_create_alert_should_return_400_when_alert_customer_id_is_missing(self):
         body = {
             'alert_title': 'title',
