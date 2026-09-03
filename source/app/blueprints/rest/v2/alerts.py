@@ -86,6 +86,48 @@ def _strip_readonly_alert_fields(payload):
     return {k: v for k, v in payload.items() if k not in _ALERT_READONLY_UPDATE_FIELDS}
 
 
+# Free-text fields that can run to kilobytes. The history records that
+# they were edited, not what they were edited to — spelling a whole
+# alert body into an activity line is unreadable and pointless.
+_ALERT_OPAQUE_ACTIVITY_FIELDS = frozenset({
+    'alert_content',
+    'alert_note',
+    'alert_description',
+})
+
+
+def _alert_update_activity(pristine_alert, request_data):
+    """Describe what an alert update actually changed, for the history.
+
+    Only fields whose value really moved are reported: clients (the web
+    UI included) PUT the whole form back, so comparing against the
+    pristine copy is what keeps "updated alert" from listing every field
+    on the dialog on every save.
+    """
+    activity_data = []
+
+    for key, value in request_data.items():
+        old_value = getattr(pristine_alert, key, None)
+
+        # The payload carries JSON scalars while the model holds native
+        # types, so 3 and "3" have to compare equal here or an untouched
+        # select would be reported as a change on every save.
+        if type(old_value) is int:
+            old_value = str(old_value)
+        if type(value) is int:
+            value = str(value)
+
+        if old_value == value:
+            continue
+
+        if key in _ALERT_OPAQUE_ACTIVITY_FIELDS:
+            activity_data.append(f'"{key}"')
+        else:
+            activity_data.append(f'"{key}" from "{old_value}" to "{value}"')
+
+    return activity_data
+
+
 class AlertsOperations:
 
     def __init__(self):
@@ -338,22 +380,13 @@ class AlertsOperations:
             # customer the caller cannot see hides it from the rightful
             # owner and plants it under another tenant's view.
             request_data = _strip_readonly_alert_fields(request.get_json())
+            # Built before the schema load: `load(instance=alert)` mutates
+            # the alert in place, and `pristine_alert` is only a shallow
+            # copy, so its scalars are the pre-update values right up
+            # until that call.
+            activity_data = _alert_update_activity(pristine_alert, request_data)
             updated_alert = self._schema.load(request_data, instance=alert, partial=True)
-            activity_data = []
 
-            for key, value in request_data.items():
-                old_value = getattr(pristine_alert, key, None)
-
-                if type(old_value) is int:
-                    old_value = str(old_value)
-
-                if type(value) is int:
-                    value = str(value)
-
-                    if key not in ["alert_content", "alert_note"]:
-                        activity_data.append(f"\"{key}\" from \"{old_value}\" to \"{value}\"")
-                    else:
-                        activity_data.append(f"\"{key}\"")
             if request_data.get('alert_owner_id') is None and updated_alert.alert_owner_id is None:
                 updated_alert.alert_owner_id = iris_current_user.id
 

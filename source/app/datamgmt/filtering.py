@@ -111,13 +111,23 @@ def build_condition(column, operator, value):
     # point of the operator, so implement it here rather than withdraw it
     # from the UI.
     #
-    # No cast: the column carries its own type, so Postgres coerces the
-    # bound literal (unlike the JSON case, where `->>` yields text and
-    # would otherwise compare lexicographically).
-    if operator == 'gte':
-        return column >= value
-    if operator == 'lte':
-        return column <= value
+    # When the value arrives as a string (e.g. from the JSONB-stored rule
+    # conditions, where `coerceValue` on the frontend always emits strings
+    # for scalar operators), SQLAlchemy binds it as `String`. Postgres then
+    # raises "operator does not exist: integer >= text" for integer columns
+    # and silently returns 0 rows for every rule — `_rule_matches_alert`
+    # catches the DB error and treats it as no-match. Coerce the value to
+    # a number when it looks like one so SQLAlchemy binds the correct type.
+    if operator in ('gte', 'lte'):
+        if isinstance(value, str):
+            try:
+                value = int(value)
+            except ValueError:
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass  # Leave as string for text-type columns
+        return column >= value if operator == 'gte' else column <= value
     raise ValueError(f"Unsupported operator: {operator}")
 
 

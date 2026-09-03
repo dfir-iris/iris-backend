@@ -301,6 +301,33 @@ class TestsRestAlerts(TestCase):
         response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_title': alert_title}).json()
         self.assertEqual(alert_title, response['alert_title'])
 
+    def test_update_alert_should_return_alert_description(self):
+        body = {
+            'alert_title': 'title',
+            'alert_description': 'description',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        alert_description = 'new_description'
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_description': alert_description}).json()
+        self.assertEqual(alert_description, response['alert_description'])
+
+    def test_update_alert_should_not_change_alert_title_when_only_description_is_updated(self):
+        body = {
+            'alert_title': 'title',
+            'alert_description': 'description',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1
+        }
+        response = self._subject.create('api/v2/alerts', body).json()
+        identifier = response['alert_id']
+        response = self._subject.update(f'/api/v2/alerts/{identifier}', {'alert_description': 'new_description'}).json()
+        self.assertEqual('title', response['alert_title'])
+
     def test_update_alert_should_return_alert_uuid(self):
         alert_title = 'new_title'
         body = {

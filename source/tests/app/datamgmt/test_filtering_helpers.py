@@ -83,11 +83,51 @@ class TestBuildConditionOrderedComparisons(TestCase):
         expr = build_condition(_STR_COL, 'gte', 'm')
         self.assertIn('>=', str(expr))
 
-    def test_gte_is_not_cast(self):
-        # The column carries its own type, so Postgres coerces the bound
-        # literal; casting would defeat any index on the column.
+    def test_gte_with_integer_value_is_not_cast(self):
+        # When the caller already passes an int, the column type handles
+        # binding — no CAST needed.
         expr = build_condition(_INT_COL, 'gte', 3)
         self.assertNotIn('CAST', str(expr).upper())
+
+    def test_gte_coerces_string_value_to_int(self):
+        # Regression: the frontend always stores condition values as JSON
+        # strings (see `coerceValue` in ConditionsBuilder.svelte). SQLAlchemy
+        # binds a Python str as `text`, and Postgres raises
+        # "operator does not exist: integer >= text" — caught by
+        # `_rule_matches_alert`'s broad except, so every `gte`/`lte` rule
+        # against an integer column silently returned 0 matches.
+        # The fix: coerce numeric-looking strings to int/float before binding.
+        expr = build_condition(_INT_COL, 'gte', '0')
+        self.assertIn('>=', str(expr))
+        # The bound value must be the integer 0, not the string '0'.
+        # Check via compiled params — a string bind would produce '0'::text.
+        from sqlalchemy.dialects import postgresql
+        compiled = expr.compile(dialect=postgresql.dialect())
+        bound = list(compiled.params.values())[0]
+        self.assertIsInstance(bound, int)
+
+    def test_lte_coerces_string_value_to_int(self):
+        expr = build_condition(_INT_COL, 'lte', '5')
+        from sqlalchemy.dialects import postgresql
+        compiled = expr.compile(dialect=postgresql.dialect())
+        bound = list(compiled.params.values())[0]
+        self.assertIsInstance(bound, int)
+
+    def test_gte_coerces_float_string(self):
+        expr = build_condition(_INT_COL, 'gte', '3.14')
+        from sqlalchemy.dialects import postgresql
+        compiled = expr.compile(dialect=postgresql.dialect())
+        bound = list(compiled.params.values())[0]
+        self.assertIsInstance(bound, float)
+
+    def test_gte_leaves_non_numeric_string_as_string_for_text_columns(self):
+        # A user could use gte on a text column (e.g. alert_title >= 'm').
+        # Non-numeric strings must pass through unchanged.
+        expr = build_condition(_STR_COL, 'gte', 'm')
+        from sqlalchemy.dialects import postgresql
+        compiled = expr.compile(dialect=postgresql.dialect())
+        bound = list(compiled.params.values())[0]
+        self.assertIsInstance(bound, str)
 
     def test_operator_outside_the_vocabulary_still_raises(self):
         # 'gt'/'lt' are not offered by the builder and remain unsupported —
