@@ -280,6 +280,65 @@ def _apply_alert_custom_conditions(query, conditions: list, custom_conditions):
     return query, conditions + list(conditions_tmp)
 
 
+#: Columns the alert queue can be ordered by, as the API spells them.
+#: Anything else falls back to the event time, which is what the queue
+#: sorted on before it had column headers.
+ALERT_SORT_COLUMNS = (
+    'event_time',
+    'creation_time',
+    'title',
+    'severity',
+    'status',
+    'customer_name',
+    'owner',
+)
+
+
+def _alert_sort_expression(order_by: str | None):
+    """Expression the alert queue is ordered by, for `order_by`.
+
+    Related tables are reached with correlated scalar subqueries rather
+    than joins: the alert query already carries whatever joins the
+    filtering layer added, and stacking another one would either drop
+    rows (an alert with no owner, under an inner join) or duplicate them.
+
+    `correlate(Alert)` is not optional. Auto-correlation strips every
+    FROM the enclosing query also selects from, so a custom condition on
+    `status.*` / `customer.*` / `owner.*` — which `apply_custom_conditions`
+    turns into a join on the very table being read here — would leave the
+    subquery with no FROM at all and raise `InvalidRequestError`. Naming
+    the one table to correlate keeps the join out of it.
+    """
+    if order_by == 'creation_time':
+        return Alert.alert_creation_time
+
+    if order_by == 'title':
+        # Case-insensitive, so "zeek" doesn't sort ahead of "Zscaler".
+        return func.lower(Alert.alert_title)
+
+    if order_by == 'severity':
+        # Severity ids run from least to most severe, so the id sorts the
+        # way the names read — and costs no subquery.
+        return Alert.alert_severity_id
+
+    if order_by == 'status':
+        return db.session.query(AlertStatus.status_name).filter(
+            AlertStatus.status_id == Alert.alert_status_id
+        ).correlate(Alert).scalar_subquery()
+
+    if order_by == 'customer_name':
+        return db.session.query(Client.name).filter(
+            Client.client_id == Alert.alert_customer_id
+        ).correlate(Alert).scalar_subquery()
+
+    if order_by == 'owner':
+        return db.session.query(User.user).filter(
+            User.id == Alert.alert_owner_id
+        ).correlate(Alert).scalar_subquery()
+
+    return Alert.alert_source_event_time
+
+
 def _alert_list_options():
     """Eager loads shared by every alert-list response. Without these the
     marshalling step fires one query per alert per relationship."""
@@ -319,6 +378,7 @@ def get_filtered_alerts(
         source_reference,
         custom_conditions: List[dict],
         cluster_id: int | None = None,
+        order_by: str | None = None,
     ) -> Pagination:
     conditions = _alert_filter_conditions(
         start_date, end_date, source_start_date, source_end_date, title, description,
@@ -345,8 +405,13 @@ def get_filtered_alerts(
         if combined_conditions is not None:
             query = query.filter(combined_conditions)
 
+        # `alert_id` is only a tiebreaker, but sorting on a low-cardinality
+        # column (status, severity) leaves plenty of ties, and without it
+        # Postgres is free to reorder them between pages — which lets the
+        # same alert show up twice, or not at all, while paging.
         filtered_alerts = query.order_by(
-            order_func(Alert.alert_source_event_time)
+            order_func(_alert_sort_expression(order_by)),
+            order_func(Alert.alert_id)
         ).paginate(page=page, per_page=per_page, error_out=False)
 
         return filtered_alerts
@@ -436,6 +501,7 @@ def get_filtered_alert_groups(
         source_reference,
         custom_conditions: List[dict],
         cluster_id: int | None = None,
+        order_by: str | None = None,
     ) -> Optional[dict]:
     """List alerts as *queue units* instead of as a flat page of alerts.
 
@@ -446,9 +512,11 @@ def get_filtered_alert_groups(
     listed under each of them.
 
     Pagination counts units, which is the whole point: a cluster of forty
-    alerts takes one slot rather than swamping the page. Clusters sort by
-    the most recent event time among their matching members, so a cluster
-    stays where its freshest alert would have been.
+    alerts takes one slot rather than swamping the page. A cluster takes
+    the leading value of `order_by` among its matching members — the
+    newest event time when sorting newest-first, the oldest when sorting
+    oldest-first — so it lands where the member you were looking for
+    would have been.
 
     Returns None on the same filtering errors `get_filtered_alerts` does.
     """
@@ -461,7 +529,7 @@ def get_filtered_alert_groups(
 
     matching = db.session.query(
         Alert.alert_id.label('alert_id'),
-        Alert.alert_source_event_time.label('event_time')
+        _alert_sort_expression(order_by).label('sort_value')
     )
 
     applied = _apply_alert_custom_conditions(matching, conditions, custom_conditions)
@@ -473,7 +541,12 @@ def get_filtered_alert_groups(
     if combined_conditions is not None:
         matching = matching.filter(combined_conditions)
 
-    order_func = desc if sort == 'desc' else asc
+    ascending = sort != 'desc'
+    order_func = asc if ascending else desc
+    # Which end of a cluster represents it: the page reads from the
+    # leading edge, so ascending order wants the smallest member value
+    # and descending the largest.
+    cluster_value = func.min if ascending else func.max
     page = max(page or 1, 1)
     per_page = max(per_page or 1, 1)
 
@@ -484,7 +557,7 @@ def get_filtered_alert_groups(
         cluster_units = db.session.query(
             literal('cluster').label('kind'),
             association.cluster_id.label('unit_id'),
-            func.max(matches.c.event_time).label('sort_time')
+            cluster_value(matches.c.sort_value).label('sort_value')
         ).join(
             matches, matches.c.alert_id == association.alert_id
         ).group_by(association.cluster_id)
@@ -492,7 +565,7 @@ def get_filtered_alert_groups(
         orphan_units = db.session.query(
             literal('alert').label('kind'),
             matches.c.alert_id.label('unit_id'),
-            matches.c.event_time.label('sort_time')
+            matches.c.sort_value.label('sort_value')
         ).filter(
             ~exists().where(association.alert_id == matches.c.alert_id)
         )
@@ -505,12 +578,12 @@ def get_filtered_alert_groups(
         total_alerts = db.session.query(func.count()).select_from(matches).scalar() or 0
 
         # `unit_id` is only a tiebreaker; without it Postgres is free to
-        # reorder units sharing a timestamp between pages, which would let
+        # reorder units sharing a sort value between pages, which would let
         # the same row appear twice or not at all while paging.
         rows = db.session.query(
             units.c.kind, units.c.unit_id
         ).order_by(
-            order_func(units.c.sort_time), order_func(units.c.unit_id)
+            order_func(units.c.sort_value), order_func(units.c.unit_id)
         ).limit(per_page).offset((page - 1) * per_page).all()
 
         cluster_ids = [unit_id for kind, unit_id in rows if kind == 'cluster']
@@ -524,7 +597,7 @@ def get_filtered_alert_groups(
             ).filter(
                 association.cluster_id.in_(cluster_ids)
             ).order_by(
-                order_func(matches.c.event_time), order_func(matches.c.alert_id)
+                order_func(matches.c.sort_value), order_func(matches.c.alert_id)
             ).all()
 
         units_out, hydrate_ids = group_alert_units(rows, member_pairs)

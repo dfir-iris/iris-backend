@@ -39,6 +39,7 @@ from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.datamgmt.alerts.alerts_db import delete_alert
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.datamgmt.alerts.alerts_db import get_filtered_alert_groups
+from app.datamgmt.alerts.alerts_db import ALERT_SORT_COLUMNS
 from app.datamgmt.alerts.alerts_db import get_related_alerts_details
 from app.datamgmt.alerts.alerts_db import get_assets_with_cases
 from app.datamgmt.alerts.alerts_db import get_iocs_with_cases
@@ -75,7 +76,7 @@ def _resolve_caller():
 def alerts_search(start_date, end_date, source_start_date, source_end_date, title, description,
                   status, severity, owner, source, tags, case_identifier, customer_identifier, classification, alert_identifiers,
                   assets, iocs, resolution_status, source_reference, custom_conditions, user_identifier_filter, page, per_page, sort,
-                  cluster_identifier=None):
+                  cluster_identifier=None, order_by=None):
 
     return get_filtered_alerts(
         start_date,
@@ -103,13 +104,14 @@ def alerts_search(start_date, end_date, source_start_date, source_end_date, titl
         source_reference,
         custom_conditions,
         cluster_id=cluster_identifier,
+        order_by=order_by,
     )
 
 
 def alerts_search_grouped(start_date, end_date, source_start_date, source_end_date, title, description,
                           status, severity, owner, source, tags, case_identifier, customer_identifier, classification,
                           alert_identifiers, assets, iocs, resolution_status, source_reference, custom_conditions,
-                          user_identifier_filter, page, per_page, sort, cluster_identifier=None):
+                          user_identifier_filter, page, per_page, sort, cluster_identifier=None, order_by=None):
     """Same filters as `alerts_search`, but the page is made of queue units:
     one per alert cluster holding a matching alert, plus one per matching
     alert that is in no cluster. See `get_filtered_alert_groups`.
@@ -140,6 +142,7 @@ def alerts_search_grouped(start_date, end_date, source_start_date, source_end_da
         source_reference,
         custom_conditions,
         cluster_id=cluster_identifier,
+        order_by=order_by,
     )
 
 

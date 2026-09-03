@@ -37,6 +37,7 @@ from app.blueprints.rest.v2.alerts_routes.comments import alerts_comments_bluepr
 from app.blueprints.rest.v2.alerts_routes.investigation_progress import alerts_investigation_progress_blueprint
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import check_ua_case_client
+from app.business.alerts import ALERT_SORT_COLUMNS
 from app.business.alerts import alerts_search
 from app.business.alerts import alerts_search_grouped
 from app.business.alerts import alerts_create
@@ -207,6 +208,10 @@ class AlertsOperations:
             'per_page': request.args.get('per_page', 10, type=int),
             'sort': request.args.get('sort'),
             'cluster_identifier': request.args.get('cluster_id', type=int),
+            # Unrecognised columns fall back to the event time rather than
+            # erroring, so an older client that never sends `order_by`
+            # keeps the ordering it has always had.
+            'order_by': request.args.get('order_by'),
         }
 
         return arguments, fields
@@ -422,11 +427,23 @@ alerts_blueprint.register_blueprint(alerts_investigation_progress_blueprint)
 
 alerts_operations = AlertsOperations()
 
+# Paging and ordering only — the filter params both list routes accept are
+# the ones `_search_arguments` reads, and are too many to be worth
+# duplicating here.
+_ALERT_LIST_SORT_PARAMS = [
+    ('page', 'integer', 'Page number (default 1)'),
+    ('per_page', 'integer', 'Page size (default 10)'),
+    ('order_by', 'string',
+     'Column to sort by: ' + ', '.join(ALERT_SORT_COLUMNS) + " (default 'event_time')"),
+    ('sort', 'string', "Sort direction: 'asc' or 'desc' (default 'asc')"),
+]
+
 
 @alerts_blueprint.get('')
 @ac_api_requires(Permissions.alerts_read)
 @api_doc(response=AlertSchema, response_shape='paginated', tags=['Alerts'],
-         summary='List alerts')
+         summary='List alerts',
+         query_params=_ALERT_LIST_SORT_PARAMS)
 def alerts_list_route() -> Response:
     return alerts_operations.search()
 
@@ -436,7 +453,8 @@ def alerts_list_route() -> Response:
 @alerts_blueprint.get('/grouped')
 @ac_api_requires(Permissions.alerts_read)
 @api_doc(tags=['Alerts'],
-         summary='List alerts with clustered alerts collapsed into their cluster')
+         summary='List alerts with clustered alerts collapsed into their cluster',
+         query_params=_ALERT_LIST_SORT_PARAMS)
 def alerts_grouped_list_route() -> Response:
     return alerts_operations.search_grouped()
 

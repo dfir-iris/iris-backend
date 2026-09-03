@@ -198,6 +198,59 @@ class TestsRestAlerts(TestCase):
         response = self._subject.get('/api/v2/alerts').json()
         self.assertEqual([], response['data'])
 
+    def _create_alert(self, alert_title, alert_severity_id=4):
+        body = {
+            'alert_title': alert_title,
+            'alert_severity_id': alert_severity_id,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }
+        return self._subject.create('/api/v2/alerts', body).json()
+
+    def test_get_alerts_should_order_by_title_ascending(self):
+        self._create_alert('charlie')
+        self._create_alert('alpha')
+        self._create_alert('bravo')
+        response = self._subject.get('/api/v2/alerts',
+                                     query_parameters={'order_by': 'title', 'sort': 'asc'}).json()
+        self.assertEqual(['alpha', 'bravo', 'charlie'],
+                         [alert['alert_title'] for alert in response['data']])
+
+    def test_get_alerts_should_order_by_title_descending(self):
+        self._create_alert('charlie')
+        self._create_alert('alpha')
+        self._create_alert('bravo')
+        response = self._subject.get('/api/v2/alerts',
+                                     query_parameters={'order_by': 'title', 'sort': 'desc'}).json()
+        self.assertEqual(['charlie', 'bravo', 'alpha'],
+                         [alert['alert_title'] for alert in response['data']])
+
+    def test_get_alerts_should_order_by_severity_descending(self):
+        self._create_alert('low', alert_severity_id=2)
+        self._create_alert('high', alert_severity_id=5)
+        self._create_alert('medium', alert_severity_id=3)
+        response = self._subject.get('/api/v2/alerts',
+                                     query_parameters={'order_by': 'severity', 'sort': 'desc'}).json()
+        self.assertEqual([5, 3, 2], [alert['alert_severity_id'] for alert in response['data']])
+
+    def test_get_alerts_should_fall_back_to_the_event_time_when_order_by_is_not_a_sortable_column(self):
+        self._create_alert('charlie')
+        self._create_alert('alpha')
+        by_event_time = self._subject.get('/api/v2/alerts', query_parameters={'sort': 'asc'}).json()
+        response = self._subject.get('/api/v2/alerts',
+                                     query_parameters={'order_by': 'not_a_column', 'sort': 'asc'}).json()
+        self.assertEqual([alert['alert_title'] for alert in by_event_time['data']],
+                         [alert['alert_title'] for alert in response['data']])
+
+    def test_get_grouped_alerts_should_order_by_title_ascending(self):
+        self._create_alert('charlie')
+        self._create_alert('alpha')
+        self._create_alert('bravo')
+        response = self._subject.get('/api/v2/alerts/grouped',
+                                     query_parameters={'order_by': 'title', 'sort': 'asc'}).json()
+        self.assertEqual(['alpha', 'bravo', 'charlie'],
+                         [unit['alert']['alert_title'] for unit in response['data']])
+
     def test_merge_alert_into_a_case_should_not_fail(self):
         case_identifier = self._subject.create_dummy_case()
         body = {
