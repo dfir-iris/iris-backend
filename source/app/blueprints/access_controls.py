@@ -569,6 +569,21 @@ def _oidc_proxy_authentication_process(incoming_request: Request):
     elif app.config.get("AUTHENTICATION_TOKEN_VERIFY_MODE") == 'signature':
         # Use the JWKS urls provided by the OIDC discovery to fetch the signing keys
         # and check the signature of the token
+        issuer = app.config.get("AUTHENTICATION_ISSUER")
+        audience = app.config.get("AUTHENTICATION_AUDIENCE")
+
+        # A valid signature only proves the token came from *someone* the
+        # JWKS endpoint vouches for. Without pinning the issuer, a token
+        # minted by another tenant of a shared IdP — or by any issuer whose
+        # keys that JWKS serves — authenticates as whichever local account
+        # its `sub` happens to name (VI-006). Both claims are mandatory:
+        # accepting the token with either unpinned is the vulnerability, so
+        # a deployment missing them must not authenticate at all.
+        if not issuer or not audience:
+            log.error("Refusing signature-mode authentication: AUTHENTICATION_ISSUER and "
+                      "AUTHENTICATION_AUDIENCE must both be configured")
+            return False
+
         try:
             jwks_client = PyJWKClient(app.config.get("AUTHENTICATION_JWKS_URL"))
             signing_key = jwks_client.get_signing_key_from_jwt(authentication_token)
@@ -579,12 +594,30 @@ def _oidc_proxy_authentication_process(incoming_request: Request):
                     authentication_token,
                     signing_key.key,
                     algorithms=["RS256"],
-                    audience=app.config.get("AUTHENTICATION_AUDIENCE"),
-                    options={"verify_exp": app.config.get("AUTHENTICATION_VERIFY_TOKEN_EXP")},
+                    audience=audience,
+                    issuer=issuer,
+                    options={
+                        "verify_exp": app.config.get("AUTHENTICATION_VERIFY_TOKEN_EXP"),
+                        # Reject a token that simply omits the claims rather
+                        # than treating an absent one as nothing to check.
+                        "require": ["iss", "aud", "sub"],
+                    },
                 )
 
             except jwt.ExpiredSignatureError:
                 log.error("Provided token has expired")
+                return False
+
+            except jwt.InvalidIssuerError:
+                log.error("Provided token was issued by an unexpected issuer")
+                return False
+
+            except jwt.InvalidAudienceError:
+                log.error("Provided token was not issued for this audience")
+                return False
+
+            except jwt.MissingRequiredClaimError as e:
+                log.error(f"Provided token is missing a required claim. {e.__str__()}")
                 return False
 
         except Exception as e:
@@ -593,6 +626,9 @@ def _oidc_proxy_authentication_process(incoming_request: Request):
 
         # Extract the user email
         user_email = data.get("sub")
+        if not user_email:
+            log.error("Provided token carries an empty subject")
+            return False
 
         return _authenticate_with_email(user_email)
 

@@ -189,6 +189,7 @@ authentication_client_id = None
 authentication_client_secret = None
 authentication_app_admin_role_name = None
 authentication_jwks_url = None
+authentication_issuer = None
 
 
 if authentication_type == 'oidc_proxy':
@@ -201,7 +202,8 @@ if authentication_type == 'oidc_proxy':
         if oidc_discovery_response.status_code == 200:
             response_json = oidc_discovery_response.json()
             authentication_logout_url = response_json.get('end_session_endpoint')
-            authentication_account_service_url = f"{response_json.get('issuer')}/account"
+            authentication_issuer = response_json.get('issuer')
+            authentication_account_service_url = f"{authentication_issuer}/account"
             authentication_token_introspection_url = response_json.get('introspection_endpoint')
             authentication_jwks_url = response_json.get('jwks_uri')
 
@@ -427,6 +429,16 @@ class Config:
         AUTHENTICATION_CLIENT_ID = authentication_client_id
         AUTHENTICATION_CLIENT_SECRET = authentication_client_secret
         AUTHENTICATION_AUDIENCE = config.load('OIDC', 'IRIS_AUDIENCE', fallback="")
+
+        """ Issuer pinned when verifying X-Forwarded-Access-Token signatures.
+        Defaults to the issuer advertised by the discovery document, which is the
+        right answer for a single-tenant deployment; override it only when the
+        tokens IRIS should accept are issued by a different URL than the one
+        discovery was pointed at. Signature mode refuses to authenticate when this
+        ends up empty, since an unpinned issuer means any token the configured JWKS
+        can validate is accepted.
+        """
+        AUTHENTICATION_ISSUER = config.load('OIDC', 'IRIS_ISSUER_URL', fallback="") or authentication_issuer
 
         """ Addresses of the proxies allowed to assert an identity in lazy mode.
         Comma-separated addresses or CIDR blocks, matched against the peer address of
