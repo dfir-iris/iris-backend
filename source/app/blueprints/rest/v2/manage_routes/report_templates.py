@@ -64,6 +64,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.business.reports.naming import naming_format_error
 from app.business.reports.reports import generate_activities_report
 from app.business.reports.reports import generate_investigation_report
 from app.business.pagination import paginate
@@ -216,6 +217,10 @@ def create_report_template() -> Response:
 
     description = (request.form.get('description') or '').strip()
     naming_format = (request.form.get('naming_format') or '').strip()
+    format_error = naming_format_error(naming_format)
+    if format_error:
+        return response_api_error(format_error)
+
     language_id = request.form.get('language_id', type=int)
     report_type_id = request.form.get('report_type_id', type=int)
 
@@ -289,9 +294,15 @@ def update_report_template(identifier: int) -> Response:
             return response_api_error('`name` cannot be empty')
         template.name = name
 
-    for plain_field in ('description', 'naming_format'):
-        if plain_field in body:
-            template.__setattr__(plain_field, (body.get(plain_field) or '').strip())
+    if 'naming_format' in body:
+        naming_format = (body.get('naming_format') or '').strip()
+        format_error = naming_format_error(naming_format)
+        if format_error:
+            return response_api_error(format_error)
+        template.naming_format = naming_format
+
+    if 'description' in body:
+        template.description = (body.get('description') or '').strip()
 
     if 'language_id' in body:
         lang_id = body['language_id']

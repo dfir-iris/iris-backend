@@ -37,6 +37,8 @@ from app.iris_engine.utils.tracker import track_activity
 from app.models.models import CaseTemplateReport
 
 from app.business.reports.ImageHandler import ImageHandler
+from app.business.reports.naming import build_report_filename
+from app.business.reports.naming import resolve_output_path
 from app.iris_engine.utils.common import IrisJinjaEnv
 
 LOG_FORMAT = '%(asctime)s :: %(levelname)s :: %(module)s :: %(funcName)s :: %(message)s'
@@ -102,6 +104,21 @@ def _get_case_info_according_to_type(case_identifier, doc_type):
     return None
 
 
+def _naming_substitutions(case_info):
+    """The `%tag%` table the naming format is expanded against.
+
+    `%customer%` and `%case_name%` come from case data any analyst with
+    write access can set, so they are scrubbed by `build_report_filename`
+    along with the admin-supplied format itself.
+    """
+    return {
+        '%code_name%': case_info['doc_id'],
+        '%customer%': case_info['case'].get('client', {}).get('customer_name'),
+        '%case_name%': case_info['case'].get('name'),
+        '%date%': datetime.utcnow().strftime('%Y-%m-%d'),
+    }
+
+
 class IrisMakeDocReport:
     """
     Generates a DOCX report for the case
@@ -122,12 +139,9 @@ class IrisMakeDocReport:
 
         report = CaseTemplateReport.query.filter(CaseTemplateReport.id == self._report_id).first()
 
-        name = f'{report.naming_format}.docx'
-        name = name.replace("%code_name%", case_info['doc_id'])
-        name = name.replace('%customer%', case_info['case']['client']['customer_name'])
-        name = name.replace('%case_name%', case_info['case'].get('name'))
-        name = name.replace('%date%', datetime.utcnow().strftime("%Y-%m-%d"))
-        output_file_path = os.path.join(self._tmp, name)
+        name = build_report_filename(report.naming_format, '.docx',
+                                     _naming_substitutions(case_info))
+        output_file_path = resolve_output_path(self._tmp, name)
 
         try:
 
@@ -174,15 +188,11 @@ class IrisMakeMdReport:
         _, report_format = os.path.splitext(report.internal_reference)
 
         # Prepare report name
-        name = "{}".format(("{}" + str(report_format)).format(report.naming_format))
-        name = name.replace("%code_name%", case_info['doc_id'])
-        name = name.replace(
-            '%customer%', case_info['case'].get('client').get('customer_name'))
-        name = name.replace('%case_name%', case_info['case'].get('name'))
-        name = name.replace('%date%', datetime.utcnow().strftime("%Y-%m-%d"))
+        name = build_report_filename(report.naming_format, str(report_format),
+                                     _naming_substitutions(case_info))
 
         # Build output file
-        output_file_path = os.path.join(self._tmp, name)
+        output_file_path = resolve_output_path(self._tmp, name)
 
         try:
             env = IrisJinjaEnv()

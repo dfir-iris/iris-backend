@@ -30,6 +30,7 @@ from werkzeug.utils import secure_filename
 from app import app
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
+from app.business.reports.naming import naming_format_error
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
 from app.models.authorization import User
@@ -96,6 +97,10 @@ def add_template():
     report_template.name = request.form.get('report_name', '', type=str)
     report_template.description = request.form.get('report_description', '', type=str)
     report_template.naming_format = request.form.get('report_name_format', '', type=str)
+    format_error = naming_format_error(report_template.naming_format)
+    if format_error:
+        return response_error(format_error)
+
     report_template.language_id = request.form.get('report_language', '', type=int)
     report_template.report_type_id = request.form.get('report_type', '', type=int)
 
