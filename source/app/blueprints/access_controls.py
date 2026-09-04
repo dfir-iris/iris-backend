@@ -652,6 +652,13 @@ def _token_authentication_process(incoming_request: Request):
     `mfa_verified=False`) — bypassing the MFA challenge entirely. The flag
     pair travels in the JWT itself so we don't need to consult the DB on
     every request.
+
+    Session revocation, by contrast, cannot be answered from the token:
+    `validate_auth_token` resolves the token's `sid` against
+    `user_auth_session` and returns None when that family is unknown or
+    revoked (VI-004). That is one indexed lookup added to every
+    authenticated request, on a path that was deliberately stateless —
+    accepted knowingly, because without it logout revokes nothing.
     """
     auth_header = incoming_request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
@@ -674,7 +681,10 @@ def _token_authentication_process(incoming_request: Request):
         # surface for a step-1 token presented to a protected endpoint.
         return False
 
-    # Store user data for later use
+    # Store user data for later use. `session_id` rides along inside
+    # `g.auth_user` rather than as a separate global — nothing on this
+    # path revokes sessions, and the one endpoint that does (`/logout`)
+    # is gated by `api_auth`, which resolves the id itself.
     g.auth_user = user_data
     g.auth_token_user_id = user_data['user_id']
 

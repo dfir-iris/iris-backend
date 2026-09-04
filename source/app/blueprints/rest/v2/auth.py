@@ -36,6 +36,7 @@ from app import bc
 from app.db import db
 from app import oidc_client
 from app.blueprints.iris_user import iris_current_user
+from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.logger import logger
 from app.blueprints.access_controls import is_authentication_ldap
@@ -48,6 +49,9 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.business.auth import validate_ldap_login
 from app.business.auth import validate_local_login
 from app.business.users import users_get_active
+from app.business.auth import auth_session_accepts_refresh
+from app.business.auth import auth_session_is_live
+from app.business.auth import auth_session_revoke
 from app.business.auth import generate_auth_tokens
 from app.business.auth import mfa_is_enforced
 from app.business.login_throttle import login_lockout_seconds
@@ -310,6 +314,15 @@ def mfa_setup():
                 f'Too many MFA attempts. Try again in {remaining} seconds.'
             )
 
+        # A refresh token from a logged-out session must not still buy
+        # the right to bind an authenticator to the account (VI-004).
+        # Liveness only — enrollment issues no tokens, so there is
+        # nothing here to rotate or retire, and checking the `jti` would
+        # only risk mistaking a client holding a slightly stale copy for
+        # an attacker.
+        if not auth_session_is_live(payload.get('sid')):
+            return response_api_error('Invalid refresh token')
+
         user = users_get_active(user_id)
 
         # Demo mode: refuse to bind an MFA secret to any account. The
@@ -424,6 +437,15 @@ def mfa_verify():
                 f'Too many MFA attempts. Try again in {remaining} seconds.'
             )
 
+        # Liveness only, deliberately: this endpoint reads the refresh
+        # token to learn who is asking, it does not spend it. Treating
+        # the presentation as a rotation would make the ordinary
+        # login → mfa-verify → refresh sequence look like a replay of a
+        # rotated-out token and revoke the user's own session (VI-004).
+        session_id = payload.get('sid')
+        if not auth_session_is_live(session_id):
+            return response_api_error('Invalid refresh token')
+
         user = users_get_active(user_id)
 
         if not user.mfa_secrets or not user.mfa_setup_complete:
@@ -446,7 +468,15 @@ def mfa_verify():
             display_in_ui=True,
         )
 
+        # The verified pair opens a *new* family, and the step-1 family
+        # that got the caller this far is retired on the spot. Leaving it
+        # live would keep a `mfa_verified=False` refresh token valid for
+        # its full fourteen days alongside the verified one, and every
+        # retry of the login → verify loop would strand another orphan
+        # row. What makes that step-1 credential harmless in the meantime
+        # is the VI-003 gate; what makes it *gone* is this revocation.
         tokens = generate_auth_tokens(user, mfa_verified=True)
+        auth_session_revoke(session_id)
 
         return response_api_success({'mfa_verified': True, 'tokens': tokens})
 
@@ -495,6 +525,15 @@ def logout():
 
     logout_username = g.api_user.user
 
+    # A logout that revokes nothing is not a logout (VI-004). Closing the
+    # family here kills the refresh token *and* the access token that was
+    # used to make this very call — the per-request gate refuses a token
+    # whose session is revoked, so the up-to-fifteen-minutes of remaining
+    # access-token life stops being usable immediately rather than
+    # outliving the user's decision to leave. Sessions authenticated by
+    # cookie or API key carry no `sid` and simply have nothing to close.
+    auth_session_revoke(g.auth_session_id if 'auth_session_id' in g else None)
+
     if is_authentication_oidc():
         if oidc_client.provider_info.get('end_session_endpoint'):
             try:
@@ -527,6 +566,14 @@ def logout():
 def refresh_token_endpoint():
     """
     Refresh authentication tokens using a valid refresh token
+
+    This is the only endpoint that rotates a session's refresh token, and
+    the only one where presenting a stale one is treated as evidence of
+    theft (VI-004). The exchange is one-shot: the token handed in stops
+    working the instant its replacement is handed out, so a copy lifted
+    off the wire is usable at most until the legitimate holder refreshes
+    — at which point whichever party arrives second trips reuse detection
+    and the whole family is revoked.
     """
     data = request.get_json(silent=True) or {}
     refresh_token = _read_refresh_token(data)
@@ -541,6 +588,13 @@ def refresh_token_endpoint():
         if payload.get('type') != 'refresh':
             return response_api_error('Invalid token type')
 
+        # Before anything else, and regardless of the state of the user
+        # row: a replayed token has to be caught even if the account it
+        # names has since been deactivated.
+        session_id = payload.get('sid')
+        if not auth_session_accepts_refresh(session_id, payload.get('jti')):
+            return response_api_error('Invalid refresh token')
+
         user_id = payload.get('user_id')
         user = users_get_active(user_id)
 
@@ -553,12 +607,17 @@ def refresh_token_endpoint():
         # a stolen step-1 refresh can't be laundered into a verified token
         # without going through /mfa-verify.
         mfa_verified = bool(payload.get('mfa_verified', False))
-        new_tokens = generate_auth_tokens(user, mfa_verified=mfa_verified)
+        new_tokens = generate_auth_tokens(user, mfa_verified=mfa_verified,
+                                          session_id=session_id)
 
         return response_api_success({'tokens': new_tokens})
 
     except ObjectNotFoundError:
         return response_api_not_found()
+    except BusinessProcessingError:
+        # Raised when the family was revoked between the check above and
+        # the rotation — a logout or a reuse landing on another worker.
+        return response_api_error('Invalid refresh token')
     except jwt.ExpiredSignatureError:
         return response_api_error('Refresh token has expired')
     except jwt.InvalidTokenError:

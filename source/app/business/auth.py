@@ -34,14 +34,20 @@ from app.business.cases import cases_get_first
 from app.logger import logger
 from app.business.users import retrieve_user_by_username
 from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
+from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_create
+from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_get_live
+from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_revoke
+from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_rotate
 from app.iris_engine.access_control.ldap_handler import ldap_authenticate
 from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import User
+from app.models.errors import BusinessProcessingError
 
 import datetime
 import jwt
+import uuid
 
 
 def validate_ldap_login(username: str, password: str, local_fallback: bool = True):
@@ -227,11 +233,87 @@ def _mfa_required_for_user(user) -> bool:
     return mfa_is_enforced()
 
 
-def generate_auth_tokens(user, mfa_verified: bool = False):
+def auth_session_is_live(session_id) -> bool:
+    """Whether `session_id` still names an unrevoked token family.
+
+    This is the cheap liveness question — "has this session been logged
+    out?" — as opposed to `auth_session_accepts_refresh`, which also
+    cares *which* refresh token is being presented. Callers that merely
+    authenticate a bearer (the access-token gate, the MFA endpoints that
+    read a refresh token only to learn who is asking) want this one.
+
+    An absent `session_id` is a token minted before session tracking
+    existed. Refused here rather than left to the query helper, because
+    "old tokens are not grandfathered" is a policy decision and belongs
+    where the policy is.
+    """
+    if not session_id:
+        return False
+
+    return user_auth_sessions_get_live(session_id) is not None
+
+
+def auth_session_accepts_refresh(session_id, refresh_jti) -> bool:
+    """Whether this exact refresh token may still be exchanged (VI-004).
+
+    Three ways to fail, and the third is the interesting one:
+
+      - no `session_id` at all. Tokens minted before session tracking
+        existed carry no `sid`, and they are refused rather than
+        grandfathered — upgrading logs everyone out, which is the only
+        honest outcome for a fix whose whole point is that outstanding
+        credentials could not previously be invalidated.
+      - the family is unknown or already revoked (logged out, or killed
+        by an earlier reuse).
+      - the family is live but the caller presents a `jti` we have
+        already rotated away from. That token was spent, so somebody is
+        replaying a copy — and since the legitimate holder and the thief
+        present indistinguishable credentials, the only containment that
+        works is to revoke the entire family and make both parties log
+        in again. This is the standard OAuth reuse-detection response.
+
+    Note this deliberately does *not* consume the token: rotation
+    happens in `generate_auth_tokens`, so an endpoint that reads a
+    refresh token without issuing a replacement (mfa-verify, mfa-setup)
+    can validate without tripping the reuse check on the next genuine
+    refresh.
+    """
+    if not session_id:
+        return False
+
+    auth_session = user_auth_sessions_get_live(session_id)
+    if auth_session is None:
+        return False
+
+    if not refresh_jti or auth_session.refresh_jti != refresh_jti:
+        user_auth_sessions_revoke(session_id)
+        track_activity('authentication session revoked: a rotated-out refresh token was replayed',
+                       ctx_less=True, display_in_ui=True,
+                       user_id_override=auth_session.user_id)
+        return False
+
+    return True
+
+
+def auth_session_revoke(session_id) -> bool:
+    """Close a token family. No-op when there is nothing to close.
+
+    Used by logout, and by mfa-verify to retire the step-1 session it
+    replaces.
+    """
+    if not session_id:
+        return False
+
+    return user_auth_sessions_revoke(session_id)
+
+
+def generate_auth_tokens(user, mfa_verified: bool = False, session_id: str = None):
     """
     Generate access and refresh tokens with essential user data
 
     :param user: User object
+    :param mfa_verified: Whether the holder has already cleared the second factor
+    :param session_id: Existing token family to rotate. None opens a new one.
     :return: Dict containing tokens with expiry
     """
     # Configure token expiration times
@@ -245,6 +327,21 @@ def generate_auth_tokens(user, mfa_verified: bool = False):
     mfa_required = _mfa_required_for_user(user)
     effective_mfa_verified = True if not mfa_required else bool(mfa_verified)
 
+    # Bind both tokens to a server-side row so they can be revoked (VI-004).
+    # The row is created here rather than at each call site so that every
+    # entry point — local login, LDAP login, OIDC exchange, mfa-verify,
+    # refresh — gets a session without having to remember to ask for one.
+    refresh_jti = str(uuid.uuid4())
+    if session_id is None:
+        session_id = user_auth_sessions_create(user.id, refresh_jti)
+    elif not user_auth_sessions_rotate(session_id, refresh_jti):
+        # The family died between the caller's check and this write — a
+        # concurrent logout, or reuse detection firing on a parallel
+        # request. Refusing is the only safe answer: falling back to a
+        # fresh session would hand the caller exactly the credential the
+        # revocation was meant to take away.
+        raise BusinessProcessingError('Authentication session is no longer valid')
+
     # Generate access token with user data
     access_token_payload = {
         'user_id': user.id,
@@ -252,6 +349,7 @@ def generate_auth_tokens(user, mfa_verified: bool = False):
         'user_email': user.email,
         'user_login': user.user,
         'type': 'access',
+        'sid': session_id,
         'mfa_required': mfa_required,
         'mfa_verified': effective_mfa_verified,
         'exp': access_token_expiry
@@ -266,6 +364,9 @@ def generate_auth_tokens(user, mfa_verified: bool = False):
     # the refresh endpoint can mint new access tokens that preserve the
     # caller's MFA state without re-prompting — and, crucially, without
     # silently upgrading a step-1 refresh into a verified access token.
+    # `jti` is what distinguishes this refresh token from the ones the
+    # same family issued before it; the refresh endpoint only honours the
+    # most recent.
     refresh_token_payload = {
         'user_id': user.id,
         'user_name': user.name,
@@ -273,6 +374,8 @@ def generate_auth_tokens(user, mfa_verified: bool = False):
         'user_login': user.user,
         'exp': refresh_token_expiry,
         'type': 'refresh',
+        'sid': session_id,
+        'jti': refresh_jti,
         'mfa_required': mfa_required,
         'mfa_verified': effective_mfa_verified,
     }
@@ -294,6 +397,14 @@ def validate_auth_token(token):
     """
     Validate an authentication token
 
+    Signature and expiry alone are not enough: an access token also has
+    to belong to a session that is still open (VI-004). That costs one
+    indexed lookup on a path that used to be entirely stateless, which is
+    a real price to pay per authenticated request — but the alternative
+    is the finding itself, a logout that leaves the caller's outstanding
+    access token working for up to another fifteen minutes. The lookup is
+    a single probe on a unique index and nothing else may be added here.
+
     :param token: JWT token to validate
     :return: Dict with user data if valid, None otherwise
     """
@@ -303,11 +414,20 @@ def validate_auth_token(token):
         if payload.get('type') != 'access':
             return None
 
+        # No `sid` means the token predates session tracking. Rejected
+        # rather than grandfathered — everyone is logged out once by the
+        # upgrade, which is the intended cost of a fix that exists
+        # precisely because old tokens could not be invalidated.
+        session_id = payload.get('sid')
+        if not auth_session_is_live(session_id):
+            return None
+
         return {
             'user_id': payload.get('user_id'),
             'user_login': payload.get('user_login'),
             'user_name': payload.get('user_name'),
             'user_email': payload.get('user_email'),
+            'session_id': session_id,
             'mfa_required': payload.get('mfa_required', False),
             'mfa_verified': payload.get('mfa_verified', False),
         }

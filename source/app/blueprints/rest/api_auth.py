@@ -4,6 +4,7 @@ from flask_login import current_user
 import jwt
 
 from app import app
+from app.business.auth import auth_session_is_live
 from app.business.users import users_get_active
 from app.models.errors import ObjectNotFoundError
 from app.blueprints.rest.endpoints import response_api_error
@@ -47,10 +48,25 @@ def _jwt_user():
     if payload.get("mfa_required") and not payload.get("mfa_verified"):
         return "invalid"
 
+    # This decorator gates `/auth/whoami` and `/auth/logout`, which the
+    # `ac_api_requires` path never touches — so the session check has to
+    # be repeated here rather than inherited (VI-004). A token with no
+    # `sid` predates session tracking and is refused, not grandfathered:
+    # the upgrade forces one round of re-logins, which is the price of
+    # being able to invalidate anything at all.
+    session_id = payload.get("sid")
+    if not auth_session_is_live(session_id):
+        return "invalid"
+
     user = _safe_get_active(payload["user_id"])
     # Signed token for a user that no longer exists → reject outright,
     # don't quietly fall through to legacy/session auth.
-    return user if user is not None else "invalid"
+    if user is None:
+        return "invalid"
+
+    # Handed to `/auth/logout` so it knows which family to close.
+    g.auth_session_id = session_id
+    return user
 
 
 def _legacy_token_user():

@@ -366,6 +366,48 @@ class UserApiKey(db.Model):
     user = relationship('User', backref='api_keys')
 
 
+class UserAuthSession(db.Model):
+    """The server-side half of a JWT token family (VI-004).
+
+    Access and refresh tokens are self-contained, which used to mean
+    there was nothing to revoke: a refresh token lifted off the wire
+    stayed usable for its full 14-day life, side by side with the
+    victim's own, and logging out invalidated precisely nothing. This
+    row is the handle that makes rotation and revocation possible.
+
+    `sid` is minted once per login and copied into every token of the
+    family. `refresh_jti` names the *one* refresh token the family
+    currently accepts — the refresh endpoint overwrites it on every
+    rotation, so the token that was just spent stops working the moment
+    its successor is handed out. A request presenting one of those
+    rotated-out ids is therefore a replay of a credential that was
+    already exchanged, and the answer is `revoked_at`: the whole family
+    dies, because we cannot tell the thief from the victim and only one
+    of them should keep the session.
+
+    Rows survive revocation rather than being deleted. `revoked_at` is
+    what the per-request access-token gate reads, and the timestamps are
+    the only record of when a session opened and last rotated.
+    """
+    __tablename__ = 'user_auth_session'
+
+    id = Column(BigInteger, primary_key=True)
+    # Unique + indexed because the access-token gate looks a session up
+    # by `sid` on every authenticated request; that has to stay a single
+    # index probe.
+    sid = Column(String(36), unique=True, nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey('user.id', ondelete='CASCADE'),
+                     nullable=False, index=True)
+    refresh_jti = Column(String(36), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    # Bumped on rotation only — never on plain access-token validation,
+    # which must not turn a read into a write on the hot path.
+    last_used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+
+    user = relationship('User')
+
+
 class UserFollowedCase(db.Model):
     __tablename__ = 'user_followed_case'
     __table_args__ = (
