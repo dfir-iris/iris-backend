@@ -41,6 +41,9 @@ from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.responses import response_error
 from app.business.auth import validate_ldap_login
+from app.business.login_throttle import login_lockout_seconds
+from app.business.login_throttle import register_login_failure
+from app.business.login_throttle import register_login_success
 from app.business.users import retrieve_user_by_username
 from app.business.auth import wrap_login_user
 from app.datamgmt.manage.manage_users_db import create_user
@@ -101,7 +104,10 @@ def _authenticate_ldap(form, username, password, local_fallback=True):
     try:
         user = validate_ldap_login(username, password, local_fallback)
         if user is None:
+            register_login_failure(username)
             return _render_template_login(form, "Wrong credentials. Please try again.")
+
+        register_login_success(username)
 
         user_data = UserSchema(
             exclude=["user_password", "mfa_secrets", "webauthn_credentials"]
@@ -123,11 +129,14 @@ def _authenticate_ldap(form, username, password, local_fallback=True):
 def _authenticate_password(form, username, password):
     user = retrieve_user_by_username(username)
     if not user or user.is_service_account:
+        register_login_failure(username)
         return _render_template_login(form, "Wrong credentials. Please try again.")
 
     if bc.check_password_hash(user.password, password):
+        register_login_success(username)
         return wrap_login_user(user)
 
+    register_login_failure(username)
     track_activity(
         f"wrong login password for user '{username}' using local auth",
         ctx_less=True,
@@ -164,6 +173,19 @@ if app.config.get("AUTHENTICATION_TYPE") in ["local", "ldap", "oidc"]:
         # assign form data to variables
         username = request.form.get("username", "", type=str)
         password = request.form.get("password", "", type=str)
+
+        # Checked before the password is verified (VI-010) so a throttled
+        # account can't be probed through response content or timing.
+        lockout = login_lockout_seconds(username)
+        if lockout:
+            track_activity(
+                f"Throttled login attempt for user '{username}'",
+                ctx_less=True,
+                display_in_ui=True,
+            )
+            return _render_template_login(
+                form, f"Too many login attempts. Try again in {lockout} seconds."
+            )
 
         if is_authentication_ldap() is True:
             return _authenticate_ldap(

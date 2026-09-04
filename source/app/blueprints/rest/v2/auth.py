@@ -50,6 +50,9 @@ from app.business.auth import validate_local_login
 from app.business.users import users_get_active
 from app.business.auth import generate_auth_tokens
 from app.business.auth import mfa_is_enforced
+from app.business.login_throttle import login_lockout_seconds
+from app.business.login_throttle import register_login_failure
+from app.business.login_throttle import register_login_success
 from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
@@ -174,6 +177,13 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
+    # Refuse before the password is checked (VI-010) — a throttled account
+    # must not be probeable through the response, timing included.
+    lockout = login_lockout_seconds(username)
+    if lockout:
+        track_activity(f'Throttled login attempt for user {username}', ctx_less=True, display_in_ui=True)
+        return response_api_error(f'Too many login attempts. Try again in {lockout} seconds')
+
     if is_authentication_ldap() is True:
         authed_user = validate_ldap_login(username, password, app.config.get('AUTHENTICATION_LOCAL_FALLBACK'))
 
@@ -182,8 +192,11 @@ def login():
 
     if authed_user is None:
 
+        register_login_failure(username)
         track_activity(f'User {username} tried to login. Invalid credentials', ctx_less=True, display_in_ui=True)
         return response_api_error('Invalid credentials')
+
+    register_login_success(username)
 
     user_data = UserSchema(exclude=['user_password', 'mfa_secrets', 'webauthn_credentials']).dump(authed_user)
 

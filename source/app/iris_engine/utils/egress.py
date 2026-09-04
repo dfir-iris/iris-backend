@@ -45,6 +45,7 @@ from app import app
 
 _ALLOWED_SCHEMES = ('http', 'https')
 
+
 def _address_is_blocked(address) -> bool:
     """Link-local covers 169.254.0.0/16 — the AWS/Azure/GCP metadata
     endpoint — and fe80::/10. `is_global` would be the terser test but it

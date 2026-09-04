@@ -379,6 +379,17 @@ class Config:
     MANAGED_ASSETS_MAX_PER_PAGE = int(config.load('IRIS', 'MANAGED_ASSETS_MAX_PER_PAGE',
                                                   fallback=100))
 
+    """ Password login throttle
+    Consecutive failed logins are counted per account and per client address; crossing
+    either ceiling refuses further attempts for LOGIN_LOCKOUT_SECONDS. The account
+    ceiling stops brute force against one user, the (looser) client ceiling stops
+    spraying across many. Counting is in-process and per worker, so treat these as a
+    cost multiplier rather than a hard guarantee.
+    """
+    LOGIN_MAX_ATTEMPTS = int(config.load('IRIS', 'LOGIN_MAX_ATTEMPTS', fallback=10))
+    LOGIN_MAX_ATTEMPTS_PER_CLIENT = int(config.load('IRIS', 'LOGIN_MAX_ATTEMPTS_PER_CLIENT', fallback=50))
+    LOGIN_LOCKOUT_SECONDS = int(config.load('IRIS', 'LOGIN_LOCKOUT_SECONDS', fallback=15 * 60))
+
     ORGANISATION_NAME = config.load('IRIS', 'ORGANISATION_NAME', fallback='')
     LOGIN_BANNER_TEXT = config.load('IRIS', 'LOGIN_BANNER_TEXT', fallback='')
     LOGIN_PTFM_CONTACT = config.load('IRIS', 'LOGIN_PTFM_CONTACT', fallback='Please contact the platform administrator')

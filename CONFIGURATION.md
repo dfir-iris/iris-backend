@@ -46,3 +46,6 @@ The POSTGRES section has the following configurations:
 - `IRIS_SECRET_KEY` - The secret key used by Flask.
 - `IRIS_SECURITY_PASSWORD_SALT` - ??
 - `IRIS_ALLOW_PRIVATE_EGRESS` - `True` lets report templates reference images on private, loopback or link-local addresses. Defaults to `False`: the renderer fetches those URLs from inside the backend network, so allowing them exposes internal services and the cloud metadata endpoint to whoever can upload a template.
+- `IRIS_LOGIN_MAX_ATTEMPTS` - Consecutive failed logins tolerated for one account before it is locked out. Defaults to `10`.
+- `IRIS_LOGIN_MAX_ATTEMPTS_PER_CLIENT` - Consecutive failed logins tolerated from one client address, across all accounts. Defaults to `50`. Deliberately looser than the per-account ceiling because a whole office can share one source address; raise it if a reverse proxy is in front and `remote_addr` is the proxy.
+- `IRIS_LOGIN_LOCKOUT_SECONDS` - How long a lockout lasts once either ceiling is crossed. Defaults to `900` (15 minutes). Counting is in-process and per worker, so this raises the cost of brute force rather than making it impossible.
