@@ -567,14 +567,19 @@ def refresh_token_endpoint():
     """
     Refresh authentication tokens using a valid refresh token
 
-    This is the only endpoint that rotates a session's refresh token, and
-    the only one where presenting a stale one is treated as evidence of
-    theft (VI-004). The exchange is one-shot: the token handed in stops
-    working the instant its replacement is handed out, so a copy lifted
-    off the wire is usable at most until the legitimate holder refreshes
-    — at which point whichever party arrives second trips reuse detection
-    and the whole family is revoked.
+    The exchange is one-shot: the refresh token presented here stops
+    working the moment its replacement is issued, so callers must store
+    the new pair and never retry with the old one. Presenting an
+    already-exchanged token invalidates the whole session and requires a
+    fresh login.
     """
+    # The docstring above is published as API documentation, so it states
+    # the contract rather than the reasoning. The reasoning: this is the
+    # only endpoint that rotates a session's refresh token, and the only
+    # one where a stale token is treated as evidence of theft (VI-004). A
+    # copy lifted off the wire is usable at most until the legitimate
+    # holder refreshes — whichever party arrives second trips reuse
+    # detection, and since we cannot tell them apart, the family dies.
     data = request.get_json(silent=True) or {}
     refresh_token = _read_refresh_token(data)
     if not refresh_token:

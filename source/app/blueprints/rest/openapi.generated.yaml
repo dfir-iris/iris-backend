@@ -559,6 +559,32 @@ paths:
       - Alerts
       security:
       - ApiKey: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page number (default 1)
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size (default 10)
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Column to sort by: event_time, creation_time, title, severity, status, customer_name,
+          owner (default ''event_time'')'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Sort direction: ''asc'' or ''desc'' (default ''asc'')'
       responses:
         '200':
           description: Success
@@ -1154,6 +1180,47 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/grouped:
+    get:
+      operationId: alerts_grouped_list_route_get
+      summary: List alerts with clustered alerts collapsed into their cluster
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page number (default 1)
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size (default 10)
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Column to sort by: event_time, creation_time, title, severity, status, customer_name,
+          owner (default ''event_time'')'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 'Sort direction: ''asc'' or ''desc'' (default ''asc'')'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/alerts/merge/{identifier}:
     post:
       operationId: merge_alert_post
@@ -1526,6 +1593,15 @@ paths:
       - Auth
       security:
       - ApiKey: []
+      description: 'The exchange is one-shot: the refresh token presented here stops
+
+        working the moment its replacement is issued, so callers must store
+
+        the new pair and never retry with the old one. Presenting an
+
+        already-exchanged token invalidates the whole session and requires a
+
+        fresh login.'
       responses:
         '200':
           description: Success
@@ -8677,6 +8753,7 @@ paths:
         required: false
         schema:
           type: integer
+        description: Rows per page (clamped to 200)
       responses:
         '200':
           description: Success
@@ -8736,6 +8813,7 @@ paths:
         required: false
         schema:
           type: integer
+        description: Rows per page (clamped to 200)
       responses:
         '200':
           description: Success
@@ -8789,6 +8867,7 @@ paths:
         required: false
         schema:
           type: integer
+        description: Rows per page (clamped to 200)
       responses:
         '200':
           description: Success

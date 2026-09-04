@@ -1206,8 +1206,12 @@ def _extract_route_decorator(dec: ast.expr, module_bp: str | None) -> tuple[str,
     return method, dec.args[0].value
 
 
-def _extract_api_doc(dec: ast.expr) -> dict[str, Any] | None:
-    """If `dec` is @api_doc(...), return its kwargs dict."""
+def _extract_api_doc(dec: ast.expr, consts: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """If `dec` is @api_doc(...), return its kwargs dict.
+
+    `consts` carries the declaring module's literal constants so a bare
+    name can be resolved (see `query_params` below).
+    """
     if not isinstance(dec, ast.Call):
         return None
     fname = getattr(dec.func, 'id', None) or getattr(dec.func, 'attr', None)
@@ -1216,6 +1220,14 @@ def _extract_api_doc(dec: ast.expr) -> dict[str, Any] | None:
     kwargs: dict[str, Any] = {}
     for kw in dec.keywords:
         if kw.arg is None:
+            continue
+        if kw.arg == 'query_params':
+            # A bare name here is a module-level constant shared between
+            # routes (`query_params=_ALERT_LIST_SORT_PARAMS`), not a
+            # schema class. `_literal` would hand back a `_SchemaRef`,
+            # which the parameter builder then tries to iterate.
+            value = _literal_dict(kw.value, consts or {})
+            kwargs[kw.arg] = [] if value is _UNRESOLVED else value
             continue
         kwargs[kw.arg] = _literal(kw.value)
     return kwargs
@@ -1247,6 +1259,7 @@ def _discover_routes() -> list[dict[str, Any]]:
             continue
 
         module_bp = _find_module_blueprint(tree)
+        module_consts = _collect_module_fragments(tree, _imported_constants(tree))
 
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -1263,7 +1276,7 @@ def _discover_routes() -> list[dict[str, Any]]:
                     if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute) \
                             and isinstance(dec.func.value, ast.Name):
                         bp_var = dec.func.value.id
-                d = _extract_api_doc(dec)
+                d = _extract_api_doc(dec, module_consts)
                 if d is not None:
                     apidoc = d
 
@@ -1478,6 +1491,13 @@ def _query_params_from_apidoc(entries: list[Any]) -> list[dict[str, Any]]:
     Repeatable keys (e.g. `?tag=a&tag=b`) use 'string[]' etc. and get
     `style: form, explode: true`.
     """
+    if not isinstance(entries, (list, tuple)):
+        # A name that didn't reduce to a module constant. Emitting no
+        # parameters is a documentation gap; iterating whatever marker
+        # object came back instead is a crash that takes the entire spec
+        # with it, so the whole file fails to generate over one route.
+        return []
+
     params: list[dict[str, Any]] = []
     for entry in entries:
         if not isinstance(entry, tuple) or len(entry) < 2:
@@ -1638,6 +1658,30 @@ def _literal_dict(node: ast.AST, consts: dict[str, Any] | None = None) -> Any:
                 continue
             return _UNRESOLVED
         return ''.join(parts)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        # String concatenation, as used to splice a list of allowed
+        # values into a parameter description:
+        # `'Sort by: ' + ', '.join(COLUMNS) + " (default 'x')"`.
+        left = _literal_dict(node.left, consts)
+        right = _literal_dict(node.right, consts)
+        if isinstance(left, str) and isinstance(right, str):
+            return left + right
+        return _UNRESOLVED
+    if isinstance(node, ast.Call):
+        # Only `<separator>.join(<resolvable sequence of strings>)`. That
+        # is the one call shape @api_doc metadata actually uses, and it
+        # renders the authoritative constant into the docs rather than a
+        # copy of it that drifts. Every other call stays unresolved
+        # rather than being guessed at.
+        func = node.func
+        if (isinstance(func, ast.Attribute) and func.attr == 'join'
+                and len(node.args) == 1 and not node.keywords):
+            separator = _literal_dict(func.value, consts)
+            items = _literal_dict(node.args[0], consts)
+            if (isinstance(separator, str) and isinstance(items, (list, tuple))
+                    and all(isinstance(item, str) for item in items)):
+                return separator.join(items)
+        return _UNRESOLVED
     return _UNRESOLVED
 
 
@@ -1677,7 +1721,8 @@ def _resolve_dict_with_fragments(
     return out
 
 
-def _collect_module_fragments(tree: ast.Module) -> dict[str, Any]:
+def _collect_module_fragments(tree: ast.Module,
+                              seed: dict[str, Any] | None = None) -> dict[str, Any]:
     """Harvest module-level `NAME = {...}` / `NAME: T = {...}` constants.
 
     We use this to resolve `{**PAGINATION_SCHEMA_FRAGMENT, ...}` splats
@@ -1686,8 +1731,11 @@ def _collect_module_fragments(tree: ast.Module) -> dict[str, Any]:
     so a constant may reference one declared above it. Anything that
     doesn't reduce to a literal is silently ignored (the lookup just
     misses and the key is dropped from the emitted schema).
+
+    `seed` pre-populates the table with names the module imported, so a
+    local constant built out of an imported one still resolves.
     """
-    out: dict[str, Any] = {}
+    out: dict[str, Any] = dict(seed or {})
     for node in tree.body:
         if isinstance(node, ast.Assign):
             targets = node.targets
@@ -1708,6 +1756,81 @@ def _collect_module_fragments(tree: ast.Module) -> dict[str, Any]:
         for target in targets:
             if isinstance(target, ast.Name):
                 out[target.id] = value
+    return out
+
+
+# Parsing the same datamgmt module once per blueprint that imports from
+# it is pure waste; the generator walks every v2 file in one run.
+_MODULE_CONSTANTS_CACHE: dict[Path, dict[str, Any]] = {}
+
+
+def _module_path_for(dotted: str) -> Path | None:
+    """`app.datamgmt.alerts.alerts_db` → source/app/datamgmt/alerts/alerts_db.py."""
+    if not dotted.startswith('app.'):
+        return None
+    candidate = REPO_ROOT / Path(*dotted.split('.')).with_suffix('.py')
+    return candidate if candidate.is_file() else None
+
+
+def _constants_from_module(path: Path,
+                           in_progress: frozenset[Path] = frozenset()) -> dict[str, Any]:
+    """Module-level literals `path` defines, including ones it re-exports.
+
+    Resolution follows the import chain rather than stopping at the first
+    module, because the constant a route names is routinely one layer
+    further down than the module it is imported from: the alerts
+    blueprint takes `ALERT_SORT_COLUMNS` from the business layer, which
+    took it from datamgmt, which owns it.
+
+    `in_progress` is a cycle brake. Import cycles are legal in Python and
+    would otherwise recurse forever; they cannot actually arise along the
+    edges walked here, since import-linter holds
+    blueprints → business → datamgmt to a DAG, but the generator should
+    not depend on a contract in another file to terminate.
+    """
+    cached = _MODULE_CONSTANTS_CACHE.get(path)
+    if cached is not None:
+        return cached
+    if path in in_progress:
+        return {}
+
+    try:
+        tree = ast.parse(path.read_text(), filename=str(path))
+    except (OSError, SyntaxError):
+        resolved: dict[str, Any] = {}
+    else:
+        resolved = _collect_module_fragments(
+            tree, _imported_constants(tree, in_progress | {path}))
+
+    _MODULE_CONSTANTS_CACHE[path] = resolved
+    return resolved
+
+
+def _imported_constants(tree: ast.Module,
+                        in_progress: frozenset[Path] = frozenset()) -> dict[str, Any]:
+    """Module-level literals this file imports from elsewhere under app/.
+
+    `@api_doc(query_params=_ALERT_LIST_SORT_PARAMS)` names a constant
+    whose description text is built from `ALERT_SORT_COLUMNS`, and that
+    tuple is owned by the datamgmt module that sorts on it rather than
+    living beside the route. Following the import keeps the authoritative
+    list in the spec; the alternative is to copy it next to the decorator
+    and let the docs quietly disagree with the query the API runs.
+
+    Confined to `app/` — the generator resolves this project's constants,
+    not the contents of site-packages.
+    """
+    out: dict[str, Any] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom) or node.level or not node.module:
+            continue
+        path = _module_path_for(node.module)
+        if path is None:
+            continue
+        exported = _constants_from_module(path, in_progress)
+        for alias in node.names:
+            if alias.name in exported:
+                out[alias.asname or alias.name] = exported[alias.name]
     return out
 
 
