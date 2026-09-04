@@ -344,6 +344,15 @@ class Config:
     DATASTORE_PATH = config.load('IRIS', 'DATASTORE_PATH', fallback="/home/iris/server_data/datastore")
     ASSET_SHOW_PATH = "/static/assets/img/graph"
 
+    """ Outbound requests driven by user-supplied content
+    Report templates can reference external images, which the renderer fetches from
+    inside the backend network. Private, loopback, link-local and reserved destinations
+    are refused so a template can't be pointed at the cloud metadata endpoint or an
+    internal service. Set this to True only where those assets are genuinely hosted on
+    an internal address and the SSRF exposure is accepted.
+    """
+    ALLOW_PRIVATE_EGRESS = config.load('IRIS', 'ALLOW_PRIVATE_EGRESS', fallback="False") == "True"
+
     """ Case transfer (export / import between instances)
     Uploaded bundles are staged under UPLOADED_PATH before being applied. The size cap
     applies to both the compressed upload and the cumulative decompressed size, so a zip

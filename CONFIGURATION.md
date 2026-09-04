@@ -45,3 +45,4 @@ The POSTGRES section has the following configurations:
 
 - `IRIS_SECRET_KEY` - The secret key used by Flask.
 - `IRIS_SECURITY_PASSWORD_SALT` - ??
+- `IRIS_ALLOW_PRIVATE_EGRESS` - `True` lets report templates reference images on private, loopback or link-local addresses. Defaults to `False`: the renderer fetches those URLs from inside the backend network, so allowing them exposes internal services and the cloud metadata endpoint to whoever can upload a template.

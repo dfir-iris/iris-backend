@@ -30,12 +30,30 @@ from docx_generator.globals.picture_globals import PictureGlobals
 from docx_generator.exceptions.rendering_error import RenderingError
 
 from app.datamgmt.datastore.datastore_db import datastore_get_local_file_path
+from app.iris_engine.utils.egress import egress_destination_error
 
 
 class ImageHandler(PictureGlobals):
     def __init__(self, template: DocxTemplate, base_path: str):
         self._logger = logging.getLogger(__name__)
         PictureGlobals.__init__(self, template, base_path)
+
+    def _process_external(self, image_path: str) -> str:
+        """Hand a non-datastore URL to the generator's remote fetcher, but
+        only after vetting where it points (VI-013).
+
+        Unsafe-mode rendering dereferences whatever URLs the uploaded DOCX
+        template carries, from inside the backend network. Without this
+        gate a template referencing `http://169.254.169.254/...` turns the
+        renderer into a probe for cloud metadata and internal services.
+        """
+        reason = egress_destination_error(image_path)
+        if reason is None:
+            return super()._process_remote(image_path)
+
+        self._logger.warning(f'Refusing to fetch report template resource: {reason}')
+        raise RenderingError(self._logger,
+                             'Report template references a resource the server may not fetch')
 
     def _process_remote(self, image_path: str) -> str:
         """
@@ -45,7 +63,7 @@ class ImageHandler(PictureGlobals):
         """
         res = re.search(r'datastore\/file\/view\/(\d+)\?cid=(\d+)', image_path)
         if not res:
-            return super()._process_remote(image_path)
+            return self._process_external(image_path)
 
         if image_path[:4] == 'http' and len(res.groups()) == 2:
             file_id = res.groups(0)[0]
@@ -61,4 +79,4 @@ class ImageHandler(PictureGlobals):
             file_name = os.path.join(self._output_path, str(uuid.uuid4())) + file_ext
             return_value = shutil.copy(dsf.file_local_name, file_name)
             return return_value
-        return super()._process_remote(image_path)
+        return self._process_external(image_path)
