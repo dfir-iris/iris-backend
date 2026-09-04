@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import ipaddress
 import json
 import logging as log
 import traceback
@@ -466,15 +467,81 @@ def _authenticate_with_email(user_email):
     return True
 
 
+# Parsed AUTHENTICATION_PROXY_TRUSTED_IPS, cached against the raw config
+# string so the list isn't re-parsed (and a bad entry re-logged) on every
+# request. The config is read at import time and never mutated at runtime,
+# so the cache holds a single entry in practice.
+_trusted_proxy_networks_cache = {}
+
+
+def _trusted_proxy_networks():
+    raw = (app.config.get('AUTHENTICATION_PROXY_TRUSTED_IPS') or '').strip()
+    if raw in _trusted_proxy_networks_cache:
+        return _trusted_proxy_networks_cache[raw]
+
+    networks = []
+    for entry in raw.split(','):
+        entry = entry.strip()
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            log.error(f'Ignoring unparseable AUTHENTICATION_PROXY_TRUSTED_IPS entry: {entry}')
+
+    _trusted_proxy_networks_cache[raw] = networks
+    return networks
+
+
+def _request_is_from_trusted_proxy(incoming_request: Request) -> bool:
+    """Whether the peer is one of the configured identity-injecting proxies.
+
+    Fails closed on an empty list: lazy mode believes an unauthenticated
+    request header, so with no way to tell a proxy from an arbitrary client
+    there is no safe answer but "no" (VI-005).
+
+    The peer is `remote_addr` — the TCP source as this process sees it — not
+    anything the client can set. Deployments terminating TLS at a proxy on
+    another host should list that host's address; a sidecar or localhost
+    proxy is `127.0.0.1`.
+    """
+    networks = _trusted_proxy_networks()
+    if not networks:
+        return False
+
+    peer = incoming_request.remote_addr
+    if not peer:
+        return False
+
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+
+    return any(address in network for network in networks)
+
+
 def _oidc_proxy_authentication_process(incoming_request: Request):
     # Get the OIDC JWT authentication token from the request header
     authentication_token = incoming_request.headers.get('X-Forwarded-Access-Token', '')
 
     if app.config.get("AUTHENTICATION_TOKEN_VERIFY_MODE") == 'lazy':
+        # Lazy mode takes the caller's identity from `X-Email` with no token
+        # validation at all, so it is only sound when something in front has
+        # authenticated the request and overwritten that header. Anyone who
+        # can open a socket to this process can otherwise become any
+        # registered user by naming them (VI-005) — so the request has to
+        # arrive from a proxy the operator has declared trustworthy.
+        if not _request_is_from_trusted_proxy(incoming_request):
+            log.warning('Refused lazy OIDC proxy authentication from untrusted peer '
+                        f'{incoming_request.remote_addr} - set AUTHENTICATION_PROXY_TRUSTED_IPS '
+                        'to the address of the proxy that injects X-Email')
+            return False
+
         user_email = incoming_request.headers.get('X-Email')
 
         if user_email:
-            return _authenticate_with_email(user_email.split(',')[0])
+            return _authenticate_with_email(user_email.split(',')[0].strip())
 
     elif app.config.get("AUTHENTICATION_TOKEN_VERIFY_MODE") == 'introspection':
         # Use the authentication server's token introspection endpoint in order to determine if the request is valid /

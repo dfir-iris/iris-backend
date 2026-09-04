@@ -427,6 +427,14 @@ class Config:
         AUTHENTICATION_CLIENT_ID = authentication_client_id
         AUTHENTICATION_CLIENT_SECRET = authentication_client_secret
         AUTHENTICATION_AUDIENCE = config.load('OIDC', 'IRIS_AUDIENCE', fallback="")
+
+        """ Addresses of the proxies allowed to assert an identity in lazy mode.
+        Comma-separated addresses or CIDR blocks, matched against the peer address of
+        the connection. Empty means lazy mode authenticates nobody: it trusts the
+        X-Email header outright, so without knowing which peer is the proxy there is
+        no way to tell an injected header from a forged one.
+        """
+        AUTHENTICATION_PROXY_TRUSTED_IPS = config.load('OIDC', 'IRIS_PROXY_TRUSTED_IPS', fallback="")
         AUTHENTICATION_VERIFY_TOKEN_EXP = config.load('OIDC', 'IRIS_VERIFY_TOKEN_EXPIRATION',
                                                       fallback=True)
         AUTHENTICATION_TOKEN_VERIFY_MODE = config.load('OIDC', 'IRIS_TOKEN_VERIFY_MODE',

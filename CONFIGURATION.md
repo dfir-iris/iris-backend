@@ -49,3 +49,9 @@ The POSTGRES section has the following configurations:
 - `IRIS_LOGIN_MAX_ATTEMPTS` - Consecutive failed logins tolerated for one account before it is locked out. Defaults to `10`.
 - `IRIS_LOGIN_MAX_ATTEMPTS_PER_CLIENT` - Consecutive failed logins tolerated from one client address, across all accounts. Defaults to `50`. Deliberately looser than the per-account ceiling because a whole office can share one source address; raise it if a reverse proxy is in front and `remote_addr` is the proxy.
 - `IRIS_LOGIN_LOCKOUT_SECONDS` - How long a lockout lasts once either ceiling is crossed. Defaults to `900` (15 minutes). Counting is in-process and per worker, so this raises the cost of brute force rather than making it impossible.
+
+## OIDC
+
+Only read when `IRIS_AUTHENTICATION_TYPE` is `oidc_proxy`.
+
+- `OIDC_IRIS_PROXY_TRUSTED_IPS` - Comma-separated addresses or CIDR blocks of the reverse proxies allowed to assert an identity when `OIDC_IRIS_TOKEN_VERIFY_MODE` is `lazy`. Matched against the peer address of the connection, which a client cannot forge. **Lazy mode authenticates nobody while this is empty**: it takes the caller's identity from the `X-Email` header without validating any token, so anything that can reach the backend directly could otherwise log in as any registered user. Set it to the address of the proxy that terminates authentication and overwrites `X-Email` (`127.0.0.1` for a sidecar), and make sure that proxy strips client-supplied `X-Email` and `X-Forwarded-Access-Token` headers.
