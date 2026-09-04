@@ -514,6 +514,33 @@ def get_user_by_username(username):
     return user
 
 
+def get_user_by_external_id(external_id: str) -> Optional[User]:
+    if not external_id:
+        return None
+
+    return User.query.filter(User.external_id == external_id).first()
+
+
+def bind_user_external_id(user_id: int, external_id: str) -> bool:
+    """Attach an identity provider subject to a user, if the row carries none yet.
+
+    The "is currently unbound" condition is part of the UPDATE rather than a
+    read followed by a write, so two logins racing on the same account cannot
+    both believe they claimed it. False means the row was already bound and the
+    caller must refuse the login: an account tied to one provider subject may
+    never be silently re-pointed at another, which is the collision VI-011
+    describes.
+    """
+    updated = User.query.filter(
+        User.id == user_id,
+        User.external_id.is_(None)
+    ).update({User.external_id: external_id}, synchronize_session=False)
+
+    db.session.commit()
+
+    return updated == 1
+
+
 def get_users_list():
     users = User.query.all()
 
@@ -634,7 +661,7 @@ def get_users_list_restricted_from_case(case_id):
 
 
 def create_user(user_name: str, user_login: str, user_password: str, user_email: str, user_active: bool,
-                user_is_service_account: bool = False):
+                user_is_service_account: bool = False, external_id: str = None):
 
     if user_is_service_account is True and (user_password is None or user_password == ''):
         pw_hash = None
@@ -643,7 +670,7 @@ def create_user(user_name: str, user_login: str, user_password: str, user_email:
         pw_hash = bc.generate_password_hash(user_password.encode('utf8')).decode('utf8')
 
     user = User(user=user_login, name=user_name, email=user_email, password=pw_hash, active=user_active,
-                is_service_account=user_is_service_account)
+                external_id=external_id, is_service_account=user_is_service_account)
     user.save()
 
     add_user_to_organisation(user.id, org_id=1)

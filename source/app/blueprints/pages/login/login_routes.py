@@ -46,9 +46,11 @@ from app.business.login_throttle import register_login_failure
 from app.business.login_throttle import register_login_success
 from app.business.users import retrieve_user_by_username
 from app.business.auth import wrap_login_user
+from app.datamgmt.manage.manage_users_db import bind_user_external_id
 from app.datamgmt.manage.manage_users_db import create_user
 from app.datamgmt.manage.manage_users_db import update_user_groups
 from app.datamgmt.manage.manage_users_db import get_user
+from app.datamgmt.manage.manage_users_db import get_user_by_external_id
 from app.forms import LoginForm, MFASetupForm
 from app.blueprints.iris_user import iris_current_user
 from app.iris_engine.demo_builder import demo_mode_blocks_mfa
@@ -236,6 +238,133 @@ if is_authentication_oidc():
         return redirect(login_url)
 
 
+# `User.external_id` is a shared namespace — case transfers park imported
+# identities there under a prefix of their own. Keeping the provider subjects
+# behind `oidc:` stops a crafted subject from ever resolving to one of those
+# placeholder accounts, and vice versa.
+_OIDC_EXTERNAL_ID_PREFIX = "oidc:"
+
+
+def _oidc_refuse(message):
+    """Turn an OIDC callback away and leave an operator-visible trail.
+
+    Everything routed through here is a token that wanted an account it did not
+    prove it owned, so unlike the generic protocol failures above these are
+    surfaced in the UI: a burst of them is someone probing the account mapping.
+    """
+    log.warning(message)
+    track_activity(message, ctx_less=True, display_in_ui=True)
+    return redirect(url_for("login.login"))
+
+
+def _oidc_email_claim_is_trusted(claims):
+    """Return True when the token's self-asserted profile may name a local account.
+
+    `email_verified` is the only per-token signal a provider gives about whether
+    it checked the profile data it just sent, so it is what stands in for "these
+    claims were validated". `email_verified: false` is the provider stating the
+    address was never proven to belong to whoever holds the token; trusting it
+    lets anyone who can sign up at the provider type in the address — or the
+    login — of an existing IRIS user and be handed that account (VI-011), so an
+    explicit denial is refused whatever the deployment asked for. A provider that
+    omits the claim is merely silent rather than negative — that stays allowed by
+    default so existing deployments keep working, and operators who want silence
+    treated as a denial set OIDC_REQUIRE_VERIFIED_EMAIL.
+    """
+    email_verified = claims.get("email_verified")
+
+    if email_verified is None:
+        return not app.config.get("OIDC_REQUIRE_VERIFIED_EMAIL")
+
+    # Some providers serialise the claim as a string, where "false" is truthy.
+    if isinstance(email_verified, str):
+        return email_verified.strip().lower() in ("true", "1")
+
+    return bool(email_verified)
+
+
+def _oidc_external_id_from_claims(claims):
+    """Derive the identity to key the local account on, or refuse the token.
+
+    Returns `(external_id, refusal)`; a refusal message means the callback must
+    not log anybody in. A token without a `sub` carries nothing durable to bind
+    to, and falling back to the name claims for it is precisely the behaviour
+    VI-011 reports, so it is turned away rather than resolved by name.
+    """
+    subject = claims.get("sub")
+    if not subject:
+        return None, ("OIDC authentication refused: the token carries no 'sub' claim, so there "
+                      "is nothing stable to bind a local account to")
+
+    return f"{_OIDC_EXTERNAL_ID_PREFIX}{subject}", None
+
+
+def _oidc_resolve_user(external_id, user_login, claims_are_verified):
+    """Map an authenticated OIDC subject onto a local account.
+
+    Returns `(user, refusal)`. A refusal message means the token must not be
+    logged in at all; `(None, None)` means no account matches the subject yet
+    and the caller may create one.
+
+    `sub` is the only part of the token the provider guarantees is stable and
+    unique for the lifetime of the account. `preferred_username` and `email` are
+    routinely user-editable and, on a multi-tenant provider, not even unique.
+    Picking the local account from those claims alone (VI-011) meant anyone who
+    could rename themselves to `administrator` at the provider got the IRIS
+    administrator's session. So the account is keyed on the subject, and the name
+    claims only get a say the first time a subject is seen — after that,
+    renaming yourself at the provider moves nothing.
+
+    `claims_are_verified` gates that one say: see the adoption branch below.
+    """
+    user = get_user_by_external_id(external_id)
+    if user:
+        if user.user != user_login:
+            log.info(
+                f"OIDC subject bound to user '{user.user}' now presents username "
+                f"claim '{user_login}' - keeping the account the subject is bound to"
+            )
+        return user, None
+
+    user = get_user(user_login, "user")
+    if not user:
+        return None, None
+
+    # Trust on first use: an unbound account is adopted by the first subject
+    # that claims its name, which is how existing local accounts migrate to
+    # OIDC. An account already carrying an identity is the collision itself —
+    # a second subject asking for it is either a provider that recycled a
+    # username or an attacker who picked one.
+    if user.external_id:
+        return None, (
+            f"OIDC authentication refused: local user '{user_login}' is already bound to "
+            f"external identity '{user.external_id}', not to '{external_id}'"
+        )
+
+    # Adoption is the single moment where a name claim, rather than the binding,
+    # decides who the caller is — so it is the moment the provider has to be
+    # vouching for what it sent. A profile the token holder typed in themselves
+    # is not a licence to take over an account that already exists, whichever
+    # claim happens to name it. The caller's create-if-missing branch is
+    # deliberately not gated this way: nothing is being taken over when no
+    # account matched, so there is no victim.
+    if not claims_are_verified:
+        return None, (
+            f"OIDC authentication refused: local user '{user_login}' exists but the claims "
+            f"presented by subject '{external_id}' are not verified by the identity provider, "
+            f"so the account cannot be taken over"
+        )
+
+    if not bind_user_external_id(user.id, external_id):
+        return None, (
+            f"OIDC authentication refused: local user '{user_login}' was bound to another "
+            f"external identity while '{external_id}' was being authenticated"
+        )
+
+    log.info(f"Bound OIDC subject to existing user '{user_login}'")
+    return user, None
+
+
 if is_authentication_oidc():
 
     @login_blueprint.route("/oidc-authorize")
@@ -327,7 +456,15 @@ if is_authentication_oidc():
             )
             return redirect(url_for("login.login"))
 
-        user = get_user(user_login, "user")
+        external_id, refusal = _oidc_external_id_from_claims(claims)
+        if refusal:
+            return _oidc_refuse(refusal)
+
+        user, refusal = _oidc_resolve_user(
+            external_id, user_login, _oidc_email_claim_is_trusted(claims)
+        )
+        if refusal:
+            return _oidc_refuse(refusal)
 
         if not user:
             log.warning(f"OIDC user {user_login} not found in database")
@@ -357,6 +494,7 @@ if is_authentication_oidc():
                 user_login,
                 True,
                 user_is_service_account=False,
+                external_id=external_id,
             )
 
         if user and not user.active:

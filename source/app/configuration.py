@@ -537,6 +537,11 @@ class Config:
         OIDC_MAPPING_EMAIL = config.load('OIDC', 'MAPPING_EMAIL', fallback='email')
         OIDC_MAPPING_USERGROUP = config.load('OIDC', 'MAPPING_USERGROUP', fallback=None)
         OIDC_MAPPING_ROLES = config.load('OIDC', 'MAPPING_ROLES', fallback=None)
+        # Whether an absent `email_verified` claim is enough to let a token
+        # take over an existing local account. Off by default so existing
+        # deployments keep working; an explicit `email_verified: false` never
+        # adopts an account either way (VI-011).
+        OIDC_REQUIRE_VERIFIED_EMAIL = config.load('OIDC', 'IRIS_REQUIRE_VERIFIED_EMAIL', fallback="False") == "True"
 
     # Caching
     CACHE_TYPE = 'SimpleCache'
