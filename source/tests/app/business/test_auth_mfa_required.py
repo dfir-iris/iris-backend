@@ -27,13 +27,16 @@ class TestMfaRequiredForUser(TestCase):
         with patch('app.business.auth.mfa_is_enforced', return_value=True):
             self.assertTrue(_mfa_required_for_user(_user()))
 
-    def test_enforced_but_no_mfa_setup_returns_false(self):
+    def test_enforced_but_no_mfa_setup_still_returns_true(self):
+        # VI-003: an unenrolled account must get a step-1 token under an
+        # MFA-enforced policy, not a fully-verified one. Returning False
+        # here is precisely the enrollment bypass.
         with patch('app.business.auth.mfa_is_enforced', return_value=True):
-            self.assertFalse(_mfa_required_for_user(_user(mfa_setup_complete=False)))
+            self.assertTrue(_mfa_required_for_user(_user(mfa_setup_complete=False)))
 
-    def test_enforced_but_no_mfa_secrets_returns_false(self):
+    def test_enforced_but_no_mfa_secrets_still_returns_true(self):
         with patch('app.business.auth.mfa_is_enforced', return_value=True):
-            self.assertFalse(_mfa_required_for_user(_user(mfa_secrets=None)))
+            self.assertTrue(_mfa_required_for_user(_user(mfa_secrets=None)))
 
     def test_not_enforced_even_with_mfa_setup_returns_false(self):
         with patch('app.business.auth.mfa_is_enforced', return_value=False):
@@ -43,14 +46,9 @@ class TestMfaRequiredForUser(TestCase):
         with patch('app.business.auth.mfa_is_enforced', return_value=False):
             self.assertFalse(_mfa_required_for_user(_user(mfa_setup_complete=False, mfa_secrets=None)))
 
-    def test_user_without_mfa_setup_complete_attr_treated_as_false(self):
-        user = MagicMock(spec=['mfa_secrets'])
-        user.mfa_secrets = 'SECRET'
+    def test_user_without_mfa_attributes_follows_the_server_policy(self):
+        user = MagicMock(spec=[])
         with patch('app.business.auth.mfa_is_enforced', return_value=True):
-            self.assertFalse(_mfa_required_for_user(user))
-
-    def test_user_without_mfa_secrets_attr_treated_as_none(self):
-        user = MagicMock(spec=['mfa_setup_complete'])
-        user.mfa_setup_complete = True
-        with patch('app.business.auth.mfa_is_enforced', return_value=True):
+            self.assertTrue(_mfa_required_for_user(user))
+        with patch('app.business.auth.mfa_is_enforced', return_value=False):
             self.assertFalse(_mfa_required_for_user(user))

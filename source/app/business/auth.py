@@ -203,8 +203,28 @@ def update_session_current_case(user: User):
 
 
 def _mfa_required_for_user(user) -> bool:
-    user_has_mfa = bool(getattr(user, 'mfa_setup_complete', False)) and bool(getattr(user, 'mfa_secrets', None))
-    return mfa_is_enforced() and user_has_mfa
+    """Whether tokens minted for `user` must carry verified-MFA state.
+
+    Deliberately independent of whether the account has *completed*
+    enrollment. Gating on `mfa_setup_complete` meant an MFA-enforced
+    deployment handed an unenrolled account a token flagged
+    `mfa_required=False, mfa_verified=True` — i.e. a full-access bearer
+    token obtained by skipping the very enrollment the policy exists to
+    require. An attacker holding only the first factor could log in,
+    ignore the SPA's enrollment redirect, and use the token directly
+    (VI-003).
+
+    Enrollment state still matters, but for routing rather than
+    admission: `_mfa_status_for` reports it so the SPA knows whether to
+    show mfa-setup or mfa-verify. Both screens are reachable with a
+    step-1 token because `/auth/mfa-setup` and `/auth/mfa-verify`
+    authenticate off the refresh token rather than the API guard.
+
+    `user` is unused today — the policy is server-wide — but is kept in
+    the signature since every call site has the user to hand and a
+    per-account exemption would land here.
+    """
+    return mfa_is_enforced()
 
 
 def generate_auth_tokens(user, mfa_verified: bool = False):

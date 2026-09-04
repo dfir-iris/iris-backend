@@ -176,6 +176,35 @@ class TestsAuthMfa(TestCase):
         response = _get_with_bearer('/api/v2/auth/whoami', access_token)
         self.assertEqual(401, response.status_code)
 
+    def test_unenrolled_user_token_should_be_rejected_when_policy_on(self):
+        """VI-003. An account that never completed MFA enrollment must not
+        get a usable token while the policy is enforced — otherwise an
+        attacker with only the password can ignore the SPA's enrollment
+        redirect and call the API straight off the login response."""
+        user_name = f'user{uuid4()}'
+        self._subject.create_user(user_name, _PASSWORD)
+        self._set_enforce_mfa(True)
+
+        body = _login(user_name, _PASSWORD)
+        self.assertFalse(body['mfa_setup_complete'])
+        access_token = body['tokens']['access_token']
+
+        self.assertEqual(401, _get_with_bearer('/api/v2/cases', access_token).status_code)
+        self.assertEqual(401, _get_with_bearer('/api/v2/auth/whoami', access_token).status_code)
+
+    def test_unenrolled_user_can_still_reach_mfa_setup(self):
+        """The flip side of the gate above: the step-1 refresh token must
+        still drive enrollment, or an enforced deployment locks out every
+        account that hasn't enrolled yet."""
+        user_name = f'user{uuid4()}'
+        self._subject.create_user(user_name, _PASSWORD)
+        self._set_enforce_mfa(True)
+
+        refresh_token = _login(user_name, _PASSWORD)['tokens']['refresh_token']
+        secret = pyotp.random_base32()
+        response = _mfa_setup(refresh_token, pyotp.TOTP(secret).now(), secret, _PASSWORD)
+        self.assertEqual(200, response.status_code)
+
     def test_verified_access_token_should_admit_to_protected_endpoint(self):
         user_name, secret = self._provision_mfa_user()
         body = _login(user_name, _PASSWORD)
