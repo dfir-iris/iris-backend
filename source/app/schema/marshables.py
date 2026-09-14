@@ -1123,6 +1123,11 @@ class IocSchema(ma.SQLAlchemyAutoSchema):
     ioc_value: str = auto_field('ioc_value', required=True, validate=Length(min=1), allow_none=False)
     ioc_enrichment: Optional[Dict[str, Any]] = auto_field('ioc_enrichment', required=False)
     ioc_type: Optional[IocTypeSchema] = ma.Nested(IocTypeSchema, required=False)
+    # Dump-only, like IocSchemaForAPIV2 already does: callers set the TLP
+    # through ioc_tlp_id, but every reader of this schema (alerts nest it
+    # for their IOC list) needs the name to display without a second
+    # round-trip to /manage/tlp.
+    tlp = ma.Nested(TlpSchema, dump_only=True)
 
     class Meta:
         model = Ioc

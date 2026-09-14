@@ -47,7 +47,10 @@ from app.datamgmt.alerts.alerts_db import create_case_from_alert
 from app.datamgmt.alerts.alerts_db import create_case_from_alerts
 from app.datamgmt.alerts.alerts_db import merge_alert_in_case
 from app.datamgmt.alerts.alerts_db import unmerge_alert_from_case
+from app.datamgmt.case.case_assets_db import case_assets_db_exists
 from app.datamgmt.case.case_db import get_case
+from app.datamgmt.states import update_assets_state
+from app.datamgmt.states import update_ioc_state
 from app.iris_engine.access_control.utils import ac_set_new_case_access
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -454,6 +457,97 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
     db.session.commit()
     _enqueue_rule_evaluation(updated_alert.alert_id)
     return updated_alert
+
+
+def alerts_get_ioc(alert: Alert, ioc_identifier: int) -> Ioc:
+    """Return the IOC `ioc_identifier`, looked up through `alert`.
+
+    Going through the alert's own collection is the authorization
+    boundary: an IOC which is not attached to an alert the caller may
+    see has to be indistinguishable from one that does not exist.
+    """
+    for ioc in alert.iocs:
+        if ioc.ioc_id == ioc_identifier:
+            return ioc
+
+    raise ObjectNotFoundError()
+
+
+def alerts_get_asset(alert: Alert, asset_identifier: int) -> CaseAssets:
+    """Return the asset `asset_identifier`, looked up through `alert`. See `alerts_get_ioc`."""
+    for asset in alert.assets:
+        if asset.asset_id == asset_identifier:
+            return asset
+
+    raise ObjectNotFoundError()
+
+
+def _updated_object_detail(activity_data) -> str:
+    if not activity_data:
+        return ''
+    return f': {", ".join(activity_data)}'
+
+
+def alerts_update_ioc(alert: Alert, ioc: Ioc, activity_data) -> Ioc:
+    """Persist analyst-supplied details (description, tags, TLP, enrichment) on an alert's IOC."""
+    caller = _resolve_caller()
+    ioc.user_id = caller.id
+
+    # Escalation hands the very same IOC row over to the case rather than
+    # copying it (see create_case_from_alert), so an edit made from the
+    # alert can land on case data. Bump the case's object state or the
+    # case IOC list keeps serving its cached copy.
+    if ioc.case_id is not None:
+        update_ioc_state(ioc.case_id, userid=caller.id)
+
+    detail = _updated_object_detail(activity_data)
+    add_obj_history_entry(ioc, f'updated ioc{detail}')
+    # Mirrored onto the alert too: the alert timeline is where an analyst
+    # looks to see how the alert's observables were documented, and the
+    # IOC's own history is not rendered there.
+    add_obj_history_entry(alert, f'updated IOC "{ioc.ioc_value}"{detail}')
+
+    db.session.commit()
+
+    ioc = call_modules_hook('on_postload_ioc_update', ioc, caseid=ioc.case_id)
+
+    track_activity(f'updated IOC "{ioc.ioc_value}" of alert #{alert.alert_id}{detail}',
+                   caseid=ioc.case_id, ctx_less=ioc.case_id is None)
+
+    return ioc
+
+
+def alerts_update_asset(alert: Alert, asset: CaseAssets, activity_data) -> CaseAssets:
+    """Persist analyst-supplied details (description, IP, domain, tags, enrichment) on an alert's asset."""
+    caller = _resolve_caller()
+
+    # Same shared-row caveat as IOCs — see alerts_update_ioc. The
+    # uniqueness rule only exists within a case: two alerts naming the
+    # same host legitimately hold two rows with a null case_id.
+    if asset.case_id is not None:
+        if case_assets_db_exists(asset):
+            db.session.rollback()
+            raise BusinessProcessingError('Asset with same value and type already exists')
+
+        update_assets_state(asset.case_id, userid=caller.id)
+
+    detail = _updated_object_detail(activity_data)
+    asset.date_update = datetime.utcnow()
+    add_obj_history_entry(asset, f'updated asset{detail}')
+    add_obj_history_entry(alert, f'updated asset "{asset.asset_name}"{detail}')
+
+    db.session.commit()
+
+    asset = call_modules_hook('on_postload_asset_update', asset, caseid=asset.case_id)
+
+    track_activity(f'updated asset "{asset.asset_name}" of alert #{alert.alert_id}{detail}',
+                   caseid=asset.case_id, ctx_less=asset.case_id is None)
+
+    # A rename or retype is a new registry identity — re-observe so the
+    # customer's asset registry follows the edit. Never raises.
+    managed_assets_observe_alert(alert.alert_id)
+
+    return asset
 
 
 def alerts_delete(alert: Alert):

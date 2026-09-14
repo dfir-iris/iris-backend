@@ -33,8 +33,10 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.parsing import parse_comma_separated_identifiers
+from app.blueprints.rest.v2.alerts_routes.assets import alerts_assets_blueprint
 from app.blueprints.rest.v2.alerts_routes.comments import alerts_comments_blueprint
 from app.blueprints.rest.v2.alerts_routes.investigation_progress import alerts_investigation_progress_blueprint
+from app.blueprints.rest.v2.alerts_routes.iocs import alerts_iocs_blueprint
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import check_ua_case_client
 from app.business.alerts import ALERT_SORT_COLUMNS
@@ -424,6 +426,8 @@ class AlertsOperations:
 alerts_blueprint = Blueprint('alerts_rest_v2', __name__, url_prefix='/alerts')
 alerts_blueprint.register_blueprint(alerts_comments_blueprint)
 alerts_blueprint.register_blueprint(alerts_investigation_progress_blueprint)
+alerts_blueprint.register_blueprint(alerts_iocs_blueprint)
+alerts_blueprint.register_blueprint(alerts_assets_blueprint)
 
 alerts_operations = AlertsOperations()
 

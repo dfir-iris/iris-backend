@@ -635,6 +635,44 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/alerts/{alert_identifier}/assets/{identifier}:
+    put:
+      operationId: update_alert_asset_put
+      summary: Update the details of an asset attached to an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseAssetsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssets'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/alerts/{alert_identifier}/comments:
     get:
       operationId: get_alerts_comments_get
@@ -799,6 +837,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/alerts/{alert_identifier}/iocs/{identifier}:
+    put:
+      operationId: update_alert_ioc_put
+      summary: Update the details of an IOC attached to an alert
+      tags:
+      - Alerts
+      security:
+      - ApiKey: []
+      parameters:
+      - name: alert_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IocRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ioc'
         '400':
           $ref: '#/components/responses/ApiError'
         '403':
@@ -19153,6 +19229,8 @@ components:
           - 'null'
         ioc_type:
           $ref: '#/components/schemas/IocType'
+        tlp:
+          $ref: '#/components/schemas/Tlp'
         ioc_id:
           type: integer
           format: int64
