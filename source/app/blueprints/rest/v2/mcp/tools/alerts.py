@@ -16,6 +16,9 @@ from app.blueprints.rest.v2.mcp.registry import mcp_tool
 from app.blueprints.rest.v2.mcp.tools._common import (
     DEFAULT_PER_PAGE,
     MAX_PER_PAGE,
+    VIEW_SCHEMA_FRAGMENT,
+    clip_text_field,
+    schema_for_view,
 )
 from app.business.access_controls import check_ua_case_client
 from app.business.alerts import (
@@ -37,6 +40,62 @@ import copy
 
 
 _alert_schema = AlertSchema()
+
+# Default projection for `iris_alerts_list`. Everything a triage pass
+# reasons over — ids to act on, names so no taxonomy lookup is needed
+# first, and the IOC / asset *values* rather than their full records.
+#
+# Deliberately absent: `alert_source_content` and `alert_context` (the
+# raw detection payloads, routinely several KB each), `modification_history`,
+# `comments`, `custom_attributes`. Those are what make an unprojected
+# page of alerts cost tens of thousands of tokens, and none of them are
+# needed to decide which alert to open. `view=full` or
+# `iris_alerts_get` still return them.
+_ALERT_SUMMARY_FIELDS = (
+    'alert_id',
+    'alert_title',
+    'alert_description',
+    'alert_source',
+    'alert_source_ref',
+    'alert_source_event_time',
+    'alert_creation_time',
+    'alert_tags',
+    'alert_severity_id',
+    'alert_status_id',
+    'alert_resolution_status_id',
+    'alert_classification_id',
+    'alert_customer_id',
+    'alert_owner_id',
+    'severity.severity_name',
+    'status.status_name',
+    'resolution_status.resolution_status_name',
+    'classification.name',
+    'customer.customer_name',
+    'owner.id',
+    'owner.user_name',
+    'iocs.ioc_id',
+    'iocs.ioc_value',
+    'iocs.ioc_type_id',
+    'assets.asset_id',
+    'assets.asset_name',
+    'assets.asset_type_id',
+    'cases',
+    'clusters',
+)
+
+_alert_summary_schema = AlertSchema(only=_ALERT_SUMMARY_FIELDS)
+
+# Long free-text clipped to a preview in list responses: enough to tell
+# two alerts apart, not enough to matter times a page of rows.
+#
+# Sized against the response budget rather than picked by eye. The rest
+# of a projected alert row is ~1.2 kB, so at the default page of 25 the
+# description is what decides whether the page fits inside
+# `result_budget.MAX_RESULT_BYTES`. At 300 a full page lands comfortably
+# under it; at 600 it does not, and every ordinary list call would come
+# back carrying a truncation notice. Read a description in full with
+# `iris_alerts_get`.
+_ALERT_LIST_PREVIEWS = {'alert_description': 300}
 
 
 # Fields the LLM is allowed to update via iris_alerts_update. Kept in
@@ -84,11 +143,14 @@ def _get_alert(alert_id: int):
         'omit them to page through every alert the caller has access to. '
         'Prefer the `query` expression over the scalar filters: it says in '
         'one string what most of them say together, and it resolves names '
-        'so no id lookup is needed first.'
+        'so no id lookup is needed first. Rows come back as triage '
+        'summaries; use `iris_alerts_get` for one alert in full, including '
+        'its raw source payload.'
     ),
     input_schema={
         'type': 'object',
         'properties': {
+            **VIEW_SCHEMA_FRAGMENT,
             'query': {
                 'type': 'string',
                 'description': (
@@ -181,9 +243,14 @@ def iris_alerts_list(args: dict) -> dict:
             protocol.INVALID_PARAMS, f'{exc.get_message()}{where}'
         ) from exc
 
+    schema = schema_for_view(args, _alert_summary_schema, _alert_schema)
+    rows = schema.dump(result.items, many=True)
+    for field, limit in _ALERT_LIST_PREVIEWS.items():
+        clip_text_field(rows, field, limit)
+
     return {
         'total': result.total,
-        'data': _alert_schema.dump(result.items, many=True),
+        'data': rows,
         'last_page': result.pages,
         'current_page': result.page,
         'next_page': result.next_num if result.has_next else None,

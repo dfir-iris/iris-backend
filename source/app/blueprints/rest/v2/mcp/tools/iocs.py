@@ -12,8 +12,10 @@ from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
 from app.blueprints.rest.v2.mcp.tools._common import (
     PAGINATION_SCHEMA_FRAGMENT,
+    VIEW_SCHEMA_FRAGMENT,
     build_pagination,
     dump_paginated,
+    schema_for_view,
 )
 from app.business.iocs import (
     iocs_create,
@@ -30,6 +32,24 @@ from app.schema.marshables import IocSchema, IocSchemaForAPIV2
 _ioc_schema = IocSchemaForAPIV2()
 _ioc_update_schema = IocSchema()
 
+# Default projection for `iris_case_iocs_list`. Drops `ioc_enrichment`
+# and `ioc_misp` — third-party enrichment documents whose size is set by
+# whatever module wrote them — plus `modification_history`, `link` and
+# `custom_attributes`.
+_IOC_SUMMARY_FIELDS = (
+    'ioc_id',
+    'ioc_value',
+    'ioc_description',
+    'ioc_tags',
+    'ioc_type_id',
+    'ioc_tlp_id',
+    'case_id',
+    'ioc_type.type_name',
+    'tlp.tlp_name',
+)
+
+_ioc_summary_schema = IocSchemaForAPIV2(only=_IOC_SUMMARY_FIELDS)
+
 
 def _get_ioc_in_case(ioc_id: int, case_id: int):
     ioc = iocs_get(ioc_id)
@@ -41,10 +61,16 @@ def _get_ioc_in_case(ioc_id: int, case_id: int):
 
 @mcp_tool(
     name='iris_case_iocs_list',
-    description='List IOCs attached to a case.',
+    description=(
+        'List IOCs attached to a case. Rows come back as summaries; use '
+        '`iris_case_iocs_get` for one IOC in full, including its enrichment.'
+    ),
     input_schema={
         'type': 'object',
-        'properties': PAGINATION_SCHEMA_FRAGMENT,
+        'properties': {
+            **PAGINATION_SCHEMA_FRAGMENT,
+            **VIEW_SCHEMA_FRAGMENT,
+        },
     },
     permissions=(Permissions.standard_user,),
     case_scoped=True,
@@ -52,7 +78,9 @@ def _get_ioc_in_case(ioc_id: int, case_id: int):
 )
 def iris_case_iocs_list(args: dict) -> dict:
     result = iocs_filter(args['case_identifier'], build_pagination(args), {})
-    return dump_paginated(_ioc_schema, result)
+    return dump_paginated(
+        schema_for_view(args, _ioc_summary_schema, _ioc_schema), result,
+    )
 
 
 @mcp_tool(

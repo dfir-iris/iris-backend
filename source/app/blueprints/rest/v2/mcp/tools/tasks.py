@@ -12,8 +12,10 @@ from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
 from app.blueprints.rest.v2.mcp.tools._common import (
     PAGINATION_SCHEMA_FRAGMENT,
+    VIEW_SCHEMA_FRAGMENT,
     build_pagination,
     dump_paginated,
+    schema_for_view,
 )
 from app.business.tasks import (
     tasks_create,
@@ -28,6 +30,32 @@ from app.schema.marshables import CaseTaskSchema
 
 _task_schema = CaseTaskSchema()
 
+# Default projection for `iris_case_tasks_list`. Drops the nested `case`
+# (the caller already supplied `case_identifier`) plus
+# `modification_history` and `custom_attributes`.
+#
+# `task_assignees` is listed even though it is a bounded handful of user
+# records: `CaseTaskSchema.populate_assignees` is a `@post_dump` hook, so
+# it back-fills the key after `only=` has been applied and the field
+# comes back whether or not it is declared here. Listing it keeps this
+# tuple an accurate description of the response.
+_TASK_SUMMARY_FIELDS = (
+    'id',
+    'task_title',
+    'task_description',
+    'task_tags',
+    'task_status_id',
+    'task_open_date',
+    'task_close_date',
+    'task_last_update',
+    'task_case_id',
+    'task_assignees',
+    'task_assignees_id',
+    'status.status_name',
+)
+
+_task_summary_schema = CaseTaskSchema(only=_TASK_SUMMARY_FIELDS)
+
 
 def _get_task_in_case(task_id: int, case_id: int):
     task = tasks_get(task_id)
@@ -39,10 +67,16 @@ def _get_task_in_case(task_id: int, case_id: int):
 
 @mcp_tool(
     name='iris_case_tasks_list',
-    description='List tasks attached to a case.',
+    description=(
+        'List tasks attached to a case. Rows come back as summaries; use '
+        '`iris_case_tasks_get` for one task in full.'
+    ),
     input_schema={
         'type': 'object',
-        'properties': PAGINATION_SCHEMA_FRAGMENT,
+        'properties': {
+            **PAGINATION_SCHEMA_FRAGMENT,
+            **VIEW_SCHEMA_FRAGMENT,
+        },
     },
     permissions=(Permissions.standard_user,),
     case_scoped=True,
@@ -50,7 +84,9 @@ def _get_task_in_case(task_id: int, case_id: int):
 )
 def iris_case_tasks_list(args: dict) -> dict:
     result = tasks_filter(args['case_identifier'], build_pagination(args))
-    return dump_paginated(_task_schema, result)
+    return dump_paginated(
+        schema_for_view(args, _task_summary_schema, _task_schema), result,
+    )
 
 
 @mcp_tool(

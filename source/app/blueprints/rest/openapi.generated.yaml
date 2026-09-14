@@ -13937,7 +13937,8 @@ paths:
       summary: 'Search alerts visible to the caller. All filters are optional; omit them to page through
         every alert the caller has access to. Prefer the `query` expression over the scalar filters: it
         says in one string what most of them say together, and it resolves names so no id lookup is needed
-        first.'
+        first. Rows come back as triage summaries; use `iris_alerts_get` for one alert in full, including
+        its raw source payload.'
       tags:
       - MCP
       - MCP:tools
@@ -13958,6 +13959,17 @@ paths:
             schema:
               type: object
               properties:
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 query:
                   type: string
                   description: 'Lucene-style search expression, ANDed with the other filters. Values are
@@ -14440,7 +14452,8 @@ paths:
   /api/v2/mcp/tools/iris_case_assets_list:
     post:
       operationId: mcp_tool_iris_case_assets_list
-      summary: List assets attached to a case.
+      summary: List assets attached to a case. Rows come back as summaries; use `iris_case_assets_get`
+        for one asset in full, including its linked IOCs and alerts.
       tags:
       - MCP
       - MCP:tools
@@ -14473,6 +14486,17 @@ paths:
                 sort_dir:
                   type: string
                   description: '''asc'' or ''desc''.'
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -14660,7 +14684,8 @@ paths:
   /api/v2/mcp/tools/iris_case_iocs_list:
     post:
       operationId: mcp_tool_iris_case_iocs_list
-      summary: List IOCs attached to a case.
+      summary: List IOCs attached to a case. Rows come back as summaries; use `iris_case_iocs_get` for
+        one IOC in full, including its enrichment.
       tags:
       - MCP
       - MCP:tools
@@ -14693,6 +14718,17 @@ paths:
                 sort_dir:
                   type: string
                   description: '''asc'' or ''desc''.'
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -14956,8 +14992,9 @@ paths:
   /api/v2/mcp/tools/iris_case_notes_list:
     post:
       operationId: mcp_tool_iris_case_notes_list
-      summary: Search case notes by free-text; returns matching note summaries. Pass an empty string to
-        list all notes in the case.
+      summary: "Search case notes by free-text. Pass an empty string to list all notes in the case. Returns\
+        \ note summaries with the body clipped to a short preview \u2014 call `iris_case_notes_get` with\
+        \ a `note_id` from the result to read a note in full."
       tags:
       - MCP
       - MCP:tools
@@ -14978,6 +15015,17 @@ paths:
             schema:
               type: object
               properties:
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 search_input:
                   type: string
                 case_identifier:
@@ -15126,7 +15174,8 @@ paths:
   /api/v2/mcp/tools/iris_case_tasks_list:
     post:
       operationId: mcp_tool_iris_case_tasks_list
-      summary: List tasks attached to a case.
+      summary: List tasks attached to a case. Rows come back as summaries; use `iris_case_tasks_get` for
+        one task in full.
       tags:
       - MCP
       - MCP:tools
@@ -15159,6 +15208,17 @@ paths:
                 sort_dir:
                   type: string
                   description: '''asc'' or ''desc''.'
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -15428,6 +15488,17 @@ paths:
                 sort_dir:
                   type: string
                   description: '''asc'' or ''desc''.'
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 case_name:
                   type: string
                 case_description:
@@ -15504,7 +15575,8 @@ paths:
   /api/v2/mcp/tools/iris_cases_list:
     post:
       operationId: mcp_tool_iris_cases_list
-      summary: List IRIS cases visible to the caller, with optional quick-search.
+      summary: List IRIS cases visible to the caller, with optional quick-search. Rows come back as summaries;
+        use `iris_cases_get` for one case in full.
       tags:
       - MCP
       - MCP:tools
@@ -15537,6 +15609,17 @@ paths:
                 sort_dir:
                   type: string
                   description: '''asc'' or ''desc''.'
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
                 quick_search:
                   type: string
                   description: Free-text match on case name, customer name, or numeric ID.

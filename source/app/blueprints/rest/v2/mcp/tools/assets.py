@@ -13,8 +13,10 @@ from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
 from app.blueprints.rest.v2.mcp.tools._common import (
     PAGINATION_SCHEMA_FRAGMENT,
+    VIEW_SCHEMA_FRAGMENT,
     build_pagination,
     dump_paginated,
+    schema_for_view,
 )
 from app.business.assets import (
     assets_create,
@@ -30,6 +32,28 @@ from app.schema.marshables import CaseAssetsSchema
 
 _asset_schema = CaseAssetsSchema()
 
+# Default projection for `iris_case_assets_list`. Drops the nested
+# `alerts`, `iocs` and `ioc_links` collections — an asset seen in many
+# alerts otherwise drags all of them into every row — along with
+# `asset_enrichment`, `asset_info`, `modification_history` and
+# `custom_attributes`.
+_ASSET_SUMMARY_FIELDS = (
+    'asset_id',
+    'asset_name',
+    'asset_description',
+    'asset_domain',
+    'asset_ip',
+    'asset_tags',
+    'asset_type_id',
+    'analysis_status_id',
+    'asset_compromise_status_id',
+    'case_id',
+    'asset_type.asset_name',
+    'analysis_status.name',
+)
+
+_asset_summary_schema = CaseAssetsSchema(only=_ASSET_SUMMARY_FIELDS)
+
 
 def _get_asset_in_case(asset_id: int, case_id: int):
     asset = assets_get(asset_id)
@@ -41,10 +65,17 @@ def _get_asset_in_case(asset_id: int, case_id: int):
 
 @mcp_tool(
     name='iris_case_assets_list',
-    description='List assets attached to a case.',
+    description=(
+        'List assets attached to a case. Rows come back as summaries; use '
+        '`iris_case_assets_get` for one asset in full, including its linked '
+        'IOCs and alerts.'
+    ),
     input_schema={
         'type': 'object',
-        'properties': PAGINATION_SCHEMA_FRAGMENT,
+        'properties': {
+            **PAGINATION_SCHEMA_FRAGMENT,
+            **VIEW_SCHEMA_FRAGMENT,
+        },
     },
     permissions=(Permissions.standard_user,),
     case_scoped=True,
@@ -57,7 +88,9 @@ def iris_case_assets_list(args: dict) -> dict:
         raise MCPError(protocol.INVALID_PARAMS, 'Case not found.') from exc
     except BusinessProcessingError as exc:
         raise MCPError(protocol.INTERNAL_ERROR, exc.get_message()) from exc
-    return dump_paginated(_asset_schema, result)
+    return dump_paginated(
+        schema_for_view(args, _asset_summary_schema, _asset_schema), result,
+    )
 
 
 @mcp_tool(

@@ -13,8 +13,11 @@ from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
 from app.blueprints.rest.v2.mcp.tools._common import (
     PAGINATION_SCHEMA_FRAGMENT,
+    VIEW_SCHEMA_FRAGMENT,
     build_pagination,
+    clip_text_field,
     dump_paginated,
+    schema_for_view,
 )
 from app.business.notes import (
     notes_create,
@@ -35,6 +38,29 @@ from app.schema.marshables import CaseNoteDirectorySchema, CaseNoteSchema
 _note_schema = CaseNoteSchema()
 _directory_schema = CaseNoteDirectorySchema()
 
+# Default projection for `iris_case_notes_list`. `notes_search` is not
+# paginated, so this tool returns *every* matching note in the case —
+# unprojected that is every note body plus every comment thread in one
+# payload, easily the largest single response any tool can produce.
+#
+# `note_content` is kept but clipped to a preview: the search is
+# free-text, so a result set with no content at all would leave the
+# caller unable to tell which note matched and why.
+_NOTE_SUMMARY_FIELDS = (
+    'note_id',
+    'note_title',
+    'note_content',
+    'note_creationdate',
+    'note_lastupdate',
+    'note_user',
+    'directory_id',
+    'directory.name',
+)
+
+_note_summary_schema = CaseNoteSchema(only=_NOTE_SUMMARY_FIELDS)
+
+_NOTE_LIST_PREVIEWS = {'note_content': 400}
+
 
 def _get_note_in_case(note_id: int, case_id: int):
     note = notes_get(note_id)
@@ -47,12 +73,15 @@ def _get_note_in_case(note_id: int, case_id: int):
 @mcp_tool(
     name='iris_case_notes_list',
     description=(
-        'Search case notes by free-text; returns matching note summaries. '
-        'Pass an empty string to list all notes in the case.'
+        'Search case notes by free-text. Pass an empty string to list all '
+        'notes in the case. Returns note summaries with the body clipped to '
+        'a short preview — call `iris_case_notes_get` with a `note_id` from '
+        'the result to read a note in full.'
     ),
     input_schema={
         'type': 'object',
         'properties': {
+            **VIEW_SCHEMA_FRAGMENT,
             'search_input': {'type': 'string'},
         },
     },
@@ -66,7 +95,11 @@ def iris_case_notes_list(args: dict) -> dict:
         notes = notes_search(args['case_identifier'], search_input)
     except BusinessProcessingError as exc:
         raise MCPError(protocol.INTERNAL_ERROR, exc.get_message()) from exc
-    return {'notes': _note_schema.dump(notes, many=True)}
+    schema = schema_for_view(args, _note_summary_schema, _note_schema)
+    rows = schema.dump(notes, many=True)
+    for field, limit in _NOTE_LIST_PREVIEWS.items():
+        clip_text_field(rows, field, limit)
+    return {'notes': rows}
 
 
 @mcp_tool(

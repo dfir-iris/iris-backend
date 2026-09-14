@@ -14,8 +14,10 @@ from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
 from app.blueprints.rest.v2.mcp.tools._common import (
     PAGINATION_SCHEMA_FRAGMENT,
+    VIEW_SCHEMA_FRAGMENT,
     build_pagination,
     dump_paginated,
+    schema_for_view,
 )
 from app.business.cases import (
     cases_close,
@@ -33,6 +35,47 @@ from app.schema.marshables import CaseDetailsSchema, CaseSchemaForAPIV2
 
 _case_schema = CaseSchemaForAPIV2()
 _case_details_schema = CaseDetailsSchema()
+
+# Default projection for the two case list tools. Keeps both the ids
+# (needed to act on a case) and the resolved names (needed to reason
+# about it without a taxonomy round-trip).
+#
+# Deliberately absent: `alerts` and `note_directories` — nested
+# collections that make a single case row unbounded — plus
+# `protagonists` (which costs an extra subquery per row),
+# `modification_history`, `custom_attributes` and `closing_note`.
+# `view=full` and `iris_cases_get` still return them.
+_CASE_SUMMARY_FIELDS = (
+    'case_id',
+    'name',
+    'description',
+    'soc_id',
+    'open_date',
+    'close_date',
+    'status_id',
+    'status_name',
+    'classification_id',
+    'severity_id',
+    'state_id',
+    'owner_id',
+    'client_id',
+    'state.state_name',
+    'severity.severity_name',
+    'classification.name',
+    'client.customer_name',
+    'owner.id',
+    'owner.user_name',
+    'tags.tag_title',
+)
+
+_case_summary_schema = CaseDetailsSchema(only=_CASE_SUMMARY_FIELDS)
+
+# Case descriptions carry post-mortems and closing notes, so they can
+# run to pages. Worth a preview per row, not a full body per row — and
+# kept to the same 300 as alerts so a default page stays inside
+# `result_budget.MAX_RESULT_BYTES` instead of being trimmed by it. Use
+# `iris_cases_get` to read one in full.
+_CASE_LIST_PREVIEWS = {'description': 300}
 
 
 # Explicit `payload` schema for create + update. Mirrors
@@ -95,11 +138,15 @@ _CASE_PAYLOAD_PROPERTIES: dict[str, dict] = {
 
 @mcp_tool(
     name='iris_cases_list',
-    description='List IRIS cases visible to the caller, with optional quick-search.',
+    description=(
+        'List IRIS cases visible to the caller, with optional quick-search. '
+        'Rows come back as summaries; use `iris_cases_get` for one case in full.'
+    ),
     input_schema={
         'type': 'object',
         'properties': {
             **PAGINATION_SCHEMA_FRAGMENT,
+            **VIEW_SCHEMA_FRAGMENT,
             'quick_search': {
                 'type': 'string',
                 'description': 'Free-text match on case name, customer name, or numeric ID.',
@@ -122,7 +169,11 @@ def iris_cases_list(args: dict) -> dict:
     )
     if result is None:
         raise MCPError(protocol.INTERNAL_ERROR, 'Case filter returned no result.')
-    return dump_paginated(_case_details_schema, result)
+    return dump_paginated(
+        schema_for_view(args, _case_summary_schema, _case_details_schema),
+        result,
+        previews=_CASE_LIST_PREVIEWS,
+    )
 
 
 @mcp_tool(
@@ -135,6 +186,7 @@ def iris_cases_list(args: dict) -> dict:
         'type': 'object',
         'properties': {
             **PAGINATION_SCHEMA_FRAGMENT,
+            **VIEW_SCHEMA_FRAGMENT,
             'case_name': {'type': 'string'},
             'case_description': {'type': 'string'},
             'case_customer_id': {'type': 'string'},
@@ -171,7 +223,11 @@ def iris_cases_filter(args: dict) -> dict:
     )
     if result is None:
         raise MCPError(protocol.INTERNAL_ERROR, 'Case filter returned no result.')
-    return dump_paginated(_case_details_schema, result)
+    return dump_paginated(
+        schema_for_view(args, _case_summary_schema, _case_details_schema),
+        result,
+        previews=_CASE_LIST_PREVIEWS,
+    )
 
 
 @mcp_tool(

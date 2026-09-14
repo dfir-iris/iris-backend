@@ -34,6 +34,7 @@ from app.blueprints.rest.v2.mcp.registry import (
     ToolSpec,
     active_tool_names,
 )
+from app.blueprints.rest.v2.mcp.result_budget import apply_result_budget
 from app.business.server_settings import get_srv_settings
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel, Permissions, WarRoomAccessLevel
@@ -238,6 +239,13 @@ def dispatch_tool_call(tool_name: str, raw_args: dict) -> Any:
             protocol.INTERNAL_ERROR,
             f'Tool {tool_name!r} raised: {exc}',
         ) from exc
+
+    # Bound the payload before it reaches the caller. Tool bodies choose
+    # their own projections; this is the floor that applies even to the
+    # ones that don't, and to any `view=full` request.
+    result, truncation = apply_result_budget(result)
+    if truncation is not None:
+        log.info('MCP tool %s result truncated: %s', tool_name, truncation)
 
     # Audit only successful mutating/read calls. `tools/list` and
     # `initialize` are called on every session start and would flood the
