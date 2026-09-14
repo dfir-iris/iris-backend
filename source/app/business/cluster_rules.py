@@ -24,6 +24,7 @@ from typing import Optional
 
 from app.business.access_controls import access_controls_user_accessible_customers
 from app.business.access_controls import access_controls_user_has_customer_scope
+from app.business.alert_clusters import alert_cluster_open_for_rule_alert
 from app.business.alert_clusters import alert_cluster_open_matching
 from app.datamgmt.filtering import apply_custom_conditions
 from app.datamgmt.filtering import combine_conditions
@@ -219,6 +220,14 @@ def _apply_create_cluster(rule: ClusterRule, alert: Alert) -> Optional[AlertClus
     config = rule.rule_action_config or {}
     dedupe_key = _dedupe_key(alert, rule)
     existing = alert_cluster_open_matching(alert.alert_customer_id, dedupe_key)
+    if existing is None:
+        # The key missed, but that does not mean this rule has not already
+        # clustered this alert: `_dedupe_key` buckets on wall-clock time,
+        # so re-evaluating an alert (enqueued on every update, and on
+        # Celery retry) across a window boundary yields a different key.
+        # Creating here would leave one alert in two clusters of this
+        # rule's, shown as two identical-looking rows in the queue.
+        existing = alert_cluster_open_for_rule_alert(rule.rule_id, alert.alert_id)
     if existing is not None:
         if alert.alert_id not in {a.alert_id for a in existing.alerts}:
             existing.alerts.append(alert)

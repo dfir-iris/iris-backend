@@ -34,6 +34,7 @@ from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.models.alerts import AlertStatus
 from app.models.alert_clusters import AlertCluster
+from app.models.alert_clusters import AlertClusterAssociation
 from app.models.alert_clusters import AlertClusterStatus
 from app.util import add_obj_history_entry
 
@@ -553,3 +554,34 @@ def alert_cluster_open_matching(customer_id: int, dedupe_key: str) -> Optional[A
         AlertCluster.cluster_dedupe_key == dedupe_key,
         AlertCluster.cluster_status_id.in_([open_status_id, investigating_status_id]),
     ).order_by(AlertCluster.cluster_creation_time.desc()).first()
+
+
+def alert_cluster_open_for_rule_alert(rule_id: int, alert_id: int) -> Optional[AlertCluster]:
+    """The open cluster this rule has already put this alert in, if any.
+
+    The dedupe key alone cannot answer that. It carries a wall-clock time
+    bucket, so the same rule evaluating the same alert twice either side
+    of a `time_window_seconds` boundary computes two different keys,
+    finds no match the second time and opens a second cluster holding the
+    same alert. Re-evaluation is routine — it is enqueued on every alert
+    update, and the Celery task retries with backoff — so this is
+    reachable in normal operation, and the alert then renders once per
+    cluster in the triage queue.
+
+    One rule should place an alert in at most one cluster, which is what
+    this restores. Backfill already skips alerts that are in a cluster
+    for a related reason; the live create/update path had no such guard.
+
+    Ordered oldest-first so repeated evaluation converges on the cluster
+    the alert first landed in rather than hopping to the newest one.
+    """
+    open_status_id = _status_id(_STATUS_OPEN)
+    investigating_status_id = _status_id(_STATUS_INVESTIGATING)
+    return AlertCluster.query.join(
+        AlertClusterAssociation,
+        AlertClusterAssociation.cluster_id == AlertCluster.cluster_id,
+    ).filter(
+        AlertCluster.cluster_source_rule_id == rule_id,
+        AlertClusterAssociation.alert_id == alert_id,
+        AlertCluster.cluster_status_id.in_([open_status_id, investigating_status_id]),
+    ).order_by(AlertCluster.cluster_creation_time.asc()).first()
