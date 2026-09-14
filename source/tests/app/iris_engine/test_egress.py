@@ -17,7 +17,7 @@ from app.iris_engine.utils.egress import egress_destination_error
 
 def _resolving_to(*addresses):
     """Stand in for socket.getaddrinfo, returning the given addresses."""
-    return lambda *args, **kwargs: [(None, None, None, None, (address, 0)) for address in addresses]
+    return lambda *_args, **_kwargs: [(None, None, None, None, (address, 0)) for address in addresses]
 
 
 class TestEgressDestinationError(TestCase):

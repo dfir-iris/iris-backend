@@ -601,3 +601,14 @@ group_is_demo_protected  # unused variable (source/app/schema/marshables.py:2404
 user_is_demo_protected  # unused variable (source/app/schema/marshables.py:2904)
 user_permissions  # unused variable (source/app/schema/marshables.py:2896) — ma.Nested field, attribute='permissions'
 _.get_is_demo_protected  # unused method (source/app/schema/marshables.py:2412,2930)
+######### Egress guard / login throttle / OIDC: config keys read through app.config[...] by name
+ALLOW_PRIVATE_EGRESS  # read in iris_engine/utils/egress.py:87
+LOGIN_MAX_ATTEMPTS  # read in business/login_throttle.py:71
+LOGIN_MAX_ATTEMPTS_PER_CLIENT  # read in business/login_throttle.py:75
+LOGIN_LOCKOUT_SECONDS  # read in business/login_throttle.py:67
+AUTHENTICATION_ISSUER  # read in blueprints/access_controls.py:572
+AUTHENTICATION_PROXY_TRUSTED_IPS  # read in blueprints/access_controls.py:478
+OIDC_REQUIRE_VERIFIED_EMAIL  # read in blueprints/pages/login/login_routes.py:277
+######### Test hooks invoked outside source/app
+# vulture only scans source/app, so callers under source/tests are invisible.
+reset_login_throttle  # unused function (source/app/business/login_throttle.py:151) — called by source/tests/app/business/test_login_throttle.py:38,39

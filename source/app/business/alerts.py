@@ -39,7 +39,7 @@ from app.datamgmt.alerts.alerts_db import get_alert_by_id
 from app.datamgmt.alerts.alerts_db import delete_alert
 from app.datamgmt.alerts.alerts_db import get_filtered_alerts
 from app.datamgmt.alerts.alerts_db import get_filtered_alert_groups
-from app.datamgmt.alerts.alerts_db import ALERT_SORT_COLUMNS
+from app.datamgmt.alerts.alerts_db import ALERT_SORT_COLUMNS  # noqa: F401  re-exported for the API layer, which may not import datamgmt
 from app.datamgmt.alerts.alerts_db import get_related_alerts_details
 from app.datamgmt.alerts.alerts_db import get_assets_with_cases
 from app.datamgmt.alerts.alerts_db import get_iocs_with_cases
