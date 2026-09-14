@@ -49,3 +49,20 @@ class UnhandledBusinessError(BusinessProcessingError):
 class ElementInUseError(BusinessProcessingError):
 
     pass
+
+
+class SearchQueryError(BusinessProcessingError):
+    """A search expression the user typed cannot be understood.
+
+    Carries the character offset the problem was found at so the client
+    can underline it rather than just print the message. `position` is
+    `None` when the fault is not attributable to a single offset (e.g.
+    the expression is too long).
+    """
+
+    def __init__(self, message, position=None):
+        super().__init__(message, data={'position': position} if position is not None else None)
+        self._position = position
+
+    def get_position(self):
+        return self._position

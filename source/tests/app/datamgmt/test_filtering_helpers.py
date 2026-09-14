@@ -129,11 +129,57 @@ class TestBuildConditionOrderedComparisons(TestCase):
         bound = list(compiled.params.values())[0]
         self.assertIsInstance(bound, str)
 
+    def test_gt_renders_a_strict_greater_comparison(self):
+        # The strict forms arrived with the alert search bar, which needs
+        # them for exclusive ranges — `created:{a TO b}`.
+        expr = build_condition(_INT_COL, 'gt', 3)
+        self.assertIn('>', str(expr))
+        self.assertNotIn('>=', str(expr))
+
+    def test_lt_renders_a_strict_less_comparison(self):
+        expr = build_condition(_INT_COL, 'lt', 3)
+        self.assertIn('<', str(expr))
+        self.assertNotIn('<=', str(expr))
+
+    def test_gt_coerces_string_value_to_int(self):
+        # Same binding trap as gte/lte: a string bind makes Postgres raise
+        # "operator does not exist: integer > text".
+        expr = build_condition(_INT_COL, 'gt', '0')
+        from sqlalchemy.dialects import postgresql
+        compiled = expr.compile(dialect=postgresql.dialect())
+        bound = list(compiled.params.values())[0]
+        self.assertIsInstance(bound, int)
+
     def test_operator_outside_the_vocabulary_still_raises(self):
-        # 'gt'/'lt' are not offered by the builder and remain unsupported —
-        # adding gte/lte must not open the door to arbitrary operators.
+        # Adding ordered comparisons must not open the door to arbitrary
+        # operator names reaching SQLAlchemy.
         with self.assertRaises(ValueError):
-            build_condition(_INT_COL, 'gt', 3)
+            build_condition(_INT_COL, 'between', 3)
+
+
+class TestBuildConditionIlikePattern(TestCase):
+    """`ilike_pattern` takes a pattern the caller already built.
+
+    The search-bar compiler has to decide which `*` is a wildcard and
+    which `%` the analyst typed literally; `like` wrapping the value in
+    `%…%` here would undo that decision.
+    """
+
+    def test_pattern_is_used_verbatim(self):
+        expr = build_condition(_STR_COL, 'ilike_pattern', '%.corp.local')
+        from sqlalchemy.dialects import postgresql
+        compiled = expr.compile(dialect=postgresql.dialect())
+        self.assertIn('%.corp.local', compiled.params.values())
+
+    def test_pattern_carries_an_escape_clause(self):
+        # Without ESCAPE, a literal `%` in the analyst's text would still
+        # behave as a wildcard however carefully it was escaped.
+        expr = build_condition(_STR_COL, 'ilike_pattern', '%100\\%%')
+        self.assertIn('ESCAPE', str(expr).upper())
+
+    def test_pattern_on_integer_column_casts_to_text(self):
+        expr = build_condition(_INT_COL, 'ilike_pattern', '12%')
+        self.assertIn('CAST', str(expr).upper())
 
 
 class TestBuildConditionIlikeOnNonTextColumns(TestCase):

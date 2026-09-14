@@ -47,6 +47,7 @@ from app.datamgmt.alerts.alerts_db import create_case_from_alert
 from app.datamgmt.alerts.alerts_db import create_case_from_alerts
 from app.datamgmt.alerts.alerts_db import merge_alert_in_case
 from app.datamgmt.alerts.alerts_db import unmerge_alert_from_case
+from app.datamgmt.lucene.alert_fields import alert_field_catalogue
 from app.datamgmt.case.case_assets_db import case_assets_db_exists
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.states import update_assets_state
@@ -79,7 +80,7 @@ def _resolve_caller():
 def alerts_search(start_date, end_date, source_start_date, source_end_date, title, description,
                   status, severity, owner, source, tags, case_identifier, customer_identifier, classification, alert_identifiers,
                   assets, iocs, resolution_status, source_reference, custom_conditions, user_identifier_filter, page, per_page, sort,
-                  cluster_identifier=None, order_by=None):
+                  cluster_identifier=None, order_by=None, query=None, query_user_identifier=None):
 
     return get_filtered_alerts(
         start_date,
@@ -108,13 +109,16 @@ def alerts_search(start_date, end_date, source_start_date, source_end_date, titl
         custom_conditions,
         cluster_id=cluster_identifier,
         order_by=order_by,
+        query=query,
+        query_user_identifier=query_user_identifier,
     )
 
 
 def alerts_search_grouped(start_date, end_date, source_start_date, source_end_date, title, description,
                           status, severity, owner, source, tags, case_identifier, customer_identifier, classification,
                           alert_identifiers, assets, iocs, resolution_status, source_reference, custom_conditions,
-                          user_identifier_filter, page, per_page, sort, cluster_identifier=None, order_by=None):
+                          user_identifier_filter, page, per_page, sort, cluster_identifier=None, order_by=None,
+                          query=None, query_user_identifier=None):
     """Same filters as `alerts_search`, but the page is made of queue units:
     one per alert cluster holding a matching alert, plus one per matching
     alert that is in no cluster. See `get_filtered_alert_groups`.
@@ -146,7 +150,19 @@ def alerts_search_grouped(start_date, end_date, source_start_date, source_end_da
         custom_conditions,
         cluster_id=cluster_identifier,
         order_by=order_by,
+        query=query,
+        query_user_identifier=query_user_identifier,
     )
+
+
+def alerts_search_vocabulary():
+    """The fields the search bar understands, as plain data.
+
+    One catalogue feeds the compiler, autocomplete and the OpenAPI
+    description, so an alias the backend knows but the client does not
+    offer cannot happen — an alias nobody can find is an alias nobody uses.
+    """
+    return alert_field_catalogue()
 
 
 def alerts_create(alert: Alert, iocs: list[Ioc], assets: list[CaseAssets]) -> Alert:

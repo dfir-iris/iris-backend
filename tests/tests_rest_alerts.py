@@ -18,11 +18,26 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import ADMINISTRATOR_USER_IDENTIFIER
+from iris import IRIS_INITIAL_CUSTOMER_IDENTIFIER
 from iris import IRIS_PERMISSION_ALERTS_READ
 from iris import IRIS_PERMISSION_ALERTS_WRITE
 from iris import IRIS_PERMISSION_ALERTS_DELETE
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
+_ALERTS_URL = '/api/v2/alerts'
+_GROUPED_ALERTS_URL = '/api/v2/alerts/grouped'
+_SEARCH_SCHEMA_URL = '/api/v2/alerts/search-schema'
+
+# Seeded by `create_safe_severities` / `create_safe_alert_status`, in this
+# order. Severity identifiers run least to most severe, which is what makes
+# `severity:>=High` a rank comparison rather than an identifier comparison.
+_SEVERITY_MEDIUM = 4
+_SEVERITY_HIGH = 5
+_SEVERITY_CRITICAL = 6
+_STATUS_ASSIGNED = 3
+_STATUS_CLOSED = 6
 
 
 class TestsRestAlerts(TestCase):
@@ -634,3 +649,295 @@ class TestsRestAlerts(TestCase):
         identifier = response['alert_id']
         response = user.get(f'/api/v2/alerts/{identifier}/related-alerts')
         self.assertEqual(404, response.status_code)
+
+
+class TestsRestAlertsSearchQuery(TestCase):
+    """The `query` search expression on the two alert listings.
+
+    The grammar and the SQL it compiles to are covered by the unit suite
+    under `source/tests/app/datamgmt/lucene`. What is checked here is the
+    round trip — query string to route to business to database — plus the
+    three things only a live stack can prove: that the flat and grouped
+    listings answer the same expression identically, that a bad
+    expression comes back as a 400 pointing at the offending character,
+    and that no expression widens what a tenant-scoped user sees.
+    """
+
+    def setUp(self) -> None:
+        self._subject = Iris()
+
+    def tearDown(self):
+        self._subject.clear_database()
+
+    def _create_alert(self, alert_title, **overrides):
+        body = {
+            'alert_title': alert_title,
+            'alert_severity_id': _SEVERITY_MEDIUM,
+            'alert_status_id': _STATUS_ASSIGNED,
+            'alert_customer_id': IRIS_INITIAL_CUSTOMER_IDENTIFIER,
+        }
+        body.update(overrides)
+        return self._subject.create(_ALERTS_URL, body).json()
+
+    def _titles(self, query):
+        response = self._subject.get(_ALERTS_URL, query_parameters={'query': query}).json()
+        return sorted(alert['alert_title'] for alert in response['data'])
+
+    def _grouped_titles(self, query):
+        response = self._subject.get(_GROUPED_ALERTS_URL,
+                                     query_parameters={'query': query}).json()
+        return sorted(unit['alert']['alert_title'] for unit in response['data'])
+
+    def test_get_alerts_should_narrow_on_a_field_less_term(self):
+        self._create_alert('phishing campaign')
+        self._create_alert('malware beacon')
+        self.assertEqual(['phishing campaign'], self._titles('phishing'))
+
+    def test_get_alerts_should_search_every_default_column_for_a_field_less_term(self):
+        self._create_alert('nothing in the title', alert_source='crowdstrike')
+        self._create_alert('nothing anywhere')
+        self.assertEqual(['nothing in the title'], self._titles('crowdstrike'))
+
+    def test_get_alerts_should_narrow_on_a_field_alias(self):
+        self._create_alert('phishing campaign')
+        self._create_alert('malware beacon')
+        self.assertEqual(['malware beacon'], self._titles('title:beacon'))
+
+    def test_get_alerts_should_not_match_another_column_when_the_field_is_named(self):
+        self._create_alert('nothing in the title', alert_source='crowdstrike')
+        self.assertEqual([], self._titles('title:crowdstrike'))
+
+    def test_get_alerts_should_resolve_a_status_name(self):
+        self._create_alert('still open')
+        self._create_alert('already closed', alert_status_id=_STATUS_CLOSED)
+        self.assertEqual(['already closed'], self._titles('status:Closed'))
+
+    def test_get_alerts_should_resolve_a_status_name_case_insensitively(self):
+        self._create_alert('still open')
+        self._create_alert('already closed', alert_status_id=_STATUS_CLOSED)
+        self.assertEqual(['already closed'], self._titles('status:closed'))
+
+    def test_get_alerts_should_compare_severities_by_rank(self):
+        self._create_alert('medium one')
+        self._create_alert('high one', alert_severity_id=_SEVERITY_HIGH)
+        self._create_alert('critical one', alert_severity_id=_SEVERITY_CRITICAL)
+        self.assertEqual(['critical one', 'high one'], self._titles('severity:>=High'))
+
+    def test_get_alerts_should_combine_clauses_with_an_implicit_and(self):
+        self._create_alert('malware beacon', alert_severity_id=_SEVERITY_HIGH)
+        self._create_alert('malware dropper', alert_severity_id=_SEVERITY_HIGH)
+        self._create_alert('phishing beacon')
+        self.assertEqual(['malware beacon'], self._titles('title:beacon severity:High'))
+
+    def test_get_alerts_should_combine_clauses_with_an_or(self):
+        self._create_alert('phishing campaign')
+        self._create_alert('malware beacon')
+        self._create_alert('unrelated noise')
+        self.assertEqual(['malware beacon', 'phishing campaign'],
+                         self._titles('title:phishing OR title:beacon'))
+
+    def test_get_alerts_should_negate_a_clause(self):
+        self._create_alert('still open')
+        self._create_alert('already closed', alert_status_id=_STATUS_CLOSED)
+        self.assertEqual(['still open'], self._titles('-status:Closed'))
+
+    def test_get_alerts_should_group_an_or_under_a_negation(self):
+        self._create_alert('phishing campaign')
+        self._create_alert('malware beacon')
+        self._create_alert('unrelated noise')
+        self.assertEqual(['unrelated noise'],
+                         self._titles('NOT (title:phishing OR title:beacon)'))
+
+    def test_get_alerts_should_match_a_quoted_phrase(self):
+        self._create_alert('brute force detected')
+        self._create_alert('force brute detected')
+        self.assertEqual(['brute force detected'], self._titles('title:"brute force"'))
+
+    def test_get_alerts_should_translate_a_wildcard(self):
+        self._create_alert('phishing campaign')
+        self._create_alert('malware beacon')
+        self.assertEqual(['phishing campaign'], self._titles('title:phish*'))
+
+    def test_get_alerts_should_not_treat_a_percent_sign_as_a_wildcard(self):
+        # Regression guard: an unescaped `%` would turn `title:100%` into
+        # "every title starting with 100".
+        self._create_alert('100% packet loss')
+        self._create_alert('1000 events dropped')
+        self.assertEqual(['100% packet loss'], self._titles('title:100%'))
+
+    def test_get_alerts_should_support_the_is_open_macro(self):
+        self._create_alert('still open')
+        self._create_alert('already closed', alert_status_id=_STATUS_CLOSED)
+        self.assertEqual(['still open'], self._titles('is:open'))
+
+    def test_get_alerts_should_support_the_is_closed_macro(self):
+        self._create_alert('still open')
+        self._create_alert('already closed', alert_status_id=_STATUS_CLOSED)
+        self.assertEqual(['already closed'], self._titles('is:closed'))
+
+    def test_get_alerts_should_resolve_owner_me_against_the_caller(self):
+        self._create_alert('mine', alert_owner_id=ADMINISTRATOR_USER_IDENTIFIER)
+        self._create_alert('nobodys')
+        self.assertEqual(['mine'], self._titles('owner:me'))
+
+    def test_get_alerts_should_resolve_owner_none(self):
+        self._create_alert('mine', alert_owner_id=ADMINISTRATOR_USER_IDENTIFIER)
+        self._create_alert('nobodys')
+        self.assertEqual(['nobodys'], self._titles('owner:none'))
+
+    def test_get_alerts_should_resolve_an_owner_login(self):
+        self._create_alert('mine', alert_owner_id=ADMINISTRATOR_USER_IDENTIFIER)
+        self._create_alert('nobodys')
+        self.assertEqual(['mine'], self._titles('owner:administrator'))
+
+    def test_get_alerts_should_match_a_context_json_path(self):
+        self._create_alert('with context', alert_context={'rule_name': 'brute force'})
+        self._create_alert('without context')
+        self.assertEqual(['with context'], self._titles('context.rule_name:"brute force"'))
+
+    def test_get_alerts_should_accept_a_raw_column_name(self):
+        self._create_alert('phishing campaign')
+        self._create_alert('malware beacon')
+        self.assertEqual(['malware beacon'], self._titles('alert_title:beacon'))
+
+    def test_get_alerts_should_apply_the_query_on_top_of_the_scalar_filters(self):
+        self._create_alert('malware beacon', alert_severity_id=_SEVERITY_HIGH)
+        self._create_alert('malware beacon')
+        response = self._subject.get(_ALERTS_URL,
+                                     query_parameters={'alert_severity_id': _SEVERITY_HIGH,
+                                                       'query': 'title:beacon'}).json()
+        self.assertEqual(1, response['total'])
+
+    def test_get_alerts_should_return_an_empty_page_when_nothing_matches(self):
+        self._create_alert('phishing campaign')
+        response = self._subject.get(_ALERTS_URL,
+                                     query_parameters={'query': 'title:nothing'}).json()
+        self.assertEqual(0, response['total'])
+
+    def test_get_alerts_should_ignore_an_empty_query(self):
+        self._create_alert('phishing campaign')
+        response = self._subject.get(_ALERTS_URL, query_parameters={'query': ''}).json()
+        self.assertEqual(1, response['total'])
+
+    def test_get_grouped_alerts_should_narrow_like_the_flat_listing(self):
+        self._create_alert('phishing campaign', alert_severity_id=_SEVERITY_HIGH)
+        self._create_alert('malware beacon')
+        self._create_alert('unrelated noise', alert_severity_id=_SEVERITY_CRITICAL)
+        query = 'severity:>=High -title:noise'
+        self.assertEqual(self._titles(query), self._grouped_titles(query))
+
+    def test_get_grouped_alerts_should_resolve_a_status_name(self):
+        self._create_alert('still open')
+        self._create_alert('already closed', alert_status_id=_STATUS_CLOSED)
+        self.assertEqual(['already closed'], self._grouped_titles('status:Closed'))
+
+    def test_get_alerts_should_return_400_when_the_expression_has_a_syntax_error(self):
+        response = self._subject.get(_ALERTS_URL, query_parameters={'query': 'title:('})
+        self.assertEqual(400, response.status_code)
+
+    def test_get_alerts_should_return_the_offending_position_of_a_syntax_error(self):
+        response = self._subject.get(_ALERTS_URL,
+                                     query_parameters={'query': 'title:('}).json()
+        self.assertEqual(7, response['data']['position'])
+
+    def test_get_alerts_should_return_400_when_a_quoted_phrase_is_unterminated(self):
+        response = self._subject.get(_ALERTS_URL, query_parameters={'query': 'title:"open'})
+        self.assertEqual(400, response.status_code)
+
+    def test_get_alerts_should_return_400_when_the_expression_uses_fuzzy_search(self):
+        response = self._subject.get(_ALERTS_URL,
+                                     query_parameters={'query': 'title:beacon~2'}).json()
+        self.assertIn('not supported', response['message'])
+
+    def test_get_alerts_should_return_400_when_the_field_is_unknown(self):
+        response = self._subject.get(_ALERTS_URL, query_parameters={'query': 'bogus:1'})
+        self.assertEqual(400, response.status_code)
+
+    def test_get_alerts_should_suggest_an_alias_on_a_near_miss(self):
+        response = self._subject.get(_ALERTS_URL,
+                                     query_parameters={'query': 'titel:beacon'}).json()
+        self.assertIn("did you mean 'title'", response['message'])
+
+    def test_get_alerts_should_return_400_when_a_status_name_does_not_exist(self):
+        response = self._subject.get(_ALERTS_URL,
+                                     query_parameters={'query': 'status:Nope'}).json()
+        self.assertIn("No status matches 'Nope'", response['message'])
+
+    def test_get_grouped_alerts_should_return_400_when_the_expression_has_a_syntax_error(self):
+        response = self._subject.get(_GROUPED_ALERTS_URL, query_parameters={'query': 'title:('})
+        self.assertEqual(400, response.status_code)
+
+    def _customer_scoped_reader(self):
+        """A non-admin who can read alerts, but only for the initial customer."""
+        user = self._subject.create_dummy_user(permissions=[IRIS_PERMISSION_ALERTS_READ])
+        self._subject.create(
+            f'/manage/users/{user.get_identifier()}/customers/update',
+            {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
+        )
+        return user
+
+    def test_get_alerts_should_not_return_an_alert_from_a_customer_the_user_cannot_see(self):
+        other_customer = self._subject.create_dummy_customer()
+        self._create_alert('visible tenancy alert')
+        self._create_alert('hidden tenancy alert', alert_customer_id=other_customer)
+        user = self._customer_scoped_reader()
+
+        response = user.get(_ALERTS_URL, query_parameters={'query': 'tenancy'}).json()
+
+        self.assertEqual(['visible tenancy alert'],
+                         [alert['alert_title'] for alert in response['data']])
+
+    def test_get_alerts_should_not_widen_the_customer_scope_with_an_or(self):
+        # The compiled expression is one more conjunct next to the tenancy
+        # predicate, so naming another customer explicitly resolves but
+        # still matches nothing.
+        other_customer = self._subject.create_dummy_customer()
+        customers = self._subject.get('/manage/customers/list').json()
+        other_name = next(customer['customer_name'] for customer in customers['data']
+                          if customer['customer_id'] == other_customer)
+        self._create_alert('visible tenancy alert')
+        self._create_alert('hidden tenancy alert', alert_customer_id=other_customer)
+        user = self._customer_scoped_reader()
+
+        query = f'customer:"{other_name}" OR title:visible'
+        response = user.get(_ALERTS_URL, query_parameters={'query': query}).json()
+
+        self.assertEqual(['visible tenancy alert'],
+                         [alert['alert_title'] for alert in response['data']])
+
+    def test_get_grouped_alerts_should_not_return_an_alert_from_an_unseen_customer(self):
+        other_customer = self._subject.create_dummy_customer()
+        self._create_alert('visible tenancy alert')
+        self._create_alert('hidden tenancy alert', alert_customer_id=other_customer)
+        user = self._customer_scoped_reader()
+
+        response = user.get(_GROUPED_ALERTS_URL,
+                            query_parameters={'query': 'tenancy'}).json()
+
+        self.assertEqual(['visible tenancy alert'],
+                         [unit['alert']['alert_title'] for unit in response['data']])
+
+    def test_get_alerts_search_schema_should_return_200(self):
+        response = self._subject.get(_SEARCH_SCHEMA_URL)
+        self.assertEqual(200, response.status_code)
+
+    def test_get_alerts_search_schema_should_describe_the_status_field(self):
+        response = self._subject.get(_SEARCH_SCHEMA_URL).json()
+        status = next(field for field in response['fields'] if field['alias'] == 'status')
+        self.assertTrue(status['enumerable'])
+
+    def test_get_alerts_search_schema_should_list_the_synonyms_of_a_field(self):
+        response = self._subject.get(_SEARCH_SCHEMA_URL).json()
+        description = next(field for field in response['fields']
+                           if field['alias'] == 'description')
+        self.assertIn('desc', description['synonyms'])
+
+    def test_get_alerts_search_schema_should_list_the_is_macro_values(self):
+        response = self._subject.get(_SEARCH_SCHEMA_URL).json()
+        macro = next(field for field in response['fields'] if field['alias'] == 'is')
+        self.assertIn('open', macro['values'])
+
+    def test_get_alerts_search_schema_should_return_403_when_user_has_no_permission(self):
+        user = self._subject.create_dummy_user()
+        response = user.get(_SEARCH_SCHEMA_URL)
+        self.assertEqual(403, response.status_code)

@@ -28,6 +28,11 @@ from app.datamgmt.authorization import RESTRICTED_USER_FIELDS
 
 log = app.logger
 
+#: Escape character for the `ilike_pattern` operator. Callers building a
+#: pattern escape `%`, `_` and the escape character itself with it, so a
+#: literal `%` in a user's search text stays literal.
+LIKE_ESCAPE_CHARACTER = '\\'
+
 
 def apply_filters(query, model, filter_params: dict):
     """
@@ -103,6 +108,13 @@ def build_condition(column, operator, value):
         return _ilike_target(column).ilike(f"%{value}%")
     if operator == 'not_like':
         return ~_ilike_target(column).ilike(f"%{value}%")
+    # `ilike_pattern` takes a LIKE pattern the caller already built, `%`
+    # and `_` included, instead of wrapping the value in `%…%`. The
+    # search-bar compiler needs it: it has to decide itself which `*` in
+    # `asset:*.corp.local` is a wildcard and which `%` the analyst typed
+    # literally, and that decision cannot be made after the fact here.
+    if operator == 'ilike_pattern':
+        return _ilike_target(column).ilike(value, escape=LIKE_ESCAPE_CHARACTER)
     # Ordered comparisons. `build_json_condition` has supported these on
     # JSON paths since it was written, but the column path did not — so the
     # rule builder offered '≥ greater or equal' on every field while the
@@ -118,7 +130,11 @@ def build_condition(column, operator, value):
     # and silently returns 0 rows for every rule — `_rule_matches_alert`
     # catches the DB error and treats it as no-match. Coerce the value to
     # a number when it looks like one so SQLAlchemy binds the correct type.
-    if operator in ('gte', 'lte'):
+    #
+    # `gt`/`lt` are the strict forms, added for the search bar's exclusive
+    # ranges (`created:{a TO b}`). They share the coercion above for the
+    # same reason.
+    if operator in ('gte', 'lte', 'gt', 'lt'):
         if isinstance(value, str):
             try:
                 value = int(value)
@@ -127,7 +143,13 @@ def build_condition(column, operator, value):
                     value = float(value)
                 except ValueError:
                     pass  # Leave as string for text-type columns
-        return column >= value if operator == 'gte' else column <= value
+        if operator == 'gte':
+            return column >= value
+        if operator == 'lte':
+            return column <= value
+        if operator == 'gt':
+            return column > value
+        return column < value
     raise ValueError(f"Unsupported operator: {operator}")
 
 
@@ -271,13 +293,19 @@ def build_json_condition(json_column, path, operator, value):
     # without further coercion. Postgres' `->>` operator returns text.
     final = expr[segments[-1]].astext
 
-    if operator in ('gte', 'lte'):
+    if operator in ('gte', 'lte', 'gt', 'lt'):
         # Cast to numeric on the fly so `alert_context.count >= 10`
         # compares as a number. Text-wise `'2' > '10'` would be true
         # otherwise (lexicographic).
         from sqlalchemy import cast, Numeric
         casted = cast(final, Numeric)
-        return casted >= value if operator == 'gte' else casted <= value
+        if operator == 'gte':
+            return casted >= value
+        if operator == 'lte':
+            return casted <= value
+        if operator == 'gt':
+            return casted > value
+        return casted < value
     if operator in ('not', 'neq'):
         return final != value
     if operator == 'in':
@@ -290,6 +318,8 @@ def build_json_condition(json_column, path, operator, value):
         return final.ilike(f"%{value}%")
     if operator == 'not_like':
         return ~final.ilike(f"%{value}%")
+    if operator == 'ilike_pattern':
+        return final.ilike(value, escape=LIKE_ESCAPE_CHARACTER)
     raise ValueError(f"Unsupported operator for JSON path: {operator}")
 
 

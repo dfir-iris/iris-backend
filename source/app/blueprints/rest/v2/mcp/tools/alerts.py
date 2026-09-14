@@ -29,7 +29,7 @@ from app.business.alerts import (
 from app.models.alerts import AlertResolutionStatus, AlertStatus, Severity
 from app.models.authorization import Permissions
 from app.models.cases import CaseClassification
-from app.models.errors import BusinessProcessingError, ObjectNotFoundError
+from app.models.errors import BusinessProcessingError, ObjectNotFoundError, SearchQueryError
 from app.schema.marshables import AlertSchema
 from marshmallow.exceptions import ValidationError
 
@@ -81,11 +81,33 @@ def _get_alert(alert_id: int):
     name='iris_alerts_list',
     description=(
         'Search alerts visible to the caller. All filters are optional; '
-        'omit them to page through every alert the caller has access to.'
+        'omit them to page through every alert the caller has access to. '
+        'Prefer the `query` expression over the scalar filters: it says in '
+        'one string what most of them say together, and it resolves names '
+        'so no id lookup is needed first.'
     ),
     input_schema={
         'type': 'object',
         'properties': {
+            'query': {
+                'type': 'string',
+                'description': (
+                    'Lucene-style search expression, ANDed with the other '
+                    'filters. Values are names, not ids: '
+                    '`status:Closed severity:>=High`, `owner:me`, '
+                    '`is:open is:unassigned`, `asset:*.corp.local`, '
+                    '`created:>now-24h`, `source:crowdstrike OR source:sentinel`, '
+                    '`context.rule_name:"brute force"`, `-status:Merged`. '
+                    'Supports AND / OR / NOT (or `-`), parentheses, quoted '
+                    'phrases, ranges `[a TO b]`, and `*` / `?` wildcards. A '
+                    'bare word searches title, description, source, '
+                    'reference, tags and note. `is:` takes open, closed, '
+                    'assigned, unassigned, escalated, merged, resolved, '
+                    'unresolved, clustered, orphan, in_case, no_case. A '
+                    'malformed expression is rejected with the offset of '
+                    'the problem, so it can be corrected and retried.'
+                ),
+            },
             'page': {'type': 'integer'},
             'per_page': {'type': 'integer'},
             'sort': {'type': 'string', 'description': 'Field to sort by, prefixed with - for descending.'},
@@ -120,32 +142,45 @@ def iris_alerts_list(args: dict) -> dict:
         per_page = MAX_PER_PAGE
     sort = args.get('sort') or 'desc'
 
-    result = alerts_search(
-        start_date=args.get('start_date'),
-        end_date=args.get('end_date'),
-        source_start_date=args.get('source_start_date'),
-        source_end_date=args.get('source_end_date'),
-        title=args.get('title'),
-        description=args.get('description'),
-        status=args.get('status'),
-        severity=args.get('severity'),
-        owner=args.get('owner'),
-        source=args.get('source'),
-        tags=args.get('tags'),
-        case_identifier=args.get('case_identifier'),
-        customer_identifier=args.get('customer_identifier'),
-        classification=args.get('classification'),
-        alert_identifiers=args.get('alert_identifiers'),
-        assets=args.get('assets'),
-        iocs=args.get('iocs'),
-        resolution_status=args.get('resolution_status'),
-        source_reference=args.get('source_reference'),
-        custom_conditions=None,
-        user_identifier_filter=iris_current_user.id,
-        page=page,
-        per_page=per_page,
-        sort=sort,
-    )
+    try:
+        result = alerts_search(
+            start_date=args.get('start_date'),
+            end_date=args.get('end_date'),
+            source_start_date=args.get('source_start_date'),
+            source_end_date=args.get('source_end_date'),
+            title=args.get('title'),
+            description=args.get('description'),
+            status=args.get('status'),
+            severity=args.get('severity'),
+            owner=args.get('owner'),
+            source=args.get('source'),
+            tags=args.get('tags'),
+            case_identifier=args.get('case_identifier'),
+            customer_identifier=args.get('customer_identifier'),
+            classification=args.get('classification'),
+            alert_identifiers=args.get('alert_identifiers'),
+            assets=args.get('assets'),
+            iocs=args.get('iocs'),
+            resolution_status=args.get('resolution_status'),
+            source_reference=args.get('source_reference'),
+            custom_conditions=None,
+            user_identifier_filter=iris_current_user.id,
+            page=page,
+            per_page=per_page,
+            sort=sort,
+            query=args.get('query'),
+            query_user_identifier=iris_current_user.id,
+        )
+    except SearchQueryError as exc:
+        # INVALID_PARAMS rather than the INTERNAL_ERROR the dispatcher
+        # would produce: a bad expression is the caller's to fix, and the
+        # offset tells it where to look.
+        position = exc.get_position()
+        where = f' at character {position}' if position is not None else ''
+        raise MCPError(
+            protocol.INVALID_PARAMS, f'{exc.get_message()}{where}'
+        ) from exc
+
     return {
         'total': result.total,
         'data': _alert_schema.dump(result.items, many=True),

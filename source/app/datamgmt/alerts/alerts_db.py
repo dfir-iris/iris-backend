@@ -47,6 +47,7 @@ from app.datamgmt.case.case_db import case_db_save
 from app.db import db
 from app.datamgmt.filtering import combine_conditions
 from app.datamgmt.filtering import apply_custom_conditions
+from app.datamgmt.lucene.query_compiler import compile_alert_query
 from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
 from app.datamgmt.case.case_assets_db import get_unspecified_analysis_status_id
@@ -156,11 +157,20 @@ def _alert_filter_conditions(
         #                    (analyst filter "orphans only")
         #   * None         → no filter
         cluster_id: int | None = None,
+        query: str | None = None,
+        query_user_identifier: int | None = None,
     ) -> list:
     """Every scalar/relationship filter the alert list supports, as a list
     of SQLAlchemy criteria. Shared by the flat listing and the
     cluster-grouped listing so the two can never drift apart — in
     particular so grouping never widens what a tenant can see.
+
+    `query` is a search-bar expression. It compiles to exactly one more
+    entry in this list, so it is ANDed with the tenancy predicate below
+    like every other filter and no `OR` an analyst writes can widen what
+    they see. `query_user_identifier` is the *caller*, which `owner:me`
+    resolves against — not `user_identifier`, which is None for a server
+    administrator precisely because they are not tenancy-restricted.
     """
     conditions = []
 
@@ -241,6 +251,10 @@ def _alert_filter_conditions(
         clients_filters = get_user_clients_id(user_identifier)
         if clients_filters is not None:
             conditions.append(Alert.alert_customer_id.in_(clients_filters))
+
+    compiled_query = compile_alert_query(query, query_user_identifier)
+    if compiled_query is not None:
+        conditions.append(compiled_query)
 
     return conditions
 
@@ -379,12 +393,14 @@ def get_filtered_alerts(
         custom_conditions: List[dict],
         cluster_id: int | None = None,
         order_by: str | None = None,
+        query: str | None = None,
+        query_user_identifier: int | None = None,
     ) -> Pagination:
     conditions = _alert_filter_conditions(
         start_date, end_date, source_start_date, source_end_date, title, description,
         status, severity, owner, source, tags, case_id, client, classification,
         alert_ids, assets, iocs, resolution_status, user_identifier, source_reference,
-        cluster_id
+        cluster_id, query, query_user_identifier
     )
 
     query = db.session.query(Alert).options(*_alert_list_options())
@@ -502,6 +518,8 @@ def get_filtered_alert_groups(
         custom_conditions: List[dict],
         cluster_id: int | None = None,
         order_by: str | None = None,
+        query: str | None = None,
+        query_user_identifier: int | None = None,
     ) -> Optional[dict]:
     """List alerts as *queue units* instead of as a flat page of alerts.
 
@@ -524,7 +542,7 @@ def get_filtered_alert_groups(
         start_date, end_date, source_start_date, source_end_date, title, description,
         status, severity, owner, source, tags, case_id, client, classification,
         alert_ids, assets, iocs, resolution_status, user_identifier, source_reference,
-        cluster_id
+        cluster_id, query, query_user_identifier
     )
 
     matching = db.session.query(

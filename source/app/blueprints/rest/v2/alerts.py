@@ -42,6 +42,7 @@ from app.business.access_controls import check_ua_case_client
 from app.business.alerts import ALERT_SORT_COLUMNS
 from app.business.alerts import alerts_search
 from app.business.alerts import alerts_search_grouped
+from app.business.alerts import alerts_search_vocabulary
 from app.business.alerts import alerts_create
 from app.business.alerts import alerts_get
 from app.business.alerts import alerts_update
@@ -67,6 +68,7 @@ from app.schema.marshables import CaseAssetsSchema
 from app.schema.marshables import SavedFilterSchema
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
+from app.models.errors import SearchQueryError
 
 import copy
 
@@ -214,6 +216,10 @@ class AlertsOperations:
             # erroring, so an older client that never sends `order_by`
             # keeps the ordering it has always had.
             'order_by': request.args.get('order_by'),
+            'query': request.args.get('query'),
+            # The caller, for `owner:me`. Not `user_identifier_filter`,
+            # which a server administrator has none of.
+            'query_user_identifier': iris_current_user.id,
         }
 
         return arguments, fields
@@ -232,7 +238,10 @@ class AlertsOperations:
         except ValueError as e:
             return response_api_error(str(e))
 
-        filtered_alerts = alerts_search(**arguments)
+        try:
+            filtered_alerts = alerts_search(**arguments)
+        except SearchQueryError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
         if filtered_alerts is None:
             return response_api_error('Filtering error')
@@ -254,7 +263,10 @@ class AlertsOperations:
         except ValueError as e:
             return response_api_error(str(e))
 
-        grouped = alerts_search_grouped(**arguments)
+        try:
+            grouped = alerts_search_grouped(**arguments)
+        except SearchQueryError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
         if grouped is None:
             return response_api_error('Filtering error')
@@ -431,15 +443,28 @@ alerts_blueprint.register_blueprint(alerts_assets_blueprint)
 
 alerts_operations = AlertsOperations()
 
-# Paging and ordering only — the filter params both list routes accept are
-# the ones `_search_arguments` reads, and are too many to be worth
-# duplicating here.
+# Paging, ordering and the search expression — the scalar filter params
+# both list routes accept are the ones `_search_arguments` reads, and are
+# too many to be worth duplicating here.
+_ALERT_QUERY_PARAM_DESCRIPTION = (
+    'Lucene-style search expression, ANDed with every other filter. '
+    "Fields are friendly aliases resolved server-side — `status:Closed`, "
+    '`severity:>=High`, `owner:me`, `asset:*.corp.local`, '
+    '`created:>now-24h`, `context.rule_name:"brute force"`, `is:open`. '
+    'Supports AND / OR / NOT (or `-`), parentheses, quoted phrases, '
+    'ranges `[a TO b]` / `{a TO b}` and `*` / `?` wildcards. A bare term '
+    'searches title, description, source, reference, tags and note. '
+    'GET /alerts/search-schema lists every alias. A malformed expression '
+    'returns 400 with the character offset in `data.position`.'
+)
+
 _ALERT_LIST_SORT_PARAMS = [
     ('page', 'integer', 'Page number (default 1)'),
     ('per_page', 'integer', 'Page size (default 10)'),
     ('order_by', 'string',
      'Column to sort by: ' + ', '.join(ALERT_SORT_COLUMNS) + " (default 'event_time')"),
     ('sort', 'string', "Sort direction: 'asc' or 'desc' (default 'asc')"),
+    ('query', 'string', _ALERT_QUERY_PARAM_DESCRIPTION),
 ]
 
 
@@ -461,6 +486,23 @@ def alerts_list_route() -> Response:
          query_params=_ALERT_LIST_SORT_PARAMS)
 def alerts_grouped_list_route() -> Response:
     return alerts_operations.search_grouped()
+
+
+# Declared before `/<int:identifier>` for readability only — the `int`
+# converter cannot match 'search-schema', so order is irrelevant.
+@alerts_blueprint.get('/search-schema')
+@ac_api_requires(Permissions.alerts_read)
+@api_doc(tags=['Alerts'],
+         summary='List the fields the alert search expression understands')
+def alerts_search_schema_route() -> Response:
+    """The vocabulary behind the `query` parameter.
+
+    Autocomplete reads this rather than carrying its own copy of the
+    alias list, so a field the backend gained is offered by the client
+    without a frontend release. Values are *not* included: they are
+    tenant-scoped rows, and the client already loads the ones it can see.
+    """
+    return response_api_success({'fields': alerts_search_vocabulary()})
 
 
 @alerts_blueprint.post('')
