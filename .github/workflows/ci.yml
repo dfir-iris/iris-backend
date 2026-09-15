@@ -138,10 +138,18 @@ jobs:
       - name: Inspect test stack start failure
         if: ${{ failure() || cancelled() }}
         run: |
+          # Best-effort: the runner has no jq, and under `bash -e` that killed
+          # the step before it reached the logs — which is the one thing worth
+          # having here. `free` is in: start failures on a shared runner have
+          # been memory pressure, not the stack itself.
+          set +e
+          free -m
           docker ps --all
-          docker inspect --format "{{json .State}}" iris_db | jq
-          docker inspect --format "{{json .State}}" iris_app | jq
+          for container in iris_db iris_app iris_worker; do
+            docker inspect --format "{{json .State}}" "${container}"
+          done
           docker compose --file docker-compose.test.yml logs
+          exit 0
       - name: Run tests
         working-directory: tests
         run: |

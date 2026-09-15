@@ -113,9 +113,19 @@ services:
     networks:
       - iris_backend
     healthcheck:
-      test: celery -A app.celery inspect ping || exit 1
-      start_period: 60s
-      start_interval: 1s
+      # `-b <broker>` rather than `-A app.celery`: `inspect ping` is a broker
+      # broadcast and needs no task registry, but `-A` imports the whole Flask
+      # app first — ~2s of CPU and a few hundred MB of RSS per probe. Paired
+      # with a 1s start_interval that spawned a fresh interpreter every second
+      # without waiting for the previous one to answer, which is enough to push
+      # a shared runner into swap. start_interval now exceeds the probe cost so
+      # probes cannot stack, and the start period covers a slow, contended boot.
+      test: celery -b "$${CELERY_BROKER:-amqp://rabbitmq}" inspect ping --timeout 10 || exit 1
+      interval: 30s
+      timeout: 20s
+      retries: 5
+      start_period: 180s
+      start_interval: 10s
 
 volumes:
   db_data:
