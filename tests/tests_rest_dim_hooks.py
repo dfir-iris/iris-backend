@@ -19,6 +19,9 @@
 from unittest import TestCase
 
 from iris import Iris
+from iris import IRIS_INITIAL_CUSTOMER_IDENTIFIER
+from iris import IRIS_PERMISSION_ALERTS_READ
+from iris import IRIS_PERMISSION_ALERTS_WRITE
 
 
 class TestsRestDimHooks(TestCase):
@@ -140,3 +143,107 @@ class TestsRestDimHooks(TestCase):
             {'hook_name': 'on_manual_trigger_case', 'type': 'case', 'targets': [case_identifier]},
         )
         self.assertEqual(403, response.status_code)
+
+    def test_invoke_returns_400_for_alert_data_type(self):
+        # Alerts have no case to be scoped by — they go through
+        # /api/v2/alerts/dim-hooks/invoke instead.
+        case_identifier = self._subject.create_dummy_case()
+        response = self._invoke(
+            case_identifier,
+            {'hook_name': 'on_manual_trigger_alert', 'type': 'alert', 'targets': [1]},
+        )
+        self.assertEqual(400, response.status_code)
+
+    # ------------------------------------------------------------------
+    # POST /api/v2/alerts/dim-hooks/invoke
+    # ------------------------------------------------------------------
+    def _create_alert(self, customer_identifier=IRIS_INITIAL_CUSTOMER_IDENTIFIER):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': customer_identifier,
+        }
+        return self._subject.create('/api/v2/alerts', body).json()['alert_id']
+
+    def _invoke_alerts(self, body):
+        return self._subject.create('/api/v2/alerts/dim-hooks/invoke', body)
+
+    def test_invoke_alerts_returns_400_when_targets_missing(self):
+        response = self._invoke_alerts({'hook_name': 'on_manual_trigger_alert'})
+        self.assertEqual(400, response.status_code)
+
+    def test_invoke_alerts_returns_400_when_hook_name_missing(self):
+        alert_identifier = self._create_alert()
+        response = self._invoke_alerts({'targets': [alert_identifier]})
+        self.assertEqual(400, response.status_code)
+
+    def test_invoke_alerts_returns_400_when_hook_name_is_not_an_alert_hook(self):
+        alert_identifier = self._create_alert()
+        response = self._invoke_alerts({
+            'hook_name': 'on_manual_trigger_ioc',
+            'targets': [alert_identifier],
+        })
+        self.assertEqual(400, response.status_code)
+
+    def test_invoke_alerts_returns_400_when_targets_is_not_a_list(self):
+        response = self._invoke_alerts({
+            'hook_name': 'on_manual_trigger_alert',
+            'targets': 'nope',
+        })
+        self.assertEqual(400, response.status_code)
+
+    def test_invoke_alerts_returns_400_when_target_not_an_int(self):
+        response = self._invoke_alerts({
+            'hook_name': 'on_manual_trigger_alert',
+            'targets': ['not-a-number'],
+        })
+        self.assertEqual(400, response.status_code)
+
+    def test_invoke_alerts_returns_queued_1_for_alert_target(self):
+        alert_identifier = self._create_alert()
+        response = self._invoke_alerts({
+            'hook_name': 'on_manual_trigger_alert',
+            'targets': [alert_identifier],
+        })
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, response.json()['queued'])
+
+    def test_invoke_alerts_returns_queued_1_and_logs_when_target_missing(self):
+        alert_identifier = self._create_alert()
+        response = self._invoke_alerts({
+            'hook_name': 'on_manual_trigger_alert',
+            'targets': [alert_identifier, 999999999],
+        })
+        self.assertEqual(200, response.status_code)
+        body = response.json()
+        self.assertEqual(1, body['queued'])
+        self.assertTrue(any('999999999' in log for log in body['logs']))
+
+    def test_invoke_alerts_returns_403_when_user_lacks_alerts_write(self):
+        alert_identifier = self._create_alert()
+        user = self._subject.create_dummy_user(permissions=[IRIS_PERMISSION_ALERTS_READ])
+        response = user.create(
+            '/api/v2/alerts/dim-hooks/invoke',
+            {'hook_name': 'on_manual_trigger_alert', 'targets': [alert_identifier]},
+        )
+        self.assertEqual(403, response.status_code)
+
+    def test_invoke_alerts_skips_alert_of_a_customer_the_user_cannot_see(self):
+        other_customer = self._subject.create_dummy_customer()
+        alert_identifier = self._create_alert(customer_identifier=other_customer)
+        user = self._subject.create_dummy_user(
+            permissions=[IRIS_PERMISSION_ALERTS_READ, IRIS_PERMISSION_ALERTS_WRITE]
+        )
+        self._subject.create(
+            f'/manage/users/{user.get_identifier()}/customers/update',
+            {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]},
+        )
+
+        response = user.create(
+            '/api/v2/alerts/dim-hooks/invoke',
+            {'hook_name': 'on_manual_trigger_alert', 'targets': [alert_identifier]},
+        )
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(0, response.json()['queued'])

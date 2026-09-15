@@ -8,6 +8,8 @@ from unittest import TestCase
 
 from app.business.managed_assets import managed_assets_normalize_name
 from app.business.dim_hooks import HookInvocationResult
+from app.business.dim_hooks import invoke_hook_for_alerts
+from app.models.errors import BusinessProcessingError
 
 
 class TestManagedAssetsNormalizeName(TestCase):
@@ -58,3 +60,44 @@ class TestHookInvocationResult(TestCase):
     def test_logs_can_be_empty(self):
         result = HookInvocationResult(queued=1, logs=[])
         self.assertEqual([], result.logs)
+
+
+class TestInvokeHookForAlerts(TestCase):
+    """Only the guards that run before `call_modules_hook` — dispatch
+    itself needs a database and is covered by the REST suite.
+    """
+
+    def test_missing_hook_name_raises(self):
+        with self.assertRaises(BusinessProcessingError):
+            invoke_hook_for_alerts(
+                hook_name=None, hook_ui_name='ui', module_name='mod', alerts=[object()],
+            )
+
+    def test_non_alert_hook_name_raises(self):
+        with self.assertRaises(BusinessProcessingError):
+            invoke_hook_for_alerts(
+                hook_name='on_manual_trigger_ioc',
+                hook_ui_name='ui',
+                module_name='mod',
+                alerts=[object()],
+            )
+
+    def test_no_alerts_reports_zero_queued_rather_than_raising(self):
+        result = invoke_hook_for_alerts(
+            hook_name='on_manual_trigger_alert',
+            hook_ui_name='ui',
+            module_name='mod',
+            alerts=[],
+            logs=['Alert ID 42 not found'],
+        )
+        self.assertEqual(0, result.queued)
+
+    def test_no_alerts_passes_the_skip_logs_through(self):
+        result = invoke_hook_for_alerts(
+            hook_name='on_manual_trigger_alert',
+            hook_ui_name='ui',
+            module_name='mod',
+            alerts=[],
+            logs=['Alert ID 42 not found'],
+        )
+        self.assertEqual(['Alert ID 42 not found'], result.logs)

@@ -27,7 +27,6 @@ contract.
 
 from typing import Any, List, Optional
 
-from app.models.alerts import Alert
 from app.models.assets import CaseAssets
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
@@ -92,8 +91,13 @@ _TARGET_LOADERS = {
     'global_task': lambda target, _caseid: GlobalTasks.query.filter(
         GlobalTasks.id == target,
     ).first(),
-    'alert': lambda target, _caseid: Alert.query.filter(Alert.alert_id == target).first(),
 }
+# NB: alerts are deliberately absent. They don't belong to a case, so
+# there is nothing here to scope them by — a `type: alert` target on the
+# case-scoped invoker would have been reachable with full access to any
+# case at all, whatever customer the alert belongs to. Manual alert hooks
+# go through `POST /api/v2/alerts/dim-hooks/invoke` instead, which loads
+# every target with the usual `alerts_get` tenant check.
 
 
 def resolve_hook_target(data_type: str, target: int, caseid: int) -> Optional[Any]:

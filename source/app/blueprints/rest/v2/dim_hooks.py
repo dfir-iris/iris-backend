@@ -18,9 +18,11 @@
 
 """v2 top-level DIM hooks endpoint.
 
-Only the LIST route lives here — invoking a hook is always case-scoped
-and is registered under `/api/v2/cases/<cid>/dim-hooks/invoke` by
-`case_routes/dim_hooks.py`.
+Only the LIST route lives here. Invoking is scoped to whatever owns the
+targets: `case_routes/dim_hooks.py` registers
+`/api/v2/cases/<cid>/dim-hooks/invoke` for case objects, and
+`alerts_routes/dim_hooks.py` registers `/api/v2/alerts/dim-hooks/invoke`
+for alerts, which have no case to be scoped by.
 """
 
 from flask import Blueprint

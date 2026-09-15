@@ -35,6 +35,9 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.models.errors import BusinessProcessingError
 
 
+ALERT_MANUAL_HOOK_NAME = 'on_manual_trigger_alert'
+
+
 @dataclass
 class HookInvocationResult:
     queued: int
@@ -97,3 +100,43 @@ def invoke_hook_for_case(
         )
 
     return HookInvocationResult(queued=len(obj_targets), logs=logs)
+
+
+def invoke_hook_for_alerts(
+    hook_name: str,
+    hook_ui_name: str,
+    module_name: str,
+    alerts: Sequence[Any],
+    logs: Sequence[str] = (),
+) -> HookInvocationResult:
+    """Dispatch a manual hook against a batch of already-loaded alerts.
+
+    Alerts sit outside any case, so there is no case to resolve targets
+    against — the caller loads each alert through the usual tenant check
+    and hands the rows over, along with a `logs` line per target it had
+    to skip. An empty `alerts` therefore means "every target was skipped",
+    not a caller mistake, and reports queued=0 rather than raising.
+    `caseid` is passed as None to `call_modules_hook`, which only uses it
+    to label the row in the module tasks table.
+    """
+    if not hook_name:
+        raise BusinessProcessingError('Missing hook_name')
+
+    # Manual alert hooks are registered under exactly one well-known
+    # name. Without this, a caller could hand alerts to a module that
+    # registered for, say, `on_manual_trigger_ioc` and expects an Ioc.
+    if hook_name != ALERT_MANUAL_HOOK_NAME:
+        raise BusinessProcessingError(f'Hook {hook_name} is not an alert hook')
+
+    if not alerts:
+        return HookInvocationResult(queued=0, logs=list(logs))
+
+    call_modules_hook(
+        hook_name,
+        list(alerts),
+        caseid=None,
+        hook_ui_name=hook_ui_name,
+        module_name=module_name,
+    )
+
+    return HookInvocationResult(queued=len(alerts), logs=list(logs))
