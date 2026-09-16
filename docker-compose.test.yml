@@ -7,7 +7,7 @@
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: iris_rabbitmq
+    container_name: ${IRIS_CONTAINER_PREFIX:-iris}_rabbitmq
     user: rabbitmq
     networks:
       - iris_backend
@@ -17,10 +17,10 @@ services:
       start_interval: 1s
 
   db:
-    image: iris-db:ci
+    image: ${LOCAL_DB_IMAGE:-iris-db:ci}
     build:
       context: docker/db
-    container_name: iris_db
+    container_name: ${IRIS_CONTAINER_PREFIX:-iris}_db
     environment:
       - POSTGRES_USER
       - POSTGRES_PASSWORD
@@ -28,6 +28,10 @@ services:
       - POSTGRES_ADMIN_PASSWORD
       - POSTGRES_DB
       - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      # tests_database_migration inspects the schema directly over
+      # postgresql://...@localhost:5432 from the runner host.
+      - "127.0.0.1:${IRIS_DB_HOST_PORT:-5432}:5432"
     networks:
       - iris_backend
     volumes:
@@ -38,11 +42,11 @@ services:
       start_interval: 1s
 
   app:
-    image: iris-backend:ci
+    image: ${LOCAL_APP_IMAGE:-iris-backend:ci}
     build:
       context: .
       dockerfile: docker/webApp/Dockerfile
-    container_name: iris_app
+    container_name: ${IRIS_CONTAINER_PREFIX:-iris}_app
     command: ["./iris-entrypoint.sh", "iriswebapp"]
     depends_on:
       db:
@@ -63,7 +67,7 @@ services:
       - IRIS_SECURITY_PASSWORD_SALT
     ports:
       # tests/iris.py hits http://127.0.0.1:8000 from the runner host
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${IRIS_APP_HOST_PORT:-8000}:8000"
     networks:
       - iris_backend
     healthcheck:
@@ -78,11 +82,11 @@ services:
       start_interval: 1s
 
   worker:
-    image: iris-backend:ci
+    image: ${LOCAL_APP_IMAGE:-iris-backend:ci}
     build:
       context: .
       dockerfile: docker/webApp/Dockerfile
-    container_name: iris_worker
+    container_name: ${IRIS_CONTAINER_PREFIX:-iris}_worker
     command:
       [
         "./wait-for-iriswebapp.sh",
@@ -132,4 +136,7 @@ volumes:
 
 networks:
   iris_backend:
-    name: iris_backend
+    # Named per-stack: test-api and test-database-migration run concurrently
+    # on the same self-hosted runner. Sharing one network would put two
+    # containers behind the `db` / `app` service aliases at once.
+    name: ${IRIS_CONTAINER_PREFIX:-iris}_backend

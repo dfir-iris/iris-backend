@@ -18,6 +18,12 @@ env:
   REGISTRY: ghcr.io
   CI_DB_IMAGE: ghcr.io/dfir-iris/iris-db:ci-${{ github.run_id }}-${{ github.run_attempt }}
   CI_APP_IMAGE: ghcr.io/dfir-iris/iris-backend:ci-${{ github.run_id }}-${{ github.run_attempt }}
+  # Local tags must be run-scoped too. The runner is shared, so a fixed
+  # `iris-db:ci` collides with whatever else already holds that tag
+  # ("AlreadyExists: image docker.io/library/iris-db:ci"). Consumed by
+  # docker-compose.test.yml, which falls back to the plain tag locally.
+  LOCAL_DB_IMAGE: iris-db:ci-${{ github.run_id }}-${{ github.run_attempt }}
+  LOCAL_APP_IMAGE: iris-backend:ci-${{ github.run_id }}-${{ github.run_attempt }}
   DOCKER_BUILD_RECORD_UPLOAD: "false"
 
 jobs:
@@ -34,10 +40,16 @@ jobs:
           args: check --output-format=github
       - name: Check import dependencies with import-linter
         run: |
+          # The self-hosted runner installs console scripts into pip's
+          # user base, which is not on PATH — without this, `lint-imports`
+          # exits 127 (command not found) and the layering contract is
+          # never actually enforced. Same for `vulture` below.
+          export PATH="$(python3 -m site --user-base)/bin:$PATH"
           pip install import-linter
           PYTHONPATH=source lint-imports
       - name: Looking for dead code with vulture
         run: |
+          export PATH="$(python3 -m site --user-base)/bin:$PATH"
           pip install vulture
           vulture
       - name: OpenAPI spec drift check
@@ -127,8 +139,8 @@ jobs:
         run: |
           docker pull "${{ env.CI_DB_IMAGE }}"
           docker pull "${{ env.CI_APP_IMAGE }}"
-          docker tag "${{ env.CI_DB_IMAGE }}" iris-db:ci
-          docker tag "${{ env.CI_APP_IMAGE }}" iris-backend:ci
+          docker tag "${{ env.CI_DB_IMAGE }}" "${{ env.LOCAL_DB_IMAGE }}"
+          docker tag "${{ env.CI_APP_IMAGE }}" "${{ env.LOCAL_APP_IMAGE }}"
       - name: Check out iris-backend
         uses: actions/checkout@v4
       - name: Start test stack
@@ -194,14 +206,21 @@ jobs:
         run: |
           docker pull "${{ env.CI_DB_IMAGE }}"
           docker pull "${{ env.CI_APP_IMAGE }}"
-          docker tag "${{ env.CI_DB_IMAGE }}" iris-db:ci
-          docker tag "${{ env.CI_APP_IMAGE }}" iris-backend:ci
+          docker tag "${{ env.CI_DB_IMAGE }}" "${{ env.LOCAL_DB_IMAGE }}"
+          docker tag "${{ env.CI_APP_IMAGE }}" "${{ env.LOCAL_APP_IMAGE }}"
       - name: Check out iris-backend
         uses: actions/checkout@v4
       - name: Set up .env file
         run: cp .env.tests.model .env
       - name: Run tests
         working-directory: tests_database_migration
+        # Own container/network prefix and host port: this job runs at the
+        # same time as test-api on the same runner, against the same
+        # compose file.
+        env:
+          IRIS_CONTAINER_PREFIX: iris_migration
+          IRIS_DB_HOST_PORT: "5433"
+          IRIS_APP_HOST_PORT: "8001"
         run: |
           python3 -m venv venv
           source venv/bin/activate

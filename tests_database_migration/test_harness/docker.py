@@ -21,22 +21,28 @@ import subprocess
 
 class Docker:
 
-    def __init__(self, docker_compose_path, docker_compose_file):
+    def __init__(self, docker_compose_path, docker_compose_file, project_name=None):
         self._docker_compose_path = docker_compose_path
         self._docker_compose_file = docker_compose_file
+        self._project_name = project_name
+
+    def _compose(self, *arguments):
+        command = ['docker', 'compose', '-f', self._docker_compose_file]
+        if self._project_name:
+            command = command + ['-p', self._project_name]
+        return command + list(arguments)
 
     def compose_up(self, service=None):
-        command = ['docker', 'compose', '-f', self._docker_compose_file, 'up', '--detach', '--wait']
+        command = self._compose('up', '--detach', '--wait')
         if service:
             command = command + [service]
         subprocess.check_call(command, cwd=self._docker_compose_path)
 
     def compose_down(self):
-        subprocess.check_call(['docker', 'compose', '-f', self._docker_compose_file, 'down'],
-                              cwd=self._docker_compose_path)
+        subprocess.check_call(self._compose('down'), cwd=self._docker_compose_path)
 
     def extract_logs(self, service):
-        return subprocess.check_output(['docker', 'compose', '-f', self._docker_compose_file, 'logs', '--no-color', service],
+        return subprocess.check_output(self._compose('logs', '--no-color', service),
                                        cwd=self._docker_compose_path, universal_newlines=True)
 
     @staticmethod

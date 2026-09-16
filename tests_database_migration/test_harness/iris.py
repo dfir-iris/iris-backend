@@ -16,13 +16,16 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import os
 from uuid import uuid4
 from pathlib import Path
 from test_harness.rest_api import RestApi
 from test_harness.user import User
 from test_harness.socket_io_context_manager import SocketIOContextManager
 
-API_URL = 'http://127.0.0.1:8000'
+# Tracks IRIS_APP_HOST_PORT in docker-compose.test.yml — CI moves this stack
+# off :8000 so it does not collide with the concurrent test-api stack.
+API_URL = f'http://127.0.0.1:{os.environ.get("IRIS_APP_HOST_PORT", "8000")}'
 # TODO SSOT: this should be directly read from the .env file
 _API_KEY = 'B8BA5D730210B50F41C06941582D7965D57319D5685440587F98DFDC45A01594'
 _IRIS_PATH = Path('../..')

@@ -20,6 +20,7 @@
 from unittest import TestCase
 from pathlib import Path
 import gzip
+import os
 import tempfile
 import shutil
 from sqlalchemy import create_engine
@@ -29,16 +30,28 @@ from test_harness.docker import Docker
 from test_harness.iris import Iris
 
 _IRIS_PATH = Path('..')
+# One name drives the whole stack. docker-compose.test.yml derives the
+# container and network names from IRIS_CONTAINER_PREFIX, and passing it as the
+# compose project name makes the volume `<prefix>_db_data` — which tearDown has
+# to name, so it cannot be left to compose's default (the checkout directory
+# name, which differs between a local clone and the CI runner). CI sets the
+# prefix and both ports so this stack does not collide with the concurrently
+# running test-api stack.
+_CONTAINER_PREFIX = os.environ.get('IRIS_CONTAINER_PREFIX', 'iris')
+_COMPOSE_PROJECT = _CONTAINER_PREFIX
+_DB_CONTAINER = f'{_CONTAINER_PREFIX}_db'
+_DB_HOST_PORT = os.environ.get('IRIS_DB_HOST_PORT', '5432')
+_DATABASE_URL = f'postgresql+psycopg2://postgres:__MUST_BE_CHANGED__@localhost:{_DB_HOST_PORT}/iris_db'
 
 
 class TestsDatabaseMigration(TestCase):
 
     def setUp(self) -> None:
-        self._docker = Docker(_IRIS_PATH, 'docker-compose.dev.yml')
+        self._docker = Docker(_IRIS_PATH, 'docker-compose.test.yml', _COMPOSE_PROJECT)
 
     def tearDown(self):
         self._docker.compose_down()
-        self._docker.volume_rm('iris-web_db_data')
+        self._docker.volume_rm(f'{_COMPOSE_PROJECT}_db_data')
 
     @staticmethod
     def _extract_database_dump(name, destination_file):
@@ -49,7 +62,7 @@ class TestsDatabaseMigration(TestCase):
         with tempfile.TemporaryFile() as temporary_file:
             self._extract_database_dump(name, temporary_file)
             temporary_file.seek(0)
-            self._docker.exec('iriswebapp_db', temporary_file, ['psql', '-U', 'postgres', '-d', 'iris_db'])
+            self._docker.exec(_DB_CONTAINER, temporary_file, ['psql', '-U', 'postgres', '-d', 'iris_db'])
 
     def test_update_from_v2_4_14_should_not_fail(self):
         self._docker.compose_up('db')
@@ -71,7 +84,7 @@ class TestsDatabaseMigration(TestCase):
         self._dump_database('v2.4.22_empty')
         self._docker.compose_up()
 
-        engine = create_engine('postgresql+psycopg2://postgres:__MUST_BE_CHANGED__@localhost:5432/iris_db')
+        engine = create_engine(_DATABASE_URL)
         inspection = inspect(engine)
         logs = self._docker.extract_logs('app')
         self.assertNotIn('ioc_link', inspection.get_table_names(), logs)
@@ -81,7 +94,7 @@ class TestsDatabaseMigration(TestCase):
         self._dump_database('v2.4.22_with_ioc')
         self._docker.compose_up()
 
-        engine = create_engine('postgresql+psycopg2://postgres:__MUST_BE_CHANGED__@localhost:5432/iris_db')
+        engine = create_engine(_DATABASE_URL)
         inspection = inspect(engine)
         logs = self._docker.extract_logs('app')
         self.assertNotIn('ioc_link', inspection.get_table_names(), logs)

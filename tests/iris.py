@@ -16,6 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import os
 from time import sleep
 from uuid import uuid4
 from pathlib import Path
@@ -24,7 +25,7 @@ from rest_api import RestApi
 from user import User
 from socket_io_context_manager import SocketIOContextManager
 
-API_URL = 'http://127.0.0.1:8000'
+API_URL = f'http://127.0.0.1:{os.environ.get("IRIS_APP_HOST_PORT", "8000")}'
 # TODO SSOT: this should be directly read from the .env file
 _API_KEY = 'B8BA5D730210B50F41C06941582D7965D57319D5685440587F98DFDC45A01594'
 _IRIS_PATH = Path('..')
@@ -58,7 +59,7 @@ GROUP_ANALYSTS_IDENTIFIER = 2
 class Iris:
 
     def __init__(self):
-        self._docker_compose = DockerCompose(_IRIS_PATH, 'docker-compose.dev.yml')
+        self._docker_compose = DockerCompose(_IRIS_PATH, 'docker-compose.test.yml')
         # TODO remove this field and use _administrator instead
         self._api = RestApi(API_URL, _API_KEY)
         self._administrator = User(API_URL, _ADMINISTRATOR_USER_LOGIN, _API_KEY, ADMINISTRATOR_USER_IDENTIFIER)
