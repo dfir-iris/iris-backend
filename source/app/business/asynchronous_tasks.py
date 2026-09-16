@@ -16,13 +16,81 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+import io
 import json
 import pickle
 
-from app import celery
 from app.datamgmt.asynchronous_tasks import search_asynchronous_tasks_paginated
 from app.datamgmt.asynchronous_tasks import get_asynchronous_task_by_id
 from iris_interface.IrisInterfaceStatus import IIStatus
+
+
+class _RefusedClass:
+    """Inert placeholder swapped in for any class the result blob names
+    other than ``IIStatus``.
+
+    Standing something harmless in, rather than refusing the whole blob,
+    is deliberate: ``task_hook_wrapper`` returns whatever the module
+    returned, and the bundled modules put the merged SQLAlchemy objects
+    straight into ``IIStatus.data``. A real success blob therefore names
+    a dozen ORM/SQLAlchemy classes that have nothing to do with the only
+    thing this module reads off it — ``is_success()``. Raising on those
+    would quietly demote every hook task to a failure row.
+    """
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __setstate__(self, state):
+        pass
+
+
+class _RestrictedUnpickler(pickle.Unpickler):
+    """``pickle.Unpickler`` that can only ever build an ``IIStatus``.
+
+    ``celery_taskmeta.result`` holds pickled bytes, so a plain
+    ``pickle.loads`` hands arbitrary code execution to anything able to
+    write that column (a worker, or direct database access). Constraining
+    ``find_class`` keeps the worst case at "the row renders as a failure"
+    instead of "the web process runs the blob".
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.refused_class_names = set()
+
+    def find_class(self, module, name):
+        if module == IIStatus.__module__ and name == IIStatus.__name__:
+            return IIStatus
+        self.refused_class_names.add(name)
+        return _RefusedClass
+
+
+def _read_task_result(blob):
+    """Deserialize a ``celery_taskmeta.result`` blob without trusting it.
+
+    Returns ``(result, refused_class_names)``. The second element lets
+    the caller tell "this blob referenced classes we would not build"
+    from "this blob was an ``IIStatus`` all along".
+    """
+    unpickler = _RestrictedUnpickler(io.BytesIO(blob))
+    return unpickler.load(), unpickler.refused_class_names
+
+
+def _loads_task_kwargs(raw):
+    """Decode the ``kwargs`` column into a dict.
+
+    Celery writes this one with the configured ``result_serializer``
+    (json — see ``CeleryConfig``), not pickle, so ``json.loads`` is both
+    the correct and the safe reader here. Unreadable kwargs are not worth
+    failing a read-only view over, hence the empty dict.
+    """
+    if not raw or raw == b'{}':
+        return {}
+    try:
+        return json.loads(raw.decode('utf-8')) or {}
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {}
 
 
 def _get_engine_name(task):
@@ -37,38 +105,74 @@ def _get_success(task_result: IIStatus):
     return 'Failure'
 
 
-def _dim_tasks_is_legacy(task):
-    try:
-        _ = task.date_done
-        return False
-    except AttributeError:
-        return True
+class _MissingTask:
+    """Stand-in for a task id that has no ``celery_taskmeta`` row.
+
+    ``celery.AsyncResult`` answered unknown ids with a synthetic PENDING
+    result rather than failing, and the legacy Dim page calls
+    ``dim_tasks_get`` without checking existence first — so keep handing
+    it something renderable.
+    """
+
+    name = None
+    status = 'PENDING'
+    result = None
+    kwargs = None
+    date_done = None
+    traceback = None
+
+
+_LEGACY_TASK_DETAILS = {
+    'Danger': 'This task was executed in a previous version of IRIS and the status cannot be read anymore.',
+    'Note': 'All the data readable by the current IRIS version is displayed in the table.',
+    'Additional information': 'The results of this tasks were stored in a pickled Class which does not exists '
+                              'anymore in current IRIS version.'
+}
 
 
 def dim_tasks_get(task_identifier):
-    task = celery.AsyncResult(task_identifier)
-    if _dim_tasks_is_legacy(task):
-        return {
-            'Danger': 'This task was executed in a previous version of IRIS and the status cannot be read anymore.',
-            'Note': 'All the data readable by the current IRIS version is displayed in the table.',
-            'Additional information': 'The results of this tasks were stored in a pickled Class which does not exists '
-                                      'anymore in current IRIS version.'
-        }
+    """Detail view for a single Dim task.
 
-    engine_name = _get_engine_name(task)
+    Reads the ``celery_taskmeta`` row directly instead of going through
+    ``celery.AsyncResult``. Celery maps ``result`` as a ``PickleType``,
+    so merely touching ``AsyncResult.info`` unpickles the column with no
+    restriction whatsoever — arbitrary code execution for anyone able to
+    write that row. Fetching the row ourselves puts the blob through
+    ``_read_task_result`` instead.
+    """
+    row = get_asynchronous_task_by_id(task_identifier) or _MissingTask()
+
+    result = None
+    refused_class_names = frozenset()
+    if row.result:
+        try:
+            result, refused_class_names = _read_task_result(row.result)
+        except Exception:
+            # A corrupt blob is not worth 500-ing a read-only view over;
+            # it falls through to the "no valid IIStatus" branch below.
+            pass
+
+    if IIStatus.__name__ in refused_class_names:
+        # The blob names an IIStatus we can no longer import: an IRIS
+        # version whose status class lived elsewhere. Saying "Failure"
+        # would be a lie — the task may well have succeeded, we just
+        # cannot read its verdict.
+        return dict(_LEGACY_TASK_DETAILS)
+
     user = None
     module_name = None
     hook_name = None
     case_identifier = None
-    if task.name and ('task_hook_wrapper' in task.name or 'pipeline_dispatcher' in task.name):
-        module_name = task.kwargs.get('module_name')
-        hook_name = task.kwargs.get('hook_name')
-        user = task.kwargs.get('init_user')
-        case_identifier = task.kwargs.get('caseid')
+    if row.name and ('task_hook_wrapper' in row.name or 'pipeline_dispatcher' in row.name):
+        kwargs = _loads_task_kwargs(row.kwargs)
+        module_name = kwargs.get('module_name')
+        hook_name = kwargs.get('hook_name')
+        user = kwargs.get('init_user')
+        case_identifier = kwargs.get('caseid')
 
-    if isinstance(task.info, IIStatus):
-        success = _get_success(task.info)
-        logs = task.info.get_logs()
+    if isinstance(result, IIStatus):
+        success = _get_success(result)
+        logs = result.get_logs()
     else:
         success = 'Failure'
         user = 'Shadow Iris'
@@ -76,16 +180,16 @@ def dim_tasks_get(task_identifier):
 
     return {
         'Task ID': task_identifier,
-        'Task finished on': task.date_done,
-        'Task state': task.state.lower(),
-        'Engine': engine_name,
+        'Task finished on': row.date_done,
+        'Task state': (row.status or 'PENDING').lower(),
+        'Engine': _get_engine_name(row),
         'Module name': module_name,
         'Hook name': hook_name,
         'Case ID': case_identifier,
         'Success': success,
         'User': user,
         'Logs': logs,
-        'Traceback': task.traceback
+        'Traceback': row.traceback
     }
 
 
@@ -97,8 +201,9 @@ def _project_row(row):
     doesn't have to know about Python datetimes; ``case_id`` is split
     out from the human ``case`` label so the UI can build a
     `/case/<id>` link without parsing a string; and we never propagate
-    exceptions raised by pickle.loads — a corrupt result blob just
-    leaves the row labelled as a failure rather than 500-ing the page.
+    exceptions raised by ``_read_task_result`` — a corrupt result blob
+    just leaves the row labelled as a failure rather than 500-ing the
+    page.
     """
     tkp = {
         'task_id': row.task_id,
@@ -126,22 +231,18 @@ def _project_row(row):
     user = None
     case_name = None
     case_identifier = None
-    if row.kwargs and row.kwargs != b'{}':
-        try:
-            kwargs = json.loads(row.kwargs.decode('utf-8'))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            kwargs = None
-        if kwargs:
-            user = kwargs.get('init_user')
-            case_identifier = kwargs.get('caseid')
-            if case_identifier is not None:
-                case_name = f'Case #{case_identifier}'
-            module_name = kwargs.get('module_name')
-            hook_name = kwargs.get('hook_name')
-            task_name = f'{module_name}::{hook_name}'
+    kwargs = _loads_task_kwargs(row.kwargs)
+    if kwargs:
+        user = kwargs.get('init_user')
+        case_identifier = kwargs.get('caseid')
+        if case_identifier is not None:
+            case_name = f'Case #{case_identifier}'
+        module_name = kwargs.get('module_name')
+        hook_name = kwargs.get('hook_name')
+        task_name = f'{module_name}::{hook_name}'
 
     try:
-        result = pickle.loads(row.result) if row.result else None
+        result, _ = _read_task_result(row.result) if row.result else (None, frozenset())
     except Exception:
         result = None
 

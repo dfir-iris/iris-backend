@@ -74,19 +74,19 @@ def list_dim_tasks_endpoint():
 def get_dim_task_endpoint(task_id):
     """Detail view for a single Dim task.
 
-    Returns the full Celery AsyncResult metadata (logs, traceback, etc.)
-    plus the row-shape projection used by the listing — handy because
-    the frontend can hydrate a slide-out panel without a second request.
+    Returns the task metadata (logs, traceback, etc.) plus the row-shape
+    projection used by the listing — handy because the frontend can
+    hydrate a slide-out panel without a second request.
 
-    404 only if the meta row itself is missing. A successful AsyncResult
-    fetch for an unknown id still returns a "PENDING" stub from Celery,
-    so we use the DB lookup as the source of truth for existence.
+    404 if the meta row is missing. `dim_tasks_get` answers unknown ids
+    with a "PENDING" stub rather than failing, so the DB lookup is the
+    source of truth for existence.
     """
     projected = asynchronous_task_get_by_id(task_id)
     if projected is None:
         return response_api_not_found()
 
-    # `dim_tasks_get` does the heavy lifting (unpickling task.info,
+    # `dim_tasks_get` does the heavy lifting (decoding the result blob,
     # parsing logs/traceback). Keys are human-readable strings — keep
     # them as-is so the frontend can render them verbatim in a key/value
     # detail card.

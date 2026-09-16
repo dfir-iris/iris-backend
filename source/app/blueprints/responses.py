@@ -15,10 +15,10 @@
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+import base64
 import datetime
 import decimal
 import json
-import pickle
 import uuid
 
 from flask import g
@@ -147,9 +147,11 @@ class AlchemyEncoder(json.JSONEncoder):
             return str(obj)
 
         if obj.__class__ == bytes:
-            try:
-                return pickle.load(obj)
-            except Exception:
-                return str(obj)
+            # base64 rather than `str(obj)`: a bytes value that reaches
+            # here is opaque binary (the ORM branch above nulls the ones
+            # it meets), and a Python repr is neither round-trippable
+            # nor useful to a JSON client. Never unpickle it — the
+            # blob is whatever was in the column.
+            return base64.b64encode(obj).decode('ascii')
 
         return json.JSONEncoder.default(self, obj)

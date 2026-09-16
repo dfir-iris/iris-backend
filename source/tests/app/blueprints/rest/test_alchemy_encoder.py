@@ -8,9 +8,11 @@ The non-ORM paths (Decimal, datetime, date, UUID, unknown types) are pure
 and need no Flask or DB context.
 """
 
+import base64
 import datetime
 import decimal
 import json
+import pickle
 import uuid
 from unittest import TestCase
 
@@ -60,6 +62,39 @@ class TestAlchemyEncoderUUID(TestCase):
         uid = uuid.uuid4()
         result = json.loads(_encode(uid))
         self.assertEqual(str(uid), result)
+
+
+_DETONATIONS = []
+
+
+def _detonate():
+    _DETONATIONS.append(True)
+    return 'detonated'
+
+
+class _MaliciousPayload:
+
+    def __reduce__(self):
+        return (_detonate, ())
+
+
+class TestAlchemyEncoderBytes(TestCase):
+
+    def setUp(self):
+        _DETONATIONS.clear()
+
+    def test_bytes_serialized_as_base64(self):
+        raw = b'\x80\x04not-utf8'
+        result = json.loads(_encode(raw))
+        self.assertEqual(base64.b64encode(raw).decode('ascii'), result)
+
+    def test_pickled_payload_is_encoded_not_executed(self):
+        blob = pickle.dumps(_MaliciousPayload())
+
+        result = json.loads(_encode(blob))
+
+        self.assertEqual([], _DETONATIONS)
+        self.assertEqual(base64.b64encode(blob).decode('ascii'), result)
 
 
 class TestAlchemyEncoderUnknown(TestCase):

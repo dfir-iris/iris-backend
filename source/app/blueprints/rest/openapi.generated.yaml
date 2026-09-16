@@ -5269,11 +5269,10 @@ paths:
       - DimTasks
       security:
       - ApiKey: []
-      description: "Returns the full Celery AsyncResult metadata (logs, traceback, etc.)\nplus the row-shape\
-        \ projection used by the listing \u2014 handy because\nthe frontend can hydrate a slide-out panel\
-        \ without a second request.\n\n404 only if the meta row itself is missing. A successful AsyncResult\n\
-        fetch for an unknown id still returns a \"PENDING\" stub from Celery,\nso we use the DB lookup\
-        \ as the source of truth for existence."
+      description: "Returns the task metadata (logs, traceback, etc.) plus the row-shape\nprojection used\
+        \ by the listing \u2014 handy because the frontend can\nhydrate a slide-out panel without a second\
+        \ request.\n\n404 if the meta row is missing. `dim_tasks_get` answers unknown ids\nwith a \"PENDING\"\
+        \ stub rather than failing, so the DB lookup is the\nsource of truth for existence."
       parameters:
       - name: task_id
         in: path

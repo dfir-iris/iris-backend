@@ -612,3 +612,7 @@ OIDC_REQUIRE_VERIFIED_EMAIL  # read in blueprints/pages/login/login_routes.py:27
 ######### Test hooks invoked outside source/app
 # vulture only scans source/app, so callers under source/tests are invisible.
 reset_login_throttle  # unused function (source/app/business/login_throttle.py:151) — called by source/tests/app/business/test_login_throttle.py:38,39
+######### Restricted unpickler hook called from the pickle machinery
+# `find_class` is an override the (C) Unpickler calls by name while
+# reading a blob, so no Python caller is visible to vulture.
+_.find_class  # unused method (source/app/business/asynchronous_tasks.py:62)
