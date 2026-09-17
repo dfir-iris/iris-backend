@@ -94,7 +94,7 @@ def case_note_detail(cur_id, caseid):
     """
     try:
         note = get_note(cur_id)
-        if not note:
+        if not note or note.note_case_id != caseid:
             return response_error(msg="Invalid note ID")
 
         note_comments = get_case_note_comments(cur_id)
@@ -320,7 +320,8 @@ def case_load_notes_groups(caseid):
     pass
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not to be ported: polling marker for the v1 Jinja UI, which refetched the
+# note list whenever this counter moved. v3 pushes those updates over Socket.IO.
 @case_notes_rest_blueprint.route('/case/notes/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -396,6 +397,10 @@ def case_edit_notes_groups(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_list(cur_id, caseid):
+    note = get_note(cur_id)
+    if not note or note.note_case_id != caseid:
+        return response_error('Invalid note ID')
+
     note_comments = get_case_note_comments(cur_id)
     if note_comments is None:
         return response_error('Invalid note ID')
@@ -410,7 +415,7 @@ def case_comment_note_list(cur_id, caseid):
 def case_comment_note_add(cur_id, caseid):
     try:
         note = get_note(cur_id)
-        if not note:
+        if not note or note.note_case_id != caseid:
             return response_error('Invalid note ID')
 
         comment_schema = CommentSchema()
@@ -445,6 +450,10 @@ def case_comment_note_add(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_get(cur_id, com_id, caseid):
+    note = get_note(cur_id)
+    if not note or note.note_case_id != caseid:
+        return response_error("Invalid comment ID")
+
     comment = get_case_note_comment(cur_id, com_id)
     if not comment:
         return response_error("Invalid comment ID")
@@ -457,6 +466,10 @@ def case_comment_note_get(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_edit(cur_id, com_id, caseid):
+    note = get_note(cur_id)
+    if not note or note.note_case_id != caseid:
+        return response_error("Invalid comment ID")
+
     return case_comment_update(com_id, 'notes', caseid)
 
 
@@ -465,6 +478,10 @@ def case_comment_note_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_note_delete(cur_id, com_id, caseid):
+    note = get_note(cur_id)
+    if not note or note.note_case_id != caseid:
+        return response_error("Invalid comment ID")
+
     success, msg = delete_note_comment(iris_current_user.id, cur_id, com_id)
     if not success:
         return response_error(msg)

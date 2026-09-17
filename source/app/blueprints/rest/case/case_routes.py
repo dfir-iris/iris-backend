@@ -115,7 +115,7 @@ def activity_fetch(caseid):
     return response_success('', data=output)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by POST /api/v2/cases/{case_identifier}/export (v2/case_transfer.py).
 @case_rest_blueprint.route('/case/export', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -163,7 +163,8 @@ def case_get_users(caseid):
     return response_success(data=users)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by POST /api/v2/manage/groups/{identifier}/cases-access
+# (v2/manage_routes/groups.py).
 @case_rest_blueprint.route('/case/access/set-group', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -207,7 +208,8 @@ def group_cac_set_case(caseid):
     return response_error(msg=logs)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by POST /api/v2/manage/users/{identifier}/cases-access
+# (v2/manage_routes/users.py).
 @case_rest_blueprint.route('/case/access/set-user', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

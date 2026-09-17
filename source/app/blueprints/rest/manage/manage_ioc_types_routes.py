@@ -148,7 +148,8 @@ def update_ioc(cur_id):
     return response_error("Unexpected error server-side. Nothing updated", data=ioc_type)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/case-objects/ioc-types?search=...
+# (v2/manage_routes/case_objects.py) — same substring match, as a GET filter.
 @manage_ioc_type_rest_blueprint.route('/manage/ioc-types/search', methods=['POST'])
 @ac_api_requires()
 def search_ioc_type():

@@ -194,7 +194,8 @@ def delete_assets(cur_id):
     return response_success(f"Deleted asset type ID {cur_id} successfully")
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/case-objects/asset-types?search=...
+# (v2/manage_routes/case_objects.py) — same substring match, as a GET filter.
 @manage_assets_type_rest_blueprint.route('/manage/asset-types/search', methods=['POST'])
 @ac_api_requires()
 def search_assets_type():

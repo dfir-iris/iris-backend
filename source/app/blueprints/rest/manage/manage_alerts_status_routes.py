@@ -69,7 +69,8 @@ def get_case_alert_status(classification_id: int) -> Response:
     return response_success("", data=schema.dump(cl))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/alert-statuses?search=...
+# (v2/manage_routes/taxonomies.py) — same substring match, as a GET filter.
 @manage_alerts_status_rest_blueprint.route('/manage/alert-status/search', methods=['POST'])
 @ac_api_requires()
 def search_alert_status():
@@ -128,7 +129,8 @@ def get_case_alert_resolution(resolution_id: int) -> Response:
     return response_success("", data=schema.dump(cl))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/alert-resolutions?search=...
+# (v2/manage_routes/taxonomies.py) — same substring match, as a GET filter.
 @manage_alerts_status_rest_blueprint.route('/manage/alert-resolutions/search', methods=['POST'])
 @ac_api_requires()
 def search_alert_resolution():

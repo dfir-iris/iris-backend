@@ -75,7 +75,8 @@ def case_get_tasks(caseid: int):
     return response_success("", data=ret)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not to be ported: polling marker for the v1 Jinja UI, which refetched the
+# task list whenever this counter moved. v3 pushes those updates over Socket.IO.
 @case_tasks_rest_blueprint.route('/case/tasks/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -196,6 +197,10 @@ def deprecated_case_delete_task(cur_id: int, caseid: int):
 @ac_api_requires()
 def case_comment_task_list(cur_id: int, caseid: int):
 
+    task = get_task(task_id=cur_id)
+    if not task or task.task_case_id != caseid:
+        return response_error('Invalid task ID')
+
     task_comments = get_case_task_comments(task_id=cur_id)
     if task_comments is None:
         return response_error('Invalid task ID')
@@ -211,7 +216,7 @@ def case_comment_task_add(cur_id: int, caseid: int):
 
     try:
         task = get_task(task_id=cur_id)
-        if not task:
+        if not task or task.task_case_id != caseid:
             return response_error('Invalid task ID')
 
         comment_schema = CommentSchema()
@@ -247,6 +252,10 @@ def case_comment_task_add(cur_id: int, caseid: int):
 @ac_api_requires()
 def case_comment_task_get(cur_id: int, com_id: int, caseid: int):
 
+    task = get_task(task_id=cur_id)
+    if not task or task.task_case_id != caseid:
+        return response_error("Invalid comment ID")
+
     comment = get_case_task_comment(task_id=cur_id,
                                     comment_id=com_id)
     if not comment:
@@ -261,6 +270,10 @@ def case_comment_task_get(cur_id: int, com_id: int, caseid: int):
 @ac_api_requires()
 def case_comment_task_edit(cur_id: int, com_id: int, caseid: int):
 
+    task = get_task(task_id=cur_id)
+    if not task or task.task_case_id != caseid:
+        return response_error("Invalid comment ID")
+
     return case_comment_update(comment_id=com_id, object_type='tasks', caseid=caseid)
 
 
@@ -269,6 +282,10 @@ def case_comment_task_edit(cur_id: int, com_id: int, caseid: int):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_task_delete(cur_id: int, com_id: int, caseid: int):
+
+    task = get_task(task_id=cur_id)
+    if not task or task.task_case_id != caseid:
+        return response_error("Invalid comment ID")
 
     success, msg = delete_task_comment(iris_current_user.id, cur_id, com_id)
     if not success:

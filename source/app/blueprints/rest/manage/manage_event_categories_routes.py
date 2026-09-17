@@ -62,7 +62,8 @@ def get_event_category(cur_id):
     return response_success("", data=data)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/event-categories?search=...
+# (v2/manage_routes/taxonomies.py) — same substring match, as a GET filter.
 @manage_event_categories_rest_blueprint.route('/manage/event-categories/search', methods=['POST'])
 @ac_api_requires()
 def search_event_category():

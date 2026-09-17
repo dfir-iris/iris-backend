@@ -119,7 +119,7 @@ def get_case_event(event_id):
     ).first()
 
 
-def get_case_event_comments(event_id, caseid):
+def get_case_event_comments(event_id):
     return Comments.query.filter(
         EventComments.comment_event_id == event_id
     ).join(

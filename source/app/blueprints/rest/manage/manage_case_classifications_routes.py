@@ -169,7 +169,8 @@ def delete_case_classification(classification_id: int) -> Response:
     return response_success("Case classification deleted")
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/case-objects/case-classifications?search=...
+# (v2/manage_routes/case_objects.py) — same substring match, as a GET filter.
 @manage_case_classification_rest_blueprint.route('/manage/case-classifications/search', methods=['POST'])
 @ac_api_requires()
 def search_alert_status():

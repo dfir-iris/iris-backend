@@ -63,7 +63,8 @@ def get_case_alert_status(severity_id: int) -> Response:
     return response_success("", data=schema.dump(cl))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/severities?search=...
+# (v2/manage_routes/taxonomies.py) — same substring match, as a GET filter.
 @manage_severities_rest_blueprint.route('/manage/severities/search', methods=['POST'])
 @ac_api_requires()
 def search_analysis_status():

@@ -71,8 +71,9 @@ def manage_tags_filter() -> Response:
     return response_success('', data=tags)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
-# (v2 /api/v2/tags is a plain list; no typeahead-style term filter)
+# Superseded by GET /api/v2/tags?term=... — v2 accepts the same `term` query
+# parameter and runs the same tags_filter (v2/tags.py). Only the envelope
+# differs: v1 returns {"suggestions": [...]}, v2 a paginated TagsSchema.
 @manage_tags_rest_blueprint.route('/manage/tags/suggest', methods=['GET'])
 @ac_api_requires()
 def manage_tags_suggest() -> Response:

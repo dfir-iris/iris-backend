@@ -84,7 +84,11 @@ case_timeline_rest_blueprint = Blueprint('case_timeline_rest', __name__)
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comments_get(cur_id, caseid):
-    event_comments = get_case_event_comments(cur_id, caseid=caseid)
+    event = get_case_event(cur_id)
+    if not event or event.case_id != caseid:
+        return response_error('Invalid event ID')
+
+    event_comments = get_case_event_comments(cur_id)
     if event_comments is None:
         return response_error('Invalid event ID')
 
@@ -96,6 +100,10 @@ def case_comments_get(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_delete(cur_id, com_id, caseid):
+    event = get_case_event(cur_id)
+    if not event or event.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     success, msg = delete_event_comment(iris_current_user, cur_id, com_id)
     if not success:
         return response_error(msg)
@@ -111,6 +119,10 @@ def case_comment_delete(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_get(cur_id, com_id, caseid):
+    event = get_case_event(cur_id)
+    if not event or event.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     comment = get_case_event_comment(cur_id, com_id)
     if not comment:
         return response_error("Invalid comment ID")
@@ -123,6 +135,10 @@ def case_comment_get(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_edit(cur_id, com_id, caseid):
+    event = get_case_event(cur_id)
+    if not event or event.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     return case_comment_update(com_id, 'events', caseid)
 
 
@@ -133,7 +149,7 @@ def case_comment_edit(cur_id, com_id, caseid):
 def case_comment_add(cur_id, caseid):
     try:
         event = get_case_event(cur_id)
-        if not event:
+        if not event or event.case_id != caseid:
             return response_error('Invalid event ID')
 
         comment_schema = CommentSchema()
@@ -165,7 +181,8 @@ def case_comment_add(cur_id, caseid):
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not to be ported: polling marker for the v1 Jinja UI, which refetched the
+# timeline whenever this counter moved. v3 pushes those updates over Socket.IO.
 @case_timeline_rest_blueprint.route('/case/timeline/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()

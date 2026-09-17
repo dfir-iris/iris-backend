@@ -153,7 +153,8 @@ def case_list_assets(caseid):
     return response_success("", data=ret)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not to be ported: polling marker for the v1 Jinja UI, which refetched the
+# asset list whenever this counter moved. v3 pushes those updates over Socket.IO.
 @case_assets_rest_blueprint.route('/case/assets/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -425,6 +426,10 @@ def case_comment_asset_get(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_edit(cur_id, com_id, caseid):
+    asset = get_asset(cur_id)
+    if not asset or asset.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     return case_comment_update(com_id, 'assets', caseid)
 
 
@@ -433,6 +438,10 @@ def case_comment_asset_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_asset_delete(cur_id, com_id, caseid):
+    asset = get_asset(cur_id)
+    if not asset or asset.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     comment = get_comment(iris_current_user, com_id)
     if not comment:
         return response_error('You are not allowed to delete this comment')

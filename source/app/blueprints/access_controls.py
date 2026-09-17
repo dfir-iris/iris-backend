@@ -272,6 +272,12 @@ def ac_requires_case_identifier(*access_level):
             if not has_access:
                 return ac_api_return_access_denied(caseid=caseid)
 
+            try:
+                # The case identifier may come from the request body, where it is not typed
+                caseid = int(caseid)
+            except (TypeError, ValueError):
+                return response_error('Invalid case ID', status=404)
+
             kwargs.update({'caseid': caseid})
 
             return f(*args, **kwargs)

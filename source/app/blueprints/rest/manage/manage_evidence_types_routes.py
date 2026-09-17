@@ -167,7 +167,8 @@ def delete_evidence_type(evidence_type_id: int) -> Response:
     return response_success("Evidence type deleted")
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/case-objects/evidence-types?search=...
+# (v2/manage_routes/case_objects.py) — same substring match, as a GET filter.
 @manage_evidence_types_rest_blueprint.route('/manage/evidence-types/search', methods=['POST'])
 @ac_api_requires()
 def search_evidence_type():

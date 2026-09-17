@@ -90,7 +90,8 @@ def view_anastatus(cur_id):
     return response_success("", data=lstatus._asdict())
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/analysis-statuses?search=...
+# (v2/manage_routes/taxonomies.py) — same substring match, as a GET filter.
 @manage_analysis_status_rest_blueprint.route('/manage/analysis-status/search', methods=['POST'])
 @ac_api_requires()
 def search_analysis_status():

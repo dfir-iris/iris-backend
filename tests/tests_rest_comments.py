@@ -23,8 +23,10 @@ from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
 from iris import IRIS_PERMISSION_ALERTS_READ
 from iris import IRIS_PERMISSION_ALERTS_WRITE
 from iris import IRIS_CASE_ACCESS_LEVEL_READ_ONLY
+from iris import IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+_COMMENT_OF_ANOTHER_CASE = 'comment of another case'
 
 
 class TestsRestComments(TestCase):
@@ -770,3 +772,76 @@ class TestsRestComments(TestCase):
 
         response = self._subject.delete(f'/api/v2/events/{object_identifier}/comments/{identifier}')
         self.assertEqual(204, response.status_code)
+
+    def _create_commented_objects(self, case_identifier):
+        """Puts one object of every commentable type in a case, each carrying a comment.
+
+        Returns the prefix of the deprecated `/case/...` route of every object,
+        mapped to the identifier of that object.
+        """
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        asset_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()['asset_id']
+
+        body = {'filename': 'filename'}
+        evidence_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/evidences', body).json()['id']
+
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        ioc_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()['ioc_id']
+
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/notes-directories',
+                                        {'name': 'directory_name'}).json()
+        body = {'directory_id': response['id']}
+        note_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/notes', body).json()['note_id']
+
+        body = {'task_assignees_id': [], 'task_status_id': 1, 'task_title': 'dummy title'}
+        task_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/tasks', body).json()['id']
+
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': []}
+        event_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()['event_id']
+
+        objects = {
+            'case/assets': ('assets', asset_identifier),
+            'case/evidences': ('evidences', evidence_identifier),
+            'case/ioc': ('iocs', ioc_identifier),
+            'case/notes': ('notes', note_identifier),
+            'case/tasks': ('tasks', task_identifier),
+            'case/timeline/events': ('events', event_identifier)
+        }
+        for resource, object_identifier in objects.values():
+            self._subject.create(f'/api/v2/{resource}/{object_identifier}/comments',
+                                 {'comment_text': _COMMENT_OF_ANOTHER_CASE})
+        return {path: object_identifier for path, (_, object_identifier) in objects.items()}
+
+    def _create_user_with_access_to_case(self, case_identifier, access_level):
+        user = self._subject.create_dummy_user()
+        body = {'cases_list': [case_identifier], 'access_level': access_level}
+        self._subject.create(f'/manage/users/{user.get_identifier()}/cases-access/update', body)
+        return user
+
+    def test_list_comments_of_deprecated_endpoints_should_not_return_comments_of_an_inaccessible_case(self):
+        # The object identifiers in the path are global, so pairing an authorized cid with
+        # an object of another case must not hand over that object's comments.
+        other_case_identifier = self._subject.create_dummy_case()
+        objects = self._create_commented_objects(other_case_identifier)
+        case_identifier = self._subject.create_dummy_case()
+        user = self._create_user_with_access_to_case(case_identifier, IRIS_CASE_ACCESS_LEVEL_READ_ONLY)
+
+        for path, object_identifier in objects.items():
+            with self.subTest(path):
+                response = user.get(f'/{path}/{object_identifier}/comments/list', {'cid': case_identifier})
+                self.assertEqual(400, response.status_code)
+                self.assertNotIn(_COMMENT_OF_ANOTHER_CASE, response.text)
+
+    def test_add_comment_of_deprecated_endpoints_should_not_comment_an_object_of_an_inaccessible_case(self):
+        other_case_identifier = self._subject.create_dummy_case()
+        objects = self._create_commented_objects(other_case_identifier)
+        case_identifier = self._subject.create_dummy_case()
+        user = self._create_user_with_access_to_case(case_identifier, IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS)
+
+        for path, object_identifier in objects.items():
+            with self.subTest(path):
+                response = user.create(f'/{path}/{object_identifier}/comments/add?cid={case_identifier}',
+                                       {'comment_text': 'comment text'})
+                self.assertEqual(400, response.status_code)

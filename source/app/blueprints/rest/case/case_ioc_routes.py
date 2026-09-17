@@ -41,6 +41,7 @@ from app.datamgmt.case.case_iocs_db import delete_ioc_comment
 from app.datamgmt.case.case_iocs_db import get_case_ioc_comment
 from app.datamgmt.case.case_iocs_db import get_case_ioc_comments
 from app.datamgmt.case.case_iocs_db import get_detailed_iocs
+from app.datamgmt.case.case_iocs_db import get_ioc
 from app.datamgmt.case.case_iocs_db import get_ioc_links
 from app.datamgmt.case.case_iocs_db import get_ioc_type_id
 from app.datamgmt.case.case_iocs_db import get_tlps_dict
@@ -92,7 +93,8 @@ def case_list_ioc(caseid):
     return response_success('', data=ret)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not to be ported: polling marker for the v1 Jinja UI, which refetched the
+# IOC list whenever this counter moved. v3 pushes those updates over Socket.IO.
 @case_ioc_rest_blueprint.route('/case/ioc/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -275,6 +277,9 @@ def case_update_ioc(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_list(cur_id, caseid):
+    if not get_ioc(cur_id, caseid=caseid):
+        return response_error('Invalid ioc ID')
+
     ioc_comments = get_case_ioc_comments(cur_id)
     if ioc_comments is None:
         return response_error('Invalid ioc ID')
@@ -289,6 +294,8 @@ def case_comment_ioc_list(cur_id, caseid):
 def case_comment_ioc_add(cur_id, caseid):
     try:
         ioc = iocs_get(cur_id)
+        if ioc.case_id != caseid:
+            return response_error('Invalid ioc ID')
 
         comment_schema = CommentSchema()
 
@@ -324,6 +331,9 @@ def case_comment_ioc_add(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_get(cur_id, com_id, caseid):
+    if not get_ioc(cur_id, caseid=caseid):
+        return response_error('Invalid comment ID')
+
     comment = get_case_ioc_comment(cur_id, com_id)
     if not comment:
         return response_error('Invalid comment ID')
@@ -336,6 +346,9 @@ def case_comment_ioc_get(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_edit(cur_id, com_id, caseid):
+    if not get_ioc(cur_id, caseid=caseid):
+        return response_error('Invalid comment ID')
+
     return case_comment_update(com_id, 'ioc', caseid)
 
 
@@ -344,6 +357,9 @@ def case_comment_ioc_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_ioc_delete(cur_id, com_id, caseid):
+    if not get_ioc(cur_id, caseid=caseid):
+        return response_error('Invalid comment ID')
+
     success, msg = delete_ioc_comment(iris_current_user.id, cur_id, com_id)
     if not success:
         return response_error(msg)

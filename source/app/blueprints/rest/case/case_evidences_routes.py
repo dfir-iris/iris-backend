@@ -67,7 +67,8 @@ def case_list_rfiles(caseid):
     return response_success("", data=ret)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not to be ported: polling marker for the v1 Jinja UI, which refetched the
+# evidence list whenever this counter moved. v3 pushes those updates over Socket.IO.
 @case_evidences_rest_blueprint.route('/case/evidences/state', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -155,6 +156,10 @@ def case_delete_rfile(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_list(cur_id, caseid):
+    evidence = get_rfile(cur_id)
+    if not evidence or evidence.case_id != caseid:
+        return response_error('Invalid evidence ID')
+
     evidence_comments = get_case_evidence_comments(cur_id)
     if evidence_comments is None:
         return response_error('Invalid evidence ID')
@@ -169,7 +174,7 @@ def case_comment_evidence_list(cur_id, caseid):
 def case_comment_evidence_add(cur_id, caseid):
     try:
         evidence = get_rfile(cur_id)
-        if not evidence:
+        if not evidence or evidence.case_id != caseid:
             return response_error('Invalid evidence ID')
 
         comment_schema = CommentSchema()
@@ -204,6 +209,10 @@ def case_comment_evidence_add(cur_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_get(cur_id, com_id, caseid):
+    evidence = get_rfile(cur_id)
+    if not evidence or evidence.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     comment = get_case_evidence_comment(cur_id, com_id)
     if not comment:
         return response_error("Invalid comment ID")
@@ -216,7 +225,11 @@ def case_comment_evidence_get(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_edit(cur_id, com_id, caseid):
-    return case_comment_update(com_id, 'tasks', caseid)
+    evidence = get_rfile(cur_id)
+    if not evidence or evidence.case_id != caseid:
+        return response_error("Invalid comment ID")
+
+    return case_comment_update(com_id, 'evidences', caseid)
 
 
 @case_evidences_rest_blueprint.route('/case/evidences/<int:cur_id>/comments/<int:com_id>/delete', methods=['POST'])
@@ -224,6 +237,10 @@ def case_comment_evidence_edit(cur_id, com_id, caseid):
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
 def case_comment_evidence_delete(cur_id, com_id, caseid):
+    evidence = get_rfile(cur_id)
+    if not evidence or evidence.case_id != caseid:
+        return response_error("Invalid comment ID")
+
     success, msg = delete_evidence_comment(iris_current_user.id, cur_id, com_id)
     if not success:
         return response_error(msg)
