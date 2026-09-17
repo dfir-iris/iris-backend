@@ -18,7 +18,7 @@
 
 import os
 import urllib.parse
-from celery.signals import task_prerun
+from celery.signals import worker_process_init
 
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
@@ -30,9 +30,34 @@ from iris_interface import IrisInterfaceStatus as IStatus
 from iris_interface.IrisModuleInterface import IrisPipelineTypes
 
 
-@task_prerun.connect
-def on_task_init(*args, **kwargs):
-    db.engine.dispose()
+@worker_process_init.connect
+def on_worker_process_init(*args, **kwargs):
+    """Drop the connection pool inherited from the parent process.
+
+    Celery's prefork pool forks its children from a parent that has
+    already imported the whole Flask app, so each child starts life
+    holding a copy of the parent's SQLAlchemy pool — the same psycopg2
+    sockets, the same fds. Two processes taking turns on one wire is the
+    "lost synchronization with server" desync that the gunicorn
+    `post_fork` hook exists to prevent; same hazard, same remedy.
+
+    `close=False` is the fork-safe form: it discards the pool without
+    closing the fds, which still belong to the parent.
+
+    This used to hang off `task_prerun`, where it did nothing at all —
+    the Flask app context is pushed by `ContextTask.__call__`, which runs
+    *after* the signal, so `db.engine` raised "Working outside of
+    application context" on every single task; celery caught it, logged a
+    traceback and carried on. Per-task disposal was the wrong hook
+    regardless: it threw away a warm pool before every task, and
+    `pool_pre_ping` (app/db.py) already covers the stale-connection case.
+    """
+    # Deferred import: this module is pulled in *by* the app package (via
+    # the manage-cases blueprint), so importing `app` at module scope
+    # would be circular.
+    from app import app
+    with app.app_context():
+        db.engine.dispose(close=False)
 
 
 def task_case_update(module, pipeline, pipeline_args, caseid):

@@ -212,6 +212,9 @@ class TestsRestCases(TestCase):
     def test_update_case_should_allow_to_update_owner(self):
         user = self._subject.create_dummy_user()
         identifier = self._subject.create_dummy_case()
+        # An owner must be able to open the case they are handed — see
+        # test_update_case_should_reject_owner_without_case_access below.
+        self._subject.grant_case_access(user, identifier)
         response = self._subject.update(f'/api/v2/cases/{identifier}', {'owner_id': user.get_identifier()}).json()
         self.assertEqual(user.get_identifier(), response['owner']['id'])
 
@@ -234,6 +237,8 @@ class TestsRestCases(TestCase):
     def test_update_case_should_allow_to_update_reviewer(self):
         identifier = self._subject.create_dummy_case()
         user = self._subject.create_dummy_user()
+        # Same gate as the owner above.
+        self._subject.grant_case_access(user, identifier)
         response = self._subject.update(f'/api/v2/cases/{identifier}', {'reviewer_id': user.get_identifier()}).json()
         self.assertEqual(user.get_identifier(), response['reviewer_id'])
 
@@ -273,3 +278,62 @@ class TestsRestCases(TestCase):
         self._subject.delete(f'/api/v2/cases/{identifier}')
         response = self._subject.update(f'/api/v2/cases/{identifier}', {'case_name': 'new name'})
         self.assertEqual(404, response.status_code)
+
+    # ---------------------------------------------------------------------
+    # The four cases below have NEVER BEEN EXECUTED. They were written
+    # without a docker host, so nothing here has met a running stack. The
+    # executed evidence for the same two behaviours is the local suite:
+    #   source/tests/app/blueprints/rest/v2/test_cases_assignment_gate.py
+    #   source/tests/app/schema/test_case_schema_mass_assignment.py
+    # Treat a failure here as "the REST layer disagrees with the unit
+    # layer", and read it before assuming it is a regression.
+    #
+    # One known limit: the gate behind the first three is
+    # ac_fast_check_user_has_case_access, whose check_ua_case_client
+    # fallback reads the *caller's* session permissions, not the
+    # assignee's. That short-circuit only fires on session-cookie auth,
+    # and this suite authenticates with an API key, so these cases prove
+    # the API-key path only.
+    # ---------------------------------------------------------------------
+
+    def test_update_case_should_reject_owner_without_case_access(self):
+        identifier = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        response = self._subject.update(f'/api/v2/cases/{identifier}', {'owner_id': user.get_identifier()})
+        self.assertEqual(400, response.status_code)
+
+    def test_update_case_should_reject_reviewer_without_case_access(self):
+        identifier = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        response = self._subject.update(f'/api/v2/cases/{identifier}', {'reviewer_id': user.get_identifier()})
+        self.assertEqual(400, response.status_code)
+
+    def test_update_case_should_allow_owner_with_case_access(self):
+        identifier = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        self._subject.grant_case_access(user, identifier)
+        response = self._subject.update(f'/api/v2/cases/{identifier}', {'owner_id': user.get_identifier()})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(user.get_identifier(), response.json()['owner']['id'])
+
+    def test_create_case_with_foreign_case_id_should_not_adopt_that_case(self):
+        # CaseSchemaForAPIV2 is load_instance=True: while case_id was a
+        # loadable field, a create carrying someone else's case_id made
+        # marshmallow-sqlalchemy fetch that row and overwrite it.
+        victim_identifier = self._subject.create_dummy_case()
+        victim = self._subject.get(f'/api/v2/cases/{victim_identifier}').json()
+        response = self._subject.create('/api/v2/cases', {
+            'case_id': victim_identifier,
+            'case_name': 'pwned',
+            'case_description': 'attacker controlled',
+            'case_customer_id': 1,
+            'case_soc_id': ''
+        })
+        # case_id is dump_only and the schema excludes unknown input, so the
+        # create succeeds — it just ignores the supplied id.
+        self.assertEqual(201, response.status_code)
+        self.assertNotEqual(victim_identifier, response.json()['case_id'])
+
+        unchanged = self._subject.get(f'/api/v2/cases/{victim_identifier}').json()
+        self.assertEqual(victim['case_name'], unchanged['case_name'])
+        self.assertEqual(victim['case_description'], unchanged['case_description'])

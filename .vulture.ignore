@@ -325,7 +325,7 @@ ac_get_effective_permissions_from_groups  # unused function (/home/ubuntu/code/d
 check_module_compatibility  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:46)
 _.wait_till_return  # unused attribute (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:372)
 _.max_retry  # unused attribute (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/module_handler/module_handler.py:374)
-on_task_init  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/tasker/tasks.py:33)
+on_worker_process_init  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/tasker/tasks.py:33)
 chunks  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/tasker/tasks.py:92)
 notify_server_ready_to_reboot  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/updater/updater.py:70)
 notify_server_has_updated  # unused function (/home/ubuntu/code/dfir-iris/iris-web/source/app/iris_engine/updater/updater.py:74)

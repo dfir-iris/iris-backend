@@ -111,6 +111,21 @@ class Iris:
             self.create(f'/manage/users/{user.get_identifier()}/groups/update', body)
         return user
 
+    def grant_case_access(self, user, case_identifier, access_level=IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS):
+        """Give the user an explicit grant on the case.
+
+        A user from create_dummy_user() holds no access to any case: it is in
+        no group, and permissions are group-derived only. An explicit grant is
+        what ac_fast_check_user_has_case_access looks at first, so it is
+        enough on its own — the permission fallback behind it never runs once
+        a level has been found.
+        """
+        body = {
+            'cases_list': [case_identifier],
+            'access_level': access_level
+        }
+        return self.create(f'/manage/users/{user.get_identifier()}/cases-access/update', body)
+
     def create_dummy_group(self, permissions):
         group_name = f'group{uuid4()}'
         body = {

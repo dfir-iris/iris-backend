@@ -53,7 +53,16 @@ class TestsRestClusterRules(TestCase):
         self._subject = Iris()
 
     def tearDown(self):
-        # Rules aren't wiped by clear_database — do it inline.
+        # Neither clusters nor rules are wiped by clear_database — do it
+        # inline. Clusters first: they hold the alerts clear_database goes
+        # on to delete.
+        clusters = self._subject.get(
+            '/api/v2/alert-clusters', query_parameters={'per_page': 1000}
+        ).json()
+        for cluster in clusters.get('data', []) if isinstance(clusters, dict) else clusters:
+            cid = cluster.get('cluster_id') if isinstance(cluster, dict) else None
+            if cid:
+                self._subject.delete(f'/api/v2/alert-clusters/{cid}')
         rules = self._subject.get('/api/v2/cluster-rules').json()
         for rule in rules.get('data', []) if isinstance(rules, dict) else rules:
             rid = rule.get('rule_id') if isinstance(rule, dict) else None
@@ -113,6 +122,59 @@ class TestsRestClusterRules(TestCase):
         # Wrapped by response_api_success — data lives under 'data'
         matches = payload.get('matching_alert_ids') or payload.get('data', {}).get('matching_alert_ids')
         self.assertIsNotNone(matches)
+
+    def test_delete_rule_returns_204(self):
+        created = self._subject.create('/api/v2/cluster-rules', _rule_body()).json()
+        rule_id = created.get('rule_id') or created['data']['rule_id']
+        response = self._subject.delete(f'/api/v2/cluster-rules/{rule_id}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_rule_detaches_its_clusters_rather_than_failing(self):
+        # Regression: `alert_clusters.cluster_source_rule_id` is a plain FK
+        # with no ON DELETE clause, so Postgres refused to delete any rule
+        # that had ever opened a cluster — the endpoint answered 500 and the
+        # rule was permanently undeletable. Deleting a settings row must not
+        # take an analyst's clusters with it either, so the clusters have to
+        # survive with their provenance detached rather than cascade away.
+        self._subject.create('/api/v2/alerts', {
+            'alert_title': 'brute force login',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        })
+        created = self._subject.create('/api/v2/cluster-rules', _rule_body()).json()
+        rule_id = created.get('rule_id') or created['data']['rule_id']
+
+        # Back-fill is the deterministic way to make the rule fire: the
+        # live path runs in a Celery worker, this one runs in-request.
+        backfilled = self._subject.create(
+            f'/api/v2/cluster-rules/{rule_id}/backfill', {'sample_days': 30}
+        ).json()
+        attached = backfilled.get('attached')
+        if attached is None and isinstance(backfilled.get('data'), dict):
+            attached = backfilled['data'].get('attached')
+        self.assertEqual(1, attached, 'back-fill should have opened one cluster')
+
+        clusters = self._subject.get(
+            '/api/v2/alert-clusters', query_parameters={'per_page': 1000}
+        ).json()
+        rows = clusters.get('data', clusters) if isinstance(clusters, dict) else clusters
+        mine = [c for c in rows if c.get('cluster_source_rule_id') == rule_id]
+        self.assertEqual(1, len(mine), 'the cluster should point at the rule that opened it')
+        cluster_id = mine[0]['cluster_id']
+
+        response = self._subject.delete(f'/api/v2/cluster-rules/{rule_id}')
+        self.assertEqual(204, response.status_code)
+        self.assertEqual(404, self._subject.get(f'/api/v2/cluster-rules/{rule_id}').status_code)
+
+        survivor = self._subject.get(f'/api/v2/alert-clusters/{cluster_id}')
+        self.assertEqual(200, survivor.status_code)
+        body = survivor.json()
+        if isinstance(body.get('data'), dict):
+            body = body['data']
+        self.assertIsNone(body.get('cluster_source_rule_id'))
+        self.assertEqual(1, len(body.get('alert_ids') or []),
+                         'the clustered alert should still be in the cluster')
 
     def test_user_without_write_permission_cannot_create(self):
         user = self._subject.create_dummy_user(permissions=IRIS_PERMISSION_CLUSTER_RULES_READ)

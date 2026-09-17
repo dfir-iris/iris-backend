@@ -72,8 +72,16 @@ def post_fork(server, worker):
     preload re-enabled.
     """
     try:
+        # `db.engine` resolves through `current_app` under
+        # Flask-SQLAlchemy 3, so it needs a context — without one this
+        # raised "Working outside of application context" straight into
+        # the `except` below and the pool was never actually dropped.
+        # `close=False` is the fork-safe form: discard the inherited
+        # pool without closing fds that still belong to the arbiter.
+        from app import app as flask_app
         from app import db
-        db.engine.dispose()
+        with flask_app.app_context():
+            db.engine.dispose(close=False)
     except Exception:  # pragma: no cover — worker boot best-effort
         pass
 

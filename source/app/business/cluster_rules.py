@@ -153,9 +153,26 @@ def rules_delete(rule: ClusterRule) -> None:
     fetched `rule` — routes must load rules through `rules_get(user, ...)`
     before delete."""
     name = rule.rule_name
+    # Clusters outlive the rule that opened them. `cluster_source_rule_id`
+    # is provenance, not ownership — it is nullable precisely because a
+    # cluster can exist without a rule behind it — but the FK carries no
+    # ON DELETE clause, so Postgres refuses the delete while any cluster
+    # still points at the rule. That made every rule that ever fired
+    # permanently undeletable, with a 500 as the only feedback.
+    #
+    # Detach rather than cascade: the clusters hold alerts an analyst is
+    # working, and deleting a settings row must never take case material
+    # with it.
+    detached = AlertCluster.query.filter_by(
+        cluster_source_rule_id=rule.rule_id
+    ).update({'cluster_source_rule_id': None}, synchronize_session=False)
     db.session.delete(rule)
     db.session.commit()
-    track_activity(f'deleted cluster rule "{name}"')
+    if detached:
+        track_activity(f'deleted cluster rule "{name}" '
+                       f'(detached from {detached} cluster(s))')
+    else:
+        track_activity(f'deleted cluster rule "{name}"')
 
 
 # ---------------------------------------------------------------------------
