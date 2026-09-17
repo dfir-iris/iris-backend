@@ -59,7 +59,9 @@ def user_renew_api():
     return response_success("Token renewed")
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/me/context, which returns the caller's effective
+# permission mask plus the matching enum names — one round trip instead of one
+# per permission, and the check happens client-side.
 @profile_rest_blueprint.route('/user/has-permission', methods=['POST'])
 @ac_api_requires()
 def user_has_permission():

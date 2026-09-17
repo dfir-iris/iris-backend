@@ -2770,14 +2770,31 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
     reviewer_id: Optional[int] = auto_field('reviewer_id', required=False, allow_none=True)
     access_level = fields.Integer(required=False)
 
-    owner = ma.Nested(UserSchema, only=['id', 'user_name', 'user_login', 'user_email'])
-    severity = ma.Nested(SeveritySchema)
-    classification = ma.Nested(CaseClassificationSchema)
-    reviewer = ma.Nested(UserSchema, only=['id', 'user_name', 'user_login', 'user_email'])
+    # Server-owned columns. They are declared dump_only rather than added to
+    # Meta.exclude because they must still be serialised on the way out.
+    #
+    # case_id is the load-bearing one. This schema is load_instance=True, and
+    # marshmallow-sqlalchemy resolves a load() that passes no instance= by
+    # fetching the row whose primary key is in the request body
+    # (load_instance_mixin.make_instance), then setattr-ing every supplied
+    # field onto it. While case_id stayed loadable, POST /api/v2/cases —
+    # which legitimately passes no instance= — let any standard_user hand in
+    # another case's id and have the create path adopt that case, overwrite
+    # it and re-ACL it to themselves.
+    case_id: int = auto_field('case_id', dump_only=True)
+    case_uuid: str = auto_field('case_uuid', dump_only=True)
+    user_id: Optional[int] = auto_field('user_id', dump_only=True)
+    open_date: Optional[datetime.date] = auto_field('open_date', dump_only=True)
+    modification_history = auto_field('modification_history', dump_only=True)
+
+    owner = ma.Nested(UserSchema, only=['id', 'user_name', 'user_login', 'user_email'], dump_only=True)
+    severity = ma.Nested(SeveritySchema, dump_only=True)
+    classification = ma.Nested(CaseClassificationSchema, dump_only=True)
+    reviewer = ma.Nested(UserSchema, only=['id', 'user_name', 'user_login', 'user_email'], dump_only=True)
     tags = ma.Nested(TagsSchema, many=True, only=['tag_title', 'id'])
-    state = ma.Nested(CaseStateSchema)
-    case_customer = ma.Nested(CustomerSchema, attribute='client')
-    review_status = ma.Nested(ReviewStatusSchema)
+    state = ma.Nested(CaseStateSchema, dump_only=True)
+    case_customer = ma.Nested(CustomerSchema, attribute='client', dump_only=True)
+    review_status = ma.Nested(ReviewStatusSchema, dump_only=True)
 
     class Meta:
         model = Cases

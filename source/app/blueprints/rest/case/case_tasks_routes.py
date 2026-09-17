@@ -87,7 +87,8 @@ def case_get_tasks_state(caseid: int):
     return response_error('No tasks state for this case.')
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by PUT /api/v2/cases/{case_identifier}/tasks/{identifier} with
+# `task_status_id` (also exposed as the MCP tool iris_case_tasks_set_status).
 @case_tasks_rest_blueprint.route('/case/tasks/status/update/<int:cur_id>', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

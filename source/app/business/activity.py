@@ -22,10 +22,32 @@ from app.datamgmt.activities.activities_db import get_recent_major_case_activiti
 from app.datamgmt.activities.activities_db import list_activities_paginated
 from app.datamgmt.activities.activities_db import search_users_activity_in_case
 from app.datamgmt.manage.manage_cases_db import user_list_cases_view
+from app.iris_engine.utils.tracker import track_activity
 
 
 def activity_search_in_case(case_identifier):
     return search_users_activity_in_case(case_identifier)
+
+
+def activity_add_manual_entry(case_identifier, log_content):
+    """Append an analyst-written line to the activity log of a case.
+
+    The row is flagged ``user_input`` so the Activities page can tell
+    hand-written entries apart from the ones IRIS emits by itself (the
+    ``is_manual`` filter of `list_activities`).
+
+    Returned in the same projection as `activity_search_in_case`, so a
+    caller can render the new row without re-listing the whole log.
+    """
+    activity = track_activity(log_content, caseid=case_identifier, user_input=True)
+
+    return {
+        'activity_date': activity.activity_date,
+        'name': activity.user.name if activity.user else None,
+        'user_id': activity.user_id,
+        'activity_desc': activity.activity_desc,
+        'is_from_api': activity.is_from_api
+    }
 
 
 def list_activities(

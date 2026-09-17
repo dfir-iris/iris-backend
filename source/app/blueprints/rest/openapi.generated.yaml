@@ -4494,6 +4494,41 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    post:
+      operationId: add_case_activity_post
+      summary: Add a manual entry to the activity log of a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'Ports the legacy `/case/tasklog/add` endpoint: analysts use it to
+
+        record an action taken outside IRIS so it shows up in the case log
+
+        next to the entries IRIS writes itself. Writing to the log is a
+
+        write on the case, hence full access.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskLogRequest'
+      responses:
+        '201':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{identifier}/alerts/{alert_id}:
     delete:
       operationId: rest_v2_case_unlink_alert_delete
@@ -17948,6 +17983,25 @@ components:
           - 'null'
         access_level:
           type: integer
+        case_id:
+          type: integer
+          format: int64
+        case_uuid:
+          type: string
+          format: uuid
+        user_id:
+          type:
+          - integer
+          - 'null'
+        open_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        modification_history:
+          type:
+          - object
+          - 'null'
         owner:
           $ref: '#/components/schemas/User'
         severity:
@@ -17966,14 +18020,6 @@ components:
           $ref: '#/components/schemas/Customer'
         review_status:
           $ref: '#/components/schemas/ReviewStatus'
-        case_id:
-          type: integer
-          format: int64
-        open_date:
-          type:
-          - string
-          - 'null'
-          format: date
         close_date:
           type:
           - string
@@ -17982,10 +18028,6 @@ components:
         closing_note:
           type:
           - string
-          - 'null'
-        user_id:
-          type:
-          - integer
           - 'null'
         owner_id:
           type:
@@ -18001,9 +18043,6 @@ components:
           type:
           - object
           - 'null'
-        case_uuid:
-          type: string
-          format: uuid
         review_status_id:
           type:
           - integer
@@ -18011,10 +18050,6 @@ components:
         severity_id:
           type:
           - integer
-          - 'null'
-        modification_history:
-          type:
-          - object
           - 'null'
       required:
       - case_customer_id
@@ -18063,14 +18098,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Tags'
-        case_id:
-          type: integer
-          format: int64
-        open_date:
-          type:
-          - string
-          - 'null'
-          format: date
         close_date:
           type:
           - string
@@ -18079,10 +18106,6 @@ components:
         closing_note:
           type:
           - string
-          - 'null'
-        user_id:
-          type:
-          - integer
           - 'null'
         owner_id:
           type:
@@ -18098,9 +18121,6 @@ components:
           type:
           - object
           - 'null'
-        case_uuid:
-          type: string
-          format: uuid
         review_status_id:
           type:
           - integer
@@ -18108,10 +18128,6 @@ components:
         severity_id:
           type:
           - integer
-          - 'null'
-        modification_history:
-          type:
-          - object
           - 'null'
       required:
       - case_customer_id
@@ -18463,10 +18479,6 @@ components:
         updated_at:
           type: string
           format: date-time
-        api_key:
-          type:
-          - string
-          - 'null'
       required:
       - name
       description: Admin CRUD schema for `ChatbotPolicy`.
@@ -18821,8 +18833,6 @@ components:
         file_uuid:
           type: string
           format: uuid
-        file_local_name:
-          type: string
         file_date_added:
           type:
           - string
@@ -20058,22 +20068,6 @@ components:
           type:
           - string
           - 'null'
-        mail_smtp_password:
-          type:
-          - string
-          - 'null'
-        mail_imap_password:
-          type:
-          - string
-          - 'null'
-        error_reporting_backend_dsn:
-          type:
-          - string
-          - 'null'
-        chatbot_api_key:
-          type:
-          - string
-          - 'null'
       description: Schema for the singleton `ServerSettings` row.
     ServerSettingsRequest:
       type: object
@@ -20255,10 +20249,6 @@ components:
           type:
           - string
           - 'null'
-        has_updates_available:
-          type:
-          - boolean
-          - 'null'
       description: Schema for the singleton `ServerSettings` row.
     Severity:
       type: object
@@ -20291,6 +20281,12 @@ components:
           type:
           - string
           - 'null'
+    TaskLogRequest:
+      type: object
+      properties:
+        log_content:
+          type: string
+      description: Schema for serializing and deserializing TaskLog objects.
     TaskStatus:
       type: object
       properties:

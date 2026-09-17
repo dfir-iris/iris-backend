@@ -144,7 +144,10 @@ def customer_add_contact(client_id):
     return response_success("Added successfully", data=contact_schema.dump(contact))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: no v2 equivalent. GET /api/v2/manage/customers/{identifier} returns the
+# customer record only — none of the per-customer case statistics computed
+# here (rolling week/month/year counts, ratios, average case duration). Port
+# them as a sub-resource before deprecating.
 @manage_customers_rest_blueprint.route('/manage/customers/<int:client_id>/cases', methods=['GET'])
 @ac_api_requires(Permissions.customers_read)
 @ac_api_requires_client_access()

@@ -46,7 +46,11 @@ def list_anastatus():
     return response_success("", data=data)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: no v2 equivalent at all. Unlike the taxonomies above this one is not a
+# table — it enumerates the `CompromiseStatus` Python enum, which the v3 UI
+# duplicates as a client-side constant ($lib/constants/compromise_status).
+# Cheap to port onto /api/v2/manage, and worth it so API consumers stop having
+# to hardcode the enum.
 @manage_analysis_status_rest_blueprint.route('/manage/compromise-status/list', methods=['GET'])
 @ac_api_requires()
 def list_compr_status():
@@ -55,7 +59,8 @@ def list_compr_status():
     return response_success("", data=compro_status)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: no v2 equivalent at all — enumerates the `CaseStatus` Python enum.
+# Same call as compromise-status above.
 @manage_analysis_status_rest_blueprint.route('/manage/outcome-status/list', methods=['GET'])
 @ac_api_requires()
 def list_outcome_status() -> Response:
@@ -73,7 +78,8 @@ def list_outcome_status() -> Response:
     return response_success("", data=outcome_status)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/analysis-statuses — collection only, same
+# rationale as the other fixed taxonomies (index the list client-side).
 @manage_analysis_status_rest_blueprint.route('/manage/analysis-status/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def view_anastatus(cur_id):

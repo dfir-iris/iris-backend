@@ -109,9 +109,10 @@ def logout():
     return redirect(not_authenticated_redirection_url('/'))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
-# (v2 /api/v2/dashboard/kpis exists but returns a different shape — counts, not
-# a per-day open_date histogram)
+# TODO: no v2 equivalent. GET /api/v2/dashboard/kpis is a block of counts, not
+# the rolling-year per-day open_date histogram this route returns, and nothing
+# in v3 consumes a histogram yet. Port it when the dashboard grows a case-
+# volume chart.
 @dashboard_rest_blueprint.route('/dashboard/case_charts', methods=['GET'])
 @ac_api_requires()
 def get_cases_charts():

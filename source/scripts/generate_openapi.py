@@ -547,6 +547,7 @@ def _parse_schema_class(
     required: list[str] = []
     autofield_targets: dict[str, str] = {}   # class-attr → ORM column name
     nested_overlays: set[str] = set()        # class-attr names that are ma.Nested(X)
+    suppressed_orm_columns: set[str] = set()  # declared, but not valid in this mode
 
     exclude = _extract_meta_exclude(cls)
 
@@ -578,9 +579,20 @@ def _parse_schema_class(
         dump_only = _extract_field_kwarg_constant(value, 'dump_only') is True
         load_only = _extract_field_kwarg_constant(value, 'load_only') is True
         field_name_call = _field_call_name(value)
-        if mode == 'request' and (dump_only or field_name_call == 'Method'):
-            continue
-        if mode == 'response' and load_only:
+        skip_in_this_mode = (mode == 'request' and (dump_only or field_name_call == 'Method')) \
+            or (mode == 'response' and load_only)
+        if skip_in_this_mode:
+            # Remember what was dropped. Step 2 below re-adds every ORM
+            # column that is not already in `properties`, and it only
+            # consults Meta.exclude — so without this a field declared
+            # `dump_only=True` in the class body would be skipped here and
+            # then silently reinstated as a request property, making the
+            # spec advertise an input the schema in fact ignores.
+            suppressed_orm_columns.add(field_name)
+            if field_name_call == 'auto_field' and value.args \
+                    and isinstance(value.args[0], ast.Constant) \
+                    and isinstance(value.args[0].value, str):
+                suppressed_orm_columns.add(value.args[0].value)
             continue
 
         schema = _resolve_field_schema(value, schemas_seen, mode=mode)
@@ -639,7 +651,8 @@ def _parse_schema_class(
         #    include_relationships is False.
         _ = include_rels  # currently only used to gate a warning path
         for orm_column, meta in columns.items():
-            if orm_column in properties or orm_column in exclude:
+            if orm_column in properties or orm_column in exclude \
+                    or orm_column in suppressed_orm_columns:
                 continue
             if meta['fk'] and not include_fk:
                 continue

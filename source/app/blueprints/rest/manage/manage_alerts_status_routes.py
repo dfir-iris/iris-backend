@@ -52,7 +52,8 @@ def list_alert_status() -> Response:
     return response_success("", data=schema.dump(l_cl, many=True))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/alert-statuses — collection only, same
+# rationale as the other fixed taxonomies (index the list client-side).
 @manage_alerts_status_rest_blueprint.route('/manage/alert-status/<int:classification_id>', methods=['GET'])
 @ac_api_requires()
 def get_case_alert_status(classification_id: int) -> Response:
@@ -112,7 +113,8 @@ def list_alert_resolution() -> Response:
     return response_success("", data=schema.dump(l_cl, many=True))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/alert-resolutions — collection only, same
+# rationale as the other fixed taxonomies (index the list client-side).
 @manage_alerts_status_rest_blueprint.route('/manage/alert-resolutions/<int:resolution_id>', methods=['GET'])
 @ac_api_requires()
 def get_case_alert_resolution(resolution_id: int) -> Response:

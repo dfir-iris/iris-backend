@@ -96,7 +96,9 @@ def manage_users_list():
     return response_success('', data=users)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: partially covered by GET /api/v2/manage/users, which only takes
+# page/per_page/search. The `user_ids`, `customer_id` and `sort` filters have
+# no v2 counterpart — add them to `Users.search` before deprecating this route.
 @manage_users_rest_blueprint.route('/manage/users/filter', methods=['GET'])
 @ac_api_requires(Permissions.server_administrator)
 def manage_users_filter():
@@ -473,7 +475,11 @@ def view_delete_user(cur_id):
 
 
 # Unrestricted section - non admin available
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: no v2 equivalent for non-admins. GET /api/v2/manage/users/{identifier}
+# is the same lookup but gated on Permissions.server_administrator, whereas
+# this route is open to any authenticated user — that is the whole point of the
+# reduced (login/id/name only) payload. Port it as a public-side route before
+# deprecating, e.g. next to GET /api/v2/users/mentionable.
 @manage_users_rest_blueprint.route('/manage/users/lookup/id/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def exists_user_restricted(cur_id):
@@ -491,7 +497,10 @@ def exists_user_restricted(cur_id):
     return response_success(data=output)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: no v2 equivalent for non-admins — same gap as the lookup-by-id route
+# above. Worth noting this one is not actually "restricted": it hands the
+# caller's email and active flag to any authenticated user. Port the id/name/
+# login triple only; drop the rest rather than carrying it into v2.
 @manage_users_rest_blueprint.route('/manage/users/lookup/login/<string:login>', methods=['GET'])
 @ac_api_requires()
 def lookup_name_restricted(login):
@@ -511,7 +520,10 @@ def lookup_name_restricted(login):
     return response_success(data=output)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/users/mentionable, which is open to any
+# authenticated user and returns the same user_id/user_login/user_name triple.
+# Two deliberate differences: it only lists active users and caps at 200 rows,
+# and it drops `user_uuid`.
 @manage_users_rest_blueprint.route('/manage/users/restricted/list', methods=['GET'])
 @ac_api_requires()
 def manage_users_list_restricted():

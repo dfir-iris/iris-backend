@@ -69,3 +69,45 @@ class TestsRestCaseActivities(TestCase):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/activities').json()
         self.assertIn('activity_desc', response[0])
+
+    def test_create_case_activity_should_return_201(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'log_content': 'Pulled the memory image off the host'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/activities', body)
+        self.assertEqual(201, response.status_code)
+
+    def test_create_case_activity_should_return_the_created_entry(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'log_content': 'Pulled the memory image off the host'}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/activities', body).json()
+        self.assertEqual('Pulled the memory image off the host', response['activity_desc'])
+
+    def test_create_case_activity_should_add_the_entry_to_the_case_log(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'log_content': 'Pulled the memory image off the host'}
+        self._subject.create(f'/api/v2/cases/{case_identifier}/activities', body)
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/activities').json()
+        self.assertIn('Pulled the memory image off the host',
+                      [activity['activity_desc'] for activity in response])
+
+    def test_create_case_activity_should_return_400_when_log_content_is_missing(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/activities', {})
+        self.assertEqual(400, response.status_code)
+
+    def test_create_case_activity_should_return_400_when_log_content_is_empty(self):
+        case_identifier = self._subject.create_dummy_case()
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/activities', {'log_content': ''})
+        self.assertEqual(400, response.status_code)
+
+    def test_create_case_activity_should_return_404_when_case_does_not_exist(self):
+        body = {'log_content': 'Pulled the memory image off the host'}
+        response = self._subject.create(f'/api/v2/cases/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}/activities', body)
+        self.assertEqual(404, response.status_code)
+
+    def test_create_case_activity_should_return_403_when_user_has_no_access_to_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        body = {'log_content': 'Pulled the memory image off the host'}
+        response = user.create(f'/api/v2/cases/{case_identifier}/activities', body)
+        self.assertEqual(403, response.status_code)

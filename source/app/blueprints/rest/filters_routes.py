@@ -158,9 +158,9 @@ def filters_get_route(filter_id) -> Response:
         return response_error(str(e))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
-# (v2 splits list by filter_type: /api/v2/alerts/filters for alerts,
-# /api/v2/cases-filters for cases — no single v2 URL matches this v1 shape)
+# Superseded by the per-type v2 collections: GET /api/v2/alerts/filters and
+# GET /api/v2/cases-filters. No single v2 URL matches this v1 shape, and none
+# is planned — a generic `/<filter_type>/` segment is not a resource.
 @saved_filters_rest_blueprint.route('/filters/<string:filter_type>/list', methods=['GET'])
 @ac_api_requires()
 def filters_list_route(filter_type) -> Response:

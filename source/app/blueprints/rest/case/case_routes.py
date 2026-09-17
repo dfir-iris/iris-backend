@@ -68,7 +68,9 @@ def case_routes_exists(caseid):
     return response_error('Case does not exist', 404)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by PUT /api/v2/cases/{identifier} (`case_description`). The crc32
+# returned here was the v1 optimistic-lock token for the shared summary editor;
+# v3 edits the summary through Yjs, so there is nothing to replace it with.
 @case_rest_blueprint.route('/case/summary/update', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -95,7 +97,8 @@ def desc_fetch(caseid):
     return response_success('Summary updated', data=crc)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/cases/{identifier} (`case_description`). See the
+# note on /case/summary/update about the crc32.
 @case_rest_blueprint.route('/case/summary/fetch', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -123,7 +126,10 @@ def export_case(caseid):
     return response_success('', data=cases_export_to_json(caseid))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# TODO: partially covered by GET /api/v2/cases/{identifier}, which dumps
+# CaseSchemaForAPIV2 — that schema has no `protagonists` (Cases has no such
+# relationship, so the field is dropped on dump) and no `status_name`. Port
+# those two onto the v2 read before deprecating this route.
 @case_rest_blueprint.route('/case/meta', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -132,7 +138,7 @@ def meta_case(caseid):
     return response_success('', data=CaseDetailsSchema().dump(case_details))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by POST /api/v2/cases/{identifier}/activities (v2/cases.py).
 @case_rest_blueprint.route('/case/tasklog/add', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -260,7 +266,8 @@ def user_cac_set_case(caseid):
         return response_error(str(e))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by PUT /api/v2/cases/{identifier} (`status_id`, an auto_field of
+# CaseSchemaForAPIV2).
 @case_rest_blueprint.route('/case/update-status', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -291,7 +298,9 @@ def case_update_status(caseid):
     return response_success('Case status updated', data=case.status_id)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by PUT /api/v2/cases/{identifier} (`review_status_id` +
+# `reviewer_id`). v1 takes a symbolic `action` and maps it to a review status
+# id; v2 takes the id directly, which is what the v3 UI sends.
 @case_rest_blueprint.route('/case/review/update', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

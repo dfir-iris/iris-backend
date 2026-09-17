@@ -65,7 +65,11 @@ from app.blueprints.access_controls import ac_api_return_access_denied
 case_assets_rest_blueprint = Blueprint('case_assets_rest', __name__)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/cases/{case_identifier}/assets, plus
+# GET /api/v2/cases/{case_identifier}/assets/{identifier}/links for the
+# `link` (same asset on other cases) part, which v2 resolves per-asset on
+# demand instead of eagerly for the whole list. IOC links are read through the
+# ioc routes. The `state` crc32 is a v1 polling artefact with no v2 successor.
 @case_assets_rest_blueprint.route('/case/assets/filter', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 def case_filter_assets(caseid):
@@ -183,7 +187,9 @@ def deprecated_add_asset(caseid):
         return response_error(e.get_message(), e.get_data())
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not ported on purpose: v3 parses the CSV in the browser and POSTs one
+# /api/v2/cases/{case_identifier}/assets per row (asset-add-dialog.svelte).
+# Same call as the timeline CSV upload — no bulk-CSV v2 endpoint is planned.
 @case_assets_rest_blueprint.route('/case/assets/upload', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

@@ -47,7 +47,9 @@ def list_severities() -> Response:
     return response_success("", data=schema.dump(l_cl, many=True))
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/severities. v2 exposes the collection only:
+# severities are a handful of fixed rows, so clients index the list rather than
+# round-tripping per id. No single-item v2 route is planned.
 @manage_severities_rest_blueprint.route('/manage/severities/<int:severity_id>', methods=['GET'])
 @ac_api_requires()
 def get_case_alert_status(severity_id: int) -> Response:

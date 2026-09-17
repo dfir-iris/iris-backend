@@ -34,6 +34,7 @@ from app.blueprints.rest.endpoints import response_api_created
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_paginated
 from app.blueprints.rest.parsing import parse_pagination_parameters
+from app.business.activity import activity_add_manual_entry
 from app.business.activity import activity_search_in_case
 from app.blueprints.rest.v2.case_routes.assets import case_assets_blueprint
 from app.blueprints.rest.v2.case_routes.iocs import case_iocs_blueprint
@@ -57,11 +58,13 @@ from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_reopen
 from app.business.cases import cases_update
 from app.business.users import get_users_list_restricted_from_case
+from app.business.access_controls import ac_fast_check_user_has_case_access
 from app.business.access_controls import get_case_effective_access
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2
 from app.schema.marshables import CaseDetailsSchema
+from app.schema.marshables import TaskLogSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
@@ -74,9 +77,13 @@ from app.db import db
 
 
 class CasesOperations:
-
-    def __init__(self):
-        self._schema = CaseSchemaForAPIV2()
+    # No __init__: the schema is built per request rather than once at import.
+    # `CaseSchemaForAPIV2` is load_instance=True, and load(instance=...) parks
+    # that instance on the schema object for the duration of the call. The
+    # module-level `cases_operations` singleton is shared by every request, and
+    # the `verify_customer` @pre_load issues a DB query — which yields under
+    # gevent — so a concurrent create() on a shared schema could observe
+    # another request's `self.instance` and adopt its case.
 
     def search(self):
         pagination_parameters = parse_pagination_parameters(request)
@@ -124,7 +131,7 @@ class CasesOperations:
             end_close_date=end_close_date,
         )
 
-        return response_api_paginated(self._schema, filtered_cases)
+        return response_api_paginated(CaseSchemaForAPIV2(), filtered_cases)
 
     def filter(self) -> Response:
         pagination_parameters = parse_pagination_parameters(request)
@@ -289,12 +296,13 @@ class CasesOperations:
         return response_api_success(cases_payload)
 
     def create(self):
+        schema = CaseSchemaForAPIV2()
         try:
             request_data = call_deprecated_on_preload_modules_hook('case_create', request.get_json())
-            case = self._schema.load(request_data, session=db.session)
+            case = schema.load(request_data, session=db.session)
             case_template_id = request_data.pop('case_template_id', None)
             case = cases_create(iris_current_user, case, case_template_id)
-            result = self._schema.dump(case)
+            result = schema.dump(case)
             return response_api_created(result)
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
@@ -307,7 +315,7 @@ class CasesOperations:
             if not ac_fast_check_current_user_has_case_access(identifier,
                                                               [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
                 return ac_api_return_access_denied(caseid=identifier)
-            result = self._schema.dump(case)
+            result = CaseSchemaForAPIV2().dump(case)
             return response_api_success(result)
         except ObjectNotFoundError:
             return response_api_not_found()
@@ -316,10 +324,31 @@ class CasesOperations:
         if not ac_fast_check_current_user_has_case_access(identifier, [CaseAccessLevel.full_access]):
             return ac_api_return_access_denied(caseid=identifier)
 
+        schema = CaseSchemaForAPIV2()
         try:
             case = cases_get_by_identifier(identifier)
 
             request_data = request.get_json()
+
+            # Assigning someone as owner or reviewer puts the case in front of
+            # them: /api/v2/dashboard/cases/list and /reviews/list select on
+            # these columns, and a `case_assigned` notification carries the
+            # case name. Neither assignment grants access, so a user without
+            # it would otherwise be shown a case they cannot open. v1 gated
+            # reviewer_id this way (rest/case/case_routes.py) — mirror it here
+            # for both columns, with the same opaque message.
+            for field_name in ('owner_id', 'reviewer_id'):
+                assignee_identifier = request_data.get(field_name)
+                if assignee_identifier in (None, ''):
+                    continue
+                try:
+                    assignee_identifier = int(assignee_identifier)
+                except (TypeError, ValueError):
+                    raise BusinessProcessingError(f'Invalid {field_name}')
+
+                if not ac_fast_check_user_has_case_access(assignee_identifier, identifier,
+                                                          [CaseAccessLevel.full_access]):
+                    raise BusinessProcessingError(f'Invalid {field_name}')
 
             customer_identifier = request_data.get('case_customer_id')
             # If user tries to update the customer, check if the user has access to the new customer
@@ -345,7 +374,7 @@ class CasesOperations:
             previous_case_state = case.state_id
             previous_reviewer_id = case.reviewer_id
 
-            updated_case = self._schema.load(
+            updated_case = schema.load(
                 request_data,
                 instance=case,
                 partial=True,
@@ -362,7 +391,7 @@ class CasesOperations:
                 previous_case_state=previous_case_state,
                 previous_reviewer_id=previous_reviewer_id,
             )
-            result = self._schema.dump(case)
+            result = schema.dump(case)
             return response_api_success(result)
         except ValidationError as e:
             return response_api_error('Data error', e.messages)
@@ -740,3 +769,37 @@ def list_case_activities(identifier):
 
     activities = activity_search_in_case(identifier)
     return response_api_success(activities)
+
+
+@cases_blueprint.post('/<int:identifier>/activities')
+@ac_api_requires()
+@api_doc(tags=['Cases'], summary='Add a manual entry to the activity log of a case',
+         request=TaskLogSchema, response_status=201)
+def add_case_activity(identifier):
+    """Append an analyst-written entry to the case activity log.
+
+    Ports the legacy `/case/tasklog/add` endpoint: analysts use it to
+    record an action taken outside IRIS so it shows up in the case log
+    next to the entries IRIS writes itself. Writing to the log is a
+    write on the case, hence full access.
+    """
+    if not cases_exists(identifier):
+        return response_api_not_found()
+
+    if not ac_fast_check_current_user_has_case_access(identifier, [CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=identifier)
+
+    try:
+        log_data = TaskLogSchema().load(request.get_json(silent=True) or {})
+    except ValidationError as e:
+        return response_api_error('Data error', data=e.messages)
+
+    # `TaskLogSchema.log_content` is optional — v1 shares the schema and
+    # its tests pin that — so the mandatory-ness is enforced here rather
+    # than in the schema. Without it an empty body would reach
+    # `track_activity` as None and blow up on `.capitalize()`.
+    log_content = log_data.get('log_content')
+    if not log_content:
+        return response_api_error('Data error', data={'log_content': ['Missing data for required field.']})
+
+    return response_api_created(activity_add_manual_entry(identifier, log_content))

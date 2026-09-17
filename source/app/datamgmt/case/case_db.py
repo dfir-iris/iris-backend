@@ -25,7 +25,9 @@ from sqlalchemy import exists
 from sqlalchemy import select
 
 from app.db import db
+from app.models.authorization import CaseAccessLevel
 from app.models.authorization import User
+from app.models.authorization import UserCaseEffectiveAccess
 from app.models.cases import CaseProtagonist
 from app.models.cases import Cases
 from app.models.models import CaseTemplateReport
@@ -249,6 +251,22 @@ def case_db_save(case: Cases):
     db.session.commit()
 
 
+def _cases_visible_to(user_identifier):
+    """Case ids `user_identifier` can actually open.
+
+    Being owner or reviewer of a case grants no access by itself — access is
+    resolved purely from UserCaseEffectiveAccess. Revoking someone's access
+    does not clear `owner_id`/`reviewer_id` either, so the assignment columns
+    outlive the grant and the dashboard lists below have to be filtered on
+    effective access rather than trusting them. Same shape as
+    `ac_get_user_case_counts` in iris_engine.access_control.utils.
+    """
+    return select(UserCaseEffectiveAccess.case_id).where(
+        UserCaseEffectiveAccess.user_id == user_identifier,
+        UserCaseEffectiveAccess.access_level != CaseAccessLevel.deny_all.value
+    )
+
+
 def list_user_reviews(user_identifier):
     ct = Cases.query.with_entities(
         Cases.case_id,
@@ -259,6 +277,7 @@ def list_user_reviews(user_identifier):
         Cases.review_status
     ).filter(
         Cases.reviewer_id == user_identifier,
+        Cases.case_id.in_(_cases_visible_to(user_identifier)),
         ReviewStatus.status_name != 'Reviewed',
         ReviewStatus.status_name != 'Not reviewed'
     ).all()
@@ -269,10 +288,12 @@ def list_user_reviews(user_identifier):
 def list_user_cases(user_identifier, show_all=False):
     if show_all:
         return Cases.query.filter(
-            Cases.owner_id == user_identifier
+            Cases.owner_id == user_identifier,
+            Cases.case_id.in_(_cases_visible_to(user_identifier))
         ).all()
 
     return Cases.query.filter(
         Cases.owner_id == user_identifier,
+        Cases.case_id.in_(_cases_visible_to(user_identifier)),
         Cases.close_date == None
     ).all()

@@ -43,7 +43,8 @@ def list_task_status():
     return response_success("", data=data)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/task-statuses — collection only, same
+# rationale as the other fixed taxonomies (index the list client-side).
 @manage_task_status_rest_blueprint.route('/manage/task-status/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def view_task_status(cur_id):

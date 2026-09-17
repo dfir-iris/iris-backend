@@ -193,7 +193,10 @@ def case_get_timeline_state(caseid):
     return response_error('No timeline state for this case. Add an event to begin')
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/cases/{case_identifier}/events. This route only
+# reshapes events into vis-timeline groups/items for the v1 Jinja page; the v3
+# graph view builds the same structure client-side from the v2 events, assets
+# and iocs lists (iris-frontend case/[case_id]/graph/+page.svelte).
 @case_timeline_rest_blueprint.route('/case/timeline/visualize/data/by-asset', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -221,7 +224,8 @@ def case_getgraph_assets(caseid):
     return response_success("", data=res)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/cases/{case_identifier}/events — same rationale as
+# the by-asset variant above.
 @case_timeline_rest_blueprint.route('/case/timeline/visualize/data/by-category', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -253,7 +257,7 @@ def case_getgraph(caseid):
     return response_success("", data=res)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/cases/{case_identifier}/events.
 @case_timeline_rest_blueprint.route('/case/timeline/events/list', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -261,7 +265,9 @@ def case_gettimeline_api_nofilter(caseid):
     return case_gettimeline_api(0)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/cases/{case_identifier}/events?asset_id=<id> — the
+# v2 list takes `asset_id` repeatably (see `_read_filter_args`), so it covers
+# the single-asset case of this route and then some.
 @case_timeline_rest_blueprint.route('/case/timeline/events/list/filter/<int:asset_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -434,7 +440,9 @@ def case_delete_event(cur_id, caseid):
     return response_success(f'Event ID {cur_id} deleted')
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by PUT /api/v2/cases/{case_identifier}/events/{identifier} with
+# `event_is_flagged`. Note the semantic difference: v1 toggles, v2 sets — a
+# caller migrating off this route has to read the current value first.
 @case_timeline_rest_blueprint.route('/case/timeline/events/flag/<int:cur_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -543,7 +551,10 @@ def case_add_event(caseid):
         return response_error(e.get_message(), data=e.get_data())
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET then POST on /api/v2/cases/{case_identifier}/events, which
+# is what the v3 timeline does (`duplicateBranch` walks the children and posts
+# a copy of each). No dedicated v2 duplicate route for case events — war rooms
+# have one only because their events carry cross-case links this one doesn't.
 @case_timeline_rest_blueprint.route('/case/timeline/events/duplicate/<int:cur_id>', methods=['GET'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -602,7 +613,9 @@ def case_duplicate_event(cur_id, caseid):
         return response_error(msg="Data error", data=e.normalized_messages())
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Not ported on purpose: this is a date-parsing helper for the v1 event form,
+# not an API resource. v3 parses and normalises the date in the browser before
+# POSTing to /api/v2/cases/{case_identifier}/events.
 @case_timeline_rest_blueprint.route('/case/timeline/events/convert-date', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.read_only, CaseAccessLevel.full_access)
 @ac_api_requires()
@@ -628,7 +641,10 @@ def case_event_date_convert(caseid):
 
 
 # BEGIN_RS_CODE
-# TODO: no v2 equivalent yet — port before deprecating
+# Not ported on purpose: v3 parses the CSV in the browser and POSTs one
+# /api/v2/cases/{case_identifier}/events per row (see `uploadTimelineCsv` in
+# the frontend timeline page). There is no bulk-CSV v2 endpoint and none is
+# planned — keeping the parser client-side avoids a second dialect to support.
 @case_timeline_rest_blueprint.route('/case/timeline/events/csv_upload', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
 @ac_api_requires()

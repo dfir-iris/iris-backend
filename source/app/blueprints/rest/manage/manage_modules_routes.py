@@ -226,7 +226,8 @@ def view_modules_hook():
 
 
 # TODO is this endpoint still useful?
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/openapi.yaml (and the /api/v2/docs viewer), which
+# is the generated, documented description of the surface this route dumps raw.
 @manage_modules_rest_blueprint.route('/sitemap', methods=['GET'])
 @ac_api_requires()
 def site_map():

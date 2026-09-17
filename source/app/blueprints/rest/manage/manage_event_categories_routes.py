@@ -43,7 +43,8 @@ def list_event_categories():
     return response_success("", data=data)
 
 
-# TODO: no v2 equivalent yet — port before deprecating
+# Superseded by GET /api/v2/manage/event-categories — collection only, same
+# rationale as the other fixed taxonomies (index the list client-side).
 @manage_event_categories_rest_blueprint.route('/manage/event-categories/<int:cur_id>', methods=['GET'])
 @ac_api_requires()
 def get_event_category(cur_id):
