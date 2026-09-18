@@ -38,18 +38,34 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --output-format=github
+      - name: Set up a virtualenv for the tooling
+        run: |
+          # The runner's system Python is externally managed (PEP 668), so
+          # `pip install` refuses to touch it — including the `--user` install
+          # the steps below used to rely on. A venv is the sanctioned way in,
+          # keeps a shared self-hosted runner's interpreter clean, and is what
+          # the test jobs further down already do.
+          #
+          # Kept deliberately free of --system-site-packages: everything these
+          # steps need is installed explicitly (import-linter, vulture,
+          # pyyaml — the OpenAPI generator is pure-AST and imports nothing
+          # else), and inheriting the system packages would let a pre-existing
+          # copy of one of these tools answer "already satisfied" so its
+          # console script never lands in the venv's bin.
+          #
+          # $GITHUB_PATH publishes the venv to every later step in this job,
+          # which is what makes `lint-imports` and `vulture` resolvable at
+          # all — before PEP 668 broke the install outright, they were landing
+          # in a user base that was not on PATH, exiting 127, and the layering
+          # contract was never actually enforced.
+          python3 -m venv "${{ runner.temp }}/ci-venv"
+          echo "${{ runner.temp }}/ci-venv/bin" >> "$GITHUB_PATH"
       - name: Check import dependencies with import-linter
         run: |
-          # The self-hosted runner installs console scripts into pip's
-          # user base, which is not on PATH — without this, `lint-imports`
-          # exits 127 (command not found) and the layering contract is
-          # never actually enforced. Same for `vulture` below.
-          export PATH="$(python3 -m site --user-base)/bin:$PATH"
           pip install import-linter
           PYTHONPATH=source lint-imports
       - name: Looking for dead code with vulture
         run: |
-          export PATH="$(python3 -m site --user-base)/bin:$PATH"
           pip install vulture
           vulture
       - name: OpenAPI spec drift check
