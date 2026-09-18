@@ -35,8 +35,8 @@ class TestsRestMail(TestCase):
     def tearDown(self):
         # Clean up rules we created — the harness doesn't wipe them.
         rules = self._subject.get('/api/v2/manage/mail/rules').json()
-        if rules.get('data', {}).get('data'):
-            for rule in rules['data']['data']:
+        if rules.get('data'):
+            for rule in rules['data']:
                 self._subject.delete(
                     f"/api/v2/manage/mail/rules/{rule['id']}")
         self._subject.clear_database()
@@ -45,7 +45,7 @@ class TestsRestMail(TestCase):
 
     def test_list_rules_returns_empty_list_on_fresh_state(self):
         response = self._subject.get('/api/v2/manage/mail/rules').json()
-        self.assertEqual([], response['data']['data'])
+        self.assertEqual([], response['data'])
 
     def test_create_rule_persists_and_returns_the_row(self):
         body = {
@@ -55,9 +55,9 @@ class TestsRestMail(TestCase):
             'match_subject_regex': r'^alerts',
         }
         response = self._subject.create('/api/v2/manage/mail/rules', body).json()
-        self.assertEqual('catch-all', response['data']['name'])
-        self.assertEqual(500, response['data']['priority'])
-        self.assertEqual('create_alert', response['data']['action'])
+        self.assertEqual('catch-all', response['name'])
+        self.assertEqual(500, response['priority'])
+        self.assertEqual('create_alert', response['action'])
 
     def test_create_rule_rejects_missing_name(self):
         response = self._subject.create('/api/v2/manage/mail/rules',
@@ -73,18 +73,18 @@ class TestsRestMail(TestCase):
         created = self._subject.create('/api/v2/manage/mail/rules',
                                        {'name': 'edit-me',
                                         'action': 'create_alert'}).json()
-        rule_id = created['data']['id']
+        rule_id = created['id']
         response = self._subject.update(
             f'/api/v2/manage/mail/rules/{rule_id}',
             {'name': 'edited', 'enabled': False}).json()
-        self.assertEqual('edited', response['data']['name'])
-        self.assertFalse(response['data']['enabled'])
+        self.assertEqual('edited', response['name'])
+        self.assertFalse(response['enabled'])
 
     def test_delete_rule_removes_it(self):
         created = self._subject.create('/api/v2/manage/mail/rules',
                                        {'name': 'gone-soon',
                                         'action': 'drop'}).json()
-        rule_id = created['data']['id']
+        rule_id = created['id']
         response = self._subject.delete(
             f'/api/v2/manage/mail/rules/{rule_id}')
         self.assertEqual(200, response.status_code)
@@ -110,7 +110,7 @@ class TestsRestMail(TestCase):
     def test_ingest_log_is_empty_on_fresh_state(self):
         response = self._subject.get(
             '/api/v2/manage/mail/ingest-log').json()
-        self.assertEqual([], response['data']['data'])
+        self.assertEqual([], response['data'])
 
     def test_ingest_log_returns_403_for_non_admin(self):
         user = self._subject.create_dummy_user()
@@ -124,7 +124,7 @@ class TestsRestMail(TestCase):
         # The mail columns default to safe values (disabled). We assert
         # only that the keys exist — the actual defaults are what the
         # migration wrote and covered in the schema tests.
-        settings = response['data']['settings']
+        settings = response['settings']
         self.assertIn('mail_smtp_enabled', settings)
         self.assertIn('mail_imap_enabled', settings)
         # Password fields must NOT be returned even if set
@@ -149,7 +149,7 @@ class TestsRestMail(TestCase):
         })
         response = self._subject.get(
             '/api/v2/manage/server/settings').json()
-        settings = response['data']['settings']
+        settings = response['settings']
         self.assertTrue(settings['mail_smtp_password_set'])
         self.assertNotIn('mail_smtp_password', settings)
 

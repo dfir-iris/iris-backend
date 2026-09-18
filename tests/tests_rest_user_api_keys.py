@@ -52,7 +52,7 @@ class TestsRestUserApiKeys(TestCase):
         # `user_api_key` table stays clean across tests.
         resp = self._subject.get('/api/v2/me/api-keys')
         if resp.status_code == 200:
-            for key in resp.json().get('data', {}).get('api_keys', []):
+            for key in resp.json().get('api_keys', []):
                 if key['name'] != 'legacy' and not key.get('revoked_at'):
                     self._subject.delete(f"/api/v2/me/api-keys/{key['id']}")
         self._subject.clear_database()
@@ -62,14 +62,14 @@ class TestsRestUserApiKeys(TestCase):
     def test_self_create_returns_plaintext_key_once(self):
         response = self._subject.create('/api/v2/me/api-keys', {'name': 'test-key'})
         self.assertEqual(201, response.status_code)
-        body = response.json()['data']
+        body = response.json()
         self.assertEqual('test-key', body['name'])
         self.assertIn('api_key', body)
         self.assertGreater(len(body['api_key']), 40)
         self.assertNotIn('key_hash', body)
 
         # Subsequent list must NOT include the plaintext.
-        listed = self._subject.get('/api/v2/me/api-keys').json()['data']['api_keys']
+        listed = self._subject.get('/api/v2/me/api-keys').json()['api_keys']
         row = next(k for k in listed if k['name'] == 'test-key')
         self.assertNotIn('api_key', row)
         self.assertNotIn('key_hash', row)
@@ -94,7 +94,7 @@ class TestsRestUserApiKeys(TestCase):
     def test_new_key_authenticates_and_carries_full_perms(self):
         created = self._subject.create(
             '/api/v2/me/api-keys', {'name': 'full'}
-        ).json()['data']
+        ).json()
         plaintext = created['api_key']
 
         # Full key inherits admin's permissions → /whoami works.
@@ -106,7 +106,7 @@ class TestsRestUserApiKeys(TestCase):
         created = self._subject.create('/api/v2/me/api-keys', {
             'name': 'scoped',
             'scope_mask': IRIS_PERMISSION_ALERTS_READ,
-        }).json()['data']
+        }).json()
         plaintext = created['api_key']
 
         # `GET /alerts` requires `alerts_read` — allowed.
@@ -124,16 +124,18 @@ class TestsRestUserApiKeys(TestCase):
     def test_revoked_key_stops_authenticating(self):
         created = self._subject.create('/api/v2/me/api-keys', {
             'name': 'revoke-me',
-        }).json()['data']
+        }).json()
         plaintext = created['api_key']
         key_id = created['id']
 
         # Sanity check: works before revoke.
         self.assertEqual(200, _call_with_key('/api/v2/auth/whoami', plaintext).status_code)
 
-        # Revoke.
+        # Revoke. The self-service route answers 200 with the revoked row
+        # (the SPA re-renders the list from it); only the admin route,
+        # which has nothing to hand back, answers 204.
         del_resp = self._subject.delete(f'/api/v2/me/api-keys/{key_id}')
-        self.assertEqual(204, del_resp.status_code)
+        self.assertEqual(200, del_resp.status_code)
 
         # After revoke, key is rejected → falls through to Flask-Login
         # anonymous state, which the auth decorator turns into 401.
@@ -143,12 +145,12 @@ class TestsRestUserApiKeys(TestCase):
     def test_revoke_is_idempotent(self):
         created = self._subject.create('/api/v2/me/api-keys', {
             'name': 'idem',
-        }).json()['data']
+        }).json()
         key_id = created['id']
-        self.assertEqual(204, self._subject.delete(f'/api/v2/me/api-keys/{key_id}').status_code)
+        self.assertEqual(200, self._subject.delete(f'/api/v2/me/api-keys/{key_id}').status_code)
         # Second revoke also succeeds (no 404) — the row is still there
         # with `revoked_at` populated.
-        self.assertEqual(204, self._subject.delete(f'/api/v2/me/api-keys/{key_id}').status_code)
+        self.assertEqual(200, self._subject.delete(f'/api/v2/me/api-keys/{key_id}').status_code)
 
     # ---- Admin surface -------------------------------------------------
 
@@ -159,7 +161,7 @@ class TestsRestUserApiKeys(TestCase):
             {'name': 'ci', 'scope_mask': IRIS_PERMISSION_ALERTS_READ},
         )
         self.assertEqual(201, response.status_code)
-        body = response.json()['data']
+        body = response.json()
         self.assertEqual('ci', body['name'])
         self.assertEqual(IRIS_PERMISSION_ALERTS_READ, body['scope_mask'])
         self.assertIn('api_key', body)
@@ -169,12 +171,12 @@ class TestsRestUserApiKeys(TestCase):
         created = self._subject.create(
             f'/api/v2/manage/users/{user.get_identifier()}/api-keys',
             {'name': 'audit'},
-        ).json()['data']
+        ).json()
         key_id = created['id']
 
         listed = self._subject.get(
             f'/api/v2/manage/users/{user.get_identifier()}/api-keys'
-        ).json()['data']['api_keys']
+        ).json()['api_keys']
         self.assertTrue(any(k['id'] == key_id for k in listed))
 
         del_resp = self._subject.delete(

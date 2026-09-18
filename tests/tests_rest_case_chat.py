@@ -36,7 +36,7 @@ class TestsRestCaseChat(TestCase):
     def setUp(self) -> None:
         self._subject = Iris()
         original = self._subject.get(
-            '/api/v2/manage/server/settings').json()['data']['settings']
+            '/api/v2/manage/server/settings').json()['settings']
         # Snapshot the whole chatbot config so tearDown can restore.
         self._original_chatbot = {
             k: original.get(k)
@@ -85,7 +85,7 @@ class TestsRestCaseChat(TestCase):
         self._disable_chatbot()
         response = self._subject.get('/api/v2/case-chat/health')
         self.assertEqual(200, response.status_code)
-        data = response.json()['data']
+        data = response.json()
         self.assertFalse(data['enabled'])
         self.assertFalse(data['provider_available'])
 
@@ -93,7 +93,7 @@ class TestsRestCaseChat(TestCase):
         self._enable_chatbot()
         response = self._subject.get('/api/v2/case-chat/health')
         self.assertEqual(200, response.status_code)
-        data = response.json()['data']
+        data = response.json()
         self.assertTrue(data['enabled'])
         self.assertTrue(data['provider_available'])
 
@@ -101,7 +101,7 @@ class TestsRestCaseChat(TestCase):
         self._enable_chatbot(chatbot_api_key='')
         response = self._subject.get('/api/v2/case-chat/health')
         self.assertEqual(200, response.status_code)
-        data = response.json()['data']
+        data = response.json()
         self.assertTrue(data['enabled'])
         self.assertFalse(data['provider_available'])
         # `reason` should surface the missing-key message.
@@ -111,7 +111,7 @@ class TestsRestCaseChat(TestCase):
         self._enable_chatbot()
         response = self._subject.get('/api/v2/runtime-config')
         self.assertEqual(200, response.status_code)
-        payload = response.json()['data']
+        payload = response.json()
         self.assertIn('chatbot', payload)
         self.assertTrue(payload['chatbot']['enabled'])
         self.assertTrue(payload['chatbot']['provider_available'])
@@ -120,7 +120,7 @@ class TestsRestCaseChat(TestCase):
     def test_masked_api_key_never_leaked_on_read(self):
         self._enable_chatbot(chatbot_api_key='sk-ant-super-secret-value')
         settings = self._subject.get(
-            '/api/v2/manage/server/settings').json()['data']['settings']
+            '/api/v2/manage/server/settings').json()['settings']
         # `chatbot_api_key` is load_only — GET must not echo it (even
         # ciphertext). `_set` companion boolean tells the SPA a key is
         # configured for the "•••••" placeholder rendering.
@@ -144,7 +144,7 @@ class TestsRestCaseChat(TestCase):
             {'title': 'summarise this case'},
         )
         self.assertEqual(201, response.status_code)
-        body = response.json()['data']
+        body = response.json()
         self.assertEqual(case_id, body['case_id'])
         self.assertEqual('claude-sonnet-5', body['model'])
         self.assertEqual('summarise this case', body['title'])
@@ -154,7 +154,7 @@ class TestsRestCaseChat(TestCase):
         response = self._subject.create(
             '/api/v2/case-chat/global/conversations', {'title': 'hi'})
         self.assertEqual(201, response.status_code)
-        body = response.json()['data']
+        body = response.json()
         self.assertIsNone(body['case_id'])
 
     # ---- list / get / archive --------------------------------------
@@ -165,10 +165,10 @@ class TestsRestCaseChat(TestCase):
         created = self._subject.create(
             f'/api/v2/case-chat/cases/{case_id}/conversations',
             {'title': 'a'},
-        ).json()['data']
+        ).json()
         listed = self._subject.get(
             f'/api/v2/case-chat/cases/{case_id}/conversations'
-        ).json()['data']['conversations']
+        ).json()['conversations']
         self.assertTrue(any(c['id'] == created['id'] for c in listed))
 
     def test_get_conversation_includes_messages_and_pending(self):
@@ -177,10 +177,10 @@ class TestsRestCaseChat(TestCase):
         conv = self._subject.create(
             f'/api/v2/case-chat/cases/{case_id}/conversations',
             {},
-        ).json()['data']
+        ).json()
         detail = self._subject.get(
             f'/api/v2/case-chat/conversations/{conv["id"]}'
-        ).json()['data']
+        ).json()
         self.assertEqual([], detail['messages'])
         self.assertEqual([], detail['pending_tool_calls'])
 
@@ -189,7 +189,7 @@ class TestsRestCaseChat(TestCase):
         case_id = self._subject.create_dummy_case()
         conv = self._subject.create(
             f'/api/v2/case-chat/cases/{case_id}/conversations', {},
-        ).json()['data']
+        ).json()
         del_response = self._subject.delete(
             f'/api/v2/case-chat/conversations/{conv["id"]}')
         self.assertEqual(204, del_response.status_code)
@@ -197,7 +197,7 @@ class TestsRestCaseChat(TestCase):
         # After archive it shouldn't appear in the default list.
         listed = self._subject.get(
             f'/api/v2/case-chat/cases/{case_id}/conversations'
-        ).json()['data']['conversations']
+        ).json()['conversations']
         self.assertFalse(any(c['id'] == conv['id'] for c in listed))
 
     # ---- policies / customer binding -------------------------------
@@ -211,12 +211,12 @@ class TestsRestCaseChat(TestCase):
         response = self._subject.create(
             '/api/v2/manage/case-chat/policies', body)
         self.assertEqual(201, response.status_code)
-        return response.json()['data']['id']
+        return response.json()['id']
 
     def _read_policy(self, policy_id: int) -> dict:
         policies = self._subject.get(
             '/api/v2/manage/case-chat/policies'
-        ).json()['data']['policies']
+        ).json()['policies']
         return next(p for p in policies if p['id'] == policy_id)
 
     def _bind(self, customer_id: int, policy_id):
@@ -292,7 +292,7 @@ class TestsRestCaseChat(TestCase):
             case_id = self._subject.create_dummy_case(customer_id)
             conv = self._subject.create(
                 f'/api/v2/case-chat/cases/{case_id}/conversations', {},
-            ).json()['data']
+            ).json()
             self.assertEqual('claude-opus-5', conv['model'])
         finally:
             self._subject.delete(
@@ -309,7 +309,7 @@ class TestsRestCaseChat(TestCase):
             case_id = self._subject.create_dummy_case(customer_id)
             created = self._subject.create(
                 f'/api/v2/case-chat/cases/{case_id}/conversations', {},
-            ).json()['data']
+            ).json()
             self.assertEqual(policy_id, created['policy']['id'])
             self.assertEqual(30, created['policy']['retention_days'])
             self.assertTrue(created['policy']['redact_ips'])
@@ -318,12 +318,12 @@ class TestsRestCaseChat(TestCase):
 
             detail = self._subject.get(
                 f'/api/v2/case-chat/conversations/{created["id"]}'
-            ).json()['data']
+            ).json()
             self.assertEqual(policy_id, detail['policy']['id'])
 
             listed = self._subject.get(
                 f'/api/v2/case-chat/cases/{case_id}/conversations'
-            ).json()['data']['conversations']
+            ).json()['conversations']
             entry = next(c for c in listed if c['id'] == created['id'])
             self.assertEqual(policy_id, entry['policy']['id'])
         finally:
@@ -337,6 +337,6 @@ class TestsRestCaseChat(TestCase):
         case_id = self._subject.create_dummy_case(customer_id)
         conv = self._subject.create(
             f'/api/v2/case-chat/cases/{case_id}/conversations', {},
-        ).json()['data']
+        ).json()
         self.assertIsNone(conv['policy'])
         self.assertEqual('claude-sonnet-5', conv['model'])

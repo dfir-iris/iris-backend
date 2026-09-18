@@ -51,17 +51,16 @@ class TestsRestMcp(TestCase):
         # Snapshot the original MCP settings so tearDown can restore
         # them — the toggle is a server-wide singleton and leaving it
         # in an unexpected state would leak across test files.
-        original = self._subject.get('/api/v2/manage/server/settings').json()
+        original = self._subject.get(
+            '/api/v2/manage/server/settings').json()['settings']
         self._original_mcp = {
-            'mcp_enabled': original['data']['settings'].get('mcp_enabled', False),
+            'mcp_enabled': original.get('mcp_enabled', False),
             'mcp_max_calls_per_minute_per_worker':
-                original['data']['settings'].get('mcp_max_calls_per_minute_per_worker', 60),
+                original.get('mcp_max_calls_per_minute_per_worker', 60),
             'mcp_expose_admin_tools':
-                original['data']['settings'].get('mcp_expose_admin_tools', False),
-            'mcp_tool_allowlist':
-                original['data']['settings'].get('mcp_tool_allowlist', ''),
-            'mcp_tool_denylist':
-                original['data']['settings'].get('mcp_tool_denylist', ''),
+                original.get('mcp_expose_admin_tools', False),
+            'mcp_tool_allowlist': original.get('mcp_tool_allowlist', ''),
+            'mcp_tool_denylist': original.get('mcp_tool_denylist', ''),
         }
 
     def tearDown(self) -> None:
@@ -339,7 +338,7 @@ class TestsRestMcp(TestCase):
         self._enable_mcp()
         response = self._subject.get('/api/v2/runtime-config')
         self.assertEqual(200, response.status_code)
-        payload = response.json()['data']
+        payload = response.json()
         self.assertIn('mcp', payload)
         self.assertTrue(payload['mcp']['enabled'])
         self.assertEqual('/api/v2/mcp', payload['mcp']['endpoint'])

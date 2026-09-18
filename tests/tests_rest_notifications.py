@@ -41,19 +41,18 @@ class TestsRestNotifications(TestCase):
 
     def test_get_notifications_should_return_envelope_with_data_and_count(self):
         response = self._subject.get('/api/v2/notifications').json()
-        self.assertIn('data', response['data'])
-        self.assertIn('unread_count', response['data'])
-        self.assertIsInstance(response['data']['data'], list)
+        self.assertIn('data', response)
+        self.assertIn('unread_count', response)
+        self.assertIsInstance(response['data'], list)
 
     def test_get_unread_count_should_return_zero_on_fresh_state(self):
         response = self._subject.get('/api/v2/notifications/unread-count').json()
-        self.assertEqual(0, response['data']['unread_count'])
+        self.assertEqual(0, response['unread_count'])
 
     # --- Settings ----------------------------------------------------------
 
     def test_get_settings_should_include_event_types_and_channels(self):
-        response = self._subject.get('/api/v2/notifications/settings').json()
-        payload = response['data']
+        payload = self._subject.get('/api/v2/notifications/settings').json()
         self.assertIn('event_types', payload)
         self.assertIn('channels', payload)
         self.assertIn('settings', payload)
@@ -64,11 +63,11 @@ class TestsRestNotifications(TestCase):
     def test_put_settings_should_persist_toggles(self):
         body = {'settings': {'mention': {'in_app': False}}}
         response = self._subject.update('/api/v2/notifications/settings', body).json()
-        self.assertFalse(response['data']['settings']['mention']['in_app'])
+        self.assertFalse(response['settings']['mention']['in_app'])
 
         # Re-fetch — the row should still be there.
         follow_up = self._subject.get('/api/v2/notifications/settings').json()
-        self.assertFalse(follow_up['data']['settings']['mention']['in_app'])
+        self.assertFalse(follow_up['settings']['mention']['in_app'])
 
     def test_put_settings_should_reject_non_object_body(self):
         response = self._subject.update('/api/v2/notifications/settings',
@@ -104,7 +103,7 @@ class TestsRestNotifications(TestCase):
         body = {'settings': {'case_state_change': {'email': True}}}
         response = self._subject.update(
             '/api/v2/manage/notification-settings', body).json()
-        self.assertTrue(response['data']['settings']['case_state_change']['email'])
+        self.assertTrue(response['settings']['case_state_change']['email'])
 
     # --- Cross-user isolation ---------------------------------------------
 
@@ -131,9 +130,9 @@ class TestsRestNotifications(TestCase):
 
         # user sees a notification, admin does not
         user_count = user.get(
-            '/api/v2/notifications/unread-count').json()['data']['unread_count']
+            '/api/v2/notifications/unread-count').json()['unread_count']
         admin_count = self._subject.get(
-            '/api/v2/notifications/unread-count').json()['data']['unread_count']
+            '/api/v2/notifications/unread-count').json()['unread_count']
 
         self.assertGreaterEqual(user_count, 1)
         self.assertEqual(0, admin_count)
@@ -141,4 +140,4 @@ class TestsRestNotifications(TestCase):
         # user marks all read → admin count still 0, user drops to 0
         user.create('/api/v2/notifications/mark-read', {'all': True})
         self.assertEqual(0, user.get(
-            '/api/v2/notifications/unread-count').json()['data']['unread_count'])
+            '/api/v2/notifications/unread-count').json()['unread_count'])
