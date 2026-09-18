@@ -53,6 +53,7 @@ from app.models.models import Notes
 from app.models.models import NotesGroup
 from app.models.models import NotesGroupLink
 from app.models.models import UserActivity
+from app.models.alert_clusters import AlertCluster
 from app.models.alerts import AlertCaseAssociation
 from app.models.comments import Comments, IocComments, AssetComments
 from app.models.authorization import CaseAccessLevel
@@ -516,6 +517,19 @@ def delete_case(case_id):
     UserCaseEffectiveAccess.query.filter(UserCaseEffectiveAccess.case_id == case_id).delete()
     GroupCaseAccess.query.filter(GroupCaseAccess.case_id == case_id).delete()
     OrganisationCaseAccess.query.filter(OrganisationCaseAccess.case_id == case_id).delete()
+
+    # A cluster that was escalated into this case outlives it: the cluster
+    # is alert-side triage material and the alerts behind it are still
+    # real. `cluster_case_id` is nullable provenance with no ON DELETE
+    # clause, so leaving it set makes Postgres refuse the delete — every
+    # case ever opened from a cluster was undeletable, with a 500 as the
+    # only feedback. Detach, never cascade: same rule as `rules_delete`.
+    #
+    # The cluster status is deliberately left as-is. Once detached the
+    # cluster can be escalated again, and that is what resets it.
+    AlertCluster.query.filter(
+        AlertCluster.cluster_case_id == case_id
+    ).update({AlertCluster.cluster_case_id: None}, synchronize_session=False)
 
     Cases.query.filter(Cases.case_id == case_id).delete()
     db.session.commit()

@@ -35,8 +35,13 @@ from app.iris_engine.access_control.utils import ac_access_level_to_list
 from app.iris_engine.access_control.utils import ac_auto_update_user_effective_access
 from app.iris_engine.access_control.utils import ac_get_detailed_effective_permissions_from_groups
 from app.iris_engine.access_control.utils import ac_remove_case_access_from_user
+from app.models.alert_clusters import AlertCluster
+from app.models.banners import Banner
 from app.models.cases import Cases
+from app.models.cluster_rules import ClusterRule
+from app.models.custom_dashboard import CustomDashboard
 from app.models.customers import Client
+from app.models.investigation_flows import InvestigationFlow
 from app.models.models import UserActivity
 from app.models.authorization import CaseAccessLevel, ac_access_level_mask_from_val_list
 from app.models.authorization import UserClient
@@ -705,6 +710,53 @@ def delete_user(user_id):
     UserOrganisation.query.filter(UserOrganisation.user_id == user_id).delete()
     UserGroup.query.filter(UserGroup.user_id == user_id).delete()
     UserCaseEffectiveAccess.query.filter(UserCaseEffectiveAccess.user_id == user_id).delete()
+
+    # Dashboards and alert clusters point at their owner through a
+    # nullable FK that carries no ON DELETE clause, so Postgres refuses
+    # to delete the user while either still references them. The only
+    # feedback was a 500, which left the account undeletable for good —
+    # and since a dashboard row appears the first time anyone saves a
+    # layout, that covered most real users.
+    #
+    # A private dashboard is personal effects and goes with its owner;
+    # its widgets follow through the ON DELETE CASCADE already on
+    # `custom_dashboard_widget.dashboard_id`. A shared or system one is
+    # team property, so it survives with no owner. Deleting an account
+    # must not take a colleague's dashboard down with it.
+    CustomDashboard.query.filter(
+        CustomDashboard.owner_id == user_id,
+        CustomDashboard.is_shared.is_(False),
+        CustomDashboard.is_system.is_(False)
+    ).delete(synchronize_session=False)
+    CustomDashboard.query.filter(
+        CustomDashboard.owner_id == user_id
+    ).update({CustomDashboard.owner_id: None}, synchronize_session=False)
+
+    # An alert cluster is shared triage material holding real alerts —
+    # never personal effects. Always unassign, never delete, the same
+    # rule `rules_delete` follows for the clusters a rule opened.
+    AlertCluster.query.filter(
+        AlertCluster.cluster_owner_id == user_id
+    ).update({AlertCluster.cluster_owner_id: None}, synchronize_session=False)
+
+    # Same story for authorship on org-level objects: a customer, a
+    # cluster rule, an investigation flow and a banner all outlive
+    # whoever first typed them in, and all four record their author in a
+    # nullable column with no ON DELETE clause. Leaving the analyst who
+    # set the platform up undeletable is not a sensible way to enforce
+    # provenance, so the row stays and the author becomes unknown.
+    Client.query.filter(
+        Client.created_by == user_id
+    ).update({Client.created_by: None}, synchronize_session=False)
+    ClusterRule.query.filter(
+        ClusterRule.rule_created_by == user_id
+    ).update({ClusterRule.rule_created_by: None}, synchronize_session=False)
+    InvestigationFlow.query.filter(
+        InvestigationFlow.flow_created_by == user_id
+    ).update({InvestigationFlow.flow_created_by: None}, synchronize_session=False)
+    Banner.query.filter(
+        Banner.created_by == user_id
+    ).update({Banner.created_by: None}, synchronize_session=False)
 
     # TODO should rather do this with cascade?
     UserClient.query.filter(UserClient.user_id == user_id).delete()

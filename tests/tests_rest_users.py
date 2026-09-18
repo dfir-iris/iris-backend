@@ -22,8 +22,23 @@ from iris import ADMINISTRATOR_USER_IDENTIFIER
 from iris import IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
 from iris import IRIS_PERMISSION_SERVER_ADMINISTRATOR
 from iris import IRIS_PERMISSION_ALERTS_WRITE
+from iris import IRIS_PERMISSION_CUSTOMERS_WRITE
+from iris import IRIS_PERMISSION_CUSTOM_DASHBOARDS_WRITE
+from iris import IRIS_PERMISSION_CUSTOM_DASHBOARDS_SHARE
 
 _IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
+
+def _dashboard_body(name):
+    return {
+        'name': name,
+        'description': 'test dashboard',
+        'widgets': [{
+            'name': 'total alerts',
+            'chart_type': 'number',
+            'fields': [{'table': 'alerts', 'column': 'alert_id', 'aggregation': 'count', 'alias': 'total'}]
+        }]
+    }
 
 
 class TestsRestUsers(TestCase):
@@ -458,6 +473,22 @@ class TestsRestUsers(TestCase):
         response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
         self.assertEqual(204, response.status_code)
 
+    # Having *created* a customer is a different FK from having access to
+    # one: `client.created_by` records the author and outlives them.
+    def test_delete_user_should_return_204_when_it_created_a_customer(self):
+        group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_CUSTOMERS_WRITE])
+        user = self._subject.create_dummy_user()
+        self._subject.create(f'/manage/users/{user.get_identifier()}/groups/update',
+                             {'groups_membership': [group_identifier]})
+        body = {'custom_attributes': {}, 'customer_description': '',
+                'customer_name': 'customer created by a leaver', 'customer_sla': ''}
+        user.create('/manage/customers/add', body)
+        identifier = user.get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+
+        response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
+        self.assertEqual(204, response.status_code)
+
     def test_delete_user_should_return_400_when_there_is_assets_comment_by_the_user(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
@@ -493,3 +524,54 @@ class TestsRestUsers(TestCase):
         self._subject.update(f'/api/v2/manage/users/{user.get_identifier()}', {'user_active': False})
         response = self._subject.delete(f'/api/v2/manage/users/{user.get_identifier()}')
         self.assertEqual(400, response.status_code)
+
+    # A dashboard row appears the first time anyone saves a layout, and
+    # `custom_dashboard.owner_id` has no ON DELETE clause — so the account
+    # of anyone who had used the dashboards at all could not be deleted,
+    # with a 500 as the only feedback.
+    def test_delete_user_should_return_204_when_it_owns_a_dashboard(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_CUSTOM_DASHBOARDS_WRITE])
+        user.create('/api/v2/custom-dashboards', _dashboard_body('private dashboard'))
+        identifier = user.get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+
+        response = self._subject.delete(f'/api/v2/manage/users/{identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_user_should_delete_the_private_dashboards_it_owned(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_CUSTOM_DASHBOARDS_WRITE])
+        dashboard = user.create('/api/v2/custom-dashboards', _dashboard_body('private dashboard')).json()
+        identifier = user.get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+        self._subject.delete(f'/api/v2/manage/users/{identifier}')
+
+        # 404, not the 400 an inaccessible dashboard answers with: the row
+        # is gone, it did not merely become unreachable.
+        response = self._subject.get(f'/api/v2/custom-dashboards/{dashboard["dashboard_uuid"]}')
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_user_should_keep_the_shared_dashboards_it_owned(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_CUSTOM_DASHBOARDS_WRITE,
+                                                IRIS_PERMISSION_CUSTOM_DASHBOARDS_SHARE])
+        body = _dashboard_body('shared dashboard')
+        body['is_shared'] = True
+        dashboard = user.create('/api/v2/custom-dashboards', body).json()
+        identifier = user.get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+        self._subject.delete(f'/api/v2/manage/users/{identifier}')
+
+        response = self._subject.get(f'/api/v2/custom-dashboards/{dashboard["dashboard_uuid"]}')
+        self.assertEqual(200, response.status_code)
+
+    def test_delete_user_should_unassign_the_shared_dashboards_it_owned(self):
+        user = self._subject.create_dummy_user([IRIS_PERMISSION_CUSTOM_DASHBOARDS_WRITE,
+                                                IRIS_PERMISSION_CUSTOM_DASHBOARDS_SHARE])
+        body = _dashboard_body('shared dashboard')
+        body['is_shared'] = True
+        dashboard = user.create('/api/v2/custom-dashboards', body).json()
+        identifier = user.get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+        self._subject.delete(f'/api/v2/manage/users/{identifier}')
+
+        response = self._subject.get(f'/api/v2/custom-dashboards/{dashboard["dashboard_uuid"]}').json()
+        self.assertIsNone(response['owner_id'])

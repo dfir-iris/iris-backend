@@ -148,3 +148,72 @@ class TestsRestAlertClusters(TestCase):
         user = self._subject.create_dummy_user(permissions=IRIS_PERMISSION_ALERT_CLUSTERS_WRITE)
         response = user.get('/api/v2/alert-clusters')
         self.assertEqual(403, response.status_code)
+
+    def _escalate_new_cluster(self):
+        """Open a cluster holding one alert and escalate it into a case.
+
+        Returns the (cluster identifier, case identifier) pair."""
+        alert = self._subject.create('/api/v2/alerts', _alert_body()).json()
+        cluster = self._subject.create('/api/v2/alert-clusters', _cluster_body()).json()
+        self._subject.create(
+            f'/api/v2/alert-clusters/{cluster["cluster_id"]}/alerts',
+            {'alert_ids': [alert['alert_id']]}
+        )
+        case = self._subject.create(
+            f'/api/v2/alert-clusters/{cluster["cluster_id"]}/escalate',
+            {'case_title': 'Escalated cluster'}
+        ).json()
+        return cluster['cluster_id'], case['case_id']
+
+    def _delete_user(self, user):
+        identifier = user.get_identifier()
+        self._subject.update(f'/api/v2/manage/users/{identifier}', {'user_active': False})
+        return self._subject.delete(f'/api/v2/manage/users/{identifier}')
+
+    # `cluster_case_id` has no ON DELETE clause, so a cluster still
+    # pointing at the case made Postgres refuse the delete: every case
+    # ever opened from a cluster was undeletable, 500 only.
+    def test_delete_case_opened_from_a_cluster_should_return_204(self):
+        _, case_identifier = self._escalate_new_cluster()
+
+        response = self._subject.delete(f'/api/v2/cases/{case_identifier}')
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_case_should_keep_the_cluster_it_was_escalated_from(self):
+        cluster_identifier, case_identifier = self._escalate_new_cluster()
+        self._subject.delete(f'/api/v2/cases/{case_identifier}')
+
+        response = self._subject.get(f'/api/v2/alert-clusters/{cluster_identifier}')
+        self.assertEqual(200, response.status_code)
+
+    def test_delete_case_should_detach_the_cluster_it_was_escalated_from(self):
+        cluster_identifier, case_identifier = self._escalate_new_cluster()
+        self._subject.delete(f'/api/v2/cases/{case_identifier}')
+
+        response = self._subject.get(f'/api/v2/alert-clusters/{cluster_identifier}').json()
+        self.assertIsNone(response['cluster_case_id'])
+
+    # Same shape of defect on the other end: `cluster_owner_id` kept the
+    # owning analyst's account undeletable.
+    def test_delete_user_owning_a_cluster_should_return_204(self):
+        user = self._subject.create_dummy_user()
+        cluster = self._subject.create('/api/v2/alert-clusters', _cluster_body()).json()
+        self._subject.update(
+            f'/api/v2/alert-clusters/{cluster["cluster_id"]}',
+            {'cluster_owner_id': user.get_identifier()}
+        )
+
+        response = self._delete_user(user)
+        self.assertEqual(204, response.status_code)
+
+    def test_delete_user_should_leave_the_clusters_it_owned_unassigned(self):
+        user = self._subject.create_dummy_user()
+        cluster = self._subject.create('/api/v2/alert-clusters', _cluster_body()).json()
+        self._subject.update(
+            f'/api/v2/alert-clusters/{cluster["cluster_id"]}',
+            {'cluster_owner_id': user.get_identifier()}
+        )
+        self._delete_user(user)
+
+        response = self._subject.get(f'/api/v2/alert-clusters/{cluster["cluster_id"]}').json()
+        self.assertIsNone(response['cluster_owner_id'])
