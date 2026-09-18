@@ -38,43 +38,41 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check --output-format=github
-      - name: Set up a virtualenv for the tooling
+      - name: Install the static-analysis tooling
         run: |
-          # The runner's system Python is externally managed (PEP 668), so
-          # `pip install` refuses to touch it — including the `--user` install
-          # the steps below used to rely on. A venv is the sanctioned way in,
-          # keeps a shared self-hosted runner's interpreter clean, and is what
-          # the test jobs further down already do.
+          # The runner's system Python is externally managed (PEP 668), so a
+          # plain `pip install` is refused outright — and `--user`, which is
+          # how these tools used to land, is refused too. A venv is the usual
+          # answer but is not available either: the runner has no
+          # python3.11-venv, so `python3 -m venv` dies at ensurepip.
           #
-          # Kept deliberately free of --system-site-packages: everything these
-          # steps need is installed explicitly (import-linter, vulture,
-          # pyyaml — the OpenAPI generator is pure-AST and imports nothing
-          # else), and inheriting the system packages would let a pre-existing
-          # copy of one of these tools answer "already satisfied" so its
-          # console script never lands in the venv's bin.
+          # `--target` is the door pip leaves open. It disables the
+          # externally-managed check by design (see the comment on the check
+          # itself in pip's install.py: "Specifying --root, --target, or
+          # --prefix disables the check"), writes nothing outside
+          # $RUNNER_TEMP, and implies --ignore-installed — so what runs here
+          # is what we asked for, not whatever the host happens to ship.
           #
-          # $GITHUB_PATH publishes the venv to every later step in this job,
-          # which is what makes `lint-imports` and `vulture` resolvable at
-          # all — before PEP 668 broke the install outright, they were landing
-          # in a user base that was not on PATH, exiting 127, and the layering
-          # contract was never actually enforced.
-          python3 -m venv "${{ runner.temp }}/ci-venv"
-          echo "${{ runner.temp }}/ci-venv/bin" >> "$GITHUB_PATH"
+          # $GITHUB_PATH/$GITHUB_ENV publish it to the rest of the job.
+          # Getting that PATH entry right is the whole point: these console
+          # scripts previously landed in a user base that was never on PATH,
+          # so `lint-imports` and `vulture` exited 127 and the contracts they
+          # enforce were never actually checked.
+          python3 -m pip install --target "${{ runner.temp }}/ci-tools" \
+            import-linter vulture pyyaml
+          echo "${{ runner.temp }}/ci-tools/bin" >> "$GITHUB_PATH"
+          echo "PYTHONPATH=${{ runner.temp }}/ci-tools" >> "$GITHUB_ENV"
       - name: Check import dependencies with import-linter
-        run: |
-          pip install import-linter
-          PYTHONPATH=source lint-imports
+        # Prepended, not assigned: PYTHONPATH already carries the tooling.
+        run: PYTHONPATH="source:$PYTHONPATH" lint-imports
       - name: Looking for dead code with vulture
-        run: |
-          pip install vulture
-          vulture
+        run: vulture
       - name: OpenAPI spec drift check
         run: |
           # The generator is pure-AST (no app boot, no DB) so it runs
           # in the static-checks lane. If it produces something
           # different from the checked-in file, print the diff and
           # fail with a hint to regenerate.
-          pip install pyyaml
           cd source
           python3 -m scripts.generate_openapi --output /tmp/openapi.generated.yaml
           if ! diff -u app/blueprints/rest/openapi.generated.yaml /tmp/openapi.generated.yaml; then
@@ -181,10 +179,16 @@ jobs:
       - name: Run tests
         working-directory: tests
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install -r requirements.txt
-          PYTHONUNBUFFERED=true python3 -m unittest --verbose
+          # `python3 -m venv` fails on this runner (no python3.11-venv, so
+          # ensurepip is missing) and a bare `pip install` is refused by PEP
+          # 668. `--target` sidesteps both — see the static-checks job. It
+          # implies --ignore-installed, so the pins in requirements.txt are
+          # honoured rather than silently satisfied by a system package.
+          # Kept out of the checkout and given a job-specific name: this runs
+          # alongside test-database-migration.
+          python3 -m pip install --target "${{ runner.temp }}/deps-api" -r requirements.txt
+          PYTHONPATH="${{ runner.temp }}/deps-api" \
+            PYTHONUNBUFFERED=true python3 -m unittest --verbose
       - name: Check the absence of errors/stack traces in logs
         run: |
           ! docker compose --file docker-compose.test.yml logs app | grep Traceback -A100
@@ -238,10 +242,10 @@ jobs:
           IRIS_DB_HOST_PORT: "5433"
           IRIS_APP_HOST_PORT: "8001"
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install -r requirements.txt
-          PYTHONUNBUFFERED=true python3 -m unittest --verbose
+          # --target rather than a venv: same reason as test-api above.
+          python3 -m pip install --target "${{ runner.temp }}/deps-migration" -r requirements.txt
+          PYTHONPATH="${{ runner.temp }}/deps-migration" \
+            PYTHONUNBUFFERED=true python3 -m unittest --verbose
 
   cleanup-ci-images:
     name: Cleanup temporary CI images
