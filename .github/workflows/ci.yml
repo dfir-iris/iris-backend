@@ -187,8 +187,18 @@ jobs:
           # Kept out of the checkout and given a job-specific name: this runs
           # alongside test-database-migration.
           python3 -m pip install --target "${{ runner.temp }}/deps-api" -r requirements.txt
+          # `rest_api.py` prints every request *and its full response body*.
+          # That is ~6 MB of console output for a third of the suite, which
+          # overruns the per-step log cap: the run gets cut off mid-test and
+          # the `Ran N tests` / `FAILED (...)` summary is lost. Keep the full
+          # trace in the uploaded artifact and show only unittest's own lines
+          # here. `pipefail` keeps unittest's exit code authoritative rather
+          # than grep's.
+          set -o pipefail
           PYTHONPATH="${{ runner.temp }}/deps-api" \
-            PYTHONUNBUFFERED=true python3 -m unittest --verbose
+            PYTHONUNBUFFERED=true python3 -m unittest --verbose 2>&1 \
+            | tee "${{ runner.temp }}/tests-api.log" \
+            | grep -vE '^(GET|POST|PUT|PATCH|DELETE) http'
       - name: Check the absence of errors/stack traces in logs
         run: |
           ! docker compose --file docker-compose.test.yml logs app | grep Traceback -A100
@@ -203,7 +213,9 @@ jobs:
         continue-on-error: true
         with:
           name: Test API logs
-          path: ${{ runner.temp }}/iris-backend.log
+          path: |
+            ${{ runner.temp }}/iris-backend.log
+            ${{ runner.temp }}/tests-api.log
           retention-days: 7
 
   test-database-migration:
