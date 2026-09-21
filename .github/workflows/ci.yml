@@ -160,6 +160,16 @@ jobs:
       - name: Start test stack
         run: |
           cp .env.tests.model .env
+          # The runner is persistent and `db_data` is a plain named volume,
+          # so a run that was cancelled — or that died before reaching
+          # `Stop test stack` — leaves its Postgres data dir on disk and
+          # `up` silently reuses it. The suite then runs against another
+          # run's rows: duplicate API key names, a demo case it never
+          # created, users it cannot account for. Start from nothing.
+          # (tests_database_migration already does the equivalent — it
+          # drives compose with its own project name and `volume_rm`s
+          # `<project>_db_data` in tearDown.)
+          docker compose --file docker-compose.test.yml down --volumes --remove-orphans
           docker compose --file docker-compose.test.yml up --detach --wait
       - name: Inspect test stack start failure
         if: ${{ failure() || cancelled() }}
@@ -206,7 +216,9 @@ jobs:
         if: ${{ always() }}
         run: |
           docker compose --file docker-compose.test.yml logs > "${{ runner.temp }}/iris-backend.log"
-          docker compose --file docker-compose.test.yml down
+          # --volumes: without it `db_data` outlives the job and the next
+          # run inherits this one's database. See `Start test stack`.
+          docker compose --file docker-compose.test.yml down --volumes
       - name: Upload artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
