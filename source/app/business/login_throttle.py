@@ -37,30 +37,31 @@ A hit on either bucket refuses the attempt *before* the password is
 checked, so a locked-out account can't be probed for password validity
 through response timing either.
 
-Scope: in-process, per worker, same as the MFA throttle in
-`blueprints/rest/v2/auth.py`. With N gunicorn workers an attacker gets N
-times the budget, and a restart clears the state. That is still a real
-bound on an attack that previously had none, and it keeps the login path
-free of a Redis dependency. A shared backing store is the upgrade if a
-deployment needs a hard guarantee.
+Scope: the counters live in the `auth_throttle` table, shared by every
+worker. They used to be a module-level dict, which is per OS process —
+with `gunicorn -w 4` an attacker got four independent budgets and a
+restart handed all four back, so the documented ceilings were not the
+ceilings anyone actually got. The store is Postgres rather than Redis
+because the login path already writes a `UserActivity` row per rejected
+attempt (`iris_engine/utils/tracker.py`), so the write was being paid
+anyway, and because a new service on a release that already ships six of
+them is a poor trade for a counter. `mfa_throttle` shares the table.
 """
-
-import threading
-import time
 
 from flask import request
 
 from app import app
+from app.datamgmt.manage.manage_auth_throttle_db import auth_throttle_clear
+from app.datamgmt.manage.manage_auth_throttle_db import auth_throttle_clear_all
+from app.datamgmt.manage.manage_auth_throttle_db import auth_throttle_lock
+from app.datamgmt.manage.manage_auth_throttle_db import auth_throttle_lockout_seconds
+from app.datamgmt.manage.manage_auth_throttle_db import auth_throttle_register_failure
 
 
 _ACCOUNT_MAX_FAILURES = 10
 _CLIENT_MAX_FAILURES = 50
 _WINDOW_SECONDS = 15 * 60
 _LOCKOUT_SECONDS = 15 * 60
-
-_lock = threading.Lock()
-# bucket key -> {'failures': [monotonic timestamps], 'locked_until': monotonic}
-_state = {}
 
 
 def _lockout_seconds() -> int:
@@ -94,47 +95,24 @@ def _account_key(username) -> str:
     return f'account::{str(username or "").strip().lower()}'
 
 
-def _remaining_lockout(key, now) -> int:
-    entry = _state.get(key)
-    if not entry:
-        return 0
-
-    locked_until = entry.get('locked_until', 0)
-    if locked_until > now:
-        return int(locked_until - now)
-
-    return 0
-
-
 def login_lockout_seconds(username) -> int:
     """Seconds the caller must wait, or 0 if the attempt may proceed."""
-    now = time.monotonic()
-    with _lock:
-        return max(
-            _remaining_lockout(_account_key(username), now),
-            _remaining_lockout(_client_key(), now),
-        )
+    return max(
+        auth_throttle_lockout_seconds(_account_key(username)),
+        auth_throttle_lockout_seconds(_client_key()),
+    )
 
 
-def _register(key, ceiling, now):
-    entry = _state.setdefault(key, {'failures': [], 'locked_until': 0})
-    cutoff = now - _WINDOW_SECONDS
-    entry['failures'] = [stamp for stamp in entry['failures'] if stamp > cutoff]
-    entry['failures'].append(now)
-    if len(entry['failures']) >= ceiling:
-        entry['locked_until'] = now + _lockout_seconds()
-        # Drop the history with the lockout: the lockout is the
-        # deterrent, and keeping the window full would re-lock on the
-        # first attempt after it expires.
-        entry['failures'] = []
+def _register(key, ceiling):
+    failures = auth_throttle_register_failure(key, _WINDOW_SECONDS)
+    if failures >= ceiling:
+        auth_throttle_lock(key, _lockout_seconds())
 
 
 def register_login_failure(username):
     """Record one rejected password against both buckets."""
-    now = time.monotonic()
-    with _lock:
-        _register(_account_key(username), _account_max_failures(), now)
-        _register(_client_key(), _client_max_failures(), now)
+    _register(_account_key(username), _account_max_failures())
+    _register(_client_key(), _client_max_failures())
 
 
 def register_login_success(username):
@@ -144,11 +122,9 @@ def register_login_success(username):
     address who lands a single valid credential shouldn't reset the
     budget they've been burning on everyone else's account.
     """
-    with _lock:
-        _state.pop(_account_key(username), None)
+    auth_throttle_clear(_account_key(username))
 
 
 def reset_login_throttle():
     """Drop all throttle state. Test hook."""
-    with _lock:
-        _state.clear()
+    auth_throttle_clear_all()

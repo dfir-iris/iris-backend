@@ -16,9 +16,6 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-import threading
-import time
-
 import jwt
 import pyotp
 
@@ -58,6 +55,9 @@ from app.business.auth import mfa_is_enforced
 from app.business.login_throttle import login_lockout_seconds
 from app.business.login_throttle import register_login_failure
 from app.business.login_throttle import register_login_success
+from app.business.mfa_throttle import mfa_lockout_seconds
+from app.business.mfa_throttle import register_mfa_failure
+from app.business.mfa_throttle import reset_mfa_throttle
 from app.iris_engine.demo_builder import demo_mode_blocks_mfa
 from app.iris_engine.utils.tracker import track_activity
 from app.schema.marshables import UserSchema
@@ -98,48 +98,6 @@ def _read_refresh_token(data):
         return token
 
     return request.cookies.get(_REFRESH_TOKEN_COOKIE)
-
-
-# Per-user brute-force throttle on the API MFA endpoints. The legacy
-# pages flow tracks fail count + lockout in the Flask session, but the
-# SPA presents a bearer token without a session, so we keep an in-process
-# counter keyed by user_id. After `_MFA_FAIL_THRESHOLD` consecutive bad
-# tokens we refuse all attempts for `_MFA_LOCKOUT_SECONDS` regardless of
-# password validity — making the 6-digit TOTP space (10^6) infeasible to
-# brute-force. The counter resets on a successful verify or after the
-# lockout expires. For multi-worker deployments this is per-worker, but
-# the throttle on any single worker still raises the cost meaningfully.
-_MFA_FAIL_THRESHOLD = 5
-_MFA_LOCKOUT_SECONDS = 15 * 60
-_mfa_throttle_lock = threading.Lock()
-_mfa_throttle = {}
-
-
-def _mfa_throttle_check(user_id):
-    """Return seconds remaining in the lockout, or 0 if the user can attempt."""
-    with _mfa_throttle_lock:
-        entry = _mfa_throttle.get(user_id)
-        if not entry:
-            return 0
-        if entry.get('locked_until', 0) > time.time():
-            return int(entry['locked_until'] - time.time())
-        return 0
-
-
-def _mfa_throttle_register_failure(user_id):
-    with _mfa_throttle_lock:
-        entry = _mfa_throttle.setdefault(user_id, {'fail_count': 0, 'locked_until': 0})
-        entry['fail_count'] = entry.get('fail_count', 0) + 1
-        if entry['fail_count'] >= _MFA_FAIL_THRESHOLD:
-            entry['locked_until'] = time.time() + _MFA_LOCKOUT_SECONDS
-            # Reset the counter so the next post-lockout attempt isn't
-            # immediately locked again — the lockout is the deterrent.
-            entry['fail_count'] = 0
-
-
-def _mfa_throttle_reset(user_id):
-    with _mfa_throttle_lock:
-        _mfa_throttle.pop(user_id, None)
 
 
 def _mfa_status_for(user):
@@ -312,7 +270,7 @@ def mfa_setup():
 
         # Reuse the verify throttle so a leaked refresh token can't be used
         # to spray password/token combos against /mfa-setup either.
-        remaining = _mfa_throttle_check(user_id)
+        remaining = mfa_lockout_seconds(user_id)
         if remaining > 0:
             return response_api_error(
                 f'Too many MFA attempts. Try again in {remaining} seconds.'
@@ -358,7 +316,7 @@ def mfa_setup():
 
         totp = pyotp.TOTP(mfa_secret)
         if not totp.verify(str(token)):
-            _mfa_throttle_register_failure(user_id)
+            register_mfa_failure(user_id)
             track_activity(
                 f"Failed MFA setup for user {user.user}. Invalid token.",
                 ctx_less=True,
@@ -380,7 +338,7 @@ def mfa_setup():
                 has_valid_password = True
 
         if not has_valid_password:
-            _mfa_throttle_register_failure(user_id)
+            register_mfa_failure(user_id)
             track_activity(
                 f"Failed MFA setup for user {user.user}. Invalid password.",
                 ctx_less=True,
@@ -391,7 +349,7 @@ def mfa_setup():
         user.mfa_secrets = mfa_secret
         user.mfa_setup_complete = True
         db.session.commit()
-        _mfa_throttle_reset(user_id)
+        reset_mfa_throttle(user_id)
 
         track_activity(
             f"MFA setup successful for user {user.user}",
@@ -435,7 +393,7 @@ def mfa_verify():
         # Throttle BEFORE the DB lookup. Even invalid attempts must count
         # toward the lockout — otherwise an attacker could keep the user_id
         # claim fixed and brute-force the TOTP space at network speed.
-        remaining = _mfa_throttle_check(user_id)
+        remaining = mfa_lockout_seconds(user_id)
         if remaining > 0:
             return response_api_error(
                 f'Too many MFA attempts. Try again in {remaining} seconds.'
@@ -457,7 +415,7 @@ def mfa_verify():
 
         totp = pyotp.TOTP(user.mfa_secrets)
         if not totp.verify(str(token), valid_window=1):
-            _mfa_throttle_register_failure(user_id)
+            register_mfa_failure(user_id)
             track_activity(
                 f"Failed MFA verification for user {user.user}. Invalid token.",
                 ctx_less=True,
@@ -465,7 +423,7 @@ def mfa_verify():
             )
             return response_api_error('Invalid token')
 
-        _mfa_throttle_reset(user_id)
+        reset_mfa_throttle(user_id)
         track_activity(
             f"MFA verification successful for user {user.user}",
             ctx_less=True,

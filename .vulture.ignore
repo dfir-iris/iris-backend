@@ -611,7 +611,13 @@ AUTHENTICATION_PROXY_TRUSTED_IPS  # read in blueprints/access_controls.py:478
 OIDC_REQUIRE_VERIFIED_EMAIL  # read in blueprints/pages/login/login_routes.py:277
 ######### Test hooks invoked outside source/app
 # vulture only scans source/app, so callers under source/tests are invisible.
-reset_login_throttle  # unused function (source/app/business/login_throttle.py:151) — called by source/tests/app/business/test_login_throttle.py:38,39
+reset_login_throttle  # unused function (source/app/business/login_throttle.py:128) — called by source/tests/app/business/test_login_throttle.py:38,39
+######### auth_throttle column touched only from raw SQL
+# `window_start` is read and written by the INSERT ... ON CONFLICT in
+# datamgmt/manage/manage_auth_throttle_db.py, which has to be one
+# statement so four gunicorn workers cannot lose counts against the same
+# row. vulture sees the column declaration and no Python reader.
+window_start  # unused variable (source/app/models/authorization.py:453)
 ######### Restricted unpickler hook called from the pickle machinery
 # `find_class` is an override the (C) Unpickler calls by name while
 # reading a blob, so no Python caller is visible to vulture.

@@ -9,7 +9,11 @@ inside a `test_request_context` with an explicit source address — that is
 also how the two-bucket behaviour is exercised: same address, different
 usernames, and vice versa.
 
-The throttle keeps module-level state, so every test resets it first.
+The counters live in the `auth_throttle` table, so the persistence
+helpers are swapped for an in-memory stand-in and every test starts from
+an empty store. The assertions below are unchanged from when the state
+was a module-level dict — what they pin is the throttle's behaviour, not
+where it is kept.
 """
 
 from unittest import TestCase
@@ -20,6 +24,7 @@ from app.business.login_throttle import login_lockout_seconds
 from app.business.login_throttle import register_login_failure
 from app.business.login_throttle import register_login_success
 from app.business.login_throttle import reset_login_throttle
+from tests.app.business.auth_throttle_fake import AuthThrottleFake
 
 
 _ACCOUNT_CEILING = 4
@@ -35,8 +40,9 @@ def _context(address='203.0.113.7'):
 class TestLoginThrottle(TestCase):
 
     def setUp(self):
+        AuthThrottleFake().install('app.business.login_throttle')
+        self.addCleanup(patch.stopall)
         reset_login_throttle()
-        self.addCleanup(reset_login_throttle)
         # Small, explicit ceilings so a test doesn't depend on whatever the
         # deployment's config happens to be.
         overrides = {

@@ -421,6 +421,39 @@ class UserAuthSession(db.Model):
     user = relationship('User')
 
 
+class AuthThrottle(db.Model):
+    """Shared failure counter behind both authentication throttles.
+
+    The password throttle and the MFA-verify throttle each kept their
+    counters in a module-level dict, which is per OS process. The app runs
+    under `gunicorn -w 4`, so an attacker got four independent budgets and
+    a container restart handed all four back. A 5-attempt TOTP lockout was
+    in practice a 20-attempt one.
+
+    One row per bucket, keyed by an opaque string rather than a user id:
+    the MFA throttle counts per user, but the password throttle also
+    counts per source address (`client::<addr>`), and an address has no
+    user row to point at. Keying on `user_id` would have fitted one caller
+    and forced the next one to invent a second table.
+
+    Rows are not swept. A row whose `window_start` and `locked_until` are
+    both in the past is inert — every reader compares timestamps rather
+    than trusting presence — and the population is bounded by the distinct
+    usernames and addresses that have been tried, which is far less than
+    the one `UserActivity` row per rejected attempt already being written.
+    """
+    __tablename__ = 'auth_throttle'
+
+    # Opaque bucket key: `account::<username>`, `client::<address>`,
+    # `mfa::<user id>`. Text rather than a bounded String because a
+    # username is user-supplied and truncating one would silently merge
+    # two accounts into a single budget.
+    key = Column(Text, primary_key=True)
+    failures = Column(Integer, nullable=False, server_default=text('0'))
+    window_start = Column(DateTime, nullable=False, server_default=text('now()'))
+    locked_until = Column(DateTime, nullable=True)
+
+
 class UserFollowedCase(db.Model):
     __tablename__ = 'user_followed_case'
     __table_args__ = (
