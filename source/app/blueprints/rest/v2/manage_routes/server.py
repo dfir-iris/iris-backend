@@ -457,17 +457,19 @@ class ServerOperations:
                 reload_llm_client(app)
 
             track_activity(f'Server settings updated: {changes}', ctx_less=True)
-            # Re-cache the dump on app.config so other code paths that
-            # read `app.config['SERVER_SETTINGS']` see the new values
-            # without an extra DB hit. The legacy route did the same.
+            # This dump used to be stashed on `app.config['SERVER_SETTINGS']`
+            # as a process-wide cache. It is not any more, and must not be
+            # again: `app.config` is per-process and the app runs under
+            # `gunicorn -w 4`, so only the worker that served this request
+            # ever saw the write. The others kept serving the values they
+            # happened to read first, which is how an enabled `enforce_mfa`
+            # stayed off on three workers out of four. Readers go to the row.
             settings_dump = self._schema.dump(updated)
             settings_dump.update(_mail_password_flags(updated))
             settings_dump.update(_error_reporting_flags(updated))
             settings_dump.update(_chatbot_flags(updated))
-            app.config['SERVER_SETTINGS'] = settings_dump
-            # Overrides are applied to a copy: the cached dict must keep
-            # the stored values so nothing downstream mistakes a demo
-            # presentation tweak for a real setting.
+            # Overrides are applied to a copy so nothing downstream mistakes
+            # a demo presentation tweak for a real stored setting.
             return response_api_success(_apply_demo_mode_overrides(dict(settings_dump)))
 
         except marshmallow.exceptions.ValidationError as exc:

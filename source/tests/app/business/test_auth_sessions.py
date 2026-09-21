@@ -22,6 +22,7 @@ import jwt
 from app import app
 from app.business.auth import auth_session_accepts_refresh
 from app.business.auth import auth_session_is_live
+from app.business.auth import auth_session_is_oidc
 from app.business.auth import auth_session_revoke
 from app.business.auth import generate_auth_tokens
 from app.business.auth import validate_auth_token
@@ -44,10 +45,14 @@ def _decode(token):
     return jwt.decode(token, _SECRET, algorithms=['HS256'])
 
 
-def _session_row(user_id=7, refresh_jti='jti-current'):
+def _session_row(user_id=7, refresh_jti='jti-current', is_oidc=False):
     row = MagicMock()
     row.user_id = user_id
     row.refresh_jti = refresh_jti
+    # Set explicitly: an unset MagicMock attribute is truthy, which would
+    # make every session look like an OIDC one and quietly disarm the
+    # policy-change demotion these tests exist to protect.
+    row.is_oidc = is_oidc
     return row
 
 
@@ -225,3 +230,48 @@ class TestAuthSessionHelpers(_AuthSessionTestCase):
     def test_revoke_closes_the_named_family(self):
         self.assertTrue(auth_session_revoke('sid-1'))
         self.revoke.assert_called_once_with('sid-1')
+
+    def test_is_oidc_follows_the_session_row(self):
+        self.assertFalse(auth_session_is_oidc('sid-1'))
+
+        self.get_live.return_value = _session_row(is_oidc=True)
+        self.assertTrue(auth_session_is_oidc('sid-1'))
+
+    def test_is_oidc_refuses_an_absent_or_dead_session_without_claiming_exemption(self):
+        """False is the safe default in both directions: no session id means
+        no exemption, and a revoked family is about to be refused anyway."""
+        self.assertFalse(auth_session_is_oidc(None))
+        self.assertFalse(auth_session_is_oidc(''))
+        self.get_live.assert_not_called()
+
+        self.get_live.return_value = None
+        self.assertFalse(auth_session_is_oidc('sid-1'))
+
+
+class TestOidcProvenance(_AuthSessionTestCase):
+    """The flag has to reach the row, and only when a row is being created.
+
+    It is not a token claim — nothing about OIDC appears in either payload —
+    so the only thing that can carry the exemption forward is the session
+    row, and rotation must leave it alone rather than overwrite it.
+    """
+
+    def test_a_new_session_records_how_it_was_opened(self):
+        generate_auth_tokens(_user(), mfa_verified=True, is_oidc=True)
+        self.assertIs(True, self.create.call_args.kwargs['is_oidc'])
+
+    def test_a_local_login_is_not_marked_oidc(self):
+        generate_auth_tokens(_user())
+        self.assertIs(False, self.create.call_args.kwargs['is_oidc'])
+
+    def test_rotation_does_not_touch_the_flag(self):
+        generate_auth_tokens(_user(), session_id='sid-existing', is_oidc=True)
+
+        self.create.assert_not_called()
+        self.rotate.assert_called_once()
+
+    def test_the_flag_never_reaches_a_token(self):
+        tokens = generate_auth_tokens(_user(), mfa_verified=True, is_oidc=True)
+
+        for token in (tokens['access_token'], tokens['refresh_token']):
+            self.assertNotIn('is_oidc', _decode(token))

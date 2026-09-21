@@ -68,9 +68,10 @@ def _coerce_sample_rate(raw: Any) -> float:
 def _read_settings(app) -> Optional[dict]:
     """Read the six error-reporting fields off the singleton row.
 
-    Uses `get_srv_settings()` for the source of truth rather than the
-    cached `app.config['SERVER_SETTINGS']` because init runs before
-    the cache is populated on cold boot. Returns None if the DB is
+    Uses `get_srv_settings()` so the values come off the row itself.
+    There is no process-wide settings cache to read instead — there used
+    to be one on `app.config['SERVER_SETTINGS']`, and it was removed
+    because `app.config` is per-worker. Returns None if the DB is
     unreachable (reporter stays off).
     """
     try:

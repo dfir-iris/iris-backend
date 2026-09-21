@@ -404,6 +404,19 @@ class UserAuthSession(db.Model):
     # which must not turn a read into a write on the hot path.
     last_used_at = Column(DateTime, nullable=True)
     revoked_at = Column(DateTime, nullable=True)
+    # Whether this family was opened by an OIDC exchange. OIDC users are
+    # exempt from IRIS's own MFA — the IdP owns the second factor, which
+    # is why `wrap_login_user` takes `is_oidc` and the token exchange
+    # mints `mfa_verified=True`. That exemption was call-site knowledge
+    # only: nothing recorded it anywhere the refresh path could read, so
+    # a refresh could not tell an OIDC session apart from a local one
+    # that had simply never been challenged. It lives here rather than in
+    # a token claim because the refresh path already loads this row, and
+    # because a "skip MFA" flag next to `mfa_verified` in a bearer token
+    # is one more thing a leaked signing key would forge. Do not key this
+    # off `User.external_id` — the case-transfer resolvers populate that
+    # too, with a placeholder prefix.
+    is_oidc = Column(Boolean, nullable=False, server_default=text('false'))
 
     user = relationship('User')
 

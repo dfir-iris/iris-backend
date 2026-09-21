@@ -51,6 +51,7 @@ from app.business.auth import validate_local_login
 from app.business.users import users_get_active
 from app.business.auth import auth_session_accepts_refresh
 from app.business.auth import auth_session_is_live
+from app.business.auth import auth_session_is_oidc
 from app.business.auth import auth_session_revoke
 from app.business.auth import generate_auth_tokens
 from app.business.auth import mfa_is_enforced
@@ -260,8 +261,11 @@ def oidc_exchange():
 
     # OIDC users' MFA is enforced at the IdP. Match wrap_login_user's
     # is_oidc branch and mint tokens with mfa_verified=True so the SPA
-    # doesn't route them through IRIS's local MFA prompt.
-    tokens = generate_auth_tokens(user, mfa_verified=True)
+    # doesn't route them through IRIS's local MFA prompt. `is_oidc=True`
+    # records that exemption on the session row, because the claims alone
+    # cannot express it: the refresh path has to be able to tell this
+    # apart from a local session that simply has not been challenged yet.
+    tokens = generate_auth_tokens(user, mfa_verified=True, is_oidc=True)
     user_data.update({'tokens': tokens})
     user_data.update(_mfa_status_for(user))
 
@@ -612,6 +616,30 @@ def refresh_token_endpoint():
         # a stolen step-1 refresh can't be laundered into a verified token
         # without going through /mfa-verify.
         mfa_verified = bool(payload.get('mfa_verified', False))
+
+        # Carrying it across unconditionally is what makes the MFA toggle
+        # inert for anyone already logged in. A token minted while the
+        # policy was off carries `mfa_verified=True` by construction —
+        # `generate_auth_tokens` sets it whenever `mfa_required` is False —
+        # so refreshing it under an enabled policy launders a session that
+        # has never seen a second factor into one indistinguishable from a
+        # session that has, for the family's full fourteen days. Demote it
+        # instead, and make the holder actually verify.
+        #
+        # Deliberately narrow: a step-1 token has `mfa_required=True` and is
+        # untouched, an enrolled user under a steady policy is untouched, and
+        # an OIDC family is untouched because its second factor lives at the
+        # IdP and IRIS has no enrollment path to send it to.
+        # Ordered so the two cheap claim reads run first and
+        # `mfa_is_enforced()` before `auth_session_is_oidc()`: on a
+        # deployment with the policy off — the common one — this costs the
+        # single-row policy read and never touches the session row.
+        if (mfa_verified
+                and not payload.get('mfa_required', False)
+                and mfa_is_enforced()
+                and not auth_session_is_oidc(session_id)):
+            mfa_verified = False
+
         new_tokens = generate_auth_tokens(user, mfa_verified=mfa_verified,
                                           session_id=session_id)
 

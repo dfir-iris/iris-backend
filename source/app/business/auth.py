@@ -33,7 +33,7 @@ from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_get_first
 from app.logger import logger
 from app.business.users import retrieve_user_by_username
-from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_as_dict
+from app.datamgmt.manage.manage_srv_settings_db import get_server_settings_enforce_mfa
 from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_create
 from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_get_live
 from app.datamgmt.manage.manage_user_auth_sessions_db import user_auth_sessions_revoke
@@ -137,20 +137,22 @@ def _filter_next_url(next_url, context_case):
 def mfa_is_enforced() -> bool:
     """Effective server-wide MFA policy.
 
-    Reads `enforce_mfa` off the cached settings row, except in demo
-    mode where MFA is forced off whatever the row says: demo accounts
-    are shared, so a second factor bound to one visitor's authenticator
-    locks everyone else out. Every reader of the policy must go through
-    here so the demo override can't be bypassed by one forgotten call
-    site.
+    Reads `enforce_mfa` off the settings row on every call, except in
+    demo mode where MFA is forced off whatever the row says: demo
+    accounts are shared, so a second factor bound to one visitor's
+    authenticator locks everyone else out. Every reader of the policy
+    must go through here so the demo override can't be bypassed by one
+    forgotten call site.
+
+    The read is deliberately not cached, and a TTL cache is not an
+    acceptable substitute — see `get_server_settings_enforce_mfa`. Any
+    staleness window at all, however short, is long enough to mint a
+    fourteen-day credential that outlives it.
     """
     if demo_mode_blocks_mfa():
         return False
 
-    if 'SERVER_SETTINGS' not in app.config:
-        app.config['SERVER_SETTINGS'] = get_server_settings_as_dict()
-
-    return bool(app.config['SERVER_SETTINGS'].get('enforce_mfa'))
+    return get_server_settings_enforce_mfa()
 
 
 def wrap_login_user(user, is_oidc=False):
@@ -253,6 +255,32 @@ def auth_session_is_live(session_id) -> bool:
     return user_auth_sessions_get_live(session_id) is not None
 
 
+def auth_session_is_oidc(session_id) -> bool:
+    """Whether `session_id` names a family opened by an OIDC login.
+
+    OIDC users are exempt from IRIS's own MFA by design — the IdP owns
+    the second factor — so the policy-change demotion on refresh has to
+    step around them. It cannot be reasoned out from the token: an OIDC
+    token and a never-challenged local token carry identical claims
+    (`mfa_required=False, mfa_verified=True`), which is why the
+    provenance is recorded server-side on the session row instead.
+
+    Getting this wrong is not a degraded experience, it is a permanent
+    lockout: a demoted OIDC user is routed to `/auth/mfa-setup`, which
+    demands the password that `login_routes` generated at random and
+    never disclosed. In an OIDC-only deployment that is everybody, with
+    no self-service way back.
+
+    Unknown or revoked families answer False — they are about to be
+    refused anyway, and False is the answer that keeps the strict branch.
+    """
+    if not session_id:
+        return False
+
+    auth_session = user_auth_sessions_get_live(session_id)
+    return auth_session is not None and bool(auth_session.is_oidc)
+
+
 def auth_session_accepts_refresh(session_id, refresh_jti) -> bool:
     """Whether this exact refresh token may still be exchanged (VI-004).
 
@@ -307,13 +335,18 @@ def auth_session_revoke(session_id) -> bool:
     return user_auth_sessions_revoke(session_id)
 
 
-def generate_auth_tokens(user, mfa_verified: bool = False, session_id: str = None):
+def generate_auth_tokens(user, mfa_verified: bool = False, session_id: str = None,
+                         is_oidc: bool = False):
     """
     Generate access and refresh tokens with essential user data
 
     :param user: User object
     :param mfa_verified: Whether the holder has already cleared the second factor
     :param session_id: Existing token family to rotate. None opens a new one.
+    :param is_oidc: Whether this login came from an OIDC exchange. Recorded on
+                    the new session row so the refresh path can honour the
+                    IdP-owns-MFA exemption; ignored when rotating, since the
+                    existing row already carries it.
     :return: Dict containing tokens with expiry
     """
     # Configure token expiration times
@@ -333,7 +366,7 @@ def generate_auth_tokens(user, mfa_verified: bool = False, session_id: str = Non
     # refresh — gets a session without having to remember to ask for one.
     refresh_jti = str(uuid.uuid4())
     if session_id is None:
-        session_id = user_auth_sessions_create(user.id, refresh_jti)
+        session_id = user_auth_sessions_create(user.id, refresh_jti, is_oidc=is_oidc)
     elif not user_auth_sessions_rotate(session_id, refresh_jti):
         # The family died between the caller's check and this write — a
         # concurrent logout, or reuse detection firing on a parallel

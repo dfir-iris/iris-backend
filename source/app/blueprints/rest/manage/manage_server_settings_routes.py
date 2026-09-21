@@ -20,7 +20,6 @@ import marshmallow
 from flask import Blueprint
 from flask import request
 
-from app import app
 from app import celery
 from app.db import db
 from app.datamgmt.manage.manage_srv_settings_db import get_srv_settings
@@ -95,8 +94,11 @@ def manage_update_settings():
                 remove_periodic_update_checks()
         if srv_settings_sc:
             track_activity(f"Server settings updated: {changes}")
-            app.config['SERVER_SETTINGS'] = srv_settings_schema.dump(server_settings)
-            return response_success("Server settings updated", app.config['SERVER_SETTINGS'])
+            # Deliberately not cached on `app.config` any more — see the
+            # matching note in the v2 route. A per-process cache of this
+            # dump diverges across gunicorn workers.
+            settings_dump = srv_settings_schema.dump(server_settings)
+            return response_success("Server settings updated", settings_dump)
 
     except marshmallow.exceptions.ValidationError as e:
         return response_error(msg="Data error", data=e.messages)

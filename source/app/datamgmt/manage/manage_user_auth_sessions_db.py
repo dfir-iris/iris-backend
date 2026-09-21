@@ -31,12 +31,18 @@ from app.db import db
 from app.models.authorization import UserAuthSession
 
 
-def user_auth_sessions_create(user_id: int, refresh_jti: str) -> str:
-    """Open a token family for `user_id` and return its freshly minted `sid`."""
+def user_auth_sessions_create(user_id: int, refresh_jti: str, is_oidc: bool = False) -> str:
+    """Open a token family for `user_id` and return its freshly minted `sid`.
+
+    `is_oidc` records how the family was opened. It is written once, here,
+    and never revisited: rotation reuses the same row, so the flag rides
+    along for the life of the family without any further plumbing.
+    """
     auth_session = UserAuthSession(
         sid=str(uuid.uuid4()),
         user_id=user_id,
         refresh_jti=refresh_jti,
+        is_oidc=bool(is_oidc),
         last_used_at=datetime.utcnow()
     )
     db.session.add(auth_session)
