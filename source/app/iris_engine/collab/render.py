@@ -10,7 +10,7 @@
 """markdown ↔ Yjs XmlFragment bridge for the collaborative editor.
 
 We hold the authoritative Y.Doc server-side (see `business/collab.py`)
-and clients speak Yjs updates over the wire. Two conversions are
+and clients speak Yjs updates over the wire. Three conversions are
 needed at the storage boundary:
 
   * `markdown_to_ydoc_update(md)`  → bytes
@@ -20,6 +20,16 @@ needed at the storage boundary:
       a fresh Y.Doc and return the doc's update bytes. That's what
       the first joiner sees via `sync-init` and what every subsequent
       joiner merges against.
+
+  * `append_markdown_to_ydoc_update(state, md)` → bytes
+      Called when the SERVER needs to add content to a document that
+      has already been seeded (alert escalation appending a mention
+      chip to a case summary, see `collab/sync.py`). Once a
+      `collab_doc` row exists the Y.Doc is authoritative and
+      `ensure_snapshot` ignores the source column, so appending to
+      the column alone is silently discarded by the next flush. We
+      re-hydrate `state`, append the parsed blocks at the end of the
+      fragment and return the full new state.
 
   * `ydoc_update_to_markdown(update)` → str
       Called on flush (last-client-disconnect + periodic tick). We
@@ -41,21 +51,37 @@ Design constraints that shape the code:
   2. Round-trip stable — `render(parse(md))` should match `md`
      modulo whitespace normalization. If it doesn't, users will
      see their content mutate on save.
-  3. No inline HTML pass-through: markdown-it-py is CommonMark-only.
-     If the source column has legacy HTML (from pre-editor code),
-     we drop through to `<html_block>` tokens and render them back
-     as a fenced code block. Aggressive, but safe — we're not going
-     to reconstruct arbitrary HTML into a CRDT tree.
+  3. No inline HTML pass-through, with ONE documented exception:
+     markdown-it-py is CommonMark-only, so if the source column has
+     legacy HTML (from pre-editor code) we drop through to
+     `<html_block>` tokens and render them back as a fenced code
+     block. Aggressive, but safe — we're not going to reconstruct
+     arbitrary HTML into a CRDT tree. The exception is the mention
+     chip (`<span data-mention …>`, see `collab/mentions.py`): it is
+     a closed, machine-written shape that maps 1:1 onto a TipTap
+     node, so a dedicated inline rule parses it into a
+     `userMention` / `caseMention` element and the renderer emits it
+     back verbatim. Without that both directions lose it — literal
+     text on the way in, silently dropped on the way out.
 """
 
 from __future__ import annotations
 
+import html
 import logging
 import re
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from markdown_it.rules_inline import StateInline
 from pycrdt import Doc, XmlElement, XmlFragment, XmlText
+
+from app.iris_engine.collab.mentions import MENTION_DEFAULT_KIND_BY_NODE
+from app.iris_engine.collab.mentions import MENTION_KINDS
+from app.iris_engine.collab.mentions import MENTION_NODE_NAMES
+from app.iris_engine.collab.mentions import MENTION_SPAN_RE
+from app.iris_engine.collab.mentions import build_mention_span
+from app.iris_engine.collab.mentions import mention_node_name
 
 
 logger = logging.getLogger(__name__)
@@ -72,17 +98,15 @@ _PROSEMIRROR_FIELD = 'prosemirror'
 # markdown → Y.Doc
 # ---------------------------------------------------------------------------
 
-def markdown_to_ydoc_update(md: str) -> bytes:
-    """Build a fresh Y.Doc from `md` and return its update bytes.
+def _parse_markdown(md: str) -> list[Token]:
+    """Clean `md` of the legacy shapes we know about and tokenize it.
 
-    Empty input is legal — we return the update for an empty doc so
-    the client's `sync-init` handler can still apply it cleanly (an
-    empty XmlFragment is a valid starting state).
+    Shared by `markdown_to_ydoc_update` and
+    `append_markdown_to_ydoc_update`: both must produce the exact same
+    tree for the same markdown, or a chip appended into a live doc
+    would parse differently from the same chip re-seeded from the
+    source column.
     """
-    doc = Doc()
-    frag = XmlFragment()
-    doc[_PROSEMIRROR_FIELD] = frag
-
     # `commonmark` + explicit `enable('table')` gives us GFM pipe tables
     # (thead/tbody/tr/th/td tokens) without pulling in the rest of the
     # `gfm-like` preset — notably `linkify`, which requires the extra
@@ -94,6 +118,11 @@ def markdown_to_ydoc_update(md: str) -> bytes:
         MarkdownIt('commonmark', {'html': False, 'breaks': False})
         .enable('table')
     )
+    # The one inline-HTML shape we do understand. Registered BEFORE
+    # `text` so the rule gets first look at the `<` that opens the
+    # span; otherwise `text` swallows it and the chip degrades to
+    # literal markup. See `_mention_inline_rule`.
+    md_parser.inline.ruler.before('text', 'iris_mention', _mention_inline_rule)
     # Some legacy imports concatenated an entire GFM table onto a single
     # physical line ("| A | B | |---|---| | 1 | 2 | | 3 | 4 |"). markdown-it
     # sees that as one paragraph and never emits table tokens. Un-flatten
@@ -105,7 +134,56 @@ def markdown_to_ydoc_update(md: str) -> bytes:
     # new SvelteKit path form before the tokens are frozen into the Y.Doc.
     # Without this the raw column keeps the old URLs forever after the
     # first collab open, since the Y.Doc becomes the source of truth.
-    tokens = md_parser.parse(_unflatten_pipe_tables(_rewrite_legacy_case_urls(md or '')))
+    # `_strip_fontawesome_tags` runs after it and before the parser, in the
+    # same order as the frontend's `normalizeLegacyContent`.
+    cleaned = _strip_fontawesome_tags(_rewrite_legacy_case_urls(md or ''))
+    return md_parser.parse(_unflatten_pipe_tables(cleaned))
+
+
+def markdown_to_ydoc_update(md: str) -> bytes:
+    """Build a fresh Y.Doc from `md` and return its update bytes.
+
+    Empty input is legal — we return the update for an empty doc so
+    the client's `sync-init` handler can still apply it cleanly (an
+    empty XmlFragment is a valid starting state).
+    """
+    doc = Doc()
+    frag = XmlFragment()
+    doc[_PROSEMIRROR_FIELD] = frag
+
+    tokens = _parse_markdown(md)
+
+    with doc.transaction():
+        _build_blocks_into(frag, tokens)
+
+    return doc.get_update()
+
+
+def append_markdown_to_ydoc_update(state: bytes | None, md: str) -> bytes:
+    """Append `md` to the end of the Y.Doc encoded by `state`.
+
+    Returns the FULL new state (not a delta), so the result drops
+    straight into `collab_doc.y_state` alongside what `ensure_snapshot`
+    writes there.
+
+    `state` may be `None` or empty — we then start from an empty
+    fragment, which makes the result content-equivalent to
+    `markdown_to_ydoc_update(md)`. Note that the two will never be
+    byte-equal: Yjs stamps a random client id into every update.
+
+    The appended blocks land AFTER everything already in the fragment.
+    That's the only ordering a server-side writer can safely pick —
+    it has no cursor and no idea what a concurrently-connected human
+    is editing, and an append at the tail is the least likely to
+    collide with them once the CRDT merges.
+    """
+    doc = Doc()
+    frag = XmlFragment()
+    doc[_PROSEMIRROR_FIELD] = frag
+    if state:
+        doc.apply_update(bytes(state))
+
+    tokens = _parse_markdown(md)
 
     with doc.transaction():
         _build_blocks_into(frag, tokens)
@@ -165,6 +243,96 @@ def _rewrite_legacy_case_urls(md: str) -> str:
 
     out = _LEGACY_CASE_SUBPATH_RE.sub(_subpath, md)
     return _LEGACY_CASE_BARE_RE.sub(_bare, out)
+
+
+# Self-empty FontAwesome `<i>` tags. Mirrors the regex in
+# `stripFontAwesomeTags` (legacy-content.ts) character for character;
+# the only deviation is Python's `\w` being Unicode-aware where JS's is
+# ASCII-only, which cannot change the outcome here because the
+# following `[^"']*` already accepts everything `\w` would add.
+_FONTAWESOME_TAG_RE = re.compile(
+    r'<i\b[^>]*\bclass=["\'][^"\']*\bfa[-\w]*[^"\']*["\'][^>]*>\s*</i>',
+    re.IGNORECASE,
+)
+
+
+def _strip_fontawesome_tags(md: str) -> str:
+    """Drop `<i class="fa-…"></i>` icon tags from legacy content.
+
+    Mirrors `stripFontAwesomeTags` in
+    `iris-frontend/src/lib/components/common/MarkDown/legacy-content.ts`
+    — same deliberate byte-for-byte behaviour pact as
+    `_rewrite_legacy_case_urls` above.
+
+    IRIS v2 embedded FontAwesome markup inside link text (case
+    descriptions written by alert escalation, datastore file links, …).
+    This frontend doesn't ship FontAwesome, and the parser runs with
+    `html: False`, so leaving them in surfaces the raw tag as literal
+    text in the editor. They're always self-empty, so stripping them
+    loses nothing: `[<i class='fa-solid fa-bell'></i> #106](…)` reads
+    as `[ #106](…)`.
+
+    Only the empty form is matched — an `<i>` with real content keeps
+    it rather than having it swallowed.
+    """
+    if '<i' not in md and '<I' not in md:
+        return md
+    return _FONTAWESOME_TAG_RE.sub('', md)
+
+
+def _mention_inline_rule(state: StateInline, silent: bool) -> bool:
+    """markdown-it inline rule: `<span data-mention …>` → `iris_mention`.
+
+    The chip is the single inline-HTML shape this renderer understands
+    (see the module docstring). It is machine-written by
+    `collab/mentions.py` and by the TipTap node's `renderHTML`, so a
+    regex match is sufficient and we never interpret the captured
+    values as markup — they become plain XmlElement attributes.
+
+    Registered before `text`, so this fires on every `<` in the inline
+    stream. Returning False on a non-match hands the character back to
+    the normal rules, where it ends up as literal text exactly as
+    before.
+
+    `silent` is markdown-it's validation pass (used when scanning for a
+    link label's end): consume the input and report the match, but
+    don't emit a token.
+    """
+    if state.src[state.pos] != '<':
+        return False
+    match = MENTION_SPAN_RE.match(state.src, state.pos, state.posMax)
+    if match is None:
+        return False
+
+    if not silent:
+        token = state.push('iris_mention', '', 0)
+        token.meta = {
+            'kind': _normalize_mention_kind(match.group('kind')),
+            # Both attributes hold HTML-escaped values; the Y.Doc
+            # attributes must hold the real ones, or `build_mention_span`
+            # would escape them a second time on the way back out and the
+            # round trip would drift a little further on every flush.
+            'id': html.unescape(match.group('id') or ''),
+            'label': html.unescape(match.group('label') or ''),
+        }
+
+    state.pos = match.end()
+    return True
+
+
+def _normalize_mention_kind(raw: str | None) -> str:
+    """Coerce a span's `data-kind` to a kind the frontend can render.
+
+    A missing or unrecognised kind falls back to the default for the
+    `#`-triggered node rather than being passed through: an unknown
+    string would otherwise reach `build_mention_span`, which coerces
+    anything it doesn't know to `user` — turning a typo'd chip into a
+    user mention that the notification parser would then try to fan
+    out to a non-existent account.
+    """
+    if raw in MENTION_KINDS:
+        return raw
+    return MENTION_DEFAULT_KIND_BY_NODE[mention_node_name(raw or '')]
 
 
 def _unflatten_pipe_tables(md: str) -> str:
@@ -532,6 +700,22 @@ def _build_inline_into(block_el, inline_tokens: list[Token]) -> None:
             # `content` on an image token is its alt text.
             if c.content:
                 img.attributes['alt'] = c.content
+        elif ct == 'iris_mention':
+            # A chip is an atomic NODE, not marked text, so it is
+            # appended bare like `hardBreak` / `image` — the mark stack
+            # only ever decorates XmlText. A chip written inside bold or
+            # link text therefore keeps the chip but not the surrounding
+            # mark, which matches how `image` has always behaved and is
+            # what y-prosemirror produces for an atom in a marked range.
+            meta = c.meta or {}
+            kind = meta.get('kind') or MENTION_DEFAULT_KIND_BY_NODE['caseMention']
+            chip = XmlElement(mention_node_name(kind))
+            block_el.children.append(chip)
+            # All three are plain string attributes, matching the attrs
+            # the TipTap mention node declares.
+            chip.attributes['id'] = str(meta.get('id', ''))
+            chip.attributes['label'] = str(meta.get('label', ''))
+            chip.attributes['kind'] = kind
         # Unknown inline types are silently dropped for the same reason
         # we drop unknown block tokens: keeps the tree coherent, and
         # any lost formatting is recoverable by retyping.
@@ -822,6 +1006,18 @@ def _render_inline_children(block) -> str:
                 title = _string_attr(child, 'title', default='')
                 title_part = f' "{title}"' if title else ''
                 out.append(f'![{alt}]({src}{title_part})')
+            elif child.tag in MENTION_NODE_NAMES:
+                # Re-emit the span the mention rule parsed on the way in.
+                # Before this branch existed, every chip a user typed was
+                # dropped on the first flush back to the source column.
+                kind = _string_attr(child, 'kind', default='')
+                if kind not in MENTION_KINDS:
+                    kind = MENTION_DEFAULT_KIND_BY_NODE[child.tag]
+                out.append(build_mention_span(
+                    kind,
+                    _string_attr(child, 'id', default=''),
+                    _string_attr(child, 'label', default=''),
+                ))
             # Other inline elements are unexpected; ignore.
     return ''.join(out)
 

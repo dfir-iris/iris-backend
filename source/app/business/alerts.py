@@ -53,6 +53,7 @@ from app.datamgmt.case.case_db import get_case
 from app.datamgmt.states import update_assets_state
 from app.datamgmt.states import update_ioc_state
 from app.iris_engine.access_control.utils import ac_set_new_case_access
+from app.iris_engine.collab.sync import collab_append_markdown
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
@@ -704,11 +705,20 @@ def alerts_batch_merge(alert_ids: list, target_case_id: int,
         call_modules_hook('on_postload_alert_merge', alert)
 
     if note:
-        case.description += (
+        # Built once and used for both writes below (column + Y.Doc) so the
+        # two representations of the summary cannot drift apart. Same
+        # pairing as `merge_alert_in_case`; see `collab/sync.py` for why
+        # the column alone is not enough once the case has been opened.
+        summary_append = (
             f"\n\n### Escalation note\n\n{note}\n\n"
             if case.description else f"\n\n{note}\n\n"
         )
+        case.description += summary_append
         db.session.commit()
+
+        # Deliberately AFTER the commit: the helper commits (and on failure
+        # rolls back) the session itself.
+        collab_append_markdown(f'case-summary:{case.case_id}', summary_append)
 
     track_activity(f'batched merge alerts {alert_ids} into existing case #{target_case_id}',
                    caseid=target_case_id)

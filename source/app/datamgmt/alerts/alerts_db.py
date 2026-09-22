@@ -60,6 +60,8 @@ from app.datamgmt.manage.manage_case_templates_db import get_case_template_by_id
 from app.datamgmt.manage.manage_case_templates_db import case_template_post_modifier
 from app.datamgmt.states import update_timeline_state
 from app.blueprints.iris_user import iris_current_user
+from app.iris_engine.collab.mentions import build_mention_span
+from app.iris_engine.collab.sync import collab_append_markdown
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.models.cases import Cases
 from app.models.models import EventCategory
@@ -780,13 +782,21 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
         if case_template:
             case_template_title_prefix = case_template.title_prefix
 
+    # One mention chip per escalated alert, space-separated so they wrap
+    # as a row of chips in the editor. See `create_case_from_alert` for
+    # the single-alert equivalent.
+    alerts_chips = ' '.join(
+        build_mention_span('alert', alert.alert_id, f'Alert #{alert.alert_id}')
+        for alert in alerts
+    )
+
     # Create the case
     case = Cases(
         name=f"[ALERT]{case_template_title_prefix} "
              f"Merge of alerts {', '.join([str(alert.alert_id) for alert in alerts])}" if not case_title else
              f"{case_template_title_prefix} {case_title}",
         description=f"*Alerts escalated by {iris_current_user.name}*\n\n{escalation_note}"
-                    f"[Alerts link](/alerts?alert_ids={','.join([str(alert.alert_id) for alert in alerts])})",
+                    f"### IRIS alert links\n\n{alerts_chips}",
         soc_id='',
         client_id=alerts[0].alert_customer_id,
         user=iris_current_user,
@@ -905,13 +915,18 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
         if case_template:
             case_template_title_prefix = case_template.title_prefix
 
+    # A real mention chip, not the v2 FontAwesome link: the case summary
+    # is a collaborative document whose parser runs with `html: False`,
+    # so anything that isn't a chip the renderer knows shows up as
+    # literal markup in the editor.
+    alert_chip = build_mention_span('alert', alert.alert_id, f'Alert #{alert.alert_id}')
+
     # Create the case
     case = Cases(
         name=f"[ALERT]{case_template_title_prefix} {alert.alert_title}" if not case_title else f"{case_template_title_prefix} {case_title}",
         description=f"*Alert escalated by {iris_current_user.name}*\n\n{escalation_note}"
                     f"### Alert description\n\n{alert.alert_description}"
-                    f"\n\n### IRIS alert link\n\n"
-                    f"[<i class='fa-solid fa-bell'></i> #{alert.alert_id}](/alerts?alert_ids={alert.alert_id})",
+                    f"\n\n### IRIS alert link\n\n{alert_chip}",
         soc_id=alert.alert_id,
         client_id=alert.alert_customer_id,
         user=iris_current_user,
@@ -1065,7 +1080,14 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
     if note:
         escalation_note = f"\n\n### Escalation note\n\n{note}\n\n"
 
-    case.description += f"\n\n*Alert [#{alert.alert_id}](/alerts?alert_ids={alert.alert_id}) escalated by {iris_current_user.name}*\n\n{escalation_note}"
+    # The chip sits OUTSIDE the italics on purpose: a mention is an atomic
+    # node, and the collab renderer can only carry marks on text, so a chip
+    # inside `*…*` would split the emphasis on the first flush.
+    alert_chip = build_mention_span('alert', alert.alert_id, f'Alert #{alert.alert_id}')
+    # Built ONCE and reused for both writes below (column + Y.Doc) so the
+    # two representations of the summary cannot drift apart.
+    summary_append = f"\n\n{alert_chip} *escalated by {iris_current_user.name}*\n\n{escalation_note}"
+    case.description += summary_append
 
     for tag in case_tags.split(',') if case_tags else []:
         tag = Tags(tag_title=tag).save()
@@ -1158,6 +1180,18 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
         update_event_iocs(event.event_id, case.case_id, ioc_links)
 
     db.session.commit()
+
+    # Mirror the summary append into the collaborative Y.Doc, if the case
+    # summary has ever been opened. Without this the `case.description +=`
+    # above is silently discarded: once a `collab_doc` row exists the Y.Doc
+    # is authoritative (`ensure_snapshot` stops reading the column) and the
+    # next `flush_to_source` renders the Y.Doc straight back over the
+    # column, chip and all. `collab_append_markdown` is a no-op when no row
+    # exists, which is why escalate-to-a-NEW-case keeps working unchanged.
+    #
+    # Deliberately AFTER the commit above: the helper commits the session
+    # itself, so calling it earlier would flush a half-built merge.
+    collab_append_markdown(f'case-summary:{case.case_id}', summary_append)
 
 
 def unmerge_alert_from_case(alert: Alert, case: Cases):
