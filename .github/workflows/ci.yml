@@ -282,28 +282,104 @@ jobs:
       - test-api
       - test-database-migration
     steps:
-      - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Best-effort cleanup temporary CI tags
-        continue-on-error: true
+      # Deletes this run's two throwaway images through the GitHub packages
+      # API rather than a registry CLI. The previous version of this step
+      # looked for `oras`, fell back to `crane`, and printed "No registry
+      # cleanup CLI available" when it found neither — which is every run, so
+      # it has never deleted anything while still reporting success. Nothing
+      # here is best-effort any more: if the delete fails the job goes red,
+      # because a cleanup that fails quietly is how the package grew to
+      # hundreds of stale versions in the first place.
+      #
+      # Only ci-<run_id>-<run_attempt> images are in scope, and only ones
+      # pushed by this run. They are single-platform and nothing else
+      # references them, so deleting the version is safe. The per-architecture
+      # scratch tags that build-app/build-db/build-nginx push are a different
+      # matter — those manifests are the live children of the multi-arch
+      # index those workflows publish, and deleting them breaks the release
+      # image. They are left to the weekly sweep in iris-web, which only
+      # touches a child once its last parent index is gone.
+      #
+      # python3 + urllib because the self-hosted runner has no jq (see the
+      # comment in "Inspect test stack start failure") and curl is not used
+      # anywhere else here either, while python3 is already a hard dependency
+      # of the test jobs.
+      - name: Delete this run's temporary CI images
+        env:
+          GH_API: ${{ github.api_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          CI_TAG: ci-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          refs=(
-            "${{ env.CI_DB_IMAGE }}"
-            "${{ env.CI_APP_IMAGE }}"
-          )
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
 
-          if command -v oras >/dev/null 2>&1; then
-            for ref in "${refs[@]}"; do
-              oras manifest delete "$ref"
-            done
-          elif command -v crane >/dev/null 2>&1; then
-            for ref in "${refs[@]}"; do
-              crane delete "$ref"
-            done
-          else
-            echo "No registry cleanup CLI available; leaving temporary CI tags in place."
-          fi
+          api = os.environ['GH_API'].rstrip('/')
+          owner = os.environ['OWNER']
+          tag = os.environ['CI_TAG']
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version': '2022-11-28',
+          }
+
+          def call(method, url):
+              request = urllib.request.Request(url, method=method, headers=headers)
+              with urllib.request.urlopen(request) as response:
+                  body = response.read()
+              return json.loads(body) if body else None
+
+          def find_version(package):
+              """Locate the package version carrying exactly our CI tag.
+
+              Versions come back newest first, so ours is on an early page;
+              five pages of 100 is a generous ceiling. Returning None is not
+              an error — a rerun, or a build job that failed before pushing,
+              legitimately leaves nothing to delete."""
+              for page in range(1, 6):
+                  url = (f'{api}/orgs/{owner}/packages/container/{package}'
+                         f'/versions?per_page=100&page={page}')
+                  versions = call('GET', url)
+                  if not versions:
+                      return None
+                  for version in versions:
+                      tags = version.get('metadata', {}).get('container', {}).get('tags', [])
+                      if tag not in tags:
+                          continue
+                      # Refuse anything carrying a second tag. A digest that is
+                      # also tagged develop or v3.0.0-beta.1 is a release image
+                      # that happens to be byte-identical to this build, and
+                      # deleting the version would take those tags with it.
+                      if tags != [tag]:
+                          print(f'::error::{package}@{version["name"]} is tagged '
+                                f'{tags}, not just {tag} — refusing to delete it.')
+                          sys.exit(1)
+                      return version
+              return None
+
+          failed = False
+          for package in ('iris-backend', 'iris-db'):
+              try:
+                  version = find_version(package)
+                  if version is None:
+                      print(f'{package}: no version tagged {tag}, nothing to delete')
+                      continue
+                  call('DELETE', f'{api}/orgs/{owner}/packages/container/{package}'
+                                 f'/versions/{version["id"]}')
+                  print(f'{package}: deleted version {version["id"]} ({version["name"]})')
+              except urllib.error.HTTPError as error:
+                  detail = error.read().decode('utf-8', 'replace').strip()
+                  print(f'::error::{package}: {error.code} {error.reason} deleting '
+                        f'{tag} — {detail}')
+                  if error.code in (401, 403):
+                      print('::error::GITHUB_TOKEN needs admin on the package. Check '
+                            'Package settings -> Manage Actions access for '
+                            f'{owner}/{package}.')
+                  failed = True
+
+          sys.exit(1 if failed else 0)
+          PY
