@@ -136,6 +136,7 @@ jobs:
           flavor: |
             latest=${{ github.ref == 'refs/tags/v*' && steps.check_beta.outputs.is_beta != 'true' }}
           tags: |
+            type=ref,event=tag
             type=semver,pattern=v{{version}}
             type=ref,event=branch
             type=raw,value=beta,enable=${{ steps.check_beta.outputs.is_beta == 'true' }}
