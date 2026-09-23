@@ -160,13 +160,13 @@ jobs:
       # only ever looked harmless because ubuntu-24.04 has neither binary, so it
       # printed "No registry cleanup CLI available" and exited 0 on every run.
       #
-      # These tags cannot be cleaned up at this point in time by anything. They
-      # are collected by the ghcr-retention workflow in iris-web, which deletes
-      # a platform child only once its last parent index is gone — see the
-      # reference-count gate in dataaxiom/ghcr-cleanup-action's
-      # image-deleter.ts. Eliminating them entirely means switching this
-      # workflow to the push-by-digest pattern so no scratch tag is ever
-      # created; that is a change to the publish path, not a cleanup.
+      # These tags cannot be cleaned up at this point in time by anything in
+      # CI: nothing in this repo deletes them, and a step that tried would hit
+      # the manifest-vs-tag problem above. They accumulate, and are pruned
+      # out-of-band by the maintainer. Eliminating them entirely means
+      # switching this workflow to the push-by-digest pattern so no scratch
+      # tag is ever created; that is a change to the publish path, not a
+      # cleanup.
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
