@@ -77,6 +77,12 @@ def get_filtered_assets(case_id=None,
         else:
             data = data.order_by(order_func(CaseAssets.asset_name))
 
+    # See the note on paginate() in datamgmt/filtering.py. Every branch above
+    # sorts on a non-unique column, and none of them runs at all when `sort_by`
+    # is absent, so the page boundaries had nothing stable to rest on: Postgres
+    # was free to return an asset on two pages and omit another entirely.
+    data = data.order_by(convert_sort_direction(sort_dir)(CaseAssets.asset_id))
+
     try:
 
         filtered_assets = data.paginate(page=page, per_page=per_page)

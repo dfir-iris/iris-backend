@@ -35,21 +35,31 @@ from app.models.customers import Client
 
 
 def _get_filtered_comments(query, pagination_parameters: PaginationParameters) -> Pagination:
+    # See the note on paginate() in datamgmt/filtering.py. Two comments posted
+    # in the same second tie on `comment_date`, and tied rows have no stable
+    # order across pages, so `comment_id` is appended as a unique final term.
     query = query.order_by(
-        Comments.comment_date.asc()
+        Comments.comment_date.asc(),
+        Comments.comment_id.asc()
     )
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
 
 
 def get_filtered_alert_comments(alert_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
-    query = Comments.query.filter(Comments.comment_alert_id == alert_identifier)
+    # This had no ORDER BY at all, so the page boundaries rested on whatever
+    # order the executor happened to produce — see datamgmt/filtering.py.
+    # Ordered by date to match the other comment listings, then by id.
+    query = Comments.query.filter(Comments.comment_alert_id == alert_identifier).order_by(
+        Comments.comment_date.asc(),
+        Comments.comment_id.asc()
+    )
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
 
 
 def get_filtered_alert_cluster_comments(cluster_identifier: int, pagination_parameters: PaginationParameters) -> Pagination:
     query = Comments.query.filter(
         Comments.comment_cluster_id == cluster_identifier
-    ).order_by(Comments.comment_date.asc())
+    ).order_by(Comments.comment_date.asc(), Comments.comment_id.asc())
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())
 
 

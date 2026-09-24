@@ -54,7 +54,11 @@ def search_asynchronous_tasks_paginated(
     if status:
         base = base.filter(CeleryTaskMeta.status == status)
 
-    return base.order_by(desc(CeleryTaskMeta.date_done)).paginate(
+    # See the note on paginate() in datamgmt/filtering.py. Tasks finishing in
+    # the same instant tie on `date_done`, and `date_done` is NULL for every
+    # task still running — a large tied block whose order across pages is not
+    # guaranteed. `id` is appended so paging cannot repeat or skip a task.
+    return base.order_by(desc(CeleryTaskMeta.date_done), desc(CeleryTaskMeta.id)).paginate(
         page=page, per_page=per_page, error_out=False,
     )
 

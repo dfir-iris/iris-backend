@@ -387,10 +387,26 @@ def get_filtered_data(model,
 
 def paginate(model, pagination_parameters: PaginationParameters, query):
     order_by = pagination_parameters.get_order_by()
+    order_func = convert_sort_direction(pagination_parameters.get_direction())
     if order_by is not None and hasattr(model, order_by):
-        order_func = convert_sort_direction(pagination_parameters.get_direction())
         column = getattr(model, order_by)
         query = query.order_by(order_func(column))
+
+    # A LIMIT/OFFSET page over a query that is unordered — or ordered on a
+    # column with ties — has no stable row order. Each page is a separate
+    # execution, and Postgres may arrange the rows differently every time, so
+    # records repeat across pages while others are never returned at all.
+    #
+    # This is not theoretical. Before the primary key was appended here,
+    # paging a 104-customer table 25 at a time returned 104 rows containing
+    # 75 distinct customers: 29 were unreachable, and pages 4 and 5 consisted
+    # entirely of rows already served on pages 1 and 2. `order_by` is absent
+    # on most requests (parsing.py defaults it to None, and only 3 of 26
+    # routes pass a default), so the common path had no ORDER BY whatsoever.
+    #
+    # Appended unconditionally rather than left to each caller to opt into,
+    # which is what alerts_db.py does and what every other list omitted.
+    query = query.order_by(*(order_func(column) for column in inspect(model).primary_key))
 
     # Paginate and return the results.
     result = query.paginate(

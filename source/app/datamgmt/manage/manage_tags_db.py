@@ -53,6 +53,11 @@ def get_filtered_tags(tag_title, tag_namespace, pagination_parameters: Paginatio
         else:
             data = data.order_by(order_func(Tags.tag_title))
 
+    # See the note on paginate() in datamgmt/filtering.py. Tag titles and
+    # namespaces are both non-unique, and neither is applied when `sort_by` is
+    # absent, so `id` is appended to keep the page boundaries stable.
+    data = data.order_by(convert_sort_direction(pagination_parameters.get_direction())(Tags.id))
+
     try:
 
         filtered_tags = data.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page())

@@ -435,9 +435,15 @@ def list_activities_paginated(
         .outerjoin(User, User.id == aggregated.c.user_id)
         .outerjoin(Cases, Cases.case_id == aggregated.c.case_id)
         .outerjoin(WarRoom, WarRoom.war_room_id == aggregated.c.war_room_id)
-        .order_by(desc(aggregated.c.activity_date))
+        .order_by(desc(aggregated.c.activity_date), desc(aggregated.c.id))
     )
 
+    # See the note on paginate() in datamgmt/filtering.py. Activity rows
+    # collapse into time buckets, so many clusters share an `activity_date`
+    # and tied rows have no guaranteed order between two page requests.
+    # `aggregated.c.id` is MAX(UserActivity.id) per group and therefore unique
+    # across the result — the same value the frontend already uses as its
+    # keyed-each key, which duplicates here would break.
     return listing.paginate(page=page, per_page=per_page, error_out=False)
 
 

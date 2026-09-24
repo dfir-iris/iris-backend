@@ -211,10 +211,13 @@ def alert_clusters_search(customer_id: Optional[int], status_id: Optional[int],
     direction = 'desc'
     if sort and sort.endswith(' asc'):
         direction = 'asc'
+    # See the note on paginate() in datamgmt/filtering.py. Clusters created in
+    # the same batch share a creation time, and tied rows have no guaranteed
+    # order across pages, so `cluster_id` is appended as a unique final term.
     if direction == 'asc':
-        query = query.order_by(AlertCluster.cluster_creation_time.asc())
+        query = query.order_by(AlertCluster.cluster_creation_time.asc(), AlertCluster.cluster_id.asc())
     else:
-        query = query.order_by(AlertCluster.cluster_creation_time.desc())
+        query = query.order_by(AlertCluster.cluster_creation_time.desc(), AlertCluster.cluster_id.desc())
 
     return query.paginate(page=page, per_page=per_page, error_out=False)
 

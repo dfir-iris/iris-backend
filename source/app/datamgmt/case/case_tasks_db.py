@@ -61,6 +61,12 @@ def get_filtered_tasks(case_identifier, pagination_parameters: PaginationParamet
         if hasattr(CaseTasks, sort_by):
             query = query.order_by(order_func(getattr(CaseTasks, sort_by)))
 
+    # See the note on paginate() in datamgmt/filtering.py. The base ordering is
+    # `TaskStatus.status_name`, which ties for every task sharing a status — so
+    # without a unique final term a task could appear on two pages while another
+    # never appeared at all.
+    query = query.order_by(convert_sort_direction(pagination_parameters.get_direction())(CaseTasks.id))
+
     return query.paginate(page=pagination_parameters.get_page(), per_page=pagination_parameters.get_per_page(), error_out=False)
 
 

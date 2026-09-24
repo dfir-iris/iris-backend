@@ -148,6 +148,10 @@ class DatastoreOperations:
 
         query = DataStoreFile.query.filter(DataStoreFile.file_case_id == case_identifier)
         query = query.order_by(order_column.desc() if sort_dir == 'desc' else order_column.asc())
+        # See the note on paginate() in datamgmt/filtering.py. `file_date_added`
+        # is the default sort and ties readily — files added in the same import
+        # share a timestamp — so `file_id` keeps the page boundaries stable.
+        query = query.order_by(DataStoreFile.file_id.desc() if sort_dir == 'desc' else DataStoreFile.file_id.asc())
 
         paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 

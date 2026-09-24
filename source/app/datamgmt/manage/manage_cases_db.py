@@ -923,6 +923,16 @@ def get_filtered_cases(current_user_id,
             if sql is not None:
                 query = query.filter(sql)
 
+    # See the note on paginate() in datamgmt/filtering.py. This query does not
+    # go through that helper, so it needs the same guard: build_filter_case_query
+    # only orders when `sort_by` is supplied, and the case list sends it only
+    # after the user clicks a column header. The default view therefore paged an
+    # unordered query, which lets Postgres return a case on two pages and omit
+    # another entirely. `case_id` is unique, which is what makes the page
+    # boundaries stable.
+    order_func = convert_sort_direction(pagination_parameters.get_direction())
+    query = query.order_by(order_func(Cases.case_id))
+
     return query.paginate(page=pagination_parameters.get_page(),
                           per_page=pagination_parameters.get_per_page(),
                           error_out=False)
