@@ -14,7 +14,7 @@ schema, and runs the Celery workers behind it.
 User documentation lives at [docs.dfir-iris.org](https://docs.dfir-iris.org). There is a live
 demo at [preview.dfir-iris.org](https://preview.dfir-iris.org).
 
-Current version: **v3.0.0-beta.1** (`source/app/configuration.py`). Betas are not
+Current version: **v3.0.0-beta.2** (`source/app/configuration.py`). Betas are not
 production-ready.
 
 ## Where IRIS v3 lives
