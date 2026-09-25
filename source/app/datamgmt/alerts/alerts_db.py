@@ -777,6 +777,31 @@ def _parse_case_tags(case_tags: Optional[str]) -> List[str]:
     return titles
 
 
+def _new_case_tag_titles(case: Cases, case_tags: Optional[str]) -> List[str]:
+    """Titles from `case_tags` that the case is not already carrying.
+
+    `_parse_case_tags` dedupes within the incoming string, but it cannot
+    see what the case already has. Escalating into an existing case can
+    re-apply a tag that is already on it, and since `Tags.save()` is
+    get-or-create it hands back the very row the case holds — appending
+    that a second time breaks `case_tags`'s unique (case_id, tag_id).
+
+    That is ordinary input, not an edge case: merging into an open case
+    is the common escalation and analysts reuse a small tag vocabulary,
+    so the second alert tagged `phishing` would otherwise fail.
+
+    Compared by title because that is what `Tags.save()` keys on, which
+    also avoids a lookup for tags the case already holds.
+
+    :param case: The case the tags would be attached to
+    :param case_tags: Comma-separated tag titles, or None
+    :return: The titles to attach, in the order given
+    """
+    existing_titles = {tag.tag_title for tag in case.tags}
+
+    return [title for title in _parse_case_tags(case_tags) if title not in existing_titles]
+
+
 def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_list: List[str], case_title: str,
                             note: str, import_as_event: bool, case_tags: str, template_id: int) -> Cases:
     """
@@ -1117,7 +1142,9 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
     summary_append = f"\n\n{alert_chip} *escalated by {iris_current_user.name}*\n\n{escalation_note}"
     case.description += summary_append
 
-    for tag_title in _parse_case_tags(case_tags):
+    # The case already exists here, so unlike the create paths it may
+    # already carry some of these tags.
+    for tag_title in _new_case_tag_titles(case, case_tags):
         tag = Tags(tag_title=tag_title).save()
         case.tags.append(tag)
 
