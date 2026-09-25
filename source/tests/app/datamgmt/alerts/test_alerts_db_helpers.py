@@ -7,6 +7,7 @@
 import datetime
 from unittest import TestCase
 
+from app.datamgmt.alerts.alerts_db import _parse_case_tags
 from app.datamgmt.alerts.alerts_db import _parse_inclusive_date_range
 
 
@@ -68,3 +69,43 @@ class TestParseInclusiveDateRange(TestCase):
         self.assertEqual(2026, end.year)
         self.assertEqual(3, end.month)
         self.assertEqual(15, end.day)
+
+
+class TestParseCaseTags(TestCase):
+
+    def test_none_returns_empty_list(self):
+        # The escalate/merge routes read `case_tags` straight off the request
+        # body, so an omitted key arrives as None.
+        self.assertEqual([], _parse_case_tags(None))
+
+    def test_empty_string_returns_empty_list(self):
+        self.assertEqual([], _parse_case_tags(''))
+
+    def test_single_tag(self):
+        self.assertEqual(['phishing'], _parse_case_tags('phishing'))
+
+    def test_multiple_tags_split_on_comma(self):
+        self.assertEqual(['phishing', 'malware'], _parse_case_tags('phishing,malware'))
+
+    def test_surrounding_whitespace_stripped(self):
+        self.assertEqual(['phishing', 'malware'], _parse_case_tags(' phishing , malware '))
+
+    def test_empty_parts_dropped(self):
+        self.assertEqual(['phishing', 'malware'], _parse_case_tags('phishing,,malware,'))
+
+    def test_whitespace_only_parts_dropped(self):
+        self.assertEqual(['phishing'], _parse_case_tags('phishing,   ,'))
+
+    def test_only_separators_returns_empty_list(self):
+        self.assertEqual([], _parse_case_tags(',,,'))
+
+    def test_duplicates_removed(self):
+        # `case_tags` is unique on (case_id, tag_id): appending the same
+        # get-or-create row twice would fail the constraint.
+        self.assertEqual(['phishing'], _parse_case_tags('phishing,phishing'))
+
+    def test_duplicates_removed_after_stripping(self):
+        self.assertEqual(['phishing'], _parse_case_tags('phishing, phishing '))
+
+    def test_order_preserved(self):
+        self.assertEqual(['c', 'a', 'b'], _parse_case_tags('c,a,b'))

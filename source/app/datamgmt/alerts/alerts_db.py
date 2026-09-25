@@ -749,6 +749,34 @@ def get_unspecified_event_category():
     return event_cat
 
 
+def _parse_case_tags(case_tags: Optional[str]) -> List[str]:
+    """Split an escalation's comma-separated tag string into tag titles.
+
+    `case_tags` is optional on every escalate/merge route and reaches us
+    straight from the request body, so None and '' are both normal inputs
+    and must yield no tags rather than raise.
+
+    Empty parts are dropped and titles deduplicated because both end up as
+    an IntegrityError downstream: `tags.tag_title` is unique (an empty
+    title would be interned once and then haunt tag autocomplete) and
+    `case_tags` is unique on (case_id, tag_id), so appending the same
+    get-or-create row twice fails the constraint.
+
+    :param case_tags: Comma-separated tag titles, or None
+    :return: The list of tag titles to attach, in the order given
+    """
+    if not case_tags:
+        return []
+
+    titles = []
+    for part in case_tags.split(','):
+        title = part.strip()
+        if title and title not in titles:
+            titles.append(title)
+
+    return titles
+
+
 def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_list: List[str], case_title: str,
                             note: str, import_as_event: bool, case_tags: str, template_id: int) -> Cases:
     """
@@ -806,8 +834,8 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
 
     case_db_save(case)
 
-    for tag in case_tags.split(','):
-        tag = Tags(tag_title=tag)
+    for tag_title in _parse_case_tags(case_tags):
+        tag = Tags(tag_title=tag_title)
         tag = tag.save()
         case.tags.append(tag)
 
@@ -936,8 +964,8 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
 
     case_db_save(case)
 
-    for tag in case_tags.split(','):
-        tag = Tags(tag_title=tag)
+    for tag_title in _parse_case_tags(case_tags):
+        tag = Tags(tag_title=tag_title)
         tag = tag.save()
         case.tags.append(tag)
 
@@ -1089,8 +1117,8 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
     summary_append = f"\n\n{alert_chip} *escalated by {iris_current_user.name}*\n\n{escalation_note}"
     case.description += summary_append
 
-    for tag in case_tags.split(',') if case_tags else []:
-        tag = Tags(tag_title=tag).save()
+    for tag_title in _parse_case_tags(case_tags):
+        tag = Tags(tag_title=tag_title).save()
         case.tags.append(tag)
 
     # Link the alert to the case
