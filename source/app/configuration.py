@@ -248,10 +248,19 @@ class Config:
     MODULES_INTERFACE_MIN_VERSION = '1.1'
     MODULES_INTERFACE_MAX_VERSION = '1.2.0'
 
+    # Needed on BOTH sides of the queue, so it must sit outside the
+    # IRIS_WORKER guard below: the app signs module hook payloads with
+    # `hmac_sign` and the celery worker verifies them with
+    # `hmac_verify` (app/util.py), and the mail / error-reporting
+    # credentials are Fernet-encrypted at rest with a key derived from
+    # it (iris_engine/mail/secrets.py). Left unset on the worker,
+    # `app.config.from_object(Config)` never defines it, Flask's own
+    # `SECRET_KEY = None` default stands, and every hook task dies on
+    # `TypeError: encoding without a string argument`.
+    SECRET_KEY = config.load('IRIS', 'SECRET_KEY')
+
     if os.environ.get('IRIS_WORKER') is None:
         CSRF_ENABLED = True
-
-        SECRET_KEY = config.load('IRIS', 'SECRET_KEY')
 
         SECURITY_PASSWORD_SALT = config.load('IRIS', 'SECURITY_PASSWORD_SALT')
 

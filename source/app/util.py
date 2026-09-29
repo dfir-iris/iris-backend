@@ -29,6 +29,7 @@ from cryptography.hazmat.primitives import hmac
 from sqlalchemy.orm.attributes import flag_modified
 from flask import current_app
 
+from app.configuration import IrisConfigException
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
 
@@ -79,8 +80,23 @@ def add_obj_history_entry(obj, action, commit=False):
     return obj
 
 
+def _hmac_key():
+    """Return the signing key, or fail with something actionable.
+
+    `bytes(None, 'utf-8')` raises `TypeError: encoding without a string
+    argument`, which says nothing about the missing setting — and the
+    celery worker is the process most likely to hit it, since its
+    traceback surfaces far from the configuration that caused it.
+    """
+    secret_key = current_app.config.get('SECRET_KEY')
+    if not secret_key:
+        raise IrisConfigException('SECRET_KEY is not set — check IRIS_SECRET_KEY in the environment')
+
+    return bytes(secret_key, 'utf-8')
+
+
 def hmac_sign(data):
-    key = bytes(current_app.config.get("SECRET_KEY"), "utf-8")
+    key = _hmac_key()
     h = hmac.HMAC(key, hashes.SHA256())
     h.update(data)
     signature = base64.b64encode(h.finalize())
@@ -90,7 +106,7 @@ def hmac_sign(data):
 
 def hmac_verify(signature_enc, data):
     signature = base64.b64decode(signature_enc)
-    key = bytes(current_app.config.get("SECRET_KEY"), "utf-8")
+    key = _hmac_key()
     h = hmac.HMAC(key, hashes.SHA256())
     h.update(data)
 

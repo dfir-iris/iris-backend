@@ -14,6 +14,7 @@ from unittest import TestCase
 
 from flask import Flask
 
+from app.configuration import IrisConfigException
 from app.util import hmac_sign, hmac_verify
 
 _SECRET = 'test-secret-key-for-unit-tests'
@@ -93,3 +94,14 @@ class TestHmacSignVerify(TestCase):
         with _app.app_context():
             sig = hmac_sign(data)
             self.assertTrue(hmac_verify(sig, data))
+
+    def test_missing_secret_key_raises_configuration_error(self):
+        # Flask defaults SECRET_KEY to None, which used to surface as an
+        # opaque `TypeError: encoding without a string argument` from the
+        # celery worker.
+        unconfigured = Flask(__name__)
+        with unconfigured.app_context():
+            with self.assertRaises(IrisConfigException):
+                hmac_sign(b'data')
+            with self.assertRaises(IrisConfigException):
+                hmac_verify(b'c2ln', b'data')
