@@ -455,6 +455,27 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
     # cases/notes/etc.
     updated_alert.date_update = _dt.utcnow()
 
+    alert_identifier = updated_alert.alert_id
+
+    if activity_data:
+        activity_data_as_string = ','.join(activity_data)
+        history_entry = f'updated alert: {activity_data_as_string}'
+        activity_entry = f'updated alert #{alert_identifier}: {activity_data_as_string}'
+    else:
+        history_entry = 'updated alert'
+        activity_entry = f'updated alert #{alert_identifier}'
+
+    # The history entry is written and committed with the field change
+    # itself, before anything else gets a turn. Recording it after the
+    # module hooks meant the two could come apart: `track_activity`
+    # commits, so the edit was already durable by the time the entry was
+    # added, and a hook that raised — or a module that returned a
+    # different object than the one in the session — left the alert
+    # changed with nothing in its history to say so. `on_postload_*`
+    # means "after commit in DB" anyway, which is what this now is.
+    add_obj_history_entry(updated_alert, history_entry)
+    db.session.commit()
+
     updated_alert = call_modules_hook('on_postload_alert_update', updated_alert)
 
     if do_resolution_hook:
@@ -463,16 +484,13 @@ def alerts_update(alert: Alert, updated_alert: Alert, activity_data) -> Alert:
     if do_status_hook:
         updated_alert = call_modules_hook('on_postload_alert_status_update', updated_alert)
 
-    if activity_data:
-        activity_data_as_string = ','.join(activity_data)
-        track_activity(f'updated alert #{alert.alert_id}: {activity_data_as_string}', ctx_less=True)
-        add_obj_history_entry(updated_alert, f'updated alert: {activity_data_as_string}')
-    else:
-        track_activity(f'updated alert #{alert.alert_id}', ctx_less=True)
-        add_obj_history_entry(updated_alert, 'updated alert')
+    track_activity(activity_entry, ctx_less=True)
 
+    # Modules are allowed to rewrite the alert from their hook, so the
+    # session is committed again on the way out to persist whatever they
+    # changed. A no-op when no module is registered.
     db.session.commit()
-    _enqueue_rule_evaluation(updated_alert.alert_id)
+    _enqueue_rule_evaluation(alert_identifier)
     return updated_alert
 
 
