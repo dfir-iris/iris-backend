@@ -55,6 +55,7 @@ from app.models.models import NotesGroupLink
 from app.models.models import UserActivity
 from app.models.alert_clusters import AlertCluster
 from app.models.alerts import AlertCaseAssociation
+from app.models.alerts import Severity
 from app.models.comments import Comments, IocComments, AssetComments
 from app.models.authorization import CaseAccessLevel
 from app.models.authorization import GroupCaseAccess
@@ -767,15 +768,33 @@ def get_filtered_cases(current_user_id,
         #     walked recursively. Items can be arbitrarily nested
         #     groups so the UI can express `(A and B) or (C and D)`
         #     style queries.
-        join_state = {
-            'client': False,
-            'state': False,
-            'owner': False,
-            'severity': False,
-        }
+
+        # Every join below goes through an alias, and every alias is private
+        # to this block. `build_filter_case_query` has already joined some of
+        # these tables under their own names — `User` when sorting by owner or
+        # opened_by, `Client` for quick search or the customer sort, CaseState
+        # for the state sort — and joining the same table twice under the same
+        # name is a hard Postgres error ("table name \"user\" specified more
+        # than once"), which is what filtering on owner *and* sorting used to
+        # produce. Aliasing costs one extra join of a small many-to-one table
+        # and removes the coupling entirely.
+        #
+        # `outerjoin` throughout, for the same reason the severity join always
+        # used one: an inner join drops cases where the foreign key is NULL,
+        # which would make `owner is empty` match nothing and silently shrink
+        # the result of every negative operator.
+        aliases: dict[str, Any] = {}
+
+        def _joined(key: str, model, foreign_key, primary_key_name: str):
+            nonlocal query
+            alias = aliases.get(key)
+            if alias is None:
+                alias = aliased(model)
+                query = query.outerjoin(alias, foreign_key == getattr(alias, primary_key_name))
+                aliases[key] = alias
+            return alias
 
         def _field_expr_for(field_id: str):
-            nonlocal query
             if field_id == 'title':
                 return Cases.name
             if field_id == 'case_id':
@@ -787,30 +806,15 @@ def get_filtered_cases(current_user_id,
             if field_id == 'classification':
                 return cast(Cases.classification_id, String)
             if field_id == 'customer':
-                if not join_state['client']:
-                    query = query.join(Client, Cases.client_id == Client.client_id)
-                    join_state['client'] = True
-                return Client.name
+                return _joined('client', Client, Cases.client_id, 'client_id').name
             if field_id == 'state':
-                if not join_state['state']:
-                    query = query.join(CaseState, Cases.state_id == CaseState.state_id)
-                    join_state['state'] = True
-                return CaseState.state_name
+                return _joined('state', CaseState, Cases.state_id, 'state_id').state_name
             if field_id == 'owner':
-                if not join_state['owner']:
-                    query = query.join(User, Cases.owner_id == User.id)
-                    join_state['owner'] = True
-                return User.user
+                return _joined('owner', User, Cases.owner_id, 'id').user
             if field_id == 'severity':
                 # Joined separately from the simple `severity_identifier`
-                # path above. `outerjoin` so cases without a severity
-                # still pass through.
-                if not join_state['severity']:
-                    from app.models.alerts import Severity
-                    query = query.outerjoin(Severity, Cases.severity_id == Severity.severity_id)
-                    join_state['severity'] = True
-                from app.models.alerts import Severity
-                return Severity.severity_name
+                # path above.
+                return _joined('severity', Severity, Cases.severity_id, 'severity_id').severity_name
             return None
 
         def _tag_condition(op: str, value: str):
