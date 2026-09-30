@@ -221,3 +221,28 @@ class TestsRestProfile(TestCase):
 
         response = user.get('/api/v2/me/context').json()
         self.assertEqual('UTC', response['preferences']['timezone'])
+
+    def test_get_context_should_default_time_format_to_24h(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual('24h', response['preferences']['time_format'])
+
+    def test_update_preferences_should_modify_time_format(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me/preferences', {'time_format': '12h'}).json()
+        self.assertEqual('12h', response['time_format'])
+
+    def test_get_context_should_expose_time_format_after_update(self):
+        user = self._subject.create_dummy_user()
+        user.update('/api/v2/me/preferences', {'time_format': 'locale'})
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual('locale', response['preferences']['time_format'])
+
+    def test_update_preferences_should_return_400_when_time_format_is_unknown(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me/preferences', {'time_format': '13h'})
+        self.assertEqual(400, response.status_code)

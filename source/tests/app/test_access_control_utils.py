@@ -143,6 +143,14 @@ class TestAcGetMaskAnalyst(TestCase):
         mask = ac_get_mask_analyst()
         self.assertTrue(ac_flag_match_mask(mask, Permissions.activities_read.value))
 
+    def test_analyst_mask_includes_case_templates_read(self):
+        mask = ac_get_mask_analyst()
+        self.assertTrue(ac_flag_match_mask(mask, Permissions.case_templates_read.value))
+
+    def test_analyst_mask_does_not_include_case_templates_write(self):
+        mask = ac_get_mask_analyst()
+        self.assertFalse(ac_flag_match_mask(mask, Permissions.case_templates_write.value))
+
     def test_analyst_mask_does_not_include_server_administrator(self):
         mask = ac_get_mask_analyst()
         self.assertFalse(ac_flag_match_mask(mask, Permissions.server_administrator.value))

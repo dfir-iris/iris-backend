@@ -53,6 +53,12 @@ from app.iris_engine.utils.tracker import track_activity
 USERS_TIMEZONE_BROWSER = 'browser'
 _USERS_TIMEZONE_PREFERENCE_KEY = 'timezone'
 
+# Clock preference: `24h` (the default), `12h`, or `locale` to let the
+# browser locale decide. Stored under this key in `User.preferences`.
+USERS_TIME_FORMAT_DEFAULT = '24h'
+_USERS_TIME_FORMATS = ('24h', '12h', 'locale')
+_USERS_TIME_FORMAT_PREFERENCE_KEY = 'time_format'
+
 
 def users_reset_mfa(user_id: int = None):
     """
@@ -159,6 +165,26 @@ def users_set_timezone(user: User, value: str):
         preferences.pop(_USERS_TIMEZONE_PREFERENCE_KEY, None)
     else:
         preferences[_USERS_TIMEZONE_PREFERENCE_KEY] = value
+    user.preferences = preferences
+
+
+def users_get_time_format(user: User) -> str:
+    """Return the user's clock preference, re-validated like the timezone."""
+    value = (user.preferences or {}).get(_USERS_TIME_FORMAT_PREFERENCE_KEY)
+    if value in _USERS_TIME_FORMATS:
+        return value
+    return USERS_TIME_FORMAT_DEFAULT
+
+
+def users_set_time_format(user: User, value: str):
+    if value not in _USERS_TIME_FORMATS:
+        raise BusinessProcessingError(f'time_format must be one of {", ".join(_USERS_TIME_FORMATS)}')
+
+    preferences = dict(user.preferences or {})
+    if value == USERS_TIME_FORMAT_DEFAULT:
+        preferences.pop(_USERS_TIME_FORMAT_PREFERENCE_KEY, None)
+    else:
+        preferences[_USERS_TIME_FORMAT_PREFERENCE_KEY] = value
     user.preferences = preferences
 
 

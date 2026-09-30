@@ -41,9 +41,12 @@ from app.business.cases import cases_exists
 from app.business.users import api_keys_create
 from app.business.users import api_keys_list
 from app.business.users import api_keys_revoke
+from app.business.users import USERS_TIME_FORMAT_DEFAULT
 from app.business.users import USERS_TIMEZONE_BROWSER
 from app.business.users import users_get
+from app.business.users import users_get_time_format
 from app.business.users import users_get_timezone
+from app.business.users import users_set_time_format
 from app.business.users import users_set_timezone
 from app.business.users import users_update
 from app.iris_engine.demo_builder import demo_mode_blocks_password_change
@@ -219,11 +222,13 @@ class ProfileOperations:
             # snap into the persisted one. Currently a single boolean
             # for the collapsed side bar; keep the dict shape so we can
             # add more (theme, density, …) without breaking the SPA.
-            # `timezone` drives every date the SPA renders, so it has to
-            # be known before the first one is painted.
+            # `timezone` and `time_format` drive every date the SPA
+            # renders, so they have to be known before the first one is
+            # painted.
             'preferences': {
                 'has_mini_sidebar': bool(getattr(user, 'has_mini_sidebar', False)) if user else False,
                 'timezone': users_get_timezone(user) if user else USERS_TIMEZONE_BROWSER,
+                'time_format': users_get_time_format(user) if user else USERS_TIME_FORMAT_DEFAULT,
             },
         })
 
@@ -320,8 +325,9 @@ class ProfileOperations:
 
         Accepts `has_mini_sidebar` — the SPA toggles this when the user
         folds the side bar so the next session opens with the same
-        layout — and `timezone`, the zone every date is displayed in
-        (`browser` or an IANA name). Returns the updated preference
+        layout —, `timezone`, the zone every date is displayed in
+        (`browser` or an IANA name), and `time_format`, the clock every
+        time is written with (`24h`, `12h` or `locale`). Returns the updated preference
         block so the client can re-seed its in-memory copy without a
         second round-trip.
         """
@@ -346,10 +352,17 @@ class ProfileOperations:
             except BusinessProcessingError as e:
                 return response_api_error(e.get_message())
 
+        if 'time_format' in raw:
+            try:
+                users_set_time_format(user, raw['time_format'])
+            except BusinessProcessingError as e:
+                return response_api_error(e.get_message())
+
         db.session.commit()
         return response_api_success({
             'has_mini_sidebar': bool(user.has_mini_sidebar),
             'timezone': users_get_timezone(user),
+            'time_format': users_get_time_format(user),
         })
 
 
