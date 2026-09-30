@@ -61,6 +61,14 @@ from app.schema.marshables import UserApiKeySchema
 from app.schema.marshables import UserSchemaForAPIV2
 
 
+_SELF_EDITABLE_FIELDS = (
+    'in_dark_mode',
+    'has_deletion_confirmation',
+    'has_mini_sidebar',
+    'ctx_case',
+)
+
+
 class ProfileOperations:
 
     def __init__(self):
@@ -75,14 +83,14 @@ class ProfileOperations:
     def update(self):
         try:
             user = users_get(iris_current_user.id)
-            # Self-service profile updates expose only a password change in
-            # the GUI. Restricting the payload to that one field stops any
-            # client from sneaking attributes the schema would otherwise
-            # accept (user_login, user_email, user_isadmin, user_name, ...)
-            # and overwriting the user's own row — the mass-assignment
-            # vector reported as GHSA-w78h-mx7h-qm3h / SBA-ADV-20260128-01 /
-            # CWE-915. `user_current_password` is not a model field and is
-            # popped off before the schema sees the payload.
+            # Self-service profile updates are restricted to a password
+            # change and the UI preferences in _SELF_EDITABLE_FIELDS. The
+            # allowlist stops any client from sneaking attributes the schema
+            # would otherwise accept (user_login, user_email, user_isadmin,
+            # user_name, ...) and overwriting the user's own row — the
+            # mass-assignment vector reported as GHSA-w78h-mx7h-qm3h /
+            # SBA-ADV-20260128-01 / CWE-915. `user_current_password` is not a
+            # model field and is popped off before the schema sees the payload.
             raw = request.get_json()
             if not isinstance(raw, dict):
                 raw = {}
@@ -104,10 +112,21 @@ class ProfileOperations:
                         data={'user_current_password': ['Incorrect password']}
                     )
 
+            # ctx_case ends up in the login session, which reads the case
+            # name from it: only accept a case the user can actually open.
+            ctx_case = raw.get('ctx_case')
+            if ctx_case is not None:
+                if not isinstance(ctx_case, int) or isinstance(ctx_case, bool) or not cases_exists(ctx_case):
+                    return response_api_error('Data error', data={'ctx_case': ['Invalid case identifier']})
+                if not ac_fast_check_current_user_has_case_access(
+                        ctx_case, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+                    return response_api_error('Data error', data={'ctx_case': ['Invalid case identifier']})
+
             request_data = {
-                'user_password': new_password,
-                'user_id': iris_current_user.id,
+                field: raw[field] for field in _SELF_EDITABLE_FIELDS if field in raw
             }
+            request_data['user_password'] = new_password
+            request_data['user_id'] = iris_current_user.id
 
             user = self._update_request_schema.load(request_data, instance=user, partial=True)
             user = users_update(user, new_password)

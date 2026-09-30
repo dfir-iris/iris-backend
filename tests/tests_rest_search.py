@@ -18,6 +18,7 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import IRIS_PERMISSION_SEARCH_ACROSS_CASES
 
 
 class TestsRestSearch(TestCase):
@@ -83,10 +84,15 @@ class TestsRestSearch(TestCase):
         self.assertEqual(200, response.status_code)
 
     def test_search_results_should_be_scoped_to_user_accessible_cases(self):
-        # A fresh user with no group membership only inherits whatever
-        # default access groups the seed provides. We just assert the
-        # envelope shape returns and the call is access-checked — actual
-        # row visibility is enforced by the data-layer scope filter.
-        user = self._subject.create_dummy_user()
+        # A user created over the API joins no group, so it holds no
+        # permission until given one. We just assert the envelope shape
+        # returns — actual row visibility is enforced by the data-layer
+        # scope filter.
+        user = self._subject.create_dummy_user(permissions=IRIS_PERMISSION_SEARCH_ACROSS_CASES)
         response = user.get('/api/v2/search?types=notes,ioc,assets,events,tasks,comments,evidences&value=%25')
         self.assertEqual(200, response.status_code)
+
+    def test_search_should_return_403_when_user_lacks_search_across_cases_permission(self):
+        user = self._subject.create_dummy_user()
+        response = user.get('/api/v2/search?types=notes&value=%25')
+        self.assertEqual(403, response.status_code)

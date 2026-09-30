@@ -19,6 +19,8 @@
 from unittest import TestCase
 from iris import Iris
 
+_IDENTIFIER_FOR_NONEXISTENT_OBJECT = 123456789
+
 
 class TestsRestProfile(TestCase):
 
@@ -36,17 +38,17 @@ class TestsRestProfile(TestCase):
         response = self._subject.update('/api/v2/me', {})
         self.assertEqual(200, response.status_code)
 
-    def test_update_me_should_modify_user_name(self):
+    def test_update_me_should_not_be_able_to_modify_user_name(self):
         user = self._subject.create_user('name', 'aA.1234567890')
 
         response = user.update('/api/v2/me', {'user_name': 'new name'}).json()
-        self.assertEqual('new name', response['user_name'])
+        self.assertNotEqual('new name', response['user_name'])
 
-    def test_update_me_should_modify_user_email(self):
+    def test_update_me_should_not_be_able_to_modify_user_email(self):
         user = self._subject.create_dummy_user()
 
         response = user.update('/api/v2/me', {'user_email': 'new@aa.eu'}).json()
-        self.assertEqual('new@aa.eu', response['user_email'])
+        self.assertNotEqual('new@aa.eu', response['user_email'])
 
     def test_update_me_should_modify_user_password(self):
         user = self._subject.create_user('name', 'aA.1234567890')
@@ -82,8 +84,20 @@ class TestsRestProfile(TestCase):
     def test_update_me_should_modify_ctx_case(self):
         user = self._subject.create_dummy_user()
         case_identifier = self._subject.create_dummy_case()
+        self._subject.grant_case_access(user, case_identifier)
         response = user.update('/api/v2/me', {'ctx_case': case_identifier}).json()
         self.assertEqual(case_identifier, response['ctx_case'])
+
+    def test_update_me_should_return_400_when_ctx_case_is_not_accessible(self):
+        user = self._subject.create_dummy_user()
+        case_identifier = self._subject.create_dummy_case()
+        response = user.update('/api/v2/me', {'ctx_case': case_identifier})
+        self.assertEqual(400, response.status_code)
+
+    def test_update_me_should_return_400_when_ctx_case_does_not_exist(self):
+        user = self._subject.create_dummy_user()
+        response = user.update('/api/v2/me', {'ctx_case': _IDENTIFIER_FOR_NONEXISTENT_OBJECT})
+        self.assertEqual(400, response.status_code)
 
     def test_update_me_should_modify_in_dark_mode(self):
         user = self._subject.create_dummy_user()
@@ -142,11 +156,12 @@ class TestsRestProfile(TestCase):
         response = user.update('/api/v2/me', {'user_primary_organisation_id': 0}).json()
         self.assertEqual(primary_organisation_identifier, response['user_primary_organisation_id'])
 
-    def test_update_me_should_return_400_when_field_user_name_is_not_a_string(self):
+    def test_update_me_should_ignore_user_name_when_it_is_not_a_string(self):
         user = self._subject.create_dummy_user()
 
         response = user.update('/api/v2/me', {'user_name': 123})
-        self.assertEqual(400, response.status_code)
+        self.assertEqual(200, response.status_code)
+        self.assertNotEqual(123, response.json()['user_name'])
 
     def test_renew_api_key_should_return_200(self):
         user = self._subject.create_dummy_user()
