@@ -31,6 +31,8 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.business.events import events_create
 from app.business.events import events_get
+from app.business.events import events_get_assets_ids
+from app.business.events import events_get_iocs_ids
 from app.business.events import events_list_filtered
 from app.business.events import events_update
 from app.business.events import events_delete
@@ -126,6 +128,11 @@ class Events:
                 return ac_api_return_access_denied(caseid=event.case_id)
 
             result = self._schema.dump(event)
+            # event_assets / event_iocs are association rows, not model
+            # attributes: they're only present on the instance after a
+            # schema load (create/update), so a plain read must stamp them.
+            result['event_assets'] = events_get_assets_ids(event)
+            result['event_iocs'] = events_get_iocs_ids(event)
             from app.business.case_timelines import get_event_timeline_ids
             result['timeline_ids'] = get_event_timeline_ids(event.event_id)
             return response_api_success(result)

@@ -139,6 +139,30 @@ class TestsRestEvents(TestCase):
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}').json()
         self.assertEqual(1, response['event_category_id'])
 
+    def test_get_event_should_return_event_assets(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}
+        asset_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()['asset_id']
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [asset_identifier], 'event_iocs': []}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}').json()
+        self.assertEqual([asset_identifier], response['event_assets'])
+
+    def test_get_event_should_return_event_iocs(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        ioc_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()['ioc_id']
+        body = {'event_title': 'title', 'event_category_id': 1,
+                'event_date': '2025-03-26T00:00:00.000', 'event_tz': '+00:00',
+                'event_assets': [], 'event_iocs': [ioc_identifier]}
+        response = self._subject.create(f'/api/v2/cases/{case_identifier}/events', body).json()
+        identifier = response['event_id']
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{identifier}').json()
+        self.assertEqual([ioc_identifier], response['event_iocs'])
+
     def test_get_event_should_return_404_when_event_does_not_exist(self):
         case_identifier = self._subject.create_dummy_case()
         response = self._subject.get(f'/api/v2/cases/{case_identifier}/events/{_IDENTIFIER_FOR_NONEXISTENT_OBJECT}')

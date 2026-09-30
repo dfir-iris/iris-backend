@@ -36,6 +36,8 @@ from app.datamgmt.case.case_events_db import update_event_assets
 from app.models.errors import BusinessProcessingError
 from app.datamgmt.case.case_events_db import update_event_iocs
 from app.datamgmt.case.case_events_db import get_case_event
+from app.datamgmt.case.case_events_db import get_event_assets_ids
+from app.datamgmt.case.case_events_db import get_event_iocs_ids
 from app.datamgmt.case.case_events_db import delete_event
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.iris_engine.utils.tracker import track_activity
@@ -90,6 +92,14 @@ def events_get(identifier) -> CasesEvent:
     if not event:
         raise ObjectNotFoundError()
     return event
+
+
+def events_get_assets_ids(event: CasesEvent) -> list[int]:
+    return get_event_assets_ids(event.event_id, event.case_id)
+
+
+def events_get_iocs_ids(event: CasesEvent) -> list[int]:
+    return get_event_iocs_ids(event.event_id, event.case_id)
 
 
 def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs,
