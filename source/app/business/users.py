@@ -19,6 +19,8 @@
 import hashlib
 import secrets
 from datetime import datetime
+from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfoNotFoundError
 
 from app.db import db
 from app.models.authorization import User
@@ -43,6 +45,13 @@ from app.datamgmt.manage.manage_users_db import update_user_customers as update_
 from app.datamgmt.manage.manage_users_db import update_user_groups as update_user_groups
 from app.datamgmt.comments import user_has_comments
 from app.iris_engine.utils.tracker import track_activity
+
+# Display timezone preference. `browser` defers to the timezone of
+# whatever browser the user is on; anything else is an IANA name
+# (`UTC`, `Europe/Paris`, ...). Stored under this key in the
+# `User.preferences` JSONB bag.
+USERS_TIMEZONE_BROWSER = 'browser'
+_USERS_TIMEZONE_PREFERENCE_KEY = 'timezone'
 
 
 def users_reset_mfa(user_id: int = None):
@@ -112,6 +121,45 @@ def users_delete(user: User):
         raise BusinessProcessingError('Cannot delete user with associated comments')
     delete_user(user.id)
     track_activity(message=f'deleted user ID {user.id}', ctx_less=True)
+
+
+def users_is_valid_timezone(value) -> bool:
+    if value == USERS_TIMEZONE_BROWSER:
+        return True
+    if not isinstance(value, str) or not value or len(value) > 64:
+        return False
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError):
+        return False
+    return True
+
+
+def users_get_timezone(user: User) -> str:
+    """Return the user's display timezone preference.
+
+    The generic `/manage/users/me/preferences/<key>` route stores values
+    verbatim, so the stored value is re-validated here rather than
+    trusted: anything unusable falls back to the browser timezone.
+    """
+    value = (user.preferences or {}).get(_USERS_TIMEZONE_PREFERENCE_KEY)
+    if value is not None and users_is_valid_timezone(value):
+        return value
+    return USERS_TIMEZONE_BROWSER
+
+
+def users_set_timezone(user: User, value: str):
+    if not users_is_valid_timezone(value):
+        raise BusinessProcessingError('timezone must be "browser" or a valid IANA timezone name')
+
+    # Copy-and-replace: JSONB is not deep-tracked, an in-place mutation
+    # would not be flushed.
+    preferences = dict(user.preferences or {})
+    if value == USERS_TIMEZONE_BROWSER:
+        preferences.pop(_USERS_TIMEZONE_PREFERENCE_KEY, None)
+    else:
+        preferences[_USERS_TIMEZONE_PREFERENCE_KEY] = value
+    user.preferences = preferences
 
 
 def api_keys_list(user: User) -> list[UserApiKey]:

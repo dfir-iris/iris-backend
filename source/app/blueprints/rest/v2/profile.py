@@ -41,7 +41,10 @@ from app.business.cases import cases_exists
 from app.business.users import api_keys_create
 from app.business.users import api_keys_list
 from app.business.users import api_keys_revoke
+from app.business.users import USERS_TIMEZONE_BROWSER
 from app.business.users import users_get
+from app.business.users import users_get_timezone
+from app.business.users import users_set_timezone
 from app.business.users import users_update
 from app.iris_engine.demo_builder import demo_mode_blocks_password_change
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
@@ -216,8 +219,11 @@ class ProfileOperations:
             # snap into the persisted one. Currently a single boolean
             # for the collapsed side bar; keep the dict shape so we can
             # add more (theme, density, …) without breaking the SPA.
+            # `timezone` drives every date the SPA renders, so it has to
+            # be known before the first one is painted.
             'preferences': {
                 'has_mini_sidebar': bool(getattr(user, 'has_mini_sidebar', False)) if user else False,
+                'timezone': users_get_timezone(user) if user else USERS_TIMEZONE_BROWSER,
             },
         })
 
@@ -312,9 +318,10 @@ class ProfileOperations:
     def update_preferences(self):
         """Persist a small dict of UI preferences on the current user.
 
-        Today only `has_mini_sidebar` is accepted — the SPA toggles
-        this when the user folds the side bar so the next session
-        opens with the same layout. Returns the updated preference
+        Accepts `has_mini_sidebar` — the SPA toggles this when the user
+        folds the side bar so the next session opens with the same
+        layout — and `timezone`, the zone every date is displayed in
+        (`browser` or an IANA name). Returns the updated preference
         block so the client can re-seed its in-memory copy without a
         second round-trip.
         """
@@ -333,9 +340,16 @@ class ProfileOperations:
                 )
             user.has_mini_sidebar = raw['has_mini_sidebar']
 
+        if 'timezone' in raw:
+            try:
+                users_set_timezone(user, raw['timezone'])
+            except BusinessProcessingError as e:
+                return response_api_error(e.get_message())
+
         db.session.commit()
         return response_api_success({
             'has_mini_sidebar': bool(user.has_mini_sidebar),
+            'timezone': users_get_timezone(user),
         })
 
 

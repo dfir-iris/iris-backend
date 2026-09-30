@@ -188,3 +188,36 @@ class TestsRestProfile(TestCase):
         self.assertIsInstance(permissions['names'], list)
         # Every authenticated user gets standard_user implicitly.
         self.assertIn('standard_user', permissions['names'])
+
+    def test_get_context_should_default_timezone_to_browser(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual('browser', response['preferences']['timezone'])
+
+    def test_update_preferences_should_modify_timezone(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me/preferences', {'timezone': 'Europe/Paris'}).json()
+        self.assertEqual('Europe/Paris', response['timezone'])
+
+    def test_get_context_should_expose_timezone_after_update(self):
+        user = self._subject.create_dummy_user()
+        user.update('/api/v2/me/preferences', {'timezone': 'UTC'})
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual('UTC', response['preferences']['timezone'])
+
+    def test_update_preferences_should_return_400_when_timezone_is_unknown(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me/preferences', {'timezone': 'Mars/Olympus_Mons'})
+        self.assertEqual(400, response.status_code)
+
+    def test_update_preferences_should_not_modify_timezone_when_it_is_unknown(self):
+        user = self._subject.create_dummy_user()
+        user.update('/api/v2/me/preferences', {'timezone': 'UTC'})
+        user.update('/api/v2/me/preferences', {'timezone': 'Mars/Olympus_Mons'})
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual('UTC', response['preferences']['timezone'])
