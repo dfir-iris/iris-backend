@@ -785,6 +785,17 @@ def ydoc_update_to_markdown(update: bytes | None) -> str:
     return '\n'.join(lines) + ('\n' if lines else '')
 
 
+def normalize_markdown(md: str | None) -> str:
+    """Return `md` as the editor would render it back after seeding.
+
+    The parse/render round trip is not the identity — it adds a terminal
+    newline, turns `*` bullets into `-`, soft breaks into hard breaks,
+    escapes stray `_`/`*`, and so on — but it is idempotent after one pass.
+    Comparing normalized forms tells a real edit apart from formatting.
+    """
+    return ydoc_update_to_markdown(markdown_to_ydoc_update(md or ''))
+
+
 # Matches a hardBreak as `_render_inline_children` emits it (`'  \n'`,
 # plus any whitespace the neighbouring text contributed) so callers that
 # can't host a line break — headings — can collapse it back to a space.

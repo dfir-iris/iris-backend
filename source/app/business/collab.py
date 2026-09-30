@@ -38,6 +38,7 @@ import datetime
 from app.business.access_controls import ac_fast_check_user_has_case_access
 from app.db import db
 from app.iris_engine.collab.render import markdown_to_ydoc_update
+from app.iris_engine.collab.render import normalize_markdown
 from app.iris_engine.collab.render import ydoc_update_to_markdown
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import CaseAccessLevel
@@ -353,6 +354,35 @@ def _write_source_column(model, filters, values):
     return bool(updated)
 
 
+def _source_matches(stored, rendered):
+    """Whether the source column already holds what the Y.Doc renders to.
+
+    The column is often not in the renderer's canonical form: the seed is
+    the raw column, and alert merges / case templates / REST updates write
+    raw markdown to it. A byte comparison then reports a change on the first
+    flush after a mere visit, rewriting the column and logging an update
+    nobody made. Comparing against the normalized column ignores formatting.
+    """
+    if stored == rendered:
+        return True
+    try:
+        return normalize_markdown(stored) == rendered
+    except Exception:
+        return False
+
+
+def _track_flush(message, author_id, **kwargs):
+    """Record a flush in the activity log, attributed to the last editor.
+
+    With no recorded editor there is nobody to attribute it to — and
+    `track_activity` would fall back to whoever triggered the flush (a mere
+    visitor) — so nothing is logged.
+    """
+    if author_id is None:
+        return
+    track_activity(message, user_id_override=author_id, **kwargs)
+
+
 def flush_to_source(doc_name):
     """Render the Y.Doc to markdown and write it to the source column
     if it changed.
@@ -363,7 +393,8 @@ def flush_to_source(doc_name):
 
     Uses `ydoc_update_to_markdown` to render — the only place in the
     server that reads editor content out of Yjs. No-op if the doc row
-    doesn't exist or the render matches what's already in the column.
+    doesn't exist or the render matches what's already in the column
+    (up to formatting, see `_source_matches`).
     """
     row = CollabDoc.query.filter_by(doc_name=doc_name).first()
     if row is None or not row.y_state:
@@ -401,49 +432,46 @@ def flush_to_source(doc_name):
 
     if kind == 'note':
         note = Notes.query.filter_by(note_id=obj_id).first()
-        if note is None or note.note_content == new_content:
+        if note is None or _source_matches(note.note_content, new_content):
             return
         title, case_id = note.note_title, note.note_case_id
         if _write_source_column(Notes, {'note_id': obj_id},
                                 {'note_content': new_content}):
-            track_activity(f'updated note "{title}"',
-                           caseid=case_id,
-                           user_id_override=author_id)
+            _track_flush(f'updated note "{title}"', author_id,
+                         caseid=case_id)
         return
 
     if kind == 'case-summary':
         case = Cases.query.filter_by(case_id=obj_id).first()
-        if case is None or case.description == new_content:
+        if case is None or _source_matches(case.description, new_content):
             return
         case_id = case.case_id
         if _write_source_column(Cases, {'case_id': obj_id},
                                 {'description': new_content}):
-            track_activity('updated case summary', caseid=case_id,
-                           user_id_override=author_id)
+            _track_flush('updated case summary', author_id,
+                         caseid=case_id)
         return
 
     if kind == 'war-room-note':
         wrn = WarRoomNote.query.filter_by(note_id=obj_id).first()
-        if wrn is None or wrn.content == new_content:
+        if wrn is None or _source_matches(wrn.content, new_content):
             return
         title, war_room_id = wrn.title, wrn.war_room_id
         if _write_source_column(WarRoomNote, {'note_id': obj_id},
                                 {'content': new_content}):
-            track_activity(f'updated war room note "{title}"',
-                           war_room_id=war_room_id,
-                           user_id_override=author_id)
+            _track_flush(f'updated war room note "{title}"', author_id,
+                         war_room_id=war_room_id)
         return
 
     if kind == 'war-room-summary':
         room = WarRoom.query.filter_by(war_room_id=obj_id).first()
-        if room is None or room.description == new_content:
+        if room is None or _source_matches(room.description, new_content):
             return
         war_room_id = room.war_room_id
         if _write_source_column(WarRoom, {'war_room_id': obj_id},
                                 {'description': new_content}):
-            track_activity('updated war room summary',
-                           war_room_id=war_room_id,
-                           user_id_override=author_id)
+            _track_flush('updated war room summary', author_id,
+                         war_room_id=war_room_id)
         return
 
     if kind == 'sitrep':
@@ -451,7 +479,8 @@ def flush_to_source(doc_name):
         # Never flush into a published sitrep — the ACL layer already
         # blocks writes, but this belt-and-braces guard prevents a
         # rogue queued flush from mutating a locked report.
-        if sit is None or sit.published or sit.body_md == new_content:
+        if (sit is None or sit.published
+                or _source_matches(sit.body_md, new_content)):
             return
         title, version, war_room_id = sit.title, sit.version, sit.war_room_id
         # `published` is re-checked in the UPDATE criteria: publishing races
@@ -459,9 +488,6 @@ def flush_to_source(doc_name):
         if _write_source_column(WarRoomSitRep,
                                 {'sitrep_id': obj_id, 'published': False},
                                 {'body_md': new_content}):
-            track_activity(
-                f'updated sitrep "{title}" (v{version})',
-                war_room_id=war_room_id,
-                user_id_override=author_id,
-            )
+            _track_flush(f'updated sitrep "{title}" (v{version})', author_id,
+                         war_room_id=war_room_id)
         return
