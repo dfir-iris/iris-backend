@@ -59,7 +59,6 @@ from app.business.cases import cases_reopen
 from app.business.cases import cases_update
 from app.business.users import get_users_list_restricted_from_case
 from app.business.access_controls import ac_fast_check_user_has_case_access
-from app.business.access_controls import get_case_effective_access
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 from app.business.cases import cases_filter
 from app.schema.marshables import CaseSchemaForAPIV2
@@ -584,11 +583,16 @@ def get_case_access_me(identifier):
     (1 = deny_all, 2 = read_only, 4 = full_access). A user with no row in
     `UserCaseEffectiveAccess` is treated as deny_all so the frontend can
     still render a coherent "no access" state.
+
+    Resolved through the same check the case routes enforce, so a user
+    whose access comes from client membership and has no effective-access
+    row yet is reported as they will actually be treated, not as denied.
     """
     if not cases_exists(identifier):
         return response_api_not_found()
 
-    level = get_case_effective_access(iris_current_user.id, identifier)
+    level = ac_fast_check_current_user_has_case_access(identifier,
+                                                        [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
     if level is None:
         level = CaseAccessLevel.deny_all.value
     return response_api_success({'access_level': int(level)})

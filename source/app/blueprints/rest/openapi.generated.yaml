@@ -4413,7 +4413,14 @@ paths:
 
         `UserCaseEffectiveAccess` is treated as deny_all so the frontend can
 
-        still render a coherent "no access" state.'
+        still render a coherent "no access" state.
+
+
+        Resolved through the same check the case routes enforce, so a user
+
+        whose access comes from client membership and has no effective-access
+
+        row yet is reported as they will actually be treated, not as denied.'
       parameters:
       - name: identifier
         in: path
