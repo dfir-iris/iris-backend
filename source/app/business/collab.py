@@ -226,7 +226,12 @@ def resolve_doc(doc_name, user_id):
 #       were collapsed to spaces (CommonMark's rule), which ran every
 #       line of a scanner export or `key: value` block together. They
 #       now seed as `hardBreak` nodes.
-_CURRENT_SEEDER_VERSION = 2
+#   3 — Legacy image shapes (Oct 2026). Images carrying the v2 editor's
+#       `=WxH` size suffix or backslash-escaped brackets, and their
+#       `/datastore/file/view/` URLs, seeded as literal text. Those
+#       documents flushed the text back escaped (`!\[…\](…)`), which the
+#       new pre-parse pass recognises, so a re-seed recovers them.
+_CURRENT_SEEDER_VERSION = 3
 
 
 def ensure_snapshot(doc_name, current_content):

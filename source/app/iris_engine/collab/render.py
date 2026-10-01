@@ -136,7 +136,17 @@ def _parse_markdown(md: str) -> list[Token]:
     # first collab open, since the Y.Doc becomes the source of truth.
     # `_strip_fontawesome_tags` runs after it and before the parser, in the
     # same order as the frontend's `normalizeLegacyContent`.
-    cleaned = _strip_fontawesome_tags(_rewrite_legacy_case_urls(md or ''))
+    #
+    # `_unescape_legacy_markdown_links` and `_rewrite_datastore_urls` lead
+    # the chain for the same reason: an image written as
+    # `![x](/datastore/file/view/1?cid=2 =100%x40%)` is not a valid
+    # CommonMark image target, so without them it seeds as literal text
+    # and stays that way once the Y.Doc is authoritative.
+    cleaned = _strip_fontawesome_tags(
+        _rewrite_legacy_case_urls(
+            _rewrite_datastore_urls(_unescape_legacy_markdown_links(md or ''))
+        )
+    )
     return md_parser.parse(_unflatten_pipe_tables(cleaned))
 
 
@@ -189,6 +199,68 @@ def append_markdown_to_ydoc_update(state: bytes | None, md: str) -> bytes:
         _build_blocks_into(frag, tokens)
 
     return doc.get_update()
+
+
+_LEGACY_ESCAPED_LINK_RE = re.compile(r'(!?)\\\[([^\]]*)\\\]\(')
+_LEGACY_BACKTICKED_ALT_RE = re.compile(r'^`([^`]*)`$')
+_LEGACY_IMAGE_SIZE_RE = re.compile(r'(!\[[^\]]*\]\()([^)\s]+)\s+=\d+%?x\d+%?(\))')
+
+
+def _unescape_legacy_markdown_links(md: str) -> str:
+    """Repair the legacy image/link shapes CommonMark can't parse.
+
+    Mirrors `unescapeLegacyMarkdownLinks` in
+    `iris-frontend/src/lib/components/common/MarkDown/legacy-content.ts`
+    — same byte-for-byte behaviour pact as `_rewrite_legacy_case_urls`.
+
+      * `!\\[alt\\](url)` → `![alt](url)`: IRIS v2 stored some images and
+        links with backslash-escaped brackets. This is also the shape
+        `_escape_markdown` flushes back to the source column when a
+        broken image was seeded as literal text, so un-escaping it lets
+        a re-seed recover those documents.
+      * ``![`alt`](url)`` → `![alt](url)`: cosmetic backticks around the
+        alt text, dropped by the editor anyway.
+      * `![alt](url =60%x40%)` → `![alt](url)`: the markdown-it-imsize
+        size suffix the v2 editor wrote. It breaks the link destination,
+        so the whole image degrades to text. Width is carried by the
+        editor's resize handle from here on.
+    """
+    if '](' not in md:
+        return md
+
+    def _unescape(match: re.Match) -> str:
+        inner = _LEGACY_BACKTICKED_ALT_RE.sub(r'\1', match.group(2))
+        return f'{match.group(1)}[{inner}]('
+
+    out = _LEGACY_ESCAPED_LINK_RE.sub(_unescape, md)
+    return _LEGACY_IMAGE_SIZE_RE.sub(r'\1\2\3', out)
+
+
+_LEGACY_DATASTORE_URL_RE = re.compile(r'/datastore/file/view/(\d+)(\?[^)\s"\']*)?')
+
+
+def _rewrite_datastore_urls(md: str) -> str:
+    """Rewrite `/datastore/file/view/{id}?cid={X}` to the v2 endpoint.
+
+    Mirrors `rewriteDatastoreUrls` in `legacy-content.ts`. The target is
+    `/api/v2/cases/{X}/datastore/files/{id}`, which is also the shape the
+    frontend's `authenticate-datastore-images` recognises to fetch the
+    file with the user's token. A URL without a `cid` is left alone —
+    there is no way to tell which case it belongs to.
+    """
+    if '/datastore/file/view/' not in md:
+        return md
+
+    def _rewrite(match: re.Match) -> str:
+        query = match.group(2)
+        if not query:
+            return match.group(0)
+        cid_match = _LEGACY_CID_RE.search(query)
+        if not cid_match:
+            return match.group(0)
+        return f'/api/v2/cases/{cid_match.group(1)}/datastore/files/{match.group(1)}'
+
+    return _LEGACY_DATASTORE_URL_RE.sub(_rewrite, md)
 
 
 _LEGACY_CASE_SUBPATH_ID_PARAM = {

@@ -26,8 +26,10 @@ from unittest import TestCase
 from app.iris_engine.collab.mentions import build_mention_span
 from app.iris_engine.collab.render import (
     _escape_markdown,
+    _rewrite_datastore_urls,
     _rewrite_legacy_case_urls,
     _strip_fontawesome_tags,
+    _unescape_legacy_markdown_links,
     _unflatten_pipe_tables,
     append_markdown_to_ydoc_update,
     markdown_to_ydoc_update,
@@ -271,6 +273,87 @@ class TestStripFontAwesomeTags(TestCase):
     def test_extra_attributes_around_class_are_tolerated(self):
         md = '<i id="x" class="fa-solid fa-bell" title="t"></i>done'
         self.assertEqual('done', _strip_fontawesome_tags(md))
+
+
+# ---------------------------------------------------------------------------
+# _unescape_legacy_markdown_links
+# ---------------------------------------------------------------------------
+
+class TestUnescapeLegacyMarkdownLinks(TestCase):
+    """Mirror of `unescapeLegacyMarkdownLinks` in the frontend's legacy-content.ts."""
+
+    def test_string_without_link_is_returned_unchanged(self):
+        s = 'no links here'
+        self.assertIs(s, _unescape_legacy_markdown_links(s))
+
+    def test_escaped_image_brackets_are_unescaped(self):
+        self.assertEqual('![a](u)', _unescape_legacy_markdown_links('!\\[a\\](u)'))
+
+    def test_escaped_link_brackets_are_unescaped(self):
+        self.assertEqual('[a](u)', _unescape_legacy_markdown_links('\\[a\\](u)'))
+
+    def test_backticks_around_alt_are_dropped(self):
+        self.assertEqual('![f.png](u)', _unescape_legacy_markdown_links('!\\[`f.png`\\](u)'))
+
+    def test_escaped_brackets_not_followed_by_paren_are_left_alone(self):
+        md = 'see \\[note\\] (later)'
+        self.assertEqual(md, _unescape_legacy_markdown_links(md))
+
+    def test_percent_size_suffix_is_stripped(self):
+        self.assertEqual('![a](u)', _unescape_legacy_markdown_links('![a](u =100%x40%)'))
+
+    def test_pixel_size_suffix_is_stripped(self):
+        self.assertEqual('![a](u)', _unescape_legacy_markdown_links('![a](u =300x200)'))
+
+    def test_size_suffix_on_link_is_left_alone(self):
+        md = '[a](u =100%x40%)'
+        self.assertEqual(md, _unescape_legacy_markdown_links(md))
+
+
+# ---------------------------------------------------------------------------
+# _rewrite_datastore_urls
+# ---------------------------------------------------------------------------
+
+class TestRewriteDatastoreUrls(TestCase):
+    """Mirror of `rewriteDatastoreUrls` in the frontend's legacy-content.ts."""
+
+    def test_string_without_datastore_url_is_returned_unchanged(self):
+        s = '/case/1/notes'
+        self.assertIs(s, _rewrite_datastore_urls(s))
+
+    def test_url_with_cid_is_rewritten(self):
+        self.assertEqual('/api/v2/cases/3465/datastore/files/6768',
+                         _rewrite_datastore_urls('/datastore/file/view/6768?cid=3465'))
+
+    def test_cid_after_other_params_is_found(self):
+        self.assertEqual('/api/v2/cases/2/datastore/files/1',
+                         _rewrite_datastore_urls('/datastore/file/view/1?x=y&cid=2'))
+
+    def test_url_without_query_is_left_alone(self):
+        md = '![a](/datastore/file/view/1)'
+        self.assertEqual(md, _rewrite_datastore_urls(md))
+
+    def test_url_without_cid_is_left_alone(self):
+        md = '/datastore/file/view/1?x=y'
+        self.assertEqual(md, _rewrite_datastore_urls(md))
+
+    def test_link_target_is_rewritten_in_place(self):
+        self.assertEqual('[f](/api/v2/cases/2/datastore/files/1) after',
+                         _rewrite_datastore_urls('[f](/datastore/file/view/1?cid=2) after'))
+
+
+class TestLegacyImagesSeed(TestCase):
+    """A v2 image with a size suffix must seed as an image node, not text."""
+
+    def test_sized_legacy_image_seeds_as_image(self):
+        md = '![NYeQ5](/datastore/file/view/6768?cid=3465 =100%x40%)\n'
+        self.assertEqual('![NYeQ5](/api/v2/cases/3465/datastore/files/6768)', _roundtrip(md).strip())
+
+    def test_image_previously_flushed_as_escaped_text_is_recovered(self):
+        # What a document seeded by the old parser flushed back to the
+        # source column: the literal text, with brackets escaped.
+        md = '!\\[NYeQ5\\](/datastore/file/view/6768?cid=3465 =100%x40%)\n'
+        self.assertEqual('![NYeQ5](/api/v2/cases/3465/datastore/files/6768)', _roundtrip(md).strip())
 
 
 # ---------------------------------------------------------------------------
