@@ -163,6 +163,30 @@ def _resolve_channels_bulk(user_ids: Sequence[int], event_type: str,
     return result
 
 
+def _fire_notification_hook(notification: Notification) -> None:
+    """Hand the persisted notification to modules (`on_postload_notification_create`).
+
+    This is what lets the webhooks module forward notifications. Fired
+    only when a row was written, i.e. when the recipient has in-app
+    enabled — the same condition email delivery already hangs off.
+
+    Imported lazily for the same reason as the mail hand-off, and any
+    failure is swallowed: the notification is already committed, and a
+    misbehaving module must not fail the save flow that triggered it.
+    The built-in listeners wrapped around `call_modules_hook` have no
+    entry for this hook, so it cannot loop back into `notify()`.
+    """
+    try:
+        from app.iris_engine.module_handler import module_handler
+        module_handler.call_modules_hook('on_postload_notification_create',
+                                         data=notification)
+    except Exception:
+        logger.exception(
+            'Failed to call on_postload_notification_create for notification=%s',
+            notification.id,
+        )
+
+
 def notify(user_id: int,
            event_type: str,
            title: str,
@@ -235,6 +259,9 @@ def notify(user_id: int,
                 'Failed to enqueue notification email for user=%s event=%s',
                 user_id, event_type,
             )
+
+    if notification is not None:
+        _fire_notification_hook(notification)
 
     return notification
 

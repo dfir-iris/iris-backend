@@ -25,6 +25,11 @@ totals. A reader who can open 2 of 4 cases must not be able to tell that
 the other 2 exist, in any form: not as a count, not as a timestamp, not
 as a filter that includes an asset it should not.
 
+The same goes for the rows themselves: an asset nobody registered by hand
+(`source = 'observed'`) is listed only when the reader can see at least
+one of its sightings — otherwise its very name discloses a case they were
+denied.
+
 `test_get_managed_asset_should_not_expose_a_hidden_sighting_count_field`
 is a regression guard, not a behaviour test. It asserts the *absence* of
 any per-asset "there is more you cannot see" field, because such a field
@@ -89,6 +94,21 @@ class TestsRestManagedAssetsSightings(TestCase):
         }
         return self._subject.create('/api/v2/alerts', body).json()
 
+    def _register_manually(self, name=_ASSET_NAME):
+        """Register the asset by hand before any case observes it.
+
+        An observed-only row is hidden from a reader who cannot open any of
+        its sightings, so the tests below — which check that the derived
+        fields of a row the reader *can* see leak nothing — need a row
+        that stays visible on its own.
+        """
+        body = {
+            'client_id': IRIS_INITIAL_CUSTOMER_IDENTIFIER,
+            'asset_type_id': _DEFAULT_ASSET_TYPE_IDENTIFIER,
+            'name': name,
+        }
+        return self._subject.create(_MANAGED_ASSETS_URL, body).json()['managed_asset_id']
+
     def _registry_identifier(self, name=_ASSET_NAME):
         response = self._subject.get(_MANAGED_ASSETS_URL, {'search': name}).json()
         for asset in response['data']:
@@ -128,6 +148,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         self.assertEqual(1, response['alert_sighting_count'])
 
     def test_get_managed_asset_should_not_count_a_case_the_reader_cannot_open(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(case_identifier)
         identifier = self._registry_identifier()
@@ -164,6 +185,7 @@ class TestsRestManagedAssetsSightings(TestCase):
             self.assertNotIn(field, response)
 
     def test_get_managed_assets_should_not_expose_a_hidden_sighting_count_field(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(case_identifier)
 
@@ -178,6 +200,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         # A timestamp is a count with better resolution: `first_seen_at`
         # over the full set would disclose *when* an invisible case
         # touched the host.
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(case_identifier)
         identifier = self._registry_identifier()
@@ -187,6 +210,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         self.assertIsNone(response['first_seen_at'])
 
     def test_get_managed_asset_should_not_expose_last_seen_from_an_invisible_case(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(case_identifier)
         identifier = self._registry_identifier()
@@ -196,6 +220,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         self.assertIsNone(response['last_seen_at'])
 
     def test_get_managed_asset_should_not_expose_a_compromise_status_from_an_invisible_case(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(
             case_identifier, asset_compromise_status_id=_COMPROMISE_STATUS_COMPROMISED
@@ -280,6 +305,7 @@ class TestsRestManagedAssetsSightings(TestCase):
     def test_get_managed_asset_should_not_date_a_compromise_from_an_invisible_case(self):
         # The date is as disclosing as the status it accompanies: it
         # times an investigation the reader cannot open.
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(
             case_identifier, asset_compromise_status_id=_COMPROMISE_STATUS_COMPROMISED
@@ -302,6 +328,7 @@ class TestsRestManagedAssetsSightings(TestCase):
                          [row['reference_id'] for row in response['data'] if row['kind'] == 'case'])
 
     def test_get_sightings_should_return_an_empty_page_without_case_access(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(case_identifier)
         identifier = self._registry_identifier()
@@ -403,6 +430,7 @@ class TestsRestManagedAssetsSightings(TestCase):
     def test_get_managed_assets_should_not_match_has_sightings_for_an_invisible_case(self):
         # If `has_sightings` ran against the true set, it would become
         # exactly the oracle the counts policy exists to remove.
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(case_identifier)
 
@@ -419,6 +447,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         self.assertEqual([_ASSET_NAME], [asset['name'] for asset in response['data']])
 
     def test_get_managed_assets_should_not_match_compromised_for_an_invisible_case(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         self._add_case_asset(
             case_identifier, asset_compromise_status_id=_COMPROMISE_STATUS_COMPROMISED
@@ -437,6 +466,86 @@ class TestsRestManagedAssetsSightings(TestCase):
         reader = self._reader(cases=[case_identifier])
         response = reader.get(f'{_MANAGED_ASSETS_URL}?compromised=true').json()
         self.assertEqual([_ASSET_NAME], [asset['name'] for asset in response['data']])
+
+    # -- observed rows are visible only through a visible sighting ---------
+
+    def test_get_managed_assets_should_not_list_an_asset_observed_only_in_an_invisible_case(self):
+        # The name of a host nobody registered by hand is itself case
+        # content: it only exists because an investigation recorded it.
+        case_identifier = self._subject.create_dummy_case()
+        self._add_case_asset(case_identifier)
+
+        reader = self._reader()
+        response = reader.get(_MANAGED_ASSETS_URL).json()
+        self.assertEqual(0, response['total'])
+
+    def test_get_managed_asset_should_return_404_for_an_asset_observed_only_in_an_invisible_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        self._add_case_asset(case_identifier)
+        identifier = self._registry_identifier()
+
+        reader = self._reader()
+        response = reader.get(f'{_MANAGED_ASSETS_URL}/{identifier}')
+        self.assertEqual(404, response.status_code)
+
+    def test_get_sightings_should_return_404_for_an_asset_observed_only_in_an_invisible_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        self._add_case_asset(case_identifier)
+        identifier = self._registry_identifier()
+
+        reader = self._reader()
+        response = reader.get(f'{_MANAGED_ASSETS_URL}/{identifier}/sightings')
+        self.assertEqual(404, response.status_code)
+
+    def test_get_managed_assets_should_list_an_asset_observed_in_a_visible_case(self):
+        visible_case = self._subject.create_dummy_case()
+        hidden_case = self._subject.create_dummy_case()
+        self._add_case_asset(visible_case)
+        self._add_case_asset(hidden_case)
+
+        reader = self._reader(cases=[visible_case])
+        response = reader.get(_MANAGED_ASSETS_URL).json()
+        self.assertEqual([_ASSET_NAME], [asset['name'] for asset in response['data']])
+
+    def test_get_managed_assets_should_list_an_asset_observed_in_an_alert_of_the_customer(self):
+        self._add_alert_asset(IRIS_INITIAL_CUSTOMER_IDENTIFIER)
+
+        reader = self._reader()
+        response = reader.get(_MANAGED_ASSETS_URL).json()
+        self.assertEqual([_ASSET_NAME], [asset['name'] for asset in response['data']])
+
+    def test_get_managed_assets_should_list_a_manual_asset_without_any_sighting(self):
+        self._register_manually()
+
+        reader = self._reader()
+        response = reader.get(_MANAGED_ASSETS_URL).json()
+        self.assertEqual([_ASSET_NAME], [asset['name'] for asset in response['data']])
+
+    def test_get_managed_assets_should_list_an_asset_observed_only_in_an_invisible_case_for_an_administrator(self):
+        case_identifier = self._subject.create_dummy_case()
+        self._add_case_asset(case_identifier)
+
+        response = self._subject.get(_MANAGED_ASSETS_URL).json()
+        self.assertEqual([_ASSET_NAME], [asset['name'] for asset in response['data']])
+
+    def test_export_should_not_include_an_asset_observed_only_in_an_invisible_case(self):
+        case_identifier = self._subject.create_dummy_case()
+        self._add_case_asset(case_identifier)
+
+        reader = self._reader()
+        response = reader.create(f'{_MANAGED_ASSETS_URL}/export', {'format': 'json'})
+        self.assertEqual([], response.json()['assets'])
+
+    def test_get_audit_log_should_not_return_entries_of_an_asset_observed_only_in_an_invisible_case(self):
+        # Observation writes no audit entry, so curate the row first.
+        case_identifier = self._subject.create_dummy_case()
+        self._add_case_asset(case_identifier)
+        identifier = self._registry_identifier()
+        self._subject.update(f'{_MANAGED_ASSETS_URL}/{identifier}', {'owner': 'IT Ops'})
+
+        reader = self._reader()
+        response = reader.get(f'{_MANAGED_ASSETS_URL}/audit', {'per_page': 200}).json()
+        self.assertNotIn(identifier, [entry['managed_asset_id'] for entry in response['data']])
 
     # -- timeline ----------------------------------------------------------
 
@@ -488,6 +597,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         self.assertEqual(1, len(response['data']))
 
     def test_get_timeline_should_return_an_empty_page_without_case_access(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         asset = self._add_case_asset(case_identifier)
         identifier = self._registry_identifier()
@@ -498,6 +608,7 @@ class TestsRestManagedAssetsSightings(TestCase):
         self.assertEqual(0, response['total'])
 
     def test_get_managed_asset_should_count_timeline_events_within_scope_only(self):
+        self._register_manually()
         case_identifier = self._subject.create_dummy_case()
         asset = self._add_case_asset(case_identifier)
         identifier = self._registry_identifier()

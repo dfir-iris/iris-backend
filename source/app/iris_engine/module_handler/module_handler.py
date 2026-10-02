@@ -544,7 +544,10 @@ def call_modules_hook(hook_name: str, data: any, caseid: int = None, hook_ui_nam
             ser_data_auth = hmac_sign(ser_data) + b" " + ser_data
             task_hook_wrapper.delay(module_name=module.module_name, hook_name=hook_name,
                                     hook_ui_name=module.manual_hook_ui_name, data=ser_data_auth.decode("utf8"),
-                                    init_user=iris_current_user.name, caseid=caseid)
+                                    # No user outside a request (Celery, CLI): a module
+                                    # task calling `notify()` still has to dispatch.
+                                    init_user=iris_current_user.name if iris_current_user else 'system',
+                                    caseid=caseid)
 
         else:
             # Direct call. Should be fast

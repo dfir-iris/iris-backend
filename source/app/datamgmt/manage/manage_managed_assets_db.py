@@ -201,10 +201,44 @@ def managed_assets_db_get_by_identity(client_id, normalized_name, asset_type_id)
     ).first()
 
 
+def _registry_visibility_clause(scope):
+    """Row-level predicate on top of customer membership, or None.
+
+    An `observed` row exists only because some case or alert carried the
+    asset, so its name alone discloses that observation. Customer
+    membership is not enough to see it: the caller must be able to see at
+    least one of its sightings, or a host that appears only in a case they
+    are denied would still be listed by name. Rows an analyst created or
+    imported are customer inventory rather than case data, and stay
+    visible to every member of the customer.
+
+    None when the caller can read every case (a server administrator) —
+    there is nothing to hide.
+    """
+    if scope.get_case_ids() is None:
+        return None
+    return or_(ManagedAsset.source != 'observed', _sighting_exists_clause(scope))
+
+
+def managed_assets_db_is_visible(asset, scope):
+    """Whether `scope` may see `asset`, by the same rule as the listing."""
+    clause = _registry_visibility_clause(scope)
+    if clause is None:
+        return True
+    stmt = select(ManagedAsset.managed_asset_id).where(
+        ManagedAsset.managed_asset_id == asset.managed_asset_id, clause
+    )
+    return db.session.execute(stmt).first() is not None
+
+
 def _apply_registry_filters(query, scope, filters):
     client_ids = scope.get_client_ids()
     if client_ids is not None:
         query = query.filter(ManagedAsset.client_id.in_(list(client_ids)))
+
+    visibility = _registry_visibility_clause(scope)
+    if visibility is not None:
+        query = query.filter(visibility)
 
     requested_clients = filters.get('client_id')
     if requested_clients:
@@ -622,6 +656,17 @@ def managed_assets_db_audit_log(scope, client_filter, pagination_parameters: Pag
     if client_filter:
         # Intersection with the scope above, never a replacement.
         stmt = stmt.where(ManagedAssetAudit.client_id.in_(client_filter))
+
+    visibility = _registry_visibility_clause(scope)
+    if visibility is not None:
+        # Entries about a row the caller cannot see carry its name in the
+        # snapshot. Entries whose row is gone (`managed_asset_id` nulled by
+        # the delete) have nothing left to evaluate and stay listed.
+        visible_ids = select(ManagedAsset.managed_asset_id).where(visibility)
+        stmt = stmt.where(or_(
+            ManagedAssetAudit.managed_asset_id.is_(None),
+            ManagedAssetAudit.managed_asset_id.in_(visible_ids),
+        ))
 
     return _paginate_audit(stmt, pagination_parameters)
 

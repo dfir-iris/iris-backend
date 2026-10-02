@@ -42,6 +42,7 @@ from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_filte
 from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_get
 from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_get_by_identity
 from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_is_integrity_error
+from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_is_visible
 from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_observe
 from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_observe_alert
 from app.datamgmt.manage.manage_managed_assets_db import managed_assets_db_observe_case
@@ -125,7 +126,12 @@ def _assert_visible(asset, scope):
 
 
 def managed_assets_get(identifier, scope):
-    return _assert_visible(managed_assets_db_get(identifier), scope)
+    asset = _assert_visible(managed_assets_db_get(identifier), scope)
+    # Same 404 as above: an observed row whose every sighting sits in a
+    # case the caller is denied must not be confirmed to exist.
+    if not managed_assets_db_is_visible(asset, scope):
+        raise ObjectNotFoundError()
+    return asset
 
 
 def managed_assets_search(scope, filters, pagination_parameters):

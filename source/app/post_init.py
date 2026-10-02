@@ -679,6 +679,10 @@ def create_safe_hooks():
     create_safe(db.session, IrisHook, hook_name='on_postload_alert_cluster_merge',
                 hook_description='Triggered on alert cluster merge into an existing case, after commit in DB')
 
+    # --- Notifications
+    create_safe(db.session, IrisHook, hook_name='on_postload_notification_create',
+                hook_description='Triggered when a user receives an in-app notification, after commit in DB')
+
 
 def create_safe_languages():
     """Creates new Language objects if they do not already exist.
