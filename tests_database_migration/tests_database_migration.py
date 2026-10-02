@@ -25,6 +25,7 @@ import tempfile
 import shutil
 from sqlalchemy import create_engine
 from sqlalchemy import inspect
+from sqlalchemy import text
 
 from test_harness.docker import Docker
 from test_harness.iris import Iris
@@ -41,6 +42,7 @@ _CONTAINER_PREFIX = os.environ.get('IRIS_CONTAINER_PREFIX', 'iris')
 _COMPOSE_PROJECT = _CONTAINER_PREFIX
 _DB_CONTAINER = f'{_CONTAINER_PREFIX}_db'
 _DB_HOST_PORT = os.environ.get('IRIS_DB_HOST_PORT', '5432')
+_PERMISSION_CASE_ACCESS_MANAGE = 0x8000000
 _DATABASE_URL = f'postgresql+psycopg2://postgres:__MUST_BE_CHANGED__@localhost:{_DB_HOST_PORT}/iris_db'
 
 
@@ -98,3 +100,16 @@ class TestsDatabaseMigration(TestCase):
         inspection = inspect(engine)
         logs = self._docker.extract_logs('app')
         self.assertNotIn('ioc_link', inspection.get_table_names(), logs)
+
+    def test_update_from_v2_4_22_should_grant_case_access_manage_to_administrators_only(self):
+        self._docker.compose_up('db')
+        self._dump_database('v2.4.22_empty')
+        self._docker.compose_up()
+
+        engine = create_engine(_DATABASE_URL)
+        with engine.connect() as connection:
+            rows = connection.execute(text('SELECT group_name, group_permissions FROM groups')).all()
+        permissions = {row.group_name: row.group_permissions for row in rows}
+        logs = self._docker.extract_logs('app')
+        self.assertTrue(permissions['Administrators'] & _PERMISSION_CASE_ACCESS_MANAGE, logs)
+        self.assertFalse(permissions['Analysts'] & _PERMISSION_CASE_ACCESS_MANAGE, logs)

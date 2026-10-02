@@ -416,6 +416,12 @@ class Config:
     """
     CELERY = CeleryConfig
 
+    """ Socket.IO message queue
+    Lets an emit reach clients connected to any gunicorn worker, and lets Celery
+    tasks emit at all. Defaults to the Celery broker; `none` turns it off.
+    """
+    SOCKETIO_MESSAGE_QUEUE = config.load('SOCKETIO', 'MESSAGE_QUEUE', fallback=CELERY_BROKER_)
+
     if os.getenv('IRIS_DEV'):
         DEVELOPMENT = True
     else:

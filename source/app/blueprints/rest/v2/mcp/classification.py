@@ -71,7 +71,7 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     # War rooms — writes
     'iris_war_room_chat_post',
     'iris_war_room_sitreps_create',
-    'iris_war_room_notes_create',
+    'iris_war_room_notes_create', 'iris_war_room_notes_update',
     'iris_war_room_tasks_create',
 })
 

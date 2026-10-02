@@ -36,6 +36,7 @@ from app.cors import ANY_ORIGIN
 from app.cors import apply_cors_headers
 from app.cors import preflight_response
 from app.flask_dropzone import Dropzone
+from app.socket_io_queue import socket_io_queue_kwargs
 from app.configuration import Config
 from app.iris_engine.tasker.celery import make_celery
 from app.iris_engine.tasker.celery import set_celery_flask_context
@@ -482,6 +483,9 @@ else:
 _socket_kwargs = {'cors_allowed_origins': _socket_allowed_origins}
 if _socket_async_mode is not None:
     _socket_kwargs['async_mode'] = _socket_async_mode
+# Each gunicorn worker holds its own clients; the queue relays every
+# emit to all of them (and carries Celery's). See `app/socket_io_queue.py`.
+_socket_kwargs.update(socket_io_queue_kwargs(app.config.get('SOCKETIO_MESSAGE_QUEUE')))
 socket_io = SocketIO(app, **_socket_kwargs)
 
 alerts_namespace = AlertsNamespace('/alerts')

@@ -43,6 +43,7 @@ from app.iris_engine.access_control.utils import ac_set_case_access_for_users
 from app.iris_engine.utils.tracker import track_activity
 from app.models.cases import CaseStatus, ReviewStatusList
 from app.models.authorization import CaseAccessLevel
+from app.models.authorization import Permissions
 from app.schema.marshables import TaskLogSchema
 from app.schema.marshables import CaseSchema
 from app.schema.marshables import CaseDetailsSchema
@@ -169,11 +170,12 @@ def case_get_users(caseid):
     return response_success(data=users)
 
 
-# Superseded by POST /api/v2/manage/groups/{identifier}/cases-access
-# (v2/manage_routes/groups.py).
+# Superseded by POST /api/v2/cases/{identifier}/access/groups
+# (v2/cases.py). Gated on the same permission, so this older door doesn't
+# let a full-access user without it change who can open the case.
 @case_rest_blueprint.route('/case/access/set-group', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
-@ac_api_requires()
+@ac_api_requires(Permissions.case_access_manage, Permissions.server_administrator)
 def group_cac_set_case(caseid):
 
     data = request.get_json()
@@ -214,11 +216,11 @@ def group_cac_set_case(caseid):
     return response_error(msg=logs)
 
 
-# Superseded by POST /api/v2/manage/users/{identifier}/cases-access
-# (v2/manage_routes/users.py).
+# Superseded by POST /api/v2/cases/{identifier}/access/users
+# (v2/cases.py). Gated on the same permission as the group route above.
 @case_rest_blueprint.route('/case/access/set-user', methods=['POST'])
 @ac_requires_case_identifier(CaseAccessLevel.full_access)
-@ac_api_requires()
+@ac_api_requires(Permissions.case_access_manage, Permissions.server_administrator)
 def user_cac_set_case(caseid):
 
     data = request.get_json()

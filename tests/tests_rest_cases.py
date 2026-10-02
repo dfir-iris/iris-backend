@@ -18,6 +18,10 @@
 
 from unittest import TestCase
 from iris import Iris
+from iris import IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+from iris import IRIS_CASE_ACCESS_LEVEL_READ_ONLY
+from iris import IRIS_INITIAL_CUSTOMER_IDENTIFIER
+from iris import IRIS_PERMISSION_CASE_ACCESS_MANAGE
 
 
 def _get_case_with_identifier(response, identifier):
@@ -337,3 +341,121 @@ class TestsRestCases(TestCase):
         unchanged = self._subject.get(f'/api/v2/cases/{victim_identifier}').json()
         self.assertEqual(victim['case_name'], unchanged['case_name'])
         self.assertEqual(victim['case_description'], unchanged['case_description'])
+
+    def _customer_member(self, permissions=None):
+        user = self._subject.create_dummy_user(permissions=permissions)
+        self._subject.create(
+            f'/manage/users/{user.get_identifier()}/customers/update',
+            {'customers_membership': [IRIS_INITIAL_CUSTOMER_IDENTIFIER]}
+        )
+        return user
+
+    def _case_access_manager(self, case_identifier, access_level=IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS):
+        user = self._customer_member(permissions=[IRIS_PERMISSION_CASE_ACCESS_MANAGE])
+        self._subject.grant_case_access(user, case_identifier, access_level)
+        return user
+
+    def test_set_case_access_user_should_return_200_for_case_access_manager_with_full_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        grantee = self._customer_member()
+        response = manager.create(f'/api/v2/cases/{case_identifier}/access/users', {
+            'user_id': grantee.get_identifier(),
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+        })
+        self.assertEqual(200, response.status_code)
+
+    def test_set_case_access_user_should_let_the_grantee_be_case_owner(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        grantee = self._customer_member()
+        manager.create(f'/api/v2/cases/{case_identifier}/access/users', {
+            'user_id': grantee.get_identifier(),
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+        })
+        response = manager.update(f'/api/v2/cases/{case_identifier}', {'owner_id': grantee.get_identifier()})
+        self.assertEqual(200, response.status_code)
+
+    def test_set_case_access_user_should_return_403_without_the_permission(self):
+        case_identifier = self._subject.create_dummy_case()
+        user = self._customer_member()
+        self._subject.grant_case_access(user, case_identifier)
+        grantee = self._customer_member()
+        response = user.create(f'/api/v2/cases/{case_identifier}/access/users', {
+            'user_id': grantee.get_identifier(),
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+        })
+        self.assertEqual(403, response.status_code)
+
+    def test_set_case_access_user_should_return_403_when_the_manager_has_read_only_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier, IRIS_CASE_ACCESS_LEVEL_READ_ONLY)
+        grantee = self._customer_member()
+        response = manager.create(f'/api/v2/cases/{case_identifier}/access/users', {
+            'user_id': grantee.get_identifier(),
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+        })
+        self.assertEqual(403, response.status_code)
+
+    def test_set_case_access_user_should_return_400_when_changing_own_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        response = manager.create(f'/api/v2/cases/{case_identifier}/access/users', {
+            'user_id': manager.get_identifier(),
+            'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY
+        })
+        self.assertEqual(400, response.status_code)
+
+    def test_set_case_access_user_should_return_400_when_the_grantee_cannot_see_the_customer(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        outsider = self._subject.create_dummy_user()
+        response = manager.create(f'/api/v2/cases/{case_identifier}/access/users', {
+            'user_id': outsider.get_identifier(),
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+        })
+        self.assertEqual(400, response.status_code)
+
+    def test_set_case_access_group_should_return_200_for_case_access_manager(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        group_identifier = self._subject.create_dummy_group([])
+        response = manager.create(f'/api/v2/cases/{case_identifier}/access/groups', {
+            'group_id': group_identifier,
+            'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY
+        })
+        self.assertEqual(200, response.status_code)
+
+    def test_list_case_access_groups_should_return_the_group_access_level(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        group_identifier = self._subject.create_dummy_group([])
+        manager.create(f'/api/v2/cases/{case_identifier}/access/groups', {
+            'group_id': group_identifier,
+            'access_level': IRIS_CASE_ACCESS_LEVEL_READ_ONLY
+        })
+        groups = manager.get(f'/api/v2/cases/{case_identifier}/access/groups').json()
+        group = next(group for group in groups if group['group_id'] == group_identifier)
+        self.assertEqual(IRIS_CASE_ACCESS_LEVEL_READ_ONLY, group['access_level'])
+
+    def test_get_case_access_me_should_report_whether_the_user_can_manage_access(self):
+        case_identifier = self._subject.create_dummy_case()
+        manager = self._case_access_manager(case_identifier)
+        user = self._customer_member()
+        self._subject.grant_case_access(user, case_identifier)
+        managing = manager.get(f'/api/v2/cases/{case_identifier}/access/me').json()
+        not_managing = user.get(f'/api/v2/cases/{case_identifier}/access/me').json()
+        self.assertTrue(managing['can_manage_access'])
+        self.assertFalse(not_managing['can_manage_access'])
+
+    def test_legacy_set_user_case_access_should_return_403_without_the_permission(self):
+        case_identifier = self._subject.create_dummy_case()
+        user = self._customer_member()
+        self._subject.grant_case_access(user, case_identifier)
+        grantee = self._customer_member()
+        response = user.create(f'/case/access/set-user?cid={case_identifier}', {
+            'user_id': grantee.get_identifier(),
+            'case_id': case_identifier,
+            'access_level': IRIS_CASE_ACCESS_LEVEL_FULL_ACCESS
+        })
+        self.assertEqual(403, response.status_code)

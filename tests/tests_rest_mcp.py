@@ -407,3 +407,36 @@ class TestsRestMcp(TestCase):
         }), api_key=self._admin_key())
         self.assertEqual(200, response.status_code)
         self.assertIn('error', response.json())
+
+    def test_mcp_tools_call_iris_war_room_notes_update_rewrites_the_note(self):
+        self._enable_mcp()
+        room_id = self._subject.create('/api/v2/war-rooms',
+                                       {'name': 'MCP note edit'}).json()['war_room_id']
+        note_id = self._subject.create(f'/api/v2/war-rooms/{room_id}/notes', {
+            'title': 'Draft', 'content': 'messy draft',
+        }).json()['note_id']
+        response = self._mcp_post(_rpc('tools/call', {
+            'name': 'iris_war_room_notes_update',
+            'arguments': {'war_room_id': room_id, 'note_id': note_id,
+                          'title': 'Clean', 'content': '# Clean\n\nTidy.'},
+        }), api_key=self._admin_key())
+        self.assertEqual(200, response.status_code)
+        self.assertFalse(response.json()['result'].get('isError'))
+        note = self._subject.get(f'/api/v2/war-rooms/{room_id}/notes/{note_id}').json()
+        self.assertEqual('Clean', note['title'])
+        self.assertEqual('# Clean\n\nTidy.', note['content'])
+
+    def test_mcp_tools_call_iris_war_room_notes_update_without_fields_is_an_error(self):
+        self._enable_mcp()
+        room_id = self._subject.create('/api/v2/war-rooms',
+                                       {'name': 'MCP note edit'}).json()['war_room_id']
+        note_id = self._subject.create(f'/api/v2/war-rooms/{room_id}/notes', {
+            'title': 'Draft',
+        }).json()['note_id']
+        response = self._mcp_post(_rpc('tools/call', {
+            'name': 'iris_war_room_notes_update',
+            'arguments': {'war_room_id': room_id, 'note_id': note_id},
+        }), api_key=self._admin_key())
+        self.assertEqual(200, response.status_code)
+        body = response.json()
+        self.assertTrue('error' in body or body['result'].get('isError'))

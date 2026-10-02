@@ -41,6 +41,10 @@ The POSTGRES section has the following configurations:
 
 - `CELERY_BROKER` - The broker address used by [Celery](https://github.com/celery/celery)
 
+## SOCKETIO
+
+- `SOCKETIO_MESSAGE_QUEUE` - Message queue that carries live updates (chat, notifications, collaborative note edits) between the backend's gunicorn workers, and from Celery tasks to the browsers. Defaults to `CELERY_BROKER`, so the stack's RabbitMQ is used with no extra setup; any [kombu](https://docs.celeryq.dev/projects/kombu/) URL works. Each worker only holds the Socket.IO connections that landed on it, so without a queue an update reaches only the users connected to the worker that produced it. `none` turns the queue off; only do that when running a single worker.
+
 ## IRIS
 
 - `IRIS_SECRET_KEY` - The secret key used by Flask.

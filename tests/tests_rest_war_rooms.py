@@ -296,3 +296,71 @@ class TestsRestWarRoomsChatEdit(TestCase):
         self.assertEqual(404, response.status_code)
         self.assertEqual('scoped to room A',
                          self._fetch(room_id, message_id)['body'])
+
+
+class TestsRestWarRoomsChatReactions(TestCase):
+    """Reactions come back with who reacted, so the pill can say so."""
+
+    def setUp(self) -> None:
+        self._subject = Iris()
+
+    def tearDown(self):
+        self._subject.clear_database()
+
+    def _message(self):
+        room_id = self._subject.create('/api/v2/war-rooms', {'name': 'Chat Room'}).json()['war_room_id']
+        message_id = self._subject.create(f'/api/v2/war-rooms/{room_id}/chat',
+                                          {'body': 'host isolated'}).json()['message_id']
+        return room_id, message_id
+
+    def _react(self, actor, room_id, message_id, emoji='👍'):
+        return actor.create(f'/api/v2/war-rooms/{room_id}/chat/{message_id}/reactions',
+                            {'emoji': emoji})
+
+    def _reactions(self, room_id, message_id):
+        listed = self._subject.get(f'/api/v2/war-rooms/{room_id}/chat').json()
+        return next(m for m in listed if m['message_id'] == message_id)['reactions']
+
+    def _other_user(self):
+        # A server administrator has full access to every war room.
+        return self._subject.create_dummy_user(permissions=IRIS_PERMISSION_SERVER_ADMINISTRATOR)
+
+    def test_reactions_should_name_the_user_who_reacted(self):
+        room_id, message_id = self._message()
+        other = self._other_user()
+        self._react(other, room_id, message_id)
+
+        users = self._reactions(room_id, message_id)[0]['users']
+        self.assertEqual([{'user_id': other.get_identifier(),
+                           'user_login': other.get_login(),
+                           'user_name': other.get_login()}], users)
+
+    def test_reactions_should_list_the_users_in_reaction_order(self):
+        room_id, message_id = self._message()
+        first = self._other_user()
+        second = self._other_user()
+        self._react(first, room_id, message_id)
+        self._react(second, room_id, message_id)
+
+        users = self._reactions(room_id, message_id)[0]['users']
+        self.assertEqual([first.get_login(), second.get_login()],
+                         [user['user_login'] for user in users])
+
+    def test_reactions_should_keep_user_ids_in_step_with_users(self):
+        room_id, message_id = self._message()
+        self._react(self._other_user(), room_id, message_id)
+        self._react(self._other_user(), room_id, message_id)
+
+        reaction = self._reactions(room_id, message_id)[0]
+        self.assertEqual(reaction['user_ids'], [user['user_id'] for user in reaction['users']])
+
+    def test_reactions_should_drop_a_user_who_toggled_their_reaction_off(self):
+        room_id, message_id = self._message()
+        stays = self._other_user()
+        leaves = self._other_user()
+        self._react(stays, room_id, message_id)
+        self._react(leaves, room_id, message_id)
+        self._react(leaves, room_id, message_id)
+
+        users = self._reactions(room_id, message_id)[0]['users']
+        self.assertEqual([stays.get_login()], [user['user_login'] for user in users])

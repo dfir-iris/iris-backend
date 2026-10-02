@@ -16,7 +16,7 @@ Authorization mirrors `war_rooms/access.py`: reads declare
 from `mcp/classification.py`). Server admins pass either way, as they
 do on the REST routes.
 
-Only read + creation tools are exposed in v1. Delete / archive is
+Read, creation and note-edit tools are exposed. Delete / archive is
 deliberately excluded — the analyst can perform those from the UI,
 and letting an LLM propose them would be a common footgun.
 """
@@ -28,6 +28,8 @@ from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.v2.mcp import protocol
 from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
+from app.iris_engine.collab.sync import collab_current_markdown
+from app.iris_engine.collab.sync import collab_replace_markdown
 from app.business import (
     war_room_chat as war_room_chat_biz,
     war_room_notes as war_room_notes_biz,
@@ -221,7 +223,9 @@ def iris_war_room_sitreps_create(args: dict) -> dict:
 )
 def iris_war_room_notes_list(args: dict) -> dict:
     rows = war_room_notes_biz.war_room_note_list(args['war_room_id'])
-    return {'notes': [_note(n) for n in rows]}
+    # Live content: the column lags while someone has the note open,
+    # and an edit built on it would revert their unsaved typing.
+    return {'notes': [_note(n, live=True) for n in rows]}
 
 
 @mcp_tool(
@@ -251,6 +255,57 @@ def iris_war_room_notes_create(args: dict) -> dict:
     except (BusinessProcessingError, ValidationError) as exc:
         msg = exc.get_message() if isinstance(exc, BusinessProcessingError) else str(exc)
         raise MCPError(protocol.INVALID_PARAMS, msg) from exc
+    return _note(row)
+
+
+@mcp_tool(
+    name='iris_war_room_notes_update',
+    description=(
+        'Edit an existing war-room note: rename it and/or replace its '
+        'body. `content` is the FULL new markdown body, not a diff — '
+        'start from the content returned by iris_war_room_notes_list '
+        'and keep every part that should stay. Omit a field to leave '
+        'it unchanged. The previous version is kept in the note history.'
+    ),
+    input_schema={
+        'type': 'object',
+        'properties': {
+            'note_id': {'type': 'integer'},
+            'title': {'type': 'string', 'minLength': 1},
+            'content': {
+                'type': 'string',
+                'description': 'Full new markdown body.',
+            },
+        },
+        'required': ['note_id'],
+    },
+    permissions=(Permissions.war_rooms_write, Permissions.server_administrator),
+    war_room_scoped=True,
+    mvp=True,
+)
+def iris_war_room_notes_update(args: dict) -> dict:
+    if args.get('title') is None and args.get('content') is None:
+        raise MCPError(protocol.INVALID_PARAMS,
+                       'Nothing to update: provide a title and/or content.')
+    user_obj = iris_current_user._get_current_object()  # type: ignore[attr-defined]
+    try:
+        row = war_room_notes_biz.war_room_note_update(
+            war_room_id=args['war_room_id'],
+            note_id=args['note_id'],
+            title=args.get('title'),
+            content=args.get('content'),
+            updated_by_id=user_obj.id,
+        )
+    except ObjectNotFoundError as exc:
+        raise MCPError(protocol.INVALID_PARAMS,
+                       f'Note #{args["note_id"]} not found in this war room.') from exc
+    except BusinessProcessingError as exc:
+        raise MCPError(protocol.INVALID_PARAMS, exc.get_message()) from exc
+    if args.get('content') is not None:
+        # Once the note has been opened the Y.Doc is authoritative:
+        # without this the editor keeps showing the old body and the
+        # next flush writes it back over the column.
+        collab_replace_markdown(f'war-room-note:{row.note_id}', args['content'])
     return _note(row)
 
 
@@ -343,11 +398,14 @@ def _sitrep(s) -> dict:
     }
 
 
-def _note(n) -> dict:
+def _note(n, live: bool = False) -> dict:
+    content = getattr(n, 'content', None)
+    if live:
+        content = collab_current_markdown(f'war-room-note:{n.note_id}', content)
     return {
         'note_id': getattr(n, 'note_id', None),
         'title': getattr(n, 'title', None),
-        'content': getattr(n, 'content', None),
+        'content': content,
         'created_by_id': getattr(n, 'created_by_id', None),
         'folder_id': getattr(n, 'folder_id', None),
         'created_at': _iso(getattr(n, 'created_at', None)),

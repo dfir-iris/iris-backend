@@ -89,6 +89,11 @@ class Permissions(enum.Enum):
     asset_manager_read = 0x2000000
     asset_manager_write = 0x4000000
 
+    # Change who can access a case, from the case itself. Only effective
+    # on cases where the holder already has full access — see
+    # `/api/v2/cases/<id>/access/*`.
+    case_access_manage = 0x8000000
+
 
 class WarRoomAccessLevel(enum.Enum):
     deny_all = 0x1

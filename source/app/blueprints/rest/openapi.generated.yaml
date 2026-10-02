@@ -4397,6 +4397,63 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{identifier}/access/groups:
+    get:
+      operationId: list_case_access_groups_get
+      summary: List groups and their access to a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: "Feeds the \"set access via group\" picker of the case access tab, for\ncallers allowed\
+        \ to change the case's access \u2014 the server-wide group\nlist under `/manage/groups` is administrators\
+        \ only."
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: set_case_access_group_post
+      summary: Set a group's access to a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: 'Same callers as the per-user route. For a non-administrator, the
+
+        per-user guards apply to every member: they may not lower a group they
+
+        belong to below full access, and every member must be able to see the
+
+        case''s customer. Unlike the administrators'' `/manage/groups/<id>/cases-access`,
+
+        this leaves the group''s auto-follow setting untouched.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{identifier}/access/me:
     get:
       operationId: get_case_access_me_get
@@ -4456,6 +4513,32 @@ paths:
         users typically filter on full_access (4) client-side, matching the
 
         legacy iris-web behaviour.'
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: set_case_access_user_post
+      summary: Set a user's access to a case
+      tags:
+      - Cases
+      security:
+      - ApiKey: []
+      description: "Allowed to server administrators, and to holders of `case_access_manage`\nwith full\
+        \ access to the case. Nobody changes their own access here \u2014 it\nis the one change that can\
+        \ leave a case with no one able to fix it.\nA non-administrator may only grant users who can see\
+        \ the case's\ncustomer, as for the owner and reviewer of a case."
       parameters:
       - name: identifier
         in: path
@@ -15101,7 +15184,9 @@ paths:
   /api/v2/mcp/tools/iris_case_notes_update:
     post:
       operationId: mcp_tool_iris_case_notes_update
-      summary: Update a note (partial payload accepted). Automatically versions.
+      summary: "Edit an existing case note (partial payload accepted). `payload.note_content` is the FULL\
+        \ new markdown body, not a diff \u2014 start from the content returned by iris_case_notes_get\
+        \ and keep every part that should stay. The previous version is kept in the note history."
       tags:
       - MCP
       - MCP:tools
@@ -15126,6 +15211,13 @@ paths:
                   type: integer
                 payload:
                   type: object
+                  properties:
+                    note_title:
+                      type: string
+                      minLength: 1
+                    note_content:
+                      type: string
+                      description: Full new markdown body.
                 case_identifier:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
@@ -16138,6 +16230,56 @@ paths:
                   type: integer
                   description: Numeric ID of the war room this call targets.
               required:
+              - war_room_id
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_war_room_notes_update:
+    post:
+      operationId: mcp_tool_iris_war_room_notes_update
+      summary: "Edit an existing war-room note: rename it and/or replace its body. `content` is the FULL\
+        \ new markdown body, not a diff \u2014 start from the content returned by iris_war_room_notes_list\
+        \ and keep every part that should stay. Omit a field to leave it unchanged. The previous version\
+        \ is kept in the note history."
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_war_room_notes_update
+      x-mcp-mvp: true
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_war_room_notes_update\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note_id:
+                  type: integer
+                title:
+                  type: string
+                  minLength: 1
+                content:
+                  type: string
+                  description: Full new markdown body.
+                war_room_id:
+                  type: integer
+                  description: Numeric ID of the war room this call targets.
+              required:
+              - note_id
               - war_room_id
       responses:
         '200':

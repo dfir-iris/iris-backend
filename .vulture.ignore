@@ -622,3 +622,7 @@ window_start  # unused variable (source/app/models/authorization.py:453)
 # `find_class` is an override the (C) Unpickler calls by name while
 # reading a blob, so no Python caller is visible to vulture.
 _.find_class  # unused method (source/app/business/asynchronous_tasks.py:62)
+SOCKETIO_MESSAGE_QUEUE  # read in app/__init__.py through app.config
+_producer_publish  # KombuManager override (app/socket_io_queue.py)
+publisher_connection  # KombuManager attribute (app/socket_io_queue.py)
+_publish  # PubSubManager override (app/socket_io_queue.py)

@@ -769,33 +769,38 @@ def toggle_reaction(war_room_id, message_id, user_id, emoji):
 
 
 def list_reactions(message_ids):
-    """Return `{message_id: [{emoji, count, user_ids: [...]}, ...]}`.
+    """Return `{message_id: [{emoji, count, user_ids, users}, ...]}`.
 
     Called by the message-list endpoint so the SPA gets reactions
-    pre-aggregated and doesn't fire a round-trip per row.
+    pre-aggregated and doesn't fire a round-trip per row. `users`
+    carries `{user_id, user_login, user_name}` — the same shape as poll
+    voters — so the pill can say who reacted on hover. Both lists are
+    in reaction order.
     """
     if not message_ids:
         return {}
     rows = (
-        WarRoomChatReaction.query
-        .with_entities(
+        db.session.query(
             WarRoomChatReaction.message_id,
-            WarRoomChatReaction.user_id,
             WarRoomChatReaction.emoji,
+            User.id, User.user, User.name,
         )
+        .join(User, User.id == WarRoomChatReaction.user_id)
         .filter(WarRoomChatReaction.message_id.in_(message_ids))
+        .order_by(WarRoomChatReaction.created_at, WarRoomChatReaction.id)
         .all()
     )
     by_msg = {}
-    for r in rows:
-        bucket = by_msg.setdefault(r.message_id, {})
-        cell = bucket.setdefault(r.emoji, {'emoji': r.emoji, 'user_ids': []})
-        cell['user_ids'].append(r.user_id)
+    for mid, emoji, uid, login, name in rows:
+        bucket = by_msg.setdefault(mid, {})
+        cell = bucket.setdefault(emoji, {'emoji': emoji, 'user_ids': [], 'users': []})
+        cell['user_ids'].append(uid)
+        cell['users'].append({'user_id': uid, 'user_login': login, 'user_name': name})
     out = {}
     for mid, by_emoji in by_msg.items():
         out[mid] = [
             {'emoji': cell['emoji'], 'count': len(cell['user_ids']),
-             'user_ids': cell['user_ids']}
+             'user_ids': cell['user_ids'], 'users': cell['users']}
             for cell in by_emoji.values()
         ]
     return out

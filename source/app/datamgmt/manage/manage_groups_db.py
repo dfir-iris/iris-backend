@@ -39,6 +39,28 @@ def get_groups_list():
     return groups
 
 
+def get_groups_access_to_case(case_id):
+    """Every group, with its explicit access level on the case (None if it has none)."""
+    rows = Group.query.with_entities(
+        Group.group_id,
+        Group.group_name,
+        Group.group_description,
+        GroupCaseAccess.access_level
+    ).outerjoin(
+        GroupCaseAccess,
+        and_(GroupCaseAccess.group_id == Group.group_id, GroupCaseAccess.case_id == case_id)
+    ).order_by(
+        Group.group_name
+    ).all()
+
+    return [{
+        'group_id': row.group_id,
+        'group_name': row.group_name,
+        'group_description': row.group_description,
+        'access_level': row.access_level
+    } for row in rows]
+
+
 def update_group():
     db.session.commit()
 

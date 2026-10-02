@@ -25,6 +25,8 @@ from app.business.notes import (
     notes_search,
     notes_update,
 )
+from app.iris_engine.collab.sync import collab_current_markdown
+from app.iris_engine.collab.sync import collab_replace_markdown
 from app.business.notes_directories import (
     notes_directories_create,
     notes_directories_filter,
@@ -119,7 +121,12 @@ def iris_case_notes_get(args: dict) -> dict:
         note = _get_note_in_case(args['note_identifier'], args['case_identifier'])
     except ObjectNotFoundError as exc:
         raise MCPError(protocol.INVALID_PARAMS, 'Note not found.') from exc
-    return _note_schema.dump(note)
+    data = _note_schema.dump(note)
+    # Live content: the column lags while someone has the note open,
+    # and an edit built on it would revert their unsaved typing.
+    data['note_content'] = collab_current_markdown(f'note:{note.note_id}',
+                                                   data.get('note_content'))
+    return data
 
 
 @mcp_tool(
@@ -253,12 +260,27 @@ def iris_case_notes_directories_create(args: dict) -> dict:
 
 @mcp_tool(
     name='iris_case_notes_update',
-    description='Update a note (partial payload accepted). Automatically versions.',
+    description=(
+        'Edit an existing case note (partial payload accepted). '
+        '`payload.note_content` is the FULL new markdown body, not a diff '
+        '— start from the content returned by iris_case_notes_get and keep '
+        'every part that should stay. The previous version is kept in the '
+        'note history.'
+    ),
     input_schema={
         'type': 'object',
         'properties': {
             'note_identifier': {'type': 'integer'},
-            'payload': {'type': 'object'},
+            'payload': {
+                'type': 'object',
+                'properties': {
+                    'note_title': {'type': 'string', 'minLength': 1},
+                    'note_content': {
+                        'type': 'string',
+                        'description': 'Full new markdown body.',
+                    },
+                },
+            },
         },
         'required': ['note_identifier', 'payload'],
     },
@@ -280,4 +302,9 @@ def iris_case_notes_update(args: dict) -> dict:
                        f'Validation error: {exc.normalized_messages()}') from exc
     except BusinessProcessingError as exc:
         raise MCPError(protocol.INTERNAL_ERROR, exc.get_message()) from exc
+    if 'note_content' in payload:
+        # Once the note has been opened the Y.Doc is authoritative:
+        # without this the editor keeps showing the old body and the
+        # next flush writes it back over the column.
+        collab_replace_markdown(f'note:{note.note_id}', note.note_content or '')
     return _note_schema.dump(note)

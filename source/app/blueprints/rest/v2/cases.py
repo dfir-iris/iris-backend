@@ -57,6 +57,12 @@ from app.business.cases import cases_exists
 from app.business.cases import cases_get_by_identifier
 from app.business.cases import cases_reopen
 from app.business.cases import cases_update
+from app.business.cases_access import cases_access_get_group
+from app.business.cases_access import cases_access_get_user
+from app.business.cases_access import cases_access_list_groups
+from app.business.cases_access import cases_access_set_group
+from app.business.cases_access import cases_access_set_user
+from app.business.cases_access import cases_access_user_sees_customer
 from app.business.users import get_users_list_restricted_from_case
 from app.business.access_controls import ac_fast_check_user_has_case_access
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
@@ -66,6 +72,7 @@ from app.schema.marshables import CaseDetailsSchema
 from app.schema.marshables import TaskLogSchema
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_current_user_has_customer_access
+from app.blueprints.access_controls import ac_current_user_has_permission
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.rest.api_doc import api_doc
@@ -595,7 +602,129 @@ def get_case_access_me(identifier):
                                                         [CaseAccessLevel.read_only, CaseAccessLevel.full_access])
     if level is None:
         level = CaseAccessLevel.deny_all.value
-    return response_api_success({'access_level': int(level)})
+    return response_api_success({
+        'access_level': int(level),
+        'can_manage_access': _current_user_can_manage_case_access(identifier)
+    })
+
+
+def _current_user_can_manage_case_access(identifier) -> bool:
+    """Whether the caller may change who can access this case.
+
+    Server administrators always may. Anyone else needs `case_access_manage`
+    *and* full access to this very case: the permission lets them share
+    cases they work on, never reach into ones they don't.
+    """
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        return True
+    if not ac_current_user_has_permission(Permissions.case_access_manage):
+        return False
+    return ac_fast_check_current_user_has_case_access(identifier, [CaseAccessLevel.full_access]) is not None
+
+
+def _read_identifier(body: dict, key: str):
+    value = body.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise BusinessProcessingError(f'`{key}` must be an integer')
+    return value
+
+
+@cases_blueprint.get('/<int:identifier>/access/groups')
+@ac_api_requires(Permissions.case_access_manage, Permissions.server_administrator)
+@api_doc(tags=['Cases'], summary="List groups and their access to a case")
+def list_case_access_groups(identifier):
+    """Every group, with its explicit access level on this case (`null` when it has none).
+
+    Feeds the "set access via group" picker of the case access tab, for
+    callers allowed to change the case's access — the server-wide group
+    list under `/manage/groups` is administrators only.
+    """
+    try:
+        case = cases_get_by_identifier(identifier)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    if not _current_user_can_manage_case_access(identifier):
+        return ac_api_return_access_denied(caseid=identifier)
+
+    return response_api_success(cases_access_list_groups(case))
+
+
+@cases_blueprint.post('/<int:identifier>/access/users')
+@ac_api_requires(Permissions.case_access_manage, Permissions.server_administrator)
+@api_doc(tags=['Cases'], summary="Set a user's access to a case")
+def set_case_access_user(identifier):
+    """Set one user's access level on this case. Body: `{user_id, access_level}`.
+
+    Allowed to server administrators, and to holders of `case_access_manage`
+    with full access to the case. Nobody changes their own access here — it
+    is the one change that can leave a case with no one able to fix it.
+    A non-administrator may only grant users who can see the case's
+    customer, as for the owner and reviewer of a case.
+    """
+    try:
+        case = cases_get_by_identifier(identifier)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    if not _current_user_can_manage_case_access(identifier):
+        return ac_api_return_access_denied(caseid=identifier)
+
+    body = request.get_json(silent=True) or {}
+    try:
+        user_identifier = _read_identifier(body, 'user_id')
+        if user_identifier == iris_current_user.id:
+            raise BusinessProcessingError('You cannot change your own access to a case')
+
+        user = cases_access_get_user(user_identifier)
+        if not ac_current_user_has_permission(Permissions.server_administrator) \
+                and not cases_access_user_sees_customer(user.id, case.client_id):
+            raise BusinessProcessingError('This user has no access to the customer of the case')
+
+        level = cases_access_set_user(case, user, body.get('access_level'))
+        return response_api_success({'user_id': user.id, 'access_level': level.value})
+    except ObjectNotFoundError:
+        return response_api_error('Invalid user_id')
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), e.get_data())
+
+
+@cases_blueprint.post('/<int:identifier>/access/groups')
+@ac_api_requires(Permissions.case_access_manage, Permissions.server_administrator)
+@api_doc(tags=['Cases'], summary="Set a group's access to a case")
+def set_case_access_group(identifier):
+    """Set one group's access level on this case. Body: `{group_id, access_level}`.
+
+    Same callers as the per-user route. For a non-administrator, the
+    per-user guards apply to every member: they may not lower a group they
+    belong to below full access, and every member must be able to see the
+    case's customer. Unlike the administrators' `/manage/groups/<id>/cases-access`,
+    this leaves the group's auto-follow setting untouched.
+    """
+    try:
+        case = cases_get_by_identifier(identifier)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    if not _current_user_can_manage_case_access(identifier):
+        return ac_api_return_access_denied(caseid=identifier)
+
+    body = request.get_json(silent=True) or {}
+    try:
+        group = cases_access_get_group(_read_identifier(body, 'group_id'))
+
+        if not ac_current_user_has_permission(Permissions.server_administrator):
+            member_identifiers = [member['id'] for member in group.group_members]
+            if iris_current_user.id in member_identifiers \
+                    and body.get('access_level') != CaseAccessLevel.full_access.value:
+                raise BusinessProcessingError('You cannot lower the access of a group you belong to')
+            if any(not cases_access_user_sees_customer(member_identifier, case.client_id)
+                   for member_identifier in member_identifiers):
+                raise BusinessProcessingError('Some members of this group have no access to the customer of the case')
+
+        level = cases_access_set_group(case, group, body.get('access_level'))
+        return response_api_success({'group_id': group.group_id, 'access_level': level.value})
+    except ObjectNotFoundError:
+        return response_api_error('Invalid group_id')
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), e.get_data())
 
 
 @cases_blueprint.get('/<int:identifier>/followers')

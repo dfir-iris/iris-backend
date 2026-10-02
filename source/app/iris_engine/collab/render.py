@@ -201,6 +201,34 @@ def append_markdown_to_ydoc_update(state: bytes | None, md: str) -> bytes:
     return doc.get_update()
 
 
+def replace_markdown_in_ydoc_update(state: bytes | None, md: str) -> bytes:
+    """Replace the whole content of the Y.Doc encoded by `state` with `md`.
+
+    Returns the FULL new state, like `append_markdown_to_ydoc_update`.
+
+    The existing blocks are deleted *inside* the CRDT rather than
+    starting from a fresh Doc: a fresh Doc has no knowledge of the
+    stored items, so merging it with a client's copy would add the new
+    content next to the old instead of replacing it. Deletions on the
+    stored history merge cleanly — any client converges on `md` (plus
+    whatever it typed concurrently into blocks that survive).
+    """
+    doc = Doc()
+    frag = XmlFragment()
+    doc[_PROSEMIRROR_FIELD] = frag
+    if state:
+        doc.apply_update(bytes(state))
+
+    tokens = _parse_markdown(md)
+
+    with doc.transaction():
+        if len(frag.children):
+            del frag.children[0:len(frag.children)]
+        _build_blocks_into(frag, tokens)
+
+    return doc.get_update()
+
+
 _LEGACY_ESCAPED_LINK_RE = re.compile(r'(!?)\\\[([^\]]*)\\\]\(')
 _LEGACY_BACKTICKED_ALT_RE = re.compile(r'^`([^`]*)`$')
 _LEGACY_IMAGE_SIZE_RE = re.compile(r'(!\[[^\]]*\]\()([^)\s]+)\s+=\d+%?x\d+%?(\))')

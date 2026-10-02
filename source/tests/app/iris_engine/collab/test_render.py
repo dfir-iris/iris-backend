@@ -33,6 +33,7 @@ from app.iris_engine.collab.render import (
     _unflatten_pipe_tables,
     append_markdown_to_ydoc_update,
     markdown_to_ydoc_update,
+    replace_markdown_in_ydoc_update,
     ydoc_update_to_markdown,
 )
 
@@ -853,3 +854,60 @@ class TestAppendMarkdownToYdocUpdate(TestCase):
         result = _append('Base.\n', '| A | B | |---|---| | 1 | 2 |')
         self.assertIn('| A | B |', result)
         self.assertIn('| 1 | 2 |', result)
+
+
+# ---------------------------------------------------------------------------
+# replace_markdown_in_ydoc_update
+# ---------------------------------------------------------------------------
+
+def _replace(base_md: str, md: str) -> str:
+    """Convenience: seed a doc from `base_md`, replace it with `md`, render back."""
+    state = markdown_to_ydoc_update(base_md)
+    return ydoc_update_to_markdown(replace_markdown_in_ydoc_update(state, md))
+
+
+class TestReplaceMarkdownInYdocUpdate(TestCase):
+    """Server-side rewrite of an already-seeded Y.Doc (Yuki editing a note)."""
+
+    def test_replace_drops_the_old_content(self):
+        result = _replace('# Old title\n\nOld body.\n', '# New title\n\nNew body.\n')
+        self.assertNotIn('Old', result)
+        self.assertEqual(_roundtrip('# New title\n\nNew body.\n'), result)
+
+    def test_replace_none_state_matches_a_fresh_build(self):
+        md = '- one\n- two\n'
+        self.assertEqual(
+            ydoc_update_to_markdown(markdown_to_ydoc_update(md)),
+            ydoc_update_to_markdown(replace_markdown_in_ydoc_update(None, md)),
+        )
+
+    def test_replace_with_empty_markdown_empties_the_document(self):
+        self.assertEqual('', _replace('# Title\n\nBody.\n', '').strip())
+
+    def test_replace_keeps_tables_and_chips(self):
+        chip = build_mention_span('alert', 3, 'Alert #3')
+        md = f'| A | B |\n| --- | --- |\n| 1 | 2 |\n\n{chip} seen.\n'
+        result = _replace('Old.\n', md)
+        self.assertIn('| 1 | 2 |', result)
+        self.assertIn(chip, result)
+        self.assertNotIn('Old.', result)
+
+    def test_a_client_holding_the_old_state_converges_on_the_new_content(self):
+        """The reason the old blocks are deleted in the CRDT rather than
+        rebuilt from scratch: an editor still holding the old document
+        must end up with the new content only, not old + new."""
+        from pycrdt import Doc, XmlFragment
+
+        old = markdown_to_ydoc_update('# Draft\n\nMessy notes.\n')
+        new = replace_markdown_in_ydoc_update(old, '# Clean\n\nTidy notes.\n')
+
+        client = Doc()
+        client['prosemirror'] = XmlFragment()
+        client.apply_update(old)
+        client.apply_update(new)
+        result = ydoc_update_to_markdown(client.get_update())
+        self.assertEqual(_roundtrip('# Clean\n\nTidy notes.\n'), result)
+
+    def test_replace_runs_the_cleaning_pre_passes(self):
+        result = _replace('Base.\n', 'see [the case](/case?cid=8)')
+        self.assertIn('/case/8', result)
