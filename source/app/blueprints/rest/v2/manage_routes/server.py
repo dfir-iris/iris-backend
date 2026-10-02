@@ -327,6 +327,12 @@ class ServerOperations:
                 # demo instance; the login page uses them to offer one-click
                 # sign-in. Empty on any non-demo deployment.
                 "demo_accounts": _demo_accounts(),
+                # Login-page branding. The v2 Jinja login rendered these to
+                # anonymous visitors too, so serving them here before
+                # sign-in discloses nothing new.
+                "organisation_name": app.config.get("ORGANISATION_NAME") or "",
+                "login_banner": app.config.get("LOGIN_BANNER_TEXT") or "",
+                "login_contact": app.config.get("LOGIN_PTFM_CONTACT") or "",
             }
             return response_api_success(auth_requirements)
         except Exception as e:

@@ -226,6 +226,9 @@ class ProfileOperations:
 
         return response_api_success({
             'iris_version': current_app.config.get('IRIS_VERSION'),
+            # Shown above the version strip in the side bar. Empty when
+            # IRIS_ORGANISATION_NAME is not set.
+            'organisation_name': current_app.config.get('ORGANISATION_NAME') or '',
             'demo_mode': demo_mode,
             # The SPA pairs this with `demo_mode` to hide the server
             # settings section from everyone but the instance owner —

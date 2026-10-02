@@ -189,6 +189,10 @@ class TestsRestProfile(TestCase):
         self.assertIsInstance(response['iris_version'], str)
         self.assertTrue(response['iris_version'])
 
+    def test_get_context_should_expose_organisation_name(self):
+        response = self._subject.get('/api/v2/me/context').json()
+        self.assertIsInstance(response['organisation_name'], str)
+
     def test_get_context_should_expose_demo_mode_flag(self):
         response = self._subject.get('/api/v2/me/context').json()
         self.assertIn('demo_mode', response)

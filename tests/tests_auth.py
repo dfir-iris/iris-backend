@@ -96,3 +96,9 @@ class TestsAuth(TestCase):
         url = parse.urljoin(API_URL, '/api/v2/cases')
         response = requests.get(url, cookies=cookies)
         self.assertEqual(401, response.status_code)
+
+    def test_authentication_settings_should_expose_login_branding_without_authentication(self):
+        url = parse.urljoin(API_URL, '/api/v2/manage/server/authentication-settings')
+        response = requests.get(url).json()
+        for field in ('organisation_name', 'login_banner', 'login_contact'):
+            self.assertIsInstance(response[field], str)
