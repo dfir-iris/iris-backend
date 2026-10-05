@@ -7,7 +7,7 @@
 Wired into the module-hook system as *built-in* handlers (not via the
 `IrisModule` table). We hook the same events modules can register for,
 but we bypass the module dispatcher — one direct call registered via
-`register_notification_listeners()` from `post_init`.
+`register_notification_listeners()` when `app` is imported.
 
 The design keeps each listener defensive:
 
@@ -378,31 +378,19 @@ _HOOK_MAP = {
 }
 
 
+def _on_hook(hook_name: str, data: Any, caseid: Optional[int] = None,
+             hook_ui_name: Optional[str] = None) -> None:
+    listener = _HOOK_MAP.get(hook_name)
+    if listener is not None and data is not None:
+        listener(data)
+
+
 def register_notification_listeners() -> None:
-    """Monkey-patch `call_modules_hook` to fan out to our built-in
-    listeners in addition to the module-registered handlers.
+    """Attach the listeners to `call_modules_hook`.
 
-    The existing dispatcher (module_handler.call_modules_hook) is the
-    single choke point for every hook fire in the app. We wrap it once
-    at app-start so we don't need to touch every business/*.py caller.
-    Wrapping is idempotent — a second call is a no-op (checked via a
-    sentinel attribute).
+    The dispatcher is the single choke point for every hook fire in the
+    app; it calls built-in listeners after the modules, with the data the
+    modules returned, so notifications reflect the final state.
+    Registering twice is a no-op.
     """
-    if getattr(_mh, '_notifications_wrapped', False):
-        return
-
-    original = _mh.call_modules_hook
-
-    def wrapped(hook_name: str, data: any, caseid: int = None,
-                hook_ui_name: str = None, module_name: str = None):
-        # Run modules first, then our listeners. Modules can rewrite
-        # `data` and we want to notify based on the final state.
-        result = original(hook_name, data, caseid=caseid,
-                          hook_ui_name=hook_ui_name, module_name=module_name)
-        listener = _HOOK_MAP.get(hook_name)
-        if listener is not None:
-            listener(result if result is not None else data)
-        return result
-
-    _mh.call_modules_hook = wrapped
-    _mh._notifications_wrapped = True
+    _mh.register_builtin_hook_listener(_on_hook)

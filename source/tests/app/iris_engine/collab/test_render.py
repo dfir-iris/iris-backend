@@ -23,9 +23,12 @@ All functions under test are pure Python — no DB, no Flask context, no mocks.
 
 from unittest import TestCase
 
+from pycrdt import Doc, XmlElement, XmlFragment, XmlText
+
 from app.iris_engine.collab.mentions import build_mention_span
 from app.iris_engine.collab.render import (
     _escape_markdown,
+    _repair_flushed_mark_markup,
     _rewrite_datastore_urls,
     _rewrite_legacy_case_urls,
     _strip_fontawesome_tags,
@@ -355,6 +358,146 @@ class TestLegacyImagesSeed(TestCase):
         # source column: the literal text, with brackets escaped.
         md = '!\\[NYeQ5\\](/datastore/file/view/6768?cid=3465 =100%x40%)\n'
         self.assertEqual('![NYeQ5](/api/v2/cases/3465/datastore/files/6768)', _roundtrip(md).strip())
+
+
+# ---------------------------------------------------------------------------
+# Marks as Yjs formatting — the shape y-prosemirror reads and writes
+# ---------------------------------------------------------------------------
+
+def _client_paragraph(*runs) -> bytes:
+    """A one-paragraph doc shaped like y-prosemirror writes it: one
+    XmlText whose runs carry marks as formatting."""
+    doc = Doc()
+    frag = XmlFragment()
+    doc['prosemirror'] = frag
+    paragraph = frag.children.append(XmlElement('paragraph'))
+    text = paragraph.children.append(XmlText())
+    for chunk, formatting in runs:
+        text.insert(len(text), chunk, formatting)
+    return doc.get_update()
+
+
+def _seeded_runs(md: str) -> list:
+    doc = Doc()
+    frag = XmlFragment()
+    doc['prosemirror'] = frag
+    doc.apply_update(markdown_to_ydoc_update(md))
+    return [run for child in frag.children[0].children for run in child.diff()]
+
+
+_CHIP_LINK = {
+    'href': 'https://iris.i/api/v2/cases/3465/datastore/files/6771',
+    'target': '_blank',
+    'rel': 'noopener noreferrer nofollow',
+    'class': 'text-blue-500 underline',
+    'title': None,
+}
+
+
+class TestMarksAsFormatting(TestCase):
+
+    def test_seeded_bold_is_formatting(self):
+        self.assertIn(('bold', {'bold': {}}), _seeded_runs('a **bold** b'))
+
+    def test_seeded_link_is_formatting(self):
+        self.assertIn(('f', {'link': {'href': 'u', 'title': None}}), _seeded_runs('[f](u)'))
+
+    def test_seeded_text_carries_no_node_attributes(self):
+        doc = Doc()
+        frag = XmlFragment()
+        doc['prosemirror'] = frag
+        doc.apply_update(markdown_to_ydoc_update('**bold**'))
+        self.assertEqual({}, dict(frag.children[0].children[0].attributes))
+
+    def test_client_link_renders_as_markdown_link(self):
+        update = _client_paragraph(('see ', None), ('f.png', {'link': _CHIP_LINK}))
+        self.assertEqual('see [f.png](https://iris.i/api/v2/cases/3465/datastore/files/6771)\n',
+                         ydoc_update_to_markdown(update))
+
+    def test_client_link_title_is_kept(self):
+        update = _client_paragraph(('f', {'link': {**_CHIP_LINK, 'title': 'f.png'}}))
+        self.assertIn('[f](https://iris.i/api/v2/cases/3465/datastore/files/6771 "f.png")',
+                      ydoc_update_to_markdown(update))
+
+    def test_client_bold_renders_as_markdown_bold(self):
+        update = _client_paragraph(('a ', None), ('b', {'bold': {}}))
+        self.assertEqual('a **b**\n', ydoc_update_to_markdown(update))
+
+    def test_client_bold_italic_nest(self):
+        update = _client_paragraph(('b', {'bold': {}, 'italic': {}}))
+        self.assertEqual('***b***\n', ydoc_update_to_markdown(update))
+
+    def test_client_code_is_not_escaped(self):
+        update = _client_paragraph(('a_b', {'code': {}}))
+        self.assertEqual('`a_b`\n', ydoc_update_to_markdown(update))
+
+    def test_whitespace_stays_outside_emphasis(self):
+        update = _client_paragraph(('a', None), (' b ', {'bold': {}}), ('c', None))
+        self.assertEqual('a **b** c\n', ydoc_update_to_markdown(update))
+
+    def test_runs_under_one_link_share_it(self):
+        update = _client_paragraph(('a ', {'link': _CHIP_LINK}),
+                                   ('b', {'link': _CHIP_LINK, 'bold': {}}))
+        self.assertEqual('[a **b**](https://iris.i/api/v2/cases/3465/datastore/files/6771)\n',
+                         ydoc_update_to_markdown(update))
+
+    def test_no_pseudo_xml_is_rendered(self):
+        update = _client_paragraph(('x', {'link': _CHIP_LINK, 'bold': {}}))
+        self.assertNotIn('<', ydoc_update_to_markdown(update))
+
+    def test_unknown_mark_keeps_its_text(self):
+        update = _client_paragraph(('u', {'underline': {}}))
+        self.assertEqual('u\n', ydoc_update_to_markdown(update))
+
+    def test_seeded_marks_round_trip(self):
+        md = 'a **b** *c* `d` ~~e~~ [f](u "t")\n'
+        self.assertEqual(md, _roundtrip(md))
+
+
+class TestRepairFlushedMarkMarkup(TestCase):
+    """What the renderer flushed for marks before it read formatting."""
+
+    def test_string_without_markup_is_returned_unchanged(self):
+        s = 'no markup here'
+        self.assertIs(s, _repair_flushed_mark_markup(s))
+
+    def test_bold_is_repaired(self):
+        self.assertEqual('a **b**', _repair_flushed_mark_markup('a \\<bold>b\\</bold>'))
+
+    def test_leading_space_moves_outside_bold(self):
+        self.assertEqual('a **b**', _repair_flushed_mark_markup('a\\<bold> b\\</bold>'))
+
+    def test_nested_marks_are_repaired(self):
+        self.assertEqual('***b***', _repair_flushed_mark_markup('\\<bold>\\<italic>b\\</italic>\\</bold>'))
+
+    def test_code_is_unescaped(self):
+        self.assertEqual('`a_b`', _repair_flushed_mark_markup('\\<code>a\\_b\\</code>'))
+
+    def test_underline_keeps_its_text(self):
+        self.assertEqual('u', _repair_flushed_mark_markup('\\<underline>u\\</underline>'))
+
+    def test_link_is_repaired_with_unescaped_attributes(self):
+        md = '\\<link target="\\_blank" href="https://x/a\\_b" title="null">f\\</link>'
+        self.assertEqual('[f](https://x/a_b)', _repair_flushed_mark_markup(md))
+
+    def test_emptied_chip_link_takes_its_title_as_label(self):
+        md = ('\\<link rel="noopener noreferrer nofollow" target="\\_blank" title="HFm8.png" '
+              'href="https://iris.i/api/v2/cases/3465/datastore/files/6771" '
+              'class="text-blue-500 underline inline-flex"> \\</link>')
+        self.assertEqual('[HFm8.png](https://iris.i/api/v2/cases/3465/datastore/files/6771 "HFm8.png")',
+                         _repair_flushed_mark_markup(md))
+
+    def test_unescaped_markup_is_repaired(self):
+        self.assertEqual('[f](u)', _repair_flushed_mark_markup('<link href="u">f</link>'))
+
+    def test_other_html_is_left_alone(self):
+        md = '\\<span>x\\</span>'
+        self.assertEqual(md, _repair_flushed_mark_markup(md))
+
+    def test_reseed_recovers_a_link(self):
+        md = 'see \\<link href="https://x/u" title="null">f\\</link>\n'
+        self.assertEqual('see [f](https://x/u)\n', _roundtrip(md))
+        self.assertIn(('f', {'link': {'href': 'https://x/u', 'title': None}}), _seeded_runs(md))
 
 
 # ---------------------------------------------------------------------------

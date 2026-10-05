@@ -5360,7 +5360,9 @@ paths:
       description: '`target` type (e.g. `?target=ioc`).
 
 
-        Naked JSON array of `{manual_hook_ui_name, hook_name, module_name}`.'
+        Naked JSON array of `{manual_hook_ui_name, hook_name, module_name}`;
+
+        native webhook entries also carry the `webhook_id` to invoke with.'
       responses:
         '200':
           description: Success
@@ -10614,6 +10616,261 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/manage/webhooks:
+    get:
+      operationId: list_webhooks_route_get
+      summary: List webhooks with their last delivery and 24h delivery counts
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_webhook_route_post
+      summary: Create a webhook
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/webhooks/{identifier}:
+    delete:
+      operationId: delete_webhook_route_delete
+      summary: Delete a webhook and its delivery log
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_webhook_route_get
+      summary: Get a webhook
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_webhook_route_put
+      summary: Update a webhook (fields left out keep their value)
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/webhooks/{identifier}/deliveries:
+    get:
+      operationId: list_webhook_deliveries_route_get
+      summary: List the deliveries of a webhook, newest first
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/webhooks/deliveries/{identifier}:
+    get:
+      operationId: get_webhook_delivery_route_get
+      summary: Get a webhook delivery with its request and response
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/webhooks/deliveries/{identifier}/redeliver:
+    post:
+      operationId: redeliver_webhook_delivery_route_post
+      summary: Queue a new delivery of the same payload
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/webhooks/events:
+    get:
+      operationId: list_webhook_events_route_get
+      summary: List the events a webhook can subscribe to
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/webhooks/legacy-module:
+    get:
+      operationId: get_webhooks_legacy_module_route_get
+      summary: State of the IrisWebHooks module configuration
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/webhooks/legacy-module/import:
+    post:
+      operationId: import_webhooks_legacy_module_route_post
+      summary: Import the IrisWebHooks module configuration as disabled native webhooks
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/webhooks/preview:
+    post:
+      operationId: preview_webhook_route_post
+      summary: Render the request a webhook configuration would send, without sending it
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/webhooks/settings:
+    get:
+      operationId: get_webhook_settings_route_get
+      summary: Server settings that affect webhooks
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/webhooks/test:
+    post:
+      operationId: test_webhook_route_post
+      summary: Send a sample event with a webhook configuration and return the response
+      tags:
+      - ManageWebhooks
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/me:
     get:
       operationId: get_profile_get

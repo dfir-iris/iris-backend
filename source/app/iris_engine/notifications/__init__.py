@@ -6,7 +6,7 @@
 
 Public entry points live in `service`. Hook listeners in
 `hook_listeners` bind to the existing IrisHook events at app-start
-time (see post_init.register_notification_listeners).
+time (see `register_notification_listeners`, called from `app/__init__`).
 """
 
 from app.iris_engine.notifications.service import notify

@@ -539,6 +539,14 @@ register_request_id_middleware(app)
 
 register_blueprints(app)
 
+# Built-in hook listeners. Registered in every process that imports `app`
+# (each gunicorn worker, the Celery worker) — they hang off
+# `call_modules_hook`, which runs wherever a hook fires.
+from app.iris_engine.notifications.hook_listeners import register_notification_listeners
+from app.iris_engine.webhooks.dispatch import webhooks_register_listener
+register_notification_listeners()
+webhooks_register_listener()
+
 # Database bootstrap + base-data seeding. Deliberately NOT executed at
 # import time — the entrypoint runs it once via
 # `python -m scripts.run_post_init` before starting gunicorn (see

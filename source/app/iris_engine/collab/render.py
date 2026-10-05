@@ -39,8 +39,8 @@ needed at the storage boundary:
 Both sides must speak the ProseMirror doc shape that TipTap's
 `Collaboration` + `y-prosemirror` binding produces client-side. That
 means specific tag names (heading / paragraph / bulletList / …), and
-marks stored as `_prosemirror-mark` attributes on `XmlText` nodes
-matching what y-prosemirror emits. StarterKit's default node set
+marks stored as Yjs formatting on the runs of an `XmlText`, keyed by
+mark name with the mark's attrs as value — what y-prosemirror emits. StarterKit's default node set
 covers everything the editor currently supports; if we ever add a
 new node type on the frontend, we need to teach both sides here.
 
@@ -68,8 +68,10 @@ Design constraints that shape the code:
 from __future__ import annotations
 
 import html
+import json
 import logging
 import re
+from itertools import groupby
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -142,9 +144,15 @@ def _parse_markdown(md: str) -> list[Token]:
     # `![x](/datastore/file/view/1?cid=2 =100%x40%)` is not a valid
     # CommonMark image target, so without them it seeds as literal text
     # and stays that way once the Y.Doc is authoritative.
+    #
+    # `_repair_flushed_mark_markup` comes first of all: it turns the
+    # `\<link …>` pseudo-XML an older renderer flushed back into the
+    # markdown links the other passes then rewrite.
     cleaned = _strip_fontawesome_tags(
         _rewrite_legacy_case_urls(
-            _rewrite_datastore_urls(_unescape_legacy_markdown_links(md or ''))
+            _rewrite_datastore_urls(
+                _unescape_legacy_markdown_links(_repair_flushed_mark_markup(md or ''))
+            )
         )
     )
     return md_parser.parse(_unflatten_pipe_tables(cleaned))
@@ -262,6 +270,61 @@ def _unescape_legacy_markdown_links(md: str) -> str:
 
     out = _LEGACY_ESCAPED_LINK_RE.sub(_unescape, md)
     return _LEGACY_IMAGE_SIZE_RE.sub(r'\1\2\3', out)
+
+
+# The marks TipTap's StarterKit can put on text in the editor.
+_FLUSHED_MARK_TAGS = 'bold|italic|strike|code|link|underline'
+# One innermost mark tag, as `str(XmlText)` writes it and
+# `_escape_markdown` then escaped it: `\<bold>x\</bold>`,
+# `\<link rel="…" href="…" title="…">x\</link>`. The body may not hold
+# another mark tag, so nested marks are peeled one level per pass.
+_FLUSHED_MARK_RE = re.compile(
+    rf'\\?<({_FLUSHED_MARK_TAGS})((?:\s+[\w-]+="[^"]*")*)>'
+    rf'((?:(?!\\?</?(?:{_FLUSHED_MARK_TAGS})\b).)*?)'
+    r'\\?</\1>'
+)
+_FLUSHED_MARK_ATTR_RE = re.compile(r'([\w-]+)="([^"]*)"')
+_MARKDOWN_ESCAPE_RE = re.compile(r'\\([\\`*_\[\]<])')
+_FLUSHED_EMPHASIS_MARKERS = {'bold': '**', 'italic': '*', 'strike': '~~', 'underline': ''}
+
+
+def _repair_flushed_mark_markup(md: str) -> str:
+    """Turn mark pseudo-XML flushed to the source column back into markdown.
+
+    Mirrors `repairFlushedMarkMarkup` in `legacy-content.ts`.
+
+    Until marks were read from Yjs formatting, `ydoc_update_to_markdown`
+    rendered every bold, italic or link typed in the editor through
+    `str(XmlText)`, which pycrdt formats as `<bold>x</bold>` /
+    `<link href="…">x</link>`, and escaped that as literal text. A
+    re-seed then froze it into the Y.Doc, where the editor shows the
+    markup itself. Links typed over a datastore file chip lost their
+    text on the way; their `title` (the file name) is used as the label.
+    """
+    if '</' not in md:
+        return md
+
+    def _repair(match: re.Match) -> str:
+        tag, raw_attrs, body = match.groups()
+        if tag == 'code':
+            code = _MARKDOWN_ESCAPE_RE.sub(r'\1', body)
+            return f'`{code}`'
+        if tag != 'link':
+            marker = _FLUSHED_EMPHASIS_MARKERS[tag]
+            return _emphasize(body, [marker] if marker else [])
+        attrs = {name: _MARKDOWN_ESCAPE_RE.sub(r'\1', value)
+                 for name, value in _FLUSHED_MARK_ATTR_RE.findall(raw_attrs)}
+        href = attrs.get('href', '')
+        title = attrs.get('title')
+        if title == 'null':
+            title = None
+        label = body if body.strip() else _escape_markdown(title or href)
+        return _markdown_link(label, href, title)
+
+    previous = None
+    while previous != md:
+        previous, md = md, _FLUSHED_MARK_RE.sub(_repair, md)
+    return md
 
 
 _LEGACY_DATASTORE_URL_RE = re.compile(r'/datastore/file/view/(\d+)(\?[^)\s"\']*)?')
@@ -730,20 +793,15 @@ def _build_inline_into(block_el, inline_tokens: list[Token]) -> None:
     def _emit_text(text: str) -> None:
         if not text:
             return
-        node = XmlText(text)
+        node = XmlText()
         block_el.children.append(node)
-        if marks:
-            # y-prosemirror stores marks as an attribute keyed by the
-            # y-prosemirror-specific `_pm-marks` convention. In pycrdt
-            # we set them as plain attributes; the client's y-prosemirror
-            # binding reads them via the same protocol.
-            #
-            # NOTE: y-prosemirror's actual encoding uses a special
-            # attribute name; setting per-mark bool attrs matches how
-            # TipTap's Yjs bindings serialize simple marks. This is the
-            # brittlest part of the renderer — see the round-trip tests.
-            for m in marks:
-                node.attributes[m['type']] = _mark_to_attr_value(m)
+        # y-prosemirror stores marks as Yjs text *formatting*, one key
+        # per mark name whose value is the mark's attrs (`{}` for
+        # bold/italic/…). That is the only place the client reads them
+        # from: marks written as XmlText node attributes, as this
+        # function used to do, seed as plain text in the editor.
+        formatting = {m['type']: m.get('attrs', {}) for m in marks}
+        node.insert(0, text, formatting or None)
 
     for c in inline.children:
         ct = c.type
@@ -782,9 +840,12 @@ def _build_inline_into(block_el, inline_tokens: list[Token]) -> None:
             _emit_text(c.content)
             _close_mark('code')
         elif ct == 'link_open':
+            # `None` rather than '' for a missing title: it is the Link
+            # mark's default, so the client sees the same attrs it would
+            # have produced itself.
             _open_mark('link', {
                 'href': c.attrGet('href') or '',
-                'title': c.attrGet('title') or '',
+                'title': c.attrGet('title') or None,
             })
         elif ct == 'link_close':
             _close_mark('link')
@@ -819,22 +880,6 @@ def _build_inline_into(block_el, inline_tokens: list[Token]) -> None:
         # Unknown inline types are silently dropped for the same reason
         # we drop unknown block tokens: keeps the tree coherent, and
         # any lost formatting is recoverable by retyping.
-
-
-def _mark_to_attr_value(mark: dict) -> str:
-    """Serialize a mark to an attribute value.
-
-    Simple marks (bold/italic/code/strike) → 'true'. Marks with attrs
-    (link) → JSON so we can round-trip href/title. This encoding lives
-    entirely server-side; the frontend's y-prosemirror binding treats
-    marks via its own protocol regardless of what we put in these
-    attribute values. The values matter only when WE re-parse them
-    in `ydoc_update_to_markdown` below.
-    """
-    if 'attrs' not in mark:
-        return 'true'
-    import json
-    return json.dumps(mark['attrs'])
 
 
 def _find_close(tokens: list[Token], open_idx: int, close_type: str) -> int:
@@ -912,7 +957,7 @@ def _render_block(node, lines: list[str], *, list_context) -> None:
     if isinstance(node, XmlText):
         # Stray XmlText at block level — very rare, but render as a
         # bare paragraph so we don't drop content.
-        lines.append(str(node))
+        lines.append(_render_text_with_marks(node))
         lines.append('')
         return
 
@@ -974,7 +1019,7 @@ def _render_block(node, lines: list[str], *, list_context) -> None:
         # `codeBlock`'s children are XmlText nodes with the raw code.
         for child in list(node.children):
             if isinstance(child, XmlText):
-                for code_line in str(child).splitlines() or ['']:
+                for code_line in _plain_text(child).splitlines() or ['']:
                     lines.append(code_line)
         lines.append('```')
         lines.append('')
@@ -1133,43 +1178,96 @@ def _render_inline_children(block) -> str:
     return ''.join(out)
 
 
-def _render_text_with_marks(node: XmlText) -> str:
-    """Wrap the text in markdown syntax matching the marks stored on the
-    XmlText node's attributes.
+def _plain_text(node: XmlText) -> str:
+    """The text of `node` without its formatting.
 
-    Order of application matches TipTap's serializer: links wrap outermost,
-    then code, then bold, then italic, then strike. Getting the order right
-    matters for CommonMark's tight escapes.
+    Not `str(node)`: pycrdt renders formatted runs as pseudo-XML
+    (`<bold>x</bold>`, `<link href="…">x</link>`).
     """
-    text = str(node)
-    if not text:
-        return ''
-    attrs = dict(node.attributes) if hasattr(node, 'attributes') else {}
+    return ''.join(chunk for chunk, _ in node.diff() if isinstance(chunk, str))
 
-    # Escape markdown special chars in raw text before we apply marks
-    # (otherwise `**` in normal prose would render as bold on next parse).
-    if 'code' not in attrs:
-        text = _escape_markdown(text)
 
-    if 'strike' in attrs:
-        text = f'~~{text}~~'
-    if 'italic' in attrs:
-        text = f'*{text}*'
-    if 'bold' in attrs:
-        text = f'**{text}**'
-    if 'code' in attrs:
-        text = f'`{text}`'
-    if 'link' in attrs:
-        import json
-        try:
-            link_attrs = json.loads(attrs['link'])
-        except (TypeError, ValueError):
-            link_attrs = {'href': '', 'title': ''}
-        href = link_attrs.get('href', '')
-        title = link_attrs.get('title', '')
-        title_part = f' "{title}"' if title else ''
-        text = f'[{text}]({href}{title_part})'
-    return text
+def _text_marks(formatting: dict) -> dict[str, dict]:
+    """Normalise Yjs formatting into `{mark name: mark attrs}`."""
+    marks = {}
+    for key, value in formatting.items():
+        # y-prosemirror suffixes marks that may overlap themselves with
+        # `--<hash>`; none of the ones we render do, but strip it anyway.
+        name = key.split('--', 1)[0]
+        if isinstance(value, str):
+            # Documents seeded before marks were written as formatting
+            # carry them as node attributes: 'true', or JSON for links.
+            try:
+                value = json.loads(value)
+            except ValueError:
+                value = {}
+        marks[name] = value if isinstance(value, dict) else {}
+    return marks
+
+
+def _emphasize(text: str, markers: list[str]) -> str:
+    """Wrap already-escaped `text` in emphasis `markers`, innermost first.
+
+    Leading and trailing whitespace stays outside the markers:
+    `** bold**` is not bold in CommonMark, and a run typed after a space
+    starts with one.
+    """
+    core = text.strip()
+    if not core or not markers:
+        return text
+    lead = text[:len(text) - len(text.lstrip())]
+    trail = text[len(text.rstrip()):]
+    for marker in markers:
+        core = f'{marker}{core}{marker}'
+    return f'{lead}{core}{trail}'
+
+
+def _markdown_link(label: str, href: str, title: str | None) -> str:
+    if not href:
+        return label
+    title_part = f' "{_escape_link_title(title)}"' if title else ''
+    return f'[{label}]({href}{title_part})'
+
+
+def _escape_link_title(title: str) -> str:
+    return title.replace('\\', '\\\\').replace('"', '\\"')
+
+
+def _render_text_with_marks(node: XmlText) -> str:
+    """Render an XmlText node's formatted runs as markdown.
+
+    y-prosemirror stores marks as Yjs formatting on each run of text,
+    so the node is walked run by run (`diff()`). Code excludes every
+    other mark in TipTap; bold/italic/strike nest inside a link, and
+    consecutive runs under the same link share one `[…](…)`.
+    """
+    # Documents seeded before marks were written as formatting carry
+    # them as attributes on the whole node.
+    node_marks = dict(node.attributes)
+    runs = []
+    for chunk, formatting in node.diff():
+        if not isinstance(chunk, str) or not chunk:
+            continue
+        marks = _text_marks({**node_marks, **(formatting or {})})
+        link = marks.pop('link', None)
+        if 'code' in marks:
+            text = f'`{chunk}`'
+        else:
+            # Escape markdown special chars in raw text before we apply
+            # marks (otherwise `**` in normal prose would render as bold
+            # on next parse).
+            markers = [marker for name, marker in (('strike', '~~'), ('italic', '*'), ('bold', '**'))
+                       if name in marks]
+            text = _emphasize(_escape_markdown(chunk), markers)
+        runs.append((link, text))
+
+    out = []
+    for link, group in groupby(runs, key=lambda run: run[0]):
+        text = ''.join(run_text for _, run_text in group)
+        if link is not None:
+            text = _markdown_link(text, link.get('href') or '', link.get('title'))
+        out.append(text)
+    return ''.join(out)
 
 
 # Characters that need escaping when they appear MID-TEXT to prevent

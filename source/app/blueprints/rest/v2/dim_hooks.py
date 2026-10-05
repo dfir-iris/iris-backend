@@ -45,7 +45,8 @@ def list_dim_hook_options():
     """Return every active module hook registered for the requested
     `target` type (e.g. `?target=ioc`).
 
-    Naked JSON array of `{manual_hook_ui_name, hook_name, module_name}`.
+    Naked JSON array of `{manual_hook_ui_name, hook_name, module_name}`;
+    native webhook entries also carry the `webhook_id` to invoke with.
     """
     target = (request.args.get('target') or '').strip()
     if not target:

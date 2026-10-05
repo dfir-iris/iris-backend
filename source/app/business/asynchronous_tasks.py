@@ -105,6 +105,42 @@ def _get_success(task_result: IIStatus):
     return 'Failure'
 
 
+def _is_module_task(row):
+    """Module hook tasks, the ones expected to answer with an ``IIStatus``."""
+    return bool(row.name) and ('task_hook_wrapper' in row.name or 'pipeline_dispatcher' in row.name)
+
+
+def _describe_value(value):
+    """Readable form of a plain task return value; whatever the restricted
+    unpickler refused to build shows as a placeholder."""
+    if isinstance(value, _RefusedClass):
+        return '<object>'
+    if isinstance(value, dict):
+        return '{' + ', '.join(f'{k}: {_describe_value(v)}' for k, v in value.items()) + '}'
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return '[' + ', '.join(_describe_value(v) for v in value) + ']'
+    return str(value)
+
+
+def _plain_result_details(row, result):
+    """``(success, logs)`` of an IRIS internal task (webhook delivery, mail
+    polling, cluster rules…). Those return plain values rather than an
+    ``IIStatus``, so the verdict is Celery's own state, unless the value
+    itself reports a failure: ``False`` or a dict carrying an ``error``.
+    """
+    state = (row.status or 'PENDING').upper()
+    if state == 'FAILURE':
+        return 'Failure', ['The task raised an exception, see the traceback.']
+    if state != 'SUCCESS':
+        return state.capitalize(), []
+    if result is None:
+        return 'Success', ['Completed, no return value.']
+    logs = [f'Returned: {_describe_value(result)}']
+    if result is False or (isinstance(result, dict) and result.get('error')):
+        return 'Failure', logs
+    return 'Success', logs
+
+
 class _MissingTask:
     """Stand-in for a task id that has no ``celery_taskmeta`` row.
 
@@ -163,7 +199,7 @@ def dim_tasks_get(task_identifier):
     module_name = None
     hook_name = None
     case_identifier = None
-    if row.name and ('task_hook_wrapper' in row.name or 'pipeline_dispatcher' in row.name):
+    if _is_module_task(row):
         kwargs = _loads_task_kwargs(row.kwargs)
         module_name = kwargs.get('module_name')
         hook_name = kwargs.get('hook_name')
@@ -173,10 +209,13 @@ def dim_tasks_get(task_identifier):
     if isinstance(result, IIStatus):
         success = _get_success(result)
         logs = result.get_logs()
-    else:
+    elif _is_module_task(row):
         success = 'Failure'
         user = 'Shadow Iris'
-        logs = ['Task did not returned a valid IIStatus object']
+        logs = ['The module did not return a valid IIStatus object']
+    else:
+        success, logs = _plain_result_details(row, result)
+        user = 'Shadow Iris'
 
     return {
         'Task ID': task_identifier,

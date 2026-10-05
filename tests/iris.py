@@ -156,6 +156,10 @@ class Iris:
         return response['case_id']
 
     def clear_database(self):
+        webhooks = self.get('/api/v2/manage/webhooks').json()
+        if isinstance(webhooks, list):
+            for webhook in webhooks:
+                self.delete(f"/api/v2/manage/webhooks/{webhook['id']}")
         # War rooms reference cases via FK; drop them first so the case
         # delete loop below doesn't trip ON DELETE CASCADE on rows we
         # then re-list.

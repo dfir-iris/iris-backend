@@ -626,3 +626,9 @@ SOCKETIO_MESSAGE_QUEUE  # read in app/__init__.py through app.config
 _producer_publish  # KombuManager override (app/socket_io_queue.py)
 publisher_connection  # KombuManager attribute (app/socket_io_queue.py)
 _publish  # PubSubManager override (app/socket_io_queue.py)
+######### Native webhooks: config read by name, Celery task / beat hook called by name
+WEBHOOKS_ALLOW_PRIVATE_EGRESS  # read in iris_engine/webhooks/sender.py through app.config
+WEBHOOKS_DELIVERY_RETENTION_DAYS  # read in iris_engine/webhooks/tasks.py through app.config
+webhooks_prune_task  # Celery task iris.webhooks.prune_deliveries, run by the beat schedule
+_register_webhooks_beat_schedule  # celery.on_after_finalize receiver (iris_engine/webhooks/tasks.py)
+trust_env  # requests.Session attribute read by requests (iris_engine/webhooks/sender.py)

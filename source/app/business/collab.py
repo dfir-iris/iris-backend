@@ -231,7 +231,14 @@ def resolve_doc(doc_name, user_id):
 #       `/datastore/file/view/` URLs, seeded as literal text. Those
 #       documents flushed the text back escaped (`!\[…\](…)`), which the
 #       new pre-parse pass recognises, so a re-seed recovers them.
-_CURRENT_SEEDER_VERSION = 3
+#   4 — Marks (Oct 2026). The seeder wrote bold/italic/code/link as
+#       XmlText node attributes, which y-prosemirror ignores, so they
+#       showed as plain text in the editor. And the flush rendered marks
+#       typed in the editor as escaped pseudo-XML (`\<link href=…>`),
+#       which the v3 re-seed then froze into the doc as literal text.
+#       Marks are now Yjs formatting both ways, and the pre-parse pass
+#       turns the pseudo-XML back into markdown.
+_CURRENT_SEEDER_VERSION = 4
 
 
 def ensure_snapshot(doc_name, current_content):

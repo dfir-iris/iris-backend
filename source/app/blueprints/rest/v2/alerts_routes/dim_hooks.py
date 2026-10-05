@@ -86,6 +86,7 @@ def invoke_alerts_dim_hook():
             hook_name=payload.get('hook_name'),
             hook_ui_name=payload.get('hook_ui_name'),
             module_name=payload.get('module_name'),
+            webhook_id=payload.get('webhook_id'),
             alerts=alerts,
             logs=logs,
         )

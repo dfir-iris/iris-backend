@@ -232,6 +232,7 @@ class CeleryConfig:
     broker_connection_retry_on_startup = True
     include = [
         'app.iris_engine.cluster_rules.tasks',
+        'app.iris_engine.webhooks.tasks',
     ]
 
 
@@ -363,6 +364,16 @@ class Config:
     an internal address and the SSRF exposure is accepted.
     """
     ALLOW_PRIVATE_EGRESS = config.load('IRIS', 'ALLOW_PRIVATE_EGRESS', fallback="False") == "True"
+
+    """ Webhooks
+    Webhook destinations have their own egress switch, on by default: only server
+    administrators configure webhooks, and an internal SOAR or chat server is the usual
+    target. Set it to False to refuse private, loopback, link-local and reserved
+    destinations. Independent of ALLOW_PRIVATE_EGRESS, which keeps guarding report
+    templates. Delivery logs older than the retention are pruned daily.
+    """
+    WEBHOOKS_ALLOW_PRIVATE_EGRESS = config.load('IRIS', 'WEBHOOKS_ALLOW_PRIVATE_EGRESS', fallback="True") == "True"
+    WEBHOOKS_DELIVERY_RETENTION_DAYS = int(config.load('IRIS', 'WEBHOOKS_DELIVERY_RETENTION_DAYS', fallback=30))
 
     """ Case transfer (export / import between instances)
     Uploaded bundles are staged under UPLOADED_PATH before being applied. The size cap

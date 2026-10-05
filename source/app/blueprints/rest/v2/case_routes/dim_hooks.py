@@ -62,6 +62,7 @@ def invoke_dim_hook(case_identifier):
             hook_name=payload.get('hook_name'),
             hook_ui_name=payload.get('hook_ui_name'),
             module_name=payload.get('module_name'),
+            webhook_id=payload.get('webhook_id'),
             data_type=payload.get('type'),
             targets=payload.get('targets') or [],
         )

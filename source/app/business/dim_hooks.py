@@ -26,8 +26,10 @@ directly (import-linter contract). All DB access is delegated to
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
+from app.business.webhooks import webhooks_invoke_manual
+from app.business.webhooks import webhooks_manual_options
 from app.datamgmt.dim_hooks import list_manual_hook_options
 from app.datamgmt.dim_hooks import resolve_hook_target
 from app.datamgmt.dim_hooks import supported_hook_target_types
@@ -45,8 +47,9 @@ class HookInvocationResult:
 
 
 def list_hook_options_for(hook_type: str) -> List[Dict[str, Any]]:
-    """Registered manual hooks that target `hook_type` (e.g. `ioc`)."""
-    return list_manual_hook_options(hook_type)
+    """Registered manual hooks that target `hook_type` (e.g. `ioc`): the
+    modules', then the native webhooks' (those carry a `webhook_id`)."""
+    return list_manual_hook_options(hook_type) + webhooks_manual_options(hook_type)
 
 
 def invoke_hook_for_case(
@@ -56,9 +59,11 @@ def invoke_hook_for_case(
     module_name: str,
     data_type: str,
     targets: Sequence[Any],
+    webhook_id: Optional[int] = None,
 ) -> HookInvocationResult:
     """Resolve `targets` to ORM rows and dispatch a manual hook against
-    them via `call_modules_hook`.
+    them via `call_modules_hook` — or, with `webhook_id`, to that native
+    webhook.
 
     Skips (with a log entry) targets that don't exist or that reference
     an unsupported `data_type`. Raises `BusinessProcessingError` for
@@ -75,6 +80,8 @@ def invoke_hook_for_case(
 
     if data_type not in supported_hook_target_types():
         raise BusinessProcessingError(f'Data type {data_type} not supported')
+    if webhook_id is not None and hook_name != f'on_manual_trigger_{data_type}':
+        raise BusinessProcessingError(f'Hook {hook_name} does not apply to {data_type} objects')
 
     logs: List[str] = []
     obj_targets: List[Any] = []
@@ -91,13 +98,16 @@ def invoke_hook_for_case(
         obj_targets.append(obj)
 
     if obj_targets:
-        call_modules_hook(
-            hook_name,
-            obj_targets,
-            caseid=caseid,
-            hook_ui_name=hook_ui_name,
-            module_name=module_name,
-        )
+        if webhook_id is not None:
+            webhooks_invoke_manual(webhook_id, hook_name, obj_targets, caseid=caseid)
+        else:
+            call_modules_hook(
+                hook_name,
+                obj_targets,
+                caseid=caseid,
+                hook_ui_name=hook_ui_name,
+                module_name=module_name,
+            )
 
     return HookInvocationResult(queued=len(obj_targets), logs=logs)
 
@@ -108,6 +118,7 @@ def invoke_hook_for_alerts(
     module_name: str,
     alerts: Sequence[Any],
     logs: Sequence[str] = (),
+    webhook_id: Optional[int] = None,
 ) -> HookInvocationResult:
     """Dispatch a manual hook against a batch of already-loaded alerts.
 
@@ -131,12 +142,15 @@ def invoke_hook_for_alerts(
     if not alerts:
         return HookInvocationResult(queued=0, logs=list(logs))
 
-    call_modules_hook(
-        hook_name,
-        list(alerts),
-        caseid=None,
-        hook_ui_name=hook_ui_name,
-        module_name=module_name,
-    )
+    if webhook_id is not None:
+        webhooks_invoke_manual(webhook_id, hook_name, list(alerts))
+    else:
+        call_modules_hook(
+            hook_name,
+            list(alerts),
+            caseid=None,
+            hook_ui_name=hook_ui_name,
+            module_name=module_name,
+        )
 
     return HookInvocationResult(queued=len(alerts), logs=list(logs))

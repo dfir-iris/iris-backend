@@ -94,3 +94,15 @@ class TestEgressDestinationError(TestCase):
     def test_opt_in_does_not_relax_the_scheme_allowlist(self):
         with patch('app.iris_engine.utils.egress.allow_private_egress', return_value=True):
             self.assertIsNotNone(egress_destination_error('file:///etc/passwd'))
+
+    # ---------- per-integration override ----------
+
+    def test_explicit_allow_private_overrides_the_global_refusal(self):
+        self.assertIsNone(egress_destination_error('http://10.1.2.3/hook', allow_private=True))
+
+    def test_explicit_refusal_overrides_the_global_opt_in(self):
+        with patch('app.iris_engine.utils.egress.allow_private_egress', return_value=True):
+            self.assertIsNotNone(egress_destination_error('http://10.1.2.3/hook', allow_private=False))
+
+    def test_explicit_allow_private_keeps_the_scheme_allowlist(self):
+        self.assertIsNotNone(egress_destination_error('file:///etc/passwd', allow_private=True))

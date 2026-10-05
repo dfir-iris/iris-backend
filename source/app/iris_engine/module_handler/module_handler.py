@@ -583,7 +583,39 @@ def call_modules_hook(hook_name: str, data: any, caseid: int = None, hook_ui_nam
                 else:
                     data = data_result
 
+    if module_name is None:
+        _call_builtin_hook_listeners(hook_name, data, caseid, hook_ui_name)
+
     return data
+
+
+# Built-in hook listeners (notifications, webhooks). They are called from
+# inside `call_modules_hook` rather than by rebinding it: callers import the
+# function by name (`from ... import call_modules_hook`), so a rebinding of
+# the module attribute never reaches them. Registration is per process and
+# happens when `app` is imported, which covers gunicorn workers and the
+# Celery worker alike.
+_builtin_hook_listeners = []
+
+
+def register_builtin_hook_listener(listener) -> None:
+    """Register `listener(hook_name, data, caseid=None, hook_ui_name=None)`.
+
+    Called after the modules, with the data they returned. Registering the
+    same callable twice is a no-op.
+    """
+    if listener not in _builtin_hook_listeners:
+        _builtin_hook_listeners.append(listener)
+
+
+def _call_builtin_hook_listeners(hook_name, data, caseid, hook_ui_name):
+    for listener in list(_builtin_hook_listeners):
+        try:
+            listener(hook_name, data, caseid=caseid, hook_ui_name=hook_ui_name)
+        except Exception as e:
+            # A listener must never fail the save flow that fired the hook
+            logger.exception(f'Built-in listener {getattr(listener, "__name__", listener)} '
+                             f'failed on hook {hook_name}: {e}')
 
 
 def call_deprecated_on_preload_modules_hook(hook_name: str, data: any, case_identifier=None) -> any:

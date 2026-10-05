@@ -308,14 +308,64 @@ class TestDimTasksGet(TestCase):
 
         self.assertIn('No engine', details['Engine'])
 
-    def test_result_that_is_not_an_iistatus_reports_shadow_iris(self):
-        row = _make_row(result=None)
+    def test_module_task_without_an_iistatus_reports_failure(self):
+        row = _make_row(name='app.iris_engine.module_handler.task_hook_wrapper', result=pickle.dumps('oops'))
 
         with _patch_lookup(row):
             details = dim_tasks_get('abc-123')
 
         self.assertEqual('Failure', details['Success'])
         self.assertEqual('Shadow Iris', details['User'])
+        self.assertIn('IIStatus', details['Logs'][0])
+
+    def test_internal_task_returning_a_plain_value_reports_success(self):
+        row = _make_row(name='iris.webhooks.deliver', result=pickle.dumps('succeeded'))
+
+        with _patch_lookup(row):
+            details = dim_tasks_get('abc-123')
+
+        self.assertEqual('Success', details['Success'])
+        self.assertEqual(['Returned: succeeded'], details['Logs'])
+        self.assertEqual('Shadow Iris', details['User'])
+
+    def test_internal_task_without_return_value_reports_success(self):
+        row = _make_row(name='iris.webhooks.prune_deliveries', result=None)
+
+        with _patch_lookup(row):
+            details = dim_tasks_get('abc-123')
+
+        self.assertEqual('Success', details['Success'])
+
+    def test_internal_task_dict_is_rendered_readably(self):
+        row = _make_row(name='iris.mail.poll_inbound_mail',
+                        result=pickle.dumps({'skipped': False, 'processed': 3}))
+
+        with _patch_lookup(row):
+            details = dim_tasks_get('abc-123')
+
+        self.assertEqual('Success', details['Success'])
+        self.assertEqual(['Returned: {skipped: False, processed: 3}'], details['Logs'])
+
+    def test_internal_task_reporting_an_error_reports_failure(self):
+        for value in (False, {'alert_id': 4, 'error': 'internal_error'}):
+            row = _make_row(name='iris.cluster_rules.evaluate_alert', result=pickle.dumps(value))
+            with _patch_lookup(row):
+                self.assertEqual('Failure', dim_tasks_get('abc-123')['Success'])
+
+    def test_internal_task_that_raised_reports_failure(self):
+        row = _make_row(name='iris.webhooks.deliver', status='FAILURE', result=pickle.dumps(ValueError('x')))
+
+        with _patch_lookup(row):
+            details = dim_tasks_get('abc-123')
+
+        self.assertEqual('Failure', details['Success'])
+        self.assertIn('traceback', details['Logs'][0])
+
+    def test_internal_task_still_running_is_not_reported_as_failed(self):
+        row = _make_row(name='iris.webhooks.deliver', status='STARTED')
+
+        with _patch_lookup(row):
+            self.assertEqual('Started', dim_tasks_get('abc-123')['Success'])
 
     def test_legacy_pickled_status_reports_legacy_message(self):
         row = _make_row(result=_LEGACY_IISTATUS_BLOB)

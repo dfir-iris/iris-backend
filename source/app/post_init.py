@@ -1473,13 +1473,6 @@ class PostInit:
                 from app.iris_engine.notifications.service import seed_admin_defaults
                 seed_admin_defaults()
 
-                # Wire the built-in notification hook listeners.
-                # `register_notification_listeners` is idempotent — a
-                # second call is a no-op.
-                self._logger.info("Registering notification hook listeners")
-                from app.iris_engine.notifications.hook_listeners import register_notification_listeners
-                register_notification_listeners()
-
                 # Import the mail engine so its Celery tasks (outbound
                 # send + inbound poll) and the beat-schedule connect
                 # handler register. The connect handler is idempotent

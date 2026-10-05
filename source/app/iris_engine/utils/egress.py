@@ -87,11 +87,14 @@ def allow_private_egress() -> bool:
     return bool(app.config.get('ALLOW_PRIVATE_EGRESS'))
 
 
-def egress_destination_error(url):
+def egress_destination_error(url, allow_private=None):
     """Return why `url` must not be fetched server-side, or None if it may be.
 
     The message is for the log, not for the requester — it names the
     destination, which the caller already controls.
+
+    `allow_private` lets an integration with its own switch (webhooks)
+    override the global `IRIS_ALLOW_PRIVATE_EGRESS`; None defers to it.
     """
     if not url or not isinstance(url, str):
         return 'empty URL'
@@ -104,7 +107,9 @@ def egress_destination_error(url):
     if not hostname:
         return 'URL has no host'
 
-    if allow_private_egress():
+    if allow_private is None:
+        allow_private = allow_private_egress()
+    if allow_private:
         return None
 
     # A literal IP never reaches the resolver, so test it directly first.
