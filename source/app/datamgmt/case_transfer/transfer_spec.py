@@ -32,6 +32,7 @@ one exception and are patched in a second pass once the whole entity is in.
 
 from app.models.alerts import Severity
 from app.models.assets import AnalysisStatus
+from app.models.assets import AssetStage
 from app.models.assets import AssetsType
 from app.models.assets import CaseAssets
 from app.models.cases import CaseClassification
@@ -74,6 +75,10 @@ from app.models.models import ReviewStatus
 from app.models.models import Tags
 from app.models.models import TaskAssignee
 from app.models.models import TaskStatus
+from app.models.vulnerabilities import CaseAssetVulnerability
+from app.models.vulnerabilities import CaseAssetVulnerabilityEvent
+from app.models.vulnerabilities import CaseAssetVulnerabilityIoc
+from app.models.vulnerabilities import Vulnerability
 
 USER_REF_PREFIX = 'user'
 
@@ -84,15 +89,21 @@ class LookupSpec:
     `creatable` is False for tables whose rows carry behaviour rather than just
     a label — inventing a `case_state` or a `task_status` on the fly would
     produce a case the target's own workflows cannot reason about.
+
+    `optional` lookups are dropped (the referencing column is left null)
+    when the target has no row of that name, instead of blocking the
+    import on an operator decision. Used for the asset stage: the target's
+    stage taxonomy is its own and is never extended by an import.
     """
 
-    def __init__(self, key, model, pk, name_column, extra_columns=(), creatable=True):
+    def __init__(self, key, model, pk, name_column, extra_columns=(), creatable=True, optional=False):
         self.key = key
         self.model = model
         self.pk = pk
         self.name_column = name_column
         self.extra_columns = tuple(extra_columns)
         self.creatable = creatable
+        self.optional = optional
 
 
 class EntitySpec:
@@ -143,7 +154,16 @@ _LOOKUP_SPECS = (
     LookupSpec('task_status', TaskStatus, 'id', 'status_name',
                extra_columns=('status_description', 'status_bscolor'), creatable=False),
     LookupSpec('evidence_type', EvidenceTypes, 'id', 'name', extra_columns=('description',)),
+    LookupSpec('asset_stage', AssetStage, 'id', 'name', creatable=False, optional=True),
     LookupSpec('event_category', EventCategory, 'id', 'name'),
+    # Public catalogue entries travel by identifier. Matching and creation
+    # on the target go through `business.vulnerabilities` (alias-aware,
+    # validated); private entries never leave the instance — the findings
+    # pointing at them are not exported (see `transfer_db._entity_query`).
+    LookupSpec('vulnerability', Vulnerability, 'vulnerability_id', 'identifier',
+               extra_columns=('title', 'description', 'kind', 'cvss_vector', 'cvss_version', 'cvss_score',
+                              'severity', 'cwes', 'affected_products', 'reference_urls', 'published_at',
+                              'modified_at', 'kev', 'exploit_maturity', 'patch_availability')),
 )
 
 LOOKUPS = {spec.key: spec for spec in _LOOKUP_SPECS}
@@ -178,6 +198,10 @@ ENTITIES = [
                fields=('name', 'description', 'color', 'is_default', 'created_at'),
                user_refs=('created_by_id',)),
 
+    # Notes mirrored from a war room travel as plain notes: the
+    # `mirror_source_note_id` / `mirror_war_room_id` columns (and the
+    # directory's `mirror_war_room_id`) are never listed, so they are
+    # neither exported nor written on import.
     EntitySpec('note_directory', NoteDirectory, 'id', case_column='case_id',
                fields=('name',),
                self_refs=('parent_id',)),
@@ -200,12 +224,17 @@ ENTITIES = [
     EntitySpec('notes_group_link', NotesGroupLink, 'link_id', case_column='case_id',
                entity_refs={'group_id': 'notes_group', 'note_id': 'note'}),
 
+    # The stage travels by name (+ its reason). `stage_decision_id` and
+    # `stage_updated_by_id` point at war-room / user rows of the source
+    # instance and are deliberately left out, as is the stage history.
     EntitySpec('asset', CaseAssets, 'asset_id', case_column='case_id',
                fields=('asset_name', 'asset_description', 'asset_domain', 'asset_ip', 'asset_info',
                        'asset_compromise_status_id', 'asset_tags', 'date_added', 'date_update',
-                       'custom_attributes', 'asset_enrichment', 'modification_history'),
+                       'custom_attributes', 'asset_enrichment', 'modification_history',
+                       'stage_reason'),
                user_refs=('user_id',),
-               lookup_refs={'asset_type_id': 'asset_type', 'analysis_status_id': 'analysis_status'}),
+               lookup_refs={'asset_type_id': 'asset_type', 'analysis_status_id': 'analysis_status',
+                            'stage_id': 'asset_stage'}),
 
     EntitySpec('ioc', Ioc, 'ioc_id', case_column='case_id',
                fields=('ioc_value', 'ioc_description', 'ioc_tags', 'ioc_misp',
@@ -236,6 +265,24 @@ ENTITIES = [
 
     EntitySpec('event_ioc', CaseEventsIoc, 'id', case_column='case_id',
                entity_refs={'event_id': 'event', 'ioc_id': 'ioc'}),
+
+    # Findings on public entries only. `decision_id` points at a war room
+    # of the source instance and the change history stays behind, like
+    # the asset stage history.
+    EntitySpec('asset_vulnerability', CaseAssetVulnerability, 'finding_id',
+               fields=('remediation_status', 'not_affected_justification', 'status_reason',
+                       'exploitation_status', 'exploited_at', 'detection_source', 'detected_at', 'component',
+                       'installed_version', 'fixed_version', 'notes', 'due_date', 'verified_at',
+                       'verification_method', 'created_at', 'updated_at'),
+               user_refs=('owner_id', 'verified_by_id', 'created_by_id', 'updated_by_id'),
+               entity_refs={'asset_id': 'asset'},
+               lookup_refs={'vulnerability_id': 'vulnerability'}),
+
+    EntitySpec('asset_vulnerability_event', CaseAssetVulnerabilityEvent, None,
+               entity_refs={'finding_id': 'asset_vulnerability', 'event_id': 'event'}),
+
+    EntitySpec('asset_vulnerability_ioc', CaseAssetVulnerabilityIoc, None,
+               entity_refs={'finding_id': 'asset_vulnerability', 'ioc_id': 'ioc'}),
 
     EntitySpec('task', CaseTasks, 'id', case_column='task_case_id',
                fields=('task_title', 'task_description', 'task_tags', 'task_open_date',

@@ -32,6 +32,11 @@ def probe_column_exists(sql):
         return False, e
 
 
+def escape_like(value):
+    """Escape the LIKE wildcards of a user search; use with `escape='\\'`."""
+    return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
 def build_case_activity_query(attached_ids, before_dt, search, limit):
     from app.models.authorization import User
     from app.models.models import UserActivity
@@ -61,7 +66,7 @@ def build_case_activity_query(attached_ids, before_dt, search, limit):
         q = q.filter(UserActivity.activity_date < before_dt)
     needle = search.strip() if isinstance(search, str) else None
     if needle:
-        q = q.filter(UserActivity.activity_desc.ilike(f'%{needle}%'))
+        q = q.filter(UserActivity.activity_desc.ilike(f'%{escape_like(needle)}%', escape='\\'))
 
     return q.order_by(desc(UserActivity.activity_date)).limit(limit).all()
 

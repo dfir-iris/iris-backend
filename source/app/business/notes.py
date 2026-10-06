@@ -35,6 +35,23 @@ from app.models.models import NoteRevisions
 from app.models.models import Notes
 from app.models.authorization import User
 from app.util import add_obj_history_entry
+from app.business.notes_directories import NOTES_MIRROR_READ_ONLY_MESSAGE
+from app.business.notes_directories import notes_directories_check_can_receive
+
+
+def notes_is_mirror(note: Notes) -> bool:
+    """A case note mirrored from a war room (orphans included: when the
+    source note is deleted `mirror_source_note_id` goes NULL but the
+    mirror is still owned by the reconciler)."""
+    return note is not None and (note.mirror_source_note_id is not None
+                                 or note.mirror_war_room_id is not None)
+
+
+def notes_check_writable(note: Notes):
+    """Refuse any case-side change to a war-room mirror."""
+    if notes_is_mirror(note):
+        db.session.rollback()
+        raise BusinessProcessingError(NOTES_MIRROR_READ_ONLY_MESSAGE)
 
 
 def notes_search(case_identifier, search_input):
@@ -42,6 +59,8 @@ def notes_search(case_identifier, search_input):
 
 
 def notes_create(note: Notes, case_identifier):
+    notes_check_writable(note)
+    notes_directories_check_can_receive(note.directory_id)
     try:
         note.note_creationdate = datetime.utcnow()
         note.note_lastupdate = datetime.utcnow()
@@ -81,6 +100,8 @@ def notes_get(identifier) -> Notes:
 
 
 def notes_update(user, note: Notes):
+    notes_check_writable(note)
+    notes_directories_check_can_receive(note.directory_id)
     try:
         if not update_note_revision(user.id, note):
             logger.debug(f'Note {note.note_id} has not changed, skipping versioning')
@@ -104,6 +125,7 @@ def notes_update(user, note: Notes):
 
 
 def notes_delete(note: Notes):
+    notes_check_writable(note)
     call_modules_hook('on_preload_note_delete', note.note_id, caseid=note.note_case_id)
     delete_note(note.note_id, note.note_case_id)
     call_modules_hook('on_postload_note_delete', note.note_id, caseid=note.note_case_id)
@@ -166,11 +188,14 @@ def notes_delete_revision(identifier: int, revision_number: int):
         if not note_revision:
             raise BusinessProcessingError('Invalid note revision number')
 
+        notes_check_writable(note)
         db.session.delete(note_revision)
         db.session.commit()
 
         track_activity(f'deleted note revision {revision_number} of note "{note.note_title}"', caseid=note.note_case_id)
 
+    except BusinessProcessingError:
+        raise
     except Exception as e:
         raise UnhandledBusinessError('Unexpected error server-side', str(e))
 
@@ -196,6 +221,7 @@ def notes_restore_revision(identifier: int, revision_number: int):
         if not target:
             raise BusinessProcessingError('Invalid note revision number')
 
+        notes_check_writable(note)
         note.note_title = target.note_title
         note.note_content = target.note_content
         notes_update(iris_current_user, note)

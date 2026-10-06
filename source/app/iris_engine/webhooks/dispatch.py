@@ -64,7 +64,12 @@ def webhooks_current_actor():
 
 def webhooks_build_event(hook_name, data, caseid=None, actor=None):
     """The event for a hook fire, ready to be sent to Celery."""
-    serialized = webhooks_serialize(data)
+    # Imported here: the business layer imports the module handler, which
+    # imports this module.
+    from app.business.vulnerabilities import vulnerabilities_mask_private
+    # Like MCP, the LLM and case export: private catalogue entries never
+    # leave the instance in full.
+    serialized = vulnerabilities_mask_private(webhooks_serialize(data))
     object_type, _ = webhooks_split_event(hook_name)
     case = None
     case_id = webhooks_case_id(serialized, object_type, caseid)

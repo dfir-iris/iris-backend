@@ -68,15 +68,20 @@ from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 
 
+from app.blueprints.rest.v2.war_rooms.board import war_rooms_board_blueprint
 from app.blueprints.rest.v2.war_rooms.chat import war_rooms_chat_blueprint
 from app.blueprints.rest.v2.war_rooms.datastore import war_rooms_datastore_blueprint
+from app.blueprints.rest.v2.war_rooms.decisions import war_rooms_decisions_blueprint
 from app.blueprints.rest.v2.war_rooms.linked_case_timelines import war_rooms_linked_case_timelines_blueprint
+from app.blueprints.rest.v2.war_rooms.note_shares import war_rooms_note_shares_blueprint
 from app.blueprints.rest.v2.war_rooms.notes import war_rooms_notes_blueprint
 from app.blueprints.rest.v2.war_rooms.notes_folders import war_rooms_notes_folders_blueprint
+from app.blueprints.rest.v2.war_rooms.scope import war_rooms_scope_blueprint
 from app.blueprints.rest.v2.war_rooms.sitreps import war_rooms_sitreps_blueprint
 from app.blueprints.rest.v2.war_rooms.tasks import war_rooms_tasks_blueprint
 from app.blueprints.rest.v2.war_rooms.teams import war_rooms_teams_blueprint
 from app.blueprints.rest.v2.war_rooms.timelines import war_rooms_timelines_blueprint
+from app.blueprints.rest.v2.war_rooms.vulnerabilities import war_rooms_vulnerabilities_blueprint
 
 
 war_rooms_blueprint = Blueprint(
@@ -91,6 +96,11 @@ war_rooms_blueprint.register_blueprint(war_rooms_timelines_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_sitreps_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_datastore_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_teams_blueprint)
+war_rooms_blueprint.register_blueprint(war_rooms_decisions_blueprint)
+war_rooms_blueprint.register_blueprint(war_rooms_board_blueprint)
+war_rooms_blueprint.register_blueprint(war_rooms_scope_blueprint)
+war_rooms_blueprint.register_blueprint(war_rooms_note_shares_blueprint)
+war_rooms_blueprint.register_blueprint(war_rooms_vulnerabilities_blueprint)
 
 
 def _is_admin():

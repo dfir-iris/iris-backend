@@ -33,6 +33,10 @@ from app.blueprints.rest.v2.manage_routes.case_chat import case_chat_admin_bluep
 from app.blueprints.rest.v2.manage_routes.taxonomies import taxonomies_blueprint
 from app.blueprints.rest.v2.manage_routes.managed_assets import managed_assets_blueprint
 from app.blueprints.rest.v2.manage_routes.webhooks import webhooks_blueprint
+from app.blueprints.rest.v2.manage_routes.asset_stages import asset_stages_blueprint
+from app.blueprints.rest.v2.manage_routes.vulnerabilities import vulnerabilities_blueprint
+from app.blueprints.rest.v2.manage_routes.managed_asset_vulnerabilities import \
+    managed_asset_vulnerabilities_blueprint
 
 manage_v2_blueprint = Blueprint("manage", __name__, url_prefix="/manage")
 
@@ -51,3 +55,6 @@ manage_v2_blueprint.register_blueprint(case_chat_admin_blueprint)
 manage_v2_blueprint.register_blueprint(taxonomies_blueprint)
 manage_v2_blueprint.register_blueprint(managed_assets_blueprint)
 manage_v2_blueprint.register_blueprint(webhooks_blueprint)
+manage_v2_blueprint.register_blueprint(asset_stages_blueprint)
+manage_v2_blueprint.register_blueprint(vulnerabilities_blueprint)
+manage_v2_blueprint.register_blueprint(managed_asset_vulnerabilities_blueprint)

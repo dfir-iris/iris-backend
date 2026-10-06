@@ -35,6 +35,7 @@ from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.v2.mcp import protocol
 from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_resource
+from app.blueprints.rest.v2.war_rooms.access import war_room_readable_attached_case_ids
 from app.blueprints.rest.v2.war_rooms.serializers import (
     serialize_case_attachment,
     serialize_case_war_room_summary,
@@ -493,7 +494,8 @@ def _resource_war_room_cases(params: dict) -> dict:
 def _resource_war_room_chat(params: dict) -> dict:
     war_room_id = int(params['war_room_id'])
     _require_war_room_access(war_room_id)
-    messages = list_messages(war_room_id, limit=100)
+    messages = list_messages(war_room_id, limit=100,
+                             readable_case_ids=war_room_readable_attached_case_ids(war_room_id))
     # `list_messages` returns plain dicts already shaped for the REST
     # endpoint — no schema call needed.
     return {'messages': list(messages)}

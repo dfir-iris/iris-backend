@@ -96,6 +96,10 @@ def runtime_config_get() -> Response:
         # configured — used by the SPA to hide the floating FAB when
         # the chatbot is disabled or half-configured.
         'chatbot': _chatbot_runtime(settings),
+        # Whether catalogue entries can be filled from cve.org.
+        'vulnerabilities': {
+            'cve_sync_enabled': bool(app.config.get('CVE_SYNC_ENABLED', True)),
+        },
     })
 
 

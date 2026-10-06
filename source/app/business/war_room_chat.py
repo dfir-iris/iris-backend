@@ -21,6 +21,7 @@ import re
 from app.datamgmt.war_rooms.war_room_chat_db import apply_topic_filter as _apply_topic_filter
 from app.datamgmt.war_rooms.war_room_chat_db import build_case_activity_query as _build_case_activity_query
 from app.datamgmt.war_rooms.war_room_chat_db import build_threads_query as _build_threads_query
+from app.datamgmt.war_rooms.war_room_chat_db import escape_like as _escape_like
 from app.datamgmt.war_rooms.war_room_chat_db import poll_option_vote_counts as _poll_option_vote_counts
 from app.datamgmt.war_rooms.war_room_chat_db import probe_column_exists as _probe_column_exists
 from app.datamgmt.war_rooms.war_room_chat_db import trace_pin_filter as _trace_pin_filter
@@ -336,7 +337,7 @@ def _virtual_activity_row(ua_row, war_room_id):
 
 
 def _fetch_live_case_activities(war_room_id, before_dt, limit,
-                                case_ids=None, search=None):
+                                case_ids=None, search=None, readable_case_ids=None):
     """Pull live `UserActivity` rows for cases attached to this war room.
 
     Avoids the chat-table backfill: every render of the stream sees
@@ -347,8 +348,15 @@ def _fetch_live_case_activities(war_room_id, before_dt, limit,
     The query filters by the war room's current attached-case set
     (intersected with the caller's `case_ids` filter if provided), so
     case_id mismatches just no-op.
+
+    `readable_case_ids` is the set of cases the caller can read (computed
+    by the blueprint, where authorization lives). Activities of any other
+    attached case are never returned; None means "no case readable".
     """
     from app.models.war_rooms import WarRoomCase
+
+    if not readable_case_ids:
+        return []
 
     attached = (
         WarRoomCase.query
@@ -356,7 +364,8 @@ def _fetch_live_case_activities(war_room_id, before_dt, limit,
         .filter(WarRoomCase.war_room_id == war_room_id)
         .all()
     )
-    attached_ids = [row.case_id for row in attached]
+    readable = set(readable_case_ids)
+    attached_ids = [row.case_id for row in attached if row.case_id in readable]
     if not attached_ids:
         return []
     if case_ids:
@@ -369,7 +378,7 @@ def _fetch_live_case_activities(war_room_id, before_dt, limit,
 
 
 def list_messages(war_room_id, before=None, limit=None, kinds=None,
-                  case_ids=None, search=None, topic_ids=None):
+                  case_ids=None, search=None, topic_ids=None, readable_case_ids=None):
     """Return the next page of the war-room stream, newest first.
 
     Two sources are merged at read time:
@@ -393,6 +402,9 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
     description with a `%needle%` LIKE — the SPA uses this to drive
     the top-of-stream quick-filter without pulling the full firehose
     to the client.
+
+    `readable_case_ids`: attached cases the caller can read. Live case
+    activities are restricted to them (none when omitted).
     """
     if limit is None:
         limit = _PAGE_DEFAULT
@@ -521,7 +533,7 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
     # step below trims to `limit`.
     needle = search.strip() if isinstance(search, str) else None
     if needle:
-        q = q.filter(WarRoomChatMessage.body.ilike(f'%{needle}%'))
+        q = q.filter(WarRoomChatMessage.body.ilike(f'%{_escape_like(needle)}%', escape='\\'))
 
     chat_rows = q.order_by(WarRoomChatMessage.message_id.desc()).limit(limit).all()
 
@@ -532,7 +544,7 @@ def list_messages(war_room_id, before=None, limit=None, kinds=None,
     # trim down to `limit` after sorting.
     activity_rows = _fetch_live_case_activities(
         war_room_id, before_dt=before_dt, limit=limit, case_ids=case_ids,
-        search=needle,
+        search=needle, readable_case_ids=readable_case_ids,
     )
 
     # Merge by created_at desc. When timestamps tie, real chat rows
@@ -808,7 +820,9 @@ def list_reactions(message_ids):
 
 # ----- Slash commands ------------------------------------------------------
 
-_SLASH_RE = re.compile(r'^/(?P<cmd>[a-z]+)(?:\s+(?P<rest>.*))?$', re.DOTALL)
+# Hyphenated names (`/share-note`) are allowed; a trailing or doubled
+# hyphen is not a command.
+_SLASH_RE = re.compile(r'^/(?P<cmd>[a-z]+(?:-[a-z]+)*)(?:\s+(?P<rest>.*))?$', re.DOTALL)
 
 
 def parse_slash(body):

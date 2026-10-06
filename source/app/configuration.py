@@ -401,6 +401,17 @@ class Config:
     MANAGED_ASSETS_MAX_PER_PAGE = int(config.load('IRIS', 'MANAGED_ASSETS_MAX_PER_PAGE',
                                                   fallback=100))
 
+    """ Vulnerability catalogue: CVE synchronisation
+    Public CVE entries are filled from the CVE Services API of the CVE Program
+    (cve.org) on request, and automatically when a finding quick-adds an unknown CVE.
+    Only the CVE identifier is sent; private (IRIS-VULN) entries are never synchronised.
+    Disable it on instances without outbound internet access. The server-settings
+    HTTP(S) proxies apply.
+    """
+    CVE_SYNC_ENABLED = config.load('IRIS', 'CVE_SYNC_ENABLED', fallback="True") == "True"
+    CVE_API_URL = config.load('IRIS', 'CVE_API_URL', fallback='https://cveawg.mitre.org/api/cve/')
+    CVE_API_TIMEOUT_SECONDS = float(config.load('IRIS', 'CVE_API_TIMEOUT_SECONDS', fallback=10))
+
     """ Password login throttle
     Consecutive failed logins are counted per account and per client address; crossing
     either ceiling refuses further attempts for LOGIN_LOCKOUT_SECONDS. The account

@@ -52,6 +52,11 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset({
     'iris_war_room_sitreps_list',
     'iris_war_room_notes_list',
     'iris_war_room_tasks_list',
+    'iris_war_room_decisions_list',
+    # Vulnerabilities — reads
+    'iris_vulnerabilities_search', 'iris_vulnerabilities_get',
+    'iris_case_vulnerabilities_list',
+    'iris_war_room_vulnerabilities_matrix',
 })
 
 WRITE_TOOLS: frozenset[str] = frozenset({
@@ -73,6 +78,8 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     'iris_war_room_sitreps_create',
     'iris_war_room_notes_create', 'iris_war_room_notes_update',
     'iris_war_room_tasks_create',
+    'iris_war_room_decisions_create',
+    'iris_war_room_vulnerabilities_track',
 })
 
 

@@ -19,6 +19,8 @@
 from app.db import db
 
 from app.datamgmt.manage.manage_access_control_db import get_case_effective_access
+from app.datamgmt.manage.manage_access_control_db import get_cases_effective_access
+from app.datamgmt.manage.manage_access_control_db import check_ua_cases_client
 from app.datamgmt.manage.manage_access_control_db import remove_duplicate_user_case_effective_accesses
 from app.datamgmt.manage.manage_access_control_db import add_user_case_effective_access
 from app.datamgmt.manage.manage_access_control_db import check_ua_case_client
@@ -108,6 +110,51 @@ def ac_fast_check_user_has_case_access(user_id, cid, expected_access_levels: lis
             return access_level
 
     return None
+
+
+def _access_level_matches(access_level, expected_access_levels):
+    if ac_flag_match_mask(access_level, CaseAccessLevel.deny_all.value):
+        return False
+    return any(ac_flag_match_mask(access_level, acl.value) for acl in expected_access_levels)
+
+
+def ac_fast_check_user_has_cases_access(user_id, case_ids, expected_access_levels: list[CaseAccessLevel]) -> dict:
+    """Batched `ac_fast_check_user_has_case_access` over several cases.
+
+    Returns `{case_id: access_level}` for the cases of `case_ids` the user
+    has at least one of `expected_access_levels` on; the others are left
+    out. Same semantics as the single-case check (deny_all wins, missing
+    effective access falls back to the customer membership, only for
+    users holding standard_user / server_administrator, and is then
+    materialised), but a constant number of queries: one for the existing
+    effective accesses and, only when some are missing, one for the user
+    and one for the customer fallback.
+    """
+    case_ids = list(dict.fromkeys(case_ids or ()))
+    if not case_ids:
+        return {}
+
+    levels = {case_id: level for case_id, level in get_cases_effective_access(user_id, case_ids).items() if level}
+
+    missing = [case_id for case_id in case_ids if case_id not in levels]
+    if missing:
+        # Late import, see ac_fast_check_user_has_case_access.
+        from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
+        from app.datamgmt.manage.manage_users_db import get_user
+        user = get_user(user_id)
+        permissions = ac_get_effective_permissions_of_user(user) if user is not None else 0
+        if user is not None and (ac_flag_match_mask(permissions, Permissions.server_administrator.value)
+                                 or ac_flag_match_mask(permissions, Permissions.standard_user.value)):
+            for case_id, level in check_ua_cases_client(user_id, missing).items():
+                if not level:
+                    continue
+                set_case_effective_access_for_user(user_id, case_id, level)
+                levels[case_id] = level
+
+    return {
+        case_id: levels[case_id] for case_id in case_ids
+        if case_id in levels and _access_level_matches(levels[case_id], expected_access_levels)
+    }
 
 
 def access_controls_user_has_customer_access(

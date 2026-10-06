@@ -24,19 +24,23 @@ from __future__ import annotations
 
 from marshmallow import ValidationError
 
+from app.blueprints.access_controls import ac_fast_check_current_user_has_cases_access
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.v2.mcp import protocol
 from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.registry import mcp_tool
+from app.blueprints.rest.v2.war_rooms.access import war_room_readable_attached_case_ids
 from app.iris_engine.collab.sync import collab_current_markdown
 from app.iris_engine.collab.sync import collab_replace_markdown
 from app.business import (
     war_room_chat as war_room_chat_biz,
+    war_room_decisions as war_room_decisions_biz,
     war_room_notes as war_room_notes_biz,
     war_room_sitreps as war_room_sitreps_biz,
     war_room_tasks as war_room_tasks_biz,
     war_rooms as war_rooms_biz,
 )
+from app.models.authorization import CaseAccessLevel
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError, ObjectNotFoundError
 
@@ -123,6 +127,7 @@ def iris_war_room_chat_list(args: dict) -> dict:
             war_room_id=args['war_room_id'],
             limit=args.get('limit') or 50,
             search=args.get('search'),
+            readable_case_ids=war_room_readable_attached_case_ids(args['war_room_id']),
         )
     except BusinessProcessingError as exc:
         raise MCPError(protocol.INTERNAL_ERROR, exc.get_message()) from exc
@@ -329,7 +334,8 @@ def iris_war_room_tasks_list(args: dict) -> dict:
         war_room_id=args['war_room_id'],
         q=args.get('q'),
     )
-    return {'tasks': [_task(t) for t in rows]}
+    teams = war_room_tasks_biz.war_room_task_teams([t.task_id for t in rows])
+    return {'tasks': [_task(t, teams.get(t.task_id)) for t in rows]}
 
 
 @mcp_tool(
@@ -340,6 +346,10 @@ def iris_war_room_tasks_list(args: dict) -> dict:
         'properties': {
             'title': {'type': 'string', 'minLength': 1},
             'description': {'type': 'string'},
+            'team_ids': {
+                'type': 'array', 'items': {'type': 'integer'},
+                'description': 'Teams of this war room assigned to the task.',
+            },
         },
         'required': ['title'],
     },
@@ -355,11 +365,122 @@ def iris_war_room_tasks_create(args: dict) -> dict:
             title=args['title'],
             description=args.get('description'),
             created_by_id=user_obj.id,
+            team_ids=args.get('team_ids'),
         )
     except (BusinessProcessingError, ValidationError) as exc:
         msg = exc.get_message() if isinstance(exc, BusinessProcessingError) else str(exc)
         raise MCPError(protocol.INVALID_PARAMS, msg) from exc
-    return _task(row)
+    return _task(row, war_room_tasks_biz.war_room_task_teams([row.task_id]).get(row.task_id))
+
+
+# ---- Decisions -----------------------------------------------------
+
+_DECISION_CREATE_FIELDS = ('title', 'rationale', 'status', 'target_at', 'owner_id',
+                           'approver_ids', 'case_ids')
+
+
+def _decision_readable_case_ids(case_ids) -> set:
+    if not case_ids:
+        return set()
+    return set(ac_fast_check_current_user_has_cases_access(
+        list(case_ids), [CaseAccessLevel.read_only, CaseAccessLevel.full_access]
+    ))
+
+
+def _decisions_payload(decisions) -> list:
+    readable = _decision_readable_case_ids(
+        war_room_decisions_biz.war_room_decisions_referenced_case_ids(decisions))
+    return war_room_decisions_biz.war_room_decisions_serialize(decisions, readable)
+
+
+@mcp_tool(
+    name='iris_war_room_decisions_list',
+    description=(
+        'List the decision register (D-n) of a war room, newest first. '
+        'Each decision carries its status, target date, overdue flag, '
+        'approvers and linked cases / assets.'
+    ),
+    input_schema={
+        'type': 'object',
+        'properties': {
+            'status': {
+                'type': 'array',
+                'items': {
+                    'type': 'string',
+                    'enum': ['proposed', 'approved', 'rejected', 'superseded'],
+                },
+                'description': 'Only return decisions in these statuses.',
+            },
+            'q': {'type': 'string', 'description': 'Free-text match on the title.'},
+        },
+    },
+    permissions=(Permissions.war_rooms_read, Permissions.server_administrator),
+    war_room_scoped=True,
+    mvp=True,
+)
+def iris_war_room_decisions_list(args: dict) -> dict:
+    status = args.get('status')
+    if isinstance(status, str):
+        status = [status]
+    q = args.get('q')
+    try:
+        rows = war_room_decisions_biz.war_room_decisions_list(
+            args['war_room_id'],
+            status=status if isinstance(status, list) else None,
+            q=q if isinstance(q, str) else None,
+        )
+    except BusinessProcessingError as exc:
+        raise MCPError(protocol.INVALID_PARAMS, exc.get_message()) from exc
+    return {'decisions': _decisions_payload(rows)}
+
+
+@mcp_tool(
+    name='iris_war_room_decisions_create',
+    description=(
+        'Register a decision in the war room decision register. Status '
+        'defaults to proposed; target_at is an ISO-8601 date-time (UTC '
+        'if no offset). case_ids must be cases attached to the room; '
+        'approver_ids / owner_id must be users with access to the room.'
+    ),
+    input_schema={
+        'type': 'object',
+        'properties': {
+            'title': {'type': 'string', 'minLength': 1, 'maxLength': 256},
+            'rationale': {'type': 'string'},
+            'status': {'type': 'string', 'enum': ['proposed', 'approved']},
+            'target_at': {'type': 'string', 'description': 'ISO-8601 date-time.'},
+            'owner_id': {'type': 'integer'},
+            'approver_ids': {'type': 'array', 'items': {'type': 'integer'}},
+            'case_ids': {'type': 'array', 'items': {'type': 'integer'}},
+        },
+        'required': ['title'],
+    },
+    permissions=(Permissions.war_rooms_write, Permissions.server_administrator),
+    war_room_scoped=True,
+    mvp=True,
+)
+def iris_war_room_decisions_create(args: dict) -> dict:
+    user_obj = iris_current_user._get_current_object()  # type: ignore[attr-defined]
+    war_room_id = args['war_room_id']
+    raw = {k: args[k] for k in _DECISION_CREATE_FIELDS if k in args}
+    try:
+        # Linking a case requires read access on it; an unreadable case
+        # gets the same answer as an unattached one.
+        case_ids = war_room_decisions_biz.war_room_decisions_parse_case_ids(raw.get('case_ids'))
+        readable = _decision_readable_case_ids(case_ids)
+        for case_id in case_ids:
+            if case_id not in readable:
+                raise BusinessProcessingError(f'Case #{case_id} is not attached to this war room')
+        decision = war_room_decisions_biz.war_room_decisions_create(
+            war_room_id, raw, created_by_id=user_obj.id)
+    except BusinessProcessingError as exc:
+        raise MCPError(protocol.INVALID_PARAMS, exc.get_message()) from exc
+    war_room_chat_biz.emit_system_event(
+        war_room_id, 'decision', f'D-{decision.number} {decision.title}',
+        author_id=user_obj.id,
+        ref_type='war_room_decision', ref_id=decision.decision_id,
+    )
+    return _decisions_payload([decision])[0]
 
 
 # ---- Serializers (kept local so we don't leak SQLAlchemy shapes) ---
@@ -412,13 +533,14 @@ def _note(n, live: bool = False) -> dict:
     }
 
 
-def _task(t) -> dict:
+def _task(t, teams=None) -> dict:
     return {
         'task_id': getattr(t, 'task_id', None),
         'title': getattr(t, 'title', None),
         'description': getattr(t, 'description', None),
         'status_id': getattr(t, 'status_id', None),
         'assignee_id': getattr(t, 'assignee_id', None),
+        'teams': teams or [],
         'created_by_id': getattr(t, 'created_by_id', None),
         'created_at': _iso(getattr(t, 'created_at', None)),
     }

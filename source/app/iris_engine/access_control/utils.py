@@ -67,7 +67,8 @@ def ac_get_mask_analyst():
     """
     return Permissions.standard_user.value | Permissions.alerts_read.value \
         | Permissions.alerts_write.value | Permissions.search_across_cases.value | Permissions.customers_read.value \
-        | Permissions.activities_read.value | Permissions.case_templates_read.value
+        | Permissions.activities_read.value | Permissions.case_templates_read.value \
+        | Permissions.vulnerabilities_read.value | Permissions.vulnerabilities_create.value
 
 
 def ac_permission_to_list(permission):
@@ -531,6 +532,23 @@ def ac_set_case_access_for_users(users, case_id, access_level):
 
     db.session.commit()
     return True, logs
+
+
+def ac_get_administrator_readable_case_ids(user_id):
+    """Cases a server administrator may read: None (all of them) unless
+    some case explicitly denies them (`deny_all`), in which case every
+    other case id. Admins are not exempt from `deny_all` on the case
+    routes, so the cross-case views must not be either."""
+    denied = UserCaseEffectiveAccess.query.with_entities(
+        UserCaseEffectiveAccess.case_id
+    ).filter(and_(
+        UserCaseEffectiveAccess.user_id == user_id,
+        UserCaseEffectiveAccess.access_level == CaseAccessLevel.deny_all.value
+    ))
+    if denied.first() is None:
+        return None
+    return [row.case_id for row in Cases.query.with_entities(Cases.case_id).filter(
+        Cases.case_id.notin_(denied.subquery().select())).all()]
 
 
 def ac_get_fast_user_cases_access(user_id):

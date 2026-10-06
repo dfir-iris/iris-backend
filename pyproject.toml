@@ -28,7 +28,9 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "Do not import API layer from the business layer"
 type = "forbidden"
-source_modules = ["app.business.access_controls", "app.business.assets", "app.business.cases", "app.business.alerts"]
+source_modules = ["app.business.access_controls", "app.business.assets", "app.business.cases", "app.business.alerts",
+                  "app.business.vulnerabilities", "app.business.vulnerability_findings",
+                  "app.business.vulnerabilities_cvss", "app.business.vulnerabilities_cve_sync"]
 forbidden_modules = "app.blueprints"
 allow_indirect_imports = true
 

@@ -34,7 +34,9 @@ from app.business.case_transfer.resolvers import (
     _allocate_email,
     inspect_lookups,
     _lookup_entries,
+    resolve_lookups,
 )
+from app.models.errors import BusinessProcessingError
 
 
 # ---------------------------------------------------------------------------
@@ -395,3 +397,85 @@ class TestInspectLookups(TestCase):
         entry = report['tag'][0]
         self.assertEqual(entry['ref'], 'tag:99')
         self.assertEqual(entry['name'], 'ransomware')
+
+
+# ---------------------------------------------------------------------------
+# Optional lookups (asset stages)
+# ---------------------------------------------------------------------------
+
+class TestOptionalLookups(TestCase):
+
+    @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={})
+    def test_unknown_stage_will_be_dropped(self, _mock):
+        report = inspect_lookups({'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Nuked'}]})
+        entry = report['asset_stage'][0]
+        self.assertFalse(entry['will_create'])
+        self.assertFalse(entry['requires_decision'])
+        self.assertTrue(entry['will_drop'])
+
+    @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={'Isolated': 2})
+    def test_known_stage_is_matched(self, _mock):
+        report = inspect_lookups({'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Isolated'}]})
+        entry = report['asset_stage'][0]
+        self.assertEqual(2, entry['matched_id'])
+        self.assertFalse(entry['will_drop'])
+
+    @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={})
+    def test_non_optional_lookup_never_drops(self, _mock):
+        report = inspect_lookups({'case_state': [{'ref': 'cs:1', 'name': 'Open'}]})
+        self.assertFalse(report['case_state'][0]['will_drop'])
+
+    @patch('app.business.case_transfer.resolvers.create_lookup_row')
+    @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={'Isolated': 2})
+    def test_resolve_maps_known_and_drops_unknown_stages(self, _find, create):
+        lookups = {'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Isolated'},
+                                   {'ref': 'asset_stage:2', 'name': 'Nuked'}]}
+        ref_map, created = resolve_lookups(lookups, {})
+        self.assertEqual({'asset_stage:1': 2, 'asset_stage:2': None}, ref_map)
+        self.assertEqual([], created)
+        create.assert_not_called()
+
+    @patch('app.business.case_transfer.resolvers.create_lookup_row')
+    @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={})
+    def test_create_decision_for_a_stage_is_refused(self, _find, create):
+        lookups = {'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Nuked'}]}
+        with self.assertRaises(BusinessProcessingError):
+            resolve_lookups(lookups, {'asset_stage:1': {'action': 'create'}})
+        create.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Vulnerabilities and the create permission
+# ---------------------------------------------------------------------------
+
+class TestVulnerabilityLookups(TestCase):
+
+    _LOOKUPS = {'vulnerability': [{'ref': 'vulnerability:1', 'name': 'CVE-2024-3400'},
+                                  {'ref': 'vulnerability:2', 'name': 'CVE-2099-0001'}]}
+
+    @patch('app.business.case_transfer.resolvers.vulnerabilities_transfer_create', return_value=9)
+    @patch('app.business.case_transfer.resolvers.vulnerabilities_transfer_match',
+           return_value={'CVE-2024-3400': 4})
+    def test_unknown_vulnerability_is_created_when_allowed(self, _match, create):
+        ref_map, created = resolve_lookups(self._LOOKUPS, {})
+        self.assertEqual({'vulnerability:1': 4, 'vulnerability:2': 9}, ref_map)
+        self.assertEqual([{'lookup': 'vulnerability', 'name': 'CVE-2099-0001', 'id': 9}], created)
+        create.assert_called_once()
+
+    @patch('app.business.case_transfer.resolvers.vulnerabilities_transfer_create')
+    @patch('app.business.case_transfer.resolvers.vulnerabilities_transfer_match',
+           return_value={'CVE-2024-3400': 4})
+    def test_unknown_vulnerability_is_refused_without_create_permission(self, _match, create):
+        with self.assertRaises(BusinessProcessingError):
+            resolve_lookups(self._LOOKUPS, {}, may_create_vulnerabilities=False)
+        create.assert_not_called()
+
+    @patch('app.business.case_transfer.resolvers.lookup_row_exists', return_value=True)
+    @patch('app.business.case_transfer.resolvers.vulnerabilities_transfer_create')
+    @patch('app.business.case_transfer.resolvers.vulnerabilities_transfer_match',
+           return_value={'CVE-2024-3400': 4})
+    def test_mapping_works_without_create_permission(self, _match, create, _exists):
+        ref_map, _ = resolve_lookups(self._LOOKUPS, {'vulnerability:2': {'action': 'map', 'target_id': 5}},
+                                     may_create_vulnerabilities=False)
+        self.assertEqual({'vulnerability:1': 4, 'vulnerability:2': 5}, ref_map)
+        create.assert_not_called()

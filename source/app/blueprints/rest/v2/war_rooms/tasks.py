@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
+from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.api_doc import api_doc
 from app.blueprints.rest.endpoints import response_api_created
@@ -19,15 +20,23 @@ from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_read
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_write
 from app.business.war_room_chat import emit_system_event
+from app.business.war_room_task_fan_out import war_room_task_fan_out_create
+from app.business.war_room_task_fan_out import war_room_task_fan_out_linked_case_ids
+from app.business.war_room_task_fan_out import war_room_task_fan_out_room_case_ids
+from app.business.war_room_task_fan_out import war_room_task_fan_out_status
+from app.business.war_room_task_fan_out import war_room_task_fan_out_summary
+from app.business.war_room_task_fan_out import war_room_task_fan_out_unlink
 from app.business.war_room_tasks import (
     war_room_task_close,
     war_room_task_create,
     war_room_task_delete,
     war_room_task_list,
     war_room_task_reopen,
+    war_room_task_teams,
     war_room_task_update,
     war_room_task_used_tags,
 )
+from app.models.authorization import CaseAccessLevel
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 
@@ -85,7 +94,7 @@ def _parse_str_list(raw):
     return [p.strip() for p in parts if p and p.strip()]
 
 
-def _serialize_row(row):
+def _serialize_row(row, teams=None):
     return {
         'task_id': row.task_id,
         'war_room_id': row.war_room_id,
@@ -112,6 +121,7 @@ def _serialize_row(row):
         'closed_by_name': getattr(row, 'closed_by_name', None),
         'tags': row.tags,
         'parent_task_id': getattr(row, 'parent_task_id', None),
+        'teams': teams or [],
     }
 
 
@@ -151,7 +161,13 @@ def _serialize_obj(task):
         'closed_by_name': closer.name if closer else None,
         'tags': task.tags,
         'parent_task_id': getattr(task, 'parent_task_id', None),
+        'teams': war_room_task_teams([task.task_id]).get(task.task_id, []),
     }
+
+
+def _serialize_rows(rows):
+    teams = war_room_task_teams([r.task_id for r in rows])
+    return [_serialize_row(r, teams.get(r.task_id)) for r in rows]
 
 
 def _parse_bool(raw, default=True):
@@ -182,7 +198,9 @@ def _parse_date_arg(raw):
 
 @war_rooms_tasks_blueprint.get('')
 @ac_api_requires()
-@api_doc(tags=['WarRoomTasks'], summary='List war room tasks')
+@api_doc(tags=['WarRoomTasks'], summary='List war room tasks',
+         query_params=[('team_id', 'string', 'Team ids (repeatable or comma-separated), 0 or none for no team'),
+                       ('mine', 'boolean', 'Only the tasks assigned to the caller or to one of their teams')])
 def list_tasks(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:
@@ -208,6 +226,16 @@ def list_tasks(war_room_id):
                 assignee_ids.append(int(p))
             except ValueError:
                 continue
+    team_ids = []
+    for p in _parse_str_list(request.args.getlist('team_id') or request.args.get('team_id')):
+        if p.lower() in ('0', 'none', 'null'):
+            team_ids.append(0)
+            continue
+        try:
+            team_ids.append(int(p))
+        except ValueError:
+            continue
+    mine_user_id = iris_current_user.id if _parse_bool(request.args.get('mine'), False) else None
     tags = _parse_str_list(request.args.getlist('tag')
                             or request.args.get('tag'))
     parent = request.args.get('parent_task_id')
@@ -242,8 +270,10 @@ def list_tasks(war_room_id):
             due_to=due_to,
             include_no_due=include_no_due,
             include_closed=include_closed,
+            team_ids=team_ids or None,
+            mine_user_id=mine_user_id,
         )
-        return response_api_success(data=[_serialize_row(r) for r in rows])
+        return response_api_success(data=_serialize_rows(rows))
 
     try:
         page = int(page_raw)
@@ -266,8 +296,10 @@ def list_tasks(war_room_id):
         include_closed=include_closed,
         page=page,
         per_page=per_page,
+        team_ids=team_ids or None,
+        mine_user_id=mine_user_id,
     )
-    envelope['data'] = [_serialize_row(r) for r in envelope['data']]
+    envelope['data'] = _serialize_rows(envelope['data'])
     return response_api_success(data=envelope)
 
 
@@ -306,6 +338,7 @@ def create_task(war_room_id):
             tags=raw.get('tags'),
             parent_task_id=raw.get('parent_task_id'),
             created_by_id=iris_current_user.id,
+            team_ids=raw.get('team_ids'),
         )
     except BusinessProcessingError as e:
         return response_api_error(e.get_message())
@@ -332,7 +365,7 @@ def update_task(war_room_id, task_id):
         fields = {k: raw[k] for k in raw if k in
                   ('title', 'description', 'status_id', 'assignee_id',
                    'source_case_id', 'source_case_task_id', 'tags',
-                   'parent_task_id')}
+                   'parent_task_id', 'team_ids')}
         if 'due_at' in raw:
             fields['due_at'] = _parse_due(raw['due_at'])
         fields['updated_by_id'] = iris_current_user.id
@@ -394,6 +427,140 @@ def delete_task(war_room_id, task_id):
         return err
     try:
         war_room_task_delete(war_room_id, task_id)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    return response_api_deleted()
+
+
+# --- Fan-out of a war-room task into the attached cases ---------------------
+
+_FAN_OUT_MAX_CASES = 200
+
+
+def _is_int_id(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _parse_fan_out_body(raw):
+    """Validate the fan-out body; returns (case_ids, assign_flag, status_id)."""
+    case_ids = raw.get('case_ids')
+    if not isinstance(case_ids, list) or not case_ids:
+        raise BusinessProcessingError('case_ids must be a non-empty list of case ids')
+    if len(case_ids) > _FAN_OUT_MAX_CASES:
+        raise BusinessProcessingError(f'At most {_FAN_OUT_MAX_CASES} cases per fan-out')
+    if not all(_is_int_id(case_id) for case_id in case_ids):
+        raise BusinessProcessingError('case_ids must be a list of case ids')
+    assign_to_case_owner = raw.get('assign_to_case_owner', True)
+    if not isinstance(assign_to_case_owner, bool):
+        raise BusinessProcessingError('assign_to_case_owner must be a boolean')
+    status_id = raw.get('status_id')
+    if status_id is not None and not _is_int_id(status_id):
+        raise BusinessProcessingError('status_id must be an integer')
+    return list(dict.fromkeys(case_ids)), assign_to_case_owner, status_id
+
+
+def _readable_case_ids(case_ids):
+    return {
+        case_id for case_id in case_ids
+        if ac_fast_check_current_user_has_case_access(
+            case_id, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]
+        ) is not None
+    }
+
+
+@war_rooms_tasks_blueprint.get('/fan-out-summary')
+@ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='Summarize the fan-out of every war room task')
+def get_fan_out_summary(war_room_id):
+    err = require_war_room_read(war_room_id)
+    if err is not None:
+        return err
+    readable = _readable_case_ids(war_room_task_fan_out_room_case_ids(war_room_id))
+    return response_api_success(war_room_task_fan_out_summary(war_room_id, readable))
+
+
+@war_rooms_tasks_blueprint.post('/<int:task_id>/fan-out')
+@ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='Fan out a war room task into attached cases')
+def fan_out_task(war_room_id, task_id):
+    err = require_war_room_write(war_room_id)
+    if err is not None:
+        return err
+    raw = request.get_json(silent=True)
+    if not isinstance(raw, dict):
+        return response_api_error('Invalid request')
+    try:
+        case_ids, assign_to_case_owner, status_id = _parse_fan_out_body(raw)
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message())
+
+    denied = {
+        case_id for case_id in case_ids
+        if ac_fast_check_current_user_has_case_access(
+            case_id, [CaseAccessLevel.full_access]
+        ) is None
+    }
+    allowed = [case_id for case_id in case_ids if case_id not in denied]
+    try:
+        # 404 on an unknown task even when every case is denied.
+        war_room_task_fan_out_linked_case_ids(war_room_id, task_id)
+        created = []
+        if allowed:
+            created = war_room_task_fan_out_create(
+                war_room_id, task_id, allowed,
+                user_id=iris_current_user.id,
+                assign_to_case_owner=assign_to_case_owner,
+                status_id=status_id,
+            )
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message())
+
+    by_case = {row['case_id']: row for row in created}
+    results = []
+    for case_id in case_ids:
+        if case_id in denied:
+            results.append({'case_id': case_id, 'status': 'denied', 'message': 'Access denied'})
+        else:
+            results.append(by_case[case_id])
+
+    created_count = sum(1 for row in results if row['status'] == 'created')
+    if created_count:
+        emit_system_event(
+            war_room_id, 'task_assigned',
+            f'Fanned out task #{task_id} to {created_count} case(s)',
+            author_id=iris_current_user.id,
+            ref_type='war_room_task', ref_id=task_id,
+        )
+    return response_api_success({'results': results})
+
+
+@war_rooms_tasks_blueprint.get('/<int:task_id>/fan-out')
+@ac_api_requires()
+@api_doc(tags=['WarRoomTasks'], summary='Get the per-case status of a fanned-out war room task')
+def get_fan_out_status(war_room_id, task_id):
+    err = require_war_room_read(war_room_id)
+    if err is not None:
+        return err
+    try:
+        readable = _readable_case_ids(war_room_task_fan_out_linked_case_ids(war_room_id, task_id))
+        rows = war_room_task_fan_out_status(war_room_id, task_id, readable)
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    return response_api_success(rows)
+
+
+@war_rooms_tasks_blueprint.delete('/<int:task_id>/fan-out/<int:case_id>')
+@ac_api_requires()
+@api_doc(response_shape='deleted', tags=['WarRoomTasks'],
+         summary='Unlink a fanned-out case task from a war room task')
+def unlink_fan_out(war_room_id, task_id, case_id):
+    err = require_war_room_write(war_room_id)
+    if err is not None:
+        return err
+    try:
+        war_room_task_fan_out_unlink(war_room_id, task_id, case_id)
     except ObjectNotFoundError:
         return response_api_not_found()
     return response_api_deleted()

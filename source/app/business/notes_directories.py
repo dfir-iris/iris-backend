@@ -19,6 +19,7 @@
 from app.db import db
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteDirectory
+from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.datamgmt.case.case_notes_db import get_case_root_directory
 from app.datamgmt.case.case_notes_db import get_directory
@@ -31,11 +32,39 @@ from app.models.pagination_parameters import PaginationParameters
 DEFAULT_ROOT_DIRECTORY_NAME = 'Notes'
 
 
+# Case-side read-only enforcement for war-room mirrors (locked
+# directories carry `mirror_war_room_id`, see business/war_room_note_shares).
+NOTES_MIRROR_READ_ONLY_MESSAGE = 'This note is mirrored from a war room and is read-only'
+
+
+def notes_directories_is_locked(directory) -> bool:
+    return directory is not None and directory.mirror_war_room_id is not None
+
+
+def notes_directories_check_writable(directory: NoteDirectory):
+    """Refuse any change to a locked war-room mirror directory."""
+    if notes_directories_is_locked(directory):
+        db.session.rollback()
+        raise BusinessProcessingError(NOTES_MIRROR_READ_ONLY_MESSAGE)
+
+
+def notes_directories_check_can_receive(directory_id):
+    """Refuse to put a note / subdirectory into a locked directory."""
+    if not isinstance(directory_id, int) or isinstance(directory_id, bool):
+        # None (top level) or not yet validated: schema validation and
+        # the post-load business call cover the latter.
+        return
+    if notes_directories_is_locked(get_directory(directory_id)):
+        db.session.rollback()
+        raise BusinessProcessingError(NOTES_MIRROR_READ_ONLY_MESSAGE)
+
+
 def notes_directories_filter(case_identifier: int, pagination_parameters: PaginationParameters):
     return paginate_notes_directories(case_identifier, pagination_parameters)
 
 
 def notes_directories_create(directory: NoteDirectory):
+    notes_directories_check_can_receive(directory.parent_id)
     db.session.add(directory)
     db.session.commit()
 
@@ -68,11 +97,14 @@ def notes_directories_get(identifier) -> NoteDirectory:
 
 
 def notes_directories_update(directory: NoteDirectory):
+    notes_directories_check_writable(directory)
+    notes_directories_check_can_receive(directory.parent_id)
     db.session.commit()
 
     track_activity(f'modified directory "{directory.name}"', caseid=directory.case_id)
 
 
 def notes_directories_delete(directory: NoteDirectory):
+    notes_directories_check_writable(directory)
     delete_directory(directory)
     track_activity(f'deleted directory "{directory.name}"', caseid=directory.case_id)

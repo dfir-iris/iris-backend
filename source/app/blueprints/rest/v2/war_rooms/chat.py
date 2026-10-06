@@ -14,6 +14,8 @@ message is recorded in the same transaction so the chat is also the
 audit log.
 """
 
+import datetime
+
 from flask import Blueprint, request
 
 from app.blueprints.access_controls import ac_api_requires
@@ -26,7 +28,9 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_read
+from app.blueprints.rest.v2.war_rooms.access import war_room_readable_attached_case_ids
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_write
+from app.blueprints.rest.v2.war_rooms.chat_commands import chat_commands_resolve
 from app.business.war_room_chat import archive_topic
 from app.business.war_room_chat import close_poll
 from app.business.war_room_chat import create_message
@@ -40,6 +44,8 @@ from app.business.war_room_chat import get_poll_state
 from app.business.war_room_chat import list_followed_thread_ids
 from app.business.war_room_chat import list_trace_log
 from app.business.war_room_chat import list_messages
+from app.business.war_room_chat_commands import war_room_chat_commands_lead_ids
+from app.business.war_room_chat_commands import war_room_chat_commands_notify_approvers
 from app.business.war_room_chat import list_reactions
 from app.business.war_room_chat import list_replies
 from app.business.war_room_chat import list_thread_roots
@@ -52,6 +58,8 @@ from app.business.war_room_chat import unarchive_topic
 from app.business.war_room_chat import unfollow_thread
 from app.business.war_room_chat import update_message
 from app.business.war_room_chat import vote_on_poll
+from app.business.war_room_decisions import war_room_decisions_create
+from app.business.war_room_decisions import war_room_decisions_resolve_participant_handle
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -197,7 +205,8 @@ def list_chat(war_room_id):
 
     rows = list_messages(war_room_id, before=before, limit=limit,
                          kinds=kinds, case_ids=case_ids, search=search,
-                         topic_ids=topic_ids)
+                         topic_ids=topic_ids,
+                         readable_case_ids=war_room_readable_attached_case_ids(war_room_id))
     reactions = list_reactions([r.message_id for r in rows])
     viewer_id = iris_current_user.id
     return response_api_success(
@@ -210,7 +219,7 @@ _PRIORITY_LEVELS = {'low', 'medium', 'high', 'critical'}
 _PRIORITY_ALIASES = {'med': 'medium', 'mid': 'medium', 'crit': 'critical'}
 
 
-def _resolve_slash(war_room_id, cmd, rest):
+def _resolve_slash(war_room_id, cmd, rest, topic_id=None):
     """Translate a recognised slash command into a structured message.
 
     Returns (kind, body, ref_type, ref_id, ref_case_id) for the system
@@ -234,14 +243,17 @@ def _resolve_slash(war_room_id, cmd, rest):
         )
         return ('note', rest, 'war_room_note', note.note_id, None)
     if cmd == 'pin':
+        if not rest:
+            # Bare `/pin` pins the last message of the current topic.
+            return _pin_last_message(war_room_id, topic_id)
         return ('pin', rest, 'war_room_chat', None, None)
 
     if cmd == 'decision':
-        if not rest:
-            raise BusinessProcessingError(
-                'Usage: /decision <what we decided>'
-            )
-        return ('decision', rest, 'war_room_chat', None, None)
+        return _propose_decision(war_room_id, rest)
+
+    scope_row = chat_commands_resolve(war_room_id, cmd, rest)
+    if scope_row is not None:
+        return scope_row
 
     if cmd == 'attach':
         # `/attach <case_id> [reason]`
@@ -284,60 +296,61 @@ def _resolve_slash(war_room_id, cmd, rest):
             'case', case_id, case_id,
         )
 
-    if cmd == 'task':
-        # `/task <title>` — single-arg form.
-        # `/task @user <title>` — assign on creation (resolves the
-        # mention to a User row via login or display name).
-        if not rest:
-            raise BusinessProcessingError('Usage: /task [@user] <title>')
+    if cmd in ('task', 'assign'):
+        # `/task [@user] [@team ...] <title>` — leading handles assign on
+        # creation: at most one user (login or display name) and any
+        # number of teams of this room. `/assign` is the same command
+        # with at least one handle required.
+        usage = ('Usage: /task [@user] [@team ...] <title>' if cmd == 'task'
+                 else 'Usage: /assign @user|@team [@team ...] <title>')
+        assignee_id, team_ids, labels, title = _resolve_task_handles(war_room_id, rest, usage)
+        if cmd == 'assign' and assignee_id is None and not team_ids:
+            raise BusinessProcessingError(usage)
         from app.business.war_room_tasks import war_room_task_create
-        assignee_id = None
-        assignee_label = None
-        title = rest
-        if rest.startswith('@'):
-            head, _, tail = rest.partition(' ')
-            if not tail.strip():
-                raise BusinessProcessingError(
-                    'Usage: /task @user <title>'
-                )
-            assignee_id, assignee_label = _resolve_user_handle(head[1:])
-            title = tail.strip()
         task = war_room_task_create(
             war_room_id, title=title,
             created_by_id=iris_current_user.id,
             assignee_id=assignee_id,
+            team_ids=team_ids,
         )
-        body = (
-            f'Created task for {assignee_label}: {title}'
-            if assignee_label else f'Created task: {title}'
-        )
+        if not labels:
+            body = f'Created task: {title}'
+        elif cmd == 'assign':
+            body = f'Assigned to {", ".join(labels)}: {title}'
+        else:
+            body = f'Created task for {", ".join(labels)}: {title}'
         return ('task_assigned', body, 'war_room_task', task.task_id, None)
 
-    if cmd == 'assign':
-        # `/assign @user <title>` — shorthand for `/task @user <title>`.
-        if not rest or not rest.startswith('@'):
-            raise BusinessProcessingError('Usage: /assign @user <title>')
-        head, _, tail = rest.partition(' ')
-        if not tail.strip():
-            raise BusinessProcessingError('Usage: /assign @user <title>')
-        from app.business.war_room_tasks import war_room_task_create
-        assignee_id, assignee_label = _resolve_user_handle(head[1:])
-        title = tail.strip()
-        task = war_room_task_create(
-            war_room_id, title=title,
-            created_by_id=iris_current_user.id,
-            assignee_id=assignee_id,
+    if cmd == 'vuln':
+        # `/vuln <identifier> [note]` — track a vulnerability on the room
+        # before (or without) any affected asset.
+        parts = rest.split(None, 1)
+        if not parts:
+            raise BusinessProcessingError('Usage: /vuln <identifier> [note]')
+        from app.business.war_room_vulnerabilities import war_room_vulnerabilities_track
+        from app.blueprints.access_controls import ac_current_user_can_create_vulnerabilities
+        if not ac_current_user_can_create_vulnerabilities():
+            raise BusinessProcessingError('You need the vulnerabilities_create permission to track a vulnerability')
+        tracked, _created = war_room_vulnerabilities_track(
+            war_room_id,
+            {'identifier': parts[0], 'note': parts[1] if len(parts) > 1 else None},
+            iris_current_user.id,
         )
-        body = f'Assigned to {assignee_label}: {title}'
-        return ('task_assigned', body, 'war_room_task', task.task_id, None)
+        # The message reaches every reader of the room, including those
+        # without the vulnerability permission: no identifier in the text.
+        vulnerability_id = tracked['vulnerability']['vulnerability_id']
+        body = f'Tracking a vulnerability (#{vulnerability_id}) — see Scope › Vulnerabilities'
+        return ('system', body, 'vulnerability', vulnerability_id, None)
 
     if cmd == 'sitrep':
-        if not rest:
-            raise BusinessProcessingError('Usage: /sitrep <title>')
+        # `/sitrep [title]` - opens a draft; the SPA navigates to it.
         from app.business.war_room_sitreps import sitrep_draft
-        sit = sitrep_draft(war_room_id, title=rest,
+        title = rest.strip() or (
+            f'SitRep {datetime.datetime.now(datetime.timezone.utc):%Y-%m-%d %H:%M} UTC'
+        )
+        sit = sitrep_draft(war_room_id, title=title,
                            authored_by_id=iris_current_user.id)
-        return ('sitrep_published', f'Drafted SitRep: {rest}',
+        return ('sitrep_published', f'Drafted SitRep: {title}',
                 'sitrep', sit.sitrep_id, None)
 
     if cmd == 'state':
@@ -464,42 +477,124 @@ def _resolve_slash(war_room_id, cmd, rest):
     if cmd in ('help', '?'):
         body = (
             'Commands: /note /pin /decision /attach /detach /task /assign '
-            '/sitrep /summary /state /priority /thread /topic'
+            '/sitrep /summary /state /priority /thread /topic '
+            '/asset /ioc /stage /push /share-note /vuln'
         )
         return ('system', body, None, None, None)
 
     return None
 
 
-def _resolve_user_handle(handle):
+def _resolve_task_handles(war_room_id, rest, usage):
+    """Split `@handle ... <title>` into `(assignee_id, team_ids, labels, title)`.
+
+    Each leading handle is a user first (see `_resolve_user_handle`),
+    else a team of the room (`@blue-team` for "Blue Team"). One user at
+    most: a task has a single person assignee."""
+    from app.business.war_room_teams import war_room_team_find_by_handle
+    words = (rest or '').split()
+    assignee_id = None
+    team_ids = []
+    labels = []
+    while words and words[0].startswith('@') and len(words[0]) > 1:
+        handle = words.pop(0)[1:]
+        try:
+            user_id, label = _resolve_user_handle(war_room_id, handle)
+        except BusinessProcessingError:
+            team = war_room_team_find_by_handle(war_room_id, handle)
+            if team is None:
+                raise BusinessProcessingError(
+                    f'No user or team of this war room matched @{handle}. '
+                    'Use a login, a full name or a team name.'
+                )
+            if team.team_id not in team_ids:
+                team_ids.append(team.team_id)
+                labels.append(team.name)
+            continue
+        if assignee_id is not None and assignee_id != user_id:
+            raise BusinessProcessingError('A task has a single person assignee; add teams for more people.')
+        if assignee_id is None:
+            assignee_id = user_id
+            labels.insert(0, label)
+    title = ' '.join(words).strip()
+    if not title:
+        raise BusinessProcessingError(usage)
+    return assignee_id, team_ids, labels, title
+
+
+def _resolve_user_handle(war_room_id, handle):
     """Look up a `@handle` to a (user_id, display_label) pair.
 
-    Matches against `user.user` (login) first, then `user.name`
-    (display name). Case-insensitive. Raises a `BusinessProcessingError`
-    when no match is found so the operator sees a useful hint instead
-    of a silent no-assignee task.
+    Matches the login, then the display name (case-insensitive), among
+    the users who are members of the room or can read it. Anyone else
+    gets the same "unknown or non-member" error as a missing user, so
+    the command cannot enumerate the user directory.
     """
-    from app.models.authorization import User
-    from app.db import db
-    from sqlalchemy import or_, func
     if not handle:
         raise BusinessProcessingError('Empty user mention')
-    h = handle.strip()
-    row = (
-        db.session.query(User.id, User.user, User.name)
-        .filter(
-            or_(
-                func.lower(User.user) == h.lower(),
-                func.lower(User.name) == h.lower(),
-            )
-        )
-        .first()
+    return war_room_decisions_resolve_participant_handle(war_room_id, handle)
+
+
+_PINNABLE_KINDS = ['message', 'pin', 'decision', 'note']
+_PIN_LOOKBACK = 50
+_PIN_EXCERPT_LEN = 80
+
+
+def _pin_last_message(war_room_id, topic_id):
+    """Pin the most recent pinnable message of the topic (Main when
+    `topic_id` is None) and return the system row announcing it."""
+    if topic_id is None:
+        main = next((topic for topic in list_topics(war_room_id) if topic.is_main), None)
+        topic_id = main.topic_id if main is not None else None
+    rows = list_messages(war_room_id, limit=_PIN_LOOKBACK, kinds=_PINNABLE_KINDS,
+                         topic_ids=[topic_id] if topic_id is not None else None)
+    target = next((row for row in rows if row.deleted_at is None), None)
+    if target is None:
+        raise BusinessProcessingError('No message to pin yet. Usage: /pin [text]')
+    if getattr(target, 'is_pinned', False):
+        raise BusinessProcessingError('The last message is already pinned')
+    set_message_pin(war_room_id, target.message_id, True, iris_current_user.id,
+                    ac_current_user_has_permission(Permissions.server_administrator))
+    _emit_socket(war_room_id, 'message:pin', {'message_id': target.message_id, 'is_pinned': True})
+    excerpt = ' '.join((target.body or '').split())
+    if len(excerpt) > _PIN_EXCERPT_LEN:
+        excerpt = f'{excerpt[:_PIN_EXCERPT_LEN - 1]}…'
+    who = target.author_name or target.author_login or 'someone'
+    return ('system', f'Pinned a message from {who}: {excerpt}' if excerpt else f'Pinned a message from {who}',
+            'war_room_chat', target.message_id, None)
+
+
+def _propose_decision(war_room_id, rest):
+    """`/decision [@approver ...] <title>` - proposes D-n in the register.
+
+    Leading `@login` handles become the approvers; without any, the
+    room's leads (Incident Commanders) other than the author are asked.
+    Approvers are notified. The chat row is the same `decision` row the
+    REST create route emits (`D-n <title>`, ref `war_room_decision`).
+    """
+    usage = 'Usage: /decision [@approver ...] <what we decided>'
+    words = rest.split()
+    approver_ids = []
+    while words and words[0].startswith('@') and len(words[0]) > 1:
+        user_id, _label = _resolve_user_handle(war_room_id, words.pop(0)[1:])
+        if user_id not in approver_ids:
+            approver_ids.append(user_id)
+    title = rest
+    if approver_ids:
+        title = ' '.join(words)
+    title = title.strip()
+    if not title:
+        raise BusinessProcessingError(usage)
+    author_id = iris_current_user.id
+    if not approver_ids:
+        approver_ids = [uid for uid in war_room_chat_commands_lead_ids(war_room_id) if uid != author_id]
+    decision = war_room_decisions_create(
+        war_room_id, {'title': title, 'status': 'proposed', 'approver_ids': approver_ids},
+        created_by_id=author_id,
     )
-    if row is None:
-        raise BusinessProcessingError(
-            f'No user matched @{handle}. Use a login or full name.'
-        )
-    return row.id, (row.name or row.user)
+    war_room_chat_commands_notify_approvers(war_room_id, decision, approver_ids, author_id)
+    return ('decision', f'D-{decision.number} {decision.title}',
+            'war_room_decision', decision.decision_id, None)
 
 
 @war_rooms_chat_blueprint.post('')
@@ -536,7 +631,8 @@ def post_chat(war_room_id):
     slash = parse_slash(body)
     if slash is not None:
         try:
-            resolved = _resolve_slash(war_room_id, slash[0], slash[1])
+            resolved = _resolve_slash(war_room_id, slash[0], slash[1],
+                                      topic_id=posted_topic_id)
         except BusinessProcessingError as e:
             return response_api_error(e.get_message())
         except ImportError:
@@ -610,7 +706,10 @@ def post_chat(war_room_id):
             except BusinessProcessingError as e:
                 return response_api_error(e.get_message())
             _emit_socket(war_room_id, 'message:new', {'message_id': msg.message_id})
-            payload = {'message_id': msg.message_id, 'kind': msg.kind}
+            # `ref_type` / `ref_id` let the SPA follow up on the command
+            # (e.g. open the SitRep draft `/sitrep` just created).
+            payload = {'message_id': msg.message_id, 'kind': msg.kind,
+                       'ref_type': msg.ref_type, 'ref_id': msg.ref_id}
             if created_topic is not None:
                 payload['topic'] = _serialize_topic(created_topic)
                 _emit_socket(war_room_id, 'topic:new',

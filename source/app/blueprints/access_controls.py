@@ -50,6 +50,7 @@ from app.business.access_controls import access_controls_user_has_customer_acces
 from app.datamgmt.manage.manage_users_db import get_user
 from app.blueprints.iris_user import iris_current_user
 from app.business.access_controls import ac_fast_check_user_has_case_access
+from app.business.access_controls import ac_fast_check_user_has_cases_access
 from app.iris_engine.access_control.utils import ac_get_effective_permissions_of_user
 from app.iris_engine.utils.tracker import track_activity
 from app.models.authorization import Permissions
@@ -723,6 +724,12 @@ def ac_fast_check_current_user_has_case_access(cid, access_level):
     return ac_fast_check_user_has_case_access(iris_current_user.id, cid, access_level)
 
 
+def ac_fast_check_current_user_has_cases_access(case_ids, access_level) -> dict:
+    """Batched `ac_fast_check_current_user_has_case_access`:
+    `{case_id: access_level}` of the granted cases, constant query count."""
+    return ac_fast_check_user_has_cases_access(iris_current_user.id, case_ids, access_level)
+
+
 def ac_fast_check_current_user_has_war_room_access(war_room_id, access_level):
     # Late import: business.war_rooms_access imports several models that
     # also pull this module transitively. Keeping it lazy avoids the
@@ -780,6 +787,37 @@ def ac_current_user_has_permission(permission):
     Return True if current user has permission
     """
     return ac_flag_match_mask(_get_current_permissions_mask(), permission.value)
+
+
+def ac_current_user_can_read_vulnerabilities():
+    """`vulnerabilities_read` (or server administrator): gates every piece
+    of vulnerability data, on top of the case / registry / war-room checks."""
+    return ac_current_user_has_permission(Permissions.vulnerabilities_read) \
+        or ac_current_user_has_permission(Permissions.server_administrator)
+
+
+def ac_current_user_can_create_vulnerabilities():
+    """`vulnerabilities_create` on top of `vulnerabilities_read` (or server
+    administrator): add catalogue entries, record findings, track entries."""
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        return True
+    return ac_current_user_has_permission(Permissions.vulnerabilities_read) \
+        and ac_current_user_has_permission(Permissions.vulnerabilities_create)
+
+
+def ac_api_requires_vulnerabilities(create=False):
+    """Route guard for vulnerability data; stack it under `ac_api_requires`,
+    which authenticates the caller first."""
+    def inner_wrap(f):
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            allowed = ac_current_user_can_create_vulnerabilities() if create \
+                else ac_current_user_can_read_vulnerabilities()
+            if not allowed:
+                return ac_api_return_access_denied()
+            return f(*args, **kwargs)
+        return wrap
+    return inner_wrap
 
 
 def ac_current_user_has_customer_access(customer_identifier):

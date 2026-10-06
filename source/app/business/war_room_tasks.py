@@ -13,6 +13,10 @@ Task management extensions (subtasks, status via task_status, tags,
 search): parents can have children but children cannot; the tags
 column is free-form comma-separated to match the rest of Iris; the
 status column reuses the shared `task_status` taxonomy.
+
+Assignment: one person (`assignee_id`) and any number of teams of the
+same war room (`team_ids`). Members of a newly assigned team are
+notified.
 """
 
 import datetime
@@ -20,10 +24,15 @@ import datetime
 from app.db import db
 from app.datamgmt.war_rooms.war_room_tasks_db import apply_assignee_filter
 from app.datamgmt.war_rooms.war_room_tasks_db import apply_due_range_filter
+from app.datamgmt.war_rooms.war_room_tasks_db import apply_mine_filter
 from app.datamgmt.war_rooms.war_room_tasks_db import apply_search_filter
 from app.datamgmt.war_rooms.war_room_tasks_db import apply_tag_filter
+from app.datamgmt.war_rooms.war_room_tasks_db import apply_team_filter
 from app.datamgmt.war_rooms.war_room_tasks_db import base_task_query
 from app.datamgmt.war_rooms.war_room_tasks_db import subtasks_supported as _subtasks_supported
+from app.datamgmt.war_rooms.war_room_tasks_db import task_teams_db_for_tasks
+from app.datamgmt.war_rooms.war_room_tasks_db import task_teams_db_replace
+from app.datamgmt.war_rooms.war_room_tasks_db import task_teams_db_room_team_ids
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.errors import BusinessProcessingError
@@ -32,6 +41,7 @@ from app.models.war_rooms import WarRoomTask
 
 
 _TITLE_MAX_LEN = 1024
+_MAX_TEAMS = 50
 
 
 def _validate_title(title):
@@ -78,17 +88,95 @@ def _normalize_tags(tags):
     return ','.join(out) if out else None
 
 
+def _validate_team_ids(war_room_id, team_ids):
+    """De-duplicated list of team ids, all teams of `war_room_id`."""
+    if team_ids is None:
+        return []
+    if not isinstance(team_ids, list):
+        raise BusinessProcessingError('team_ids must be a list of team ids')
+    if not all(isinstance(t, int) and not isinstance(t, bool) and t > 0 for t in team_ids):
+        raise BusinessProcessingError('team_ids must be a list of team ids')
+    team_ids = list(dict.fromkeys(team_ids))
+    if not team_ids:
+        return []
+    if len(team_ids) > _MAX_TEAMS:
+        raise BusinessProcessingError(f'A task can be assigned to at most {_MAX_TEAMS} teams')
+    unknown = set(team_ids) - task_teams_db_room_team_ids(war_room_id, team_ids)
+    if unknown:
+        listed = ', '.join(f'#{t}' for t in sorted(unknown))
+        raise BusinessProcessingError(f'Not a team of this war room: {listed}')
+    return team_ids
+
+
+def _validate_assignee(war_room_id, assignee_id):
+    """The person assignee must be a member of the room or able to read
+    it; same error for an unknown user so ids cannot be probed."""
+    if assignee_id is None:
+        return None
+    if not isinstance(assignee_id, int) or isinstance(assignee_id, bool) or assignee_id <= 0:
+        raise BusinessProcessingError('assignee_id must be a user id')
+    from app.business.war_room_decisions import war_room_decisions_is_participant
+    if not war_room_decisions_is_participant(war_room_id, assignee_id):
+        raise BusinessProcessingError('Unknown or non-member user')
+    return assignee_id
+
+
+def war_room_task_teams(task_ids):
+    """{task_id: [{team_id, name, color}]}, teams sorted by name."""
+    teams = {}
+    if not task_ids:
+        return teams
+    for row in task_teams_db_for_tasks(task_ids):
+        teams.setdefault(row.task_id, []).append(
+            {'team_id': row.team_id, 'name': row.name, 'color': row.color}
+        )
+    return teams
+
+
+def _notify_assigned_teams(task, team_ids, actor_id):
+    """Tell the members of newly assigned teams. Silent on failure, like
+    the mention notifications."""
+    if not team_ids:
+        return
+    try:
+        from app.business.war_room_teams import war_room_team_member_user_ids
+        from app.iris_engine.notifications.service import notify_many
+
+        user_ids = war_room_team_member_user_ids(task.war_room_id, team_ids)
+        if not user_ids:
+            return
+        names = ', '.join(t['name'] for t in war_room_task_teams([task.task_id]).get(task.task_id, [])
+                          if t['team_id'] in team_ids)
+        notify_many(
+            user_ids=list(user_ids),
+            event_type='task_assigned',
+            title=f'War-room task assigned to {names}',
+            body=task.title,
+            link=f'/war-rooms/{task.war_room_id}/tasks?task={task.task_id}',
+            source_type='war_room_task',
+            source_id=task.task_id,
+            exclude_user_ids=[actor_id] if actor_id else [],
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            'war-room task team notification failed')
+
+
 def war_room_task_list(war_room_id, q=None, status_ids=None, tags=None,
                        assignee_ids=None, parent_task_id=None,
                        due_from=None, due_to=None, include_no_due=True,
-                       include_closed=True, page=None, per_page=None):
+                       include_closed=True, page=None, per_page=None,
+                       team_ids=None, mine_user_id=None):
     """List tasks with optional search + filters.
 
     All filters are AND-combined. `q` matches title or description
     case-insensitively. `tags` is a list of tag strings; a task matches
     if any of its comma-separated tags matches (case-insensitive
     substring on the CSV, bracketed by commas so "foo" doesn't match
-    "foobar"). `assignee_ids` can include `0` to mean Unassigned.
+    "foobar"). `assignee_ids` can include `0` to mean Unassigned, and
+    `team_ids` `0` to mean "no team". `mine_user_id` keeps the tasks
+    assigned to that user or to one of their teams.
     `parent_task_id`: pass `0`/`None` for top-level only via the flag
     on the REST layer — this helper simply forwards the value; use
     `-1` to include everything (no parent filter).
@@ -114,6 +202,12 @@ def war_room_task_list(war_room_id, q=None, status_ids=None, tags=None,
 
     if assignee_ids:
         query = apply_assignee_filter(query, assignee_ids)
+
+    if team_ids:
+        query = apply_team_filter(query, team_ids)
+
+    if mine_user_id:
+        query = apply_mine_filter(query, mine_user_id)
 
     if tags:
         query = apply_tag_filter(query, tags)
@@ -236,8 +330,10 @@ def war_room_task_create(war_room_id, title, description=None,
                          status_id=None, assignee_id=None, due_at=None,
                          source_case_id=None, source_case_task_id=None,
                          tags=None, parent_task_id=None,
-                         created_by_id=None):
+                         created_by_id=None, team_ids=None):
     title = _validate_title(title)
+    team_ids = _validate_team_ids(war_room_id, team_ids)
+    assignee_id = _validate_assignee(war_room_id, assignee_id)
     _resolve_parent(war_room_id, parent_task_id)
     task = WarRoomTask()
     task.war_room_id = war_room_id
@@ -253,9 +349,13 @@ def war_room_task_create(war_room_id, title, description=None,
     if _subtasks_supported():
         task.parent_task_id = parent_task_id
     db.session.add(task)
+    if team_ids:
+        db.session.flush()
+        task_teams_db_replace(task.task_id, team_ids, created_by_id)
     db.session.commit()
     track_activity(f'created war room task "{task.title}"', war_room_id=war_room_id)
     _fire_mention_notifications(task, created_by_id, is_update=False)
+    _notify_assigned_teams(task, team_ids, created_by_id)
     task = call_modules_hook('on_postload_war_room_task_create', task)
     return task
 
@@ -266,6 +366,13 @@ def war_room_task_update(war_room_id, task_id, **fields):
     # to write it back to the DB.
     updated_by_id = fields.pop('updated_by_id', None)
     task = war_room_task_get(war_room_id, task_id)
+    team_ids = None
+    if 'team_ids' in fields:
+        team_ids = _validate_team_ids(war_room_id, fields.pop('team_ids'))
+    if 'assignee_id' in fields and fields['assignee_id'] != task.assignee_id:
+        # Only a new assignee is checked: re-sending the current one (who
+        # may have left the room since) keeps working.
+        _validate_assignee(war_room_id, fields['assignee_id'])
     prior_title = task.title
     prior_description = task.description
     if 'title' in fields and fields['title'] is not None:
@@ -295,8 +402,12 @@ def war_room_task_update(war_room_id, task_id, **fields):
             setattr(task, f, fields[f])
     if 'tags' in fields:
         task.tags = _normalize_tags(fields['tags'])
+    added_team_ids = []
+    if team_ids is not None:
+        added_team_ids = task_teams_db_replace(task.task_id, team_ids, updated_by_id)
     db.session.commit()
     track_activity(f'updated war room task "{task.title}"', war_room_id=war_room_id)
+    _notify_assigned_teams(task, added_team_ids, updated_by_id)
     # Fire only when the mention-carrying fields changed.
     if task.title != prior_title or task.description != prior_description:
         _fire_mention_notifications(task, updated_by_id, is_update=True)

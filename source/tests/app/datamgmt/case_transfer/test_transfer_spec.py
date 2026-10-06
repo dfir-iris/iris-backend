@@ -195,3 +195,39 @@ class TestEntityRegistry(TestCase):
 
     def test_user_ref_prefix_constant(self):
         self.assertEqual('user', USER_REF_PREFIX)
+
+
+class TestAssetStageTransfer(TestCase):
+
+    def test_optional_defaults_to_false(self):
+        self.assertFalse(LookupSpec('k', object, 'id', 'name').optional)
+
+    def test_asset_stage_lookup_is_optional_and_never_created(self):
+        spec = LOOKUPS['asset_stage']
+        self.assertEqual('name', spec.name_column)
+        self.assertFalse(spec.creatable)
+        self.assertTrue(spec.optional)
+
+    def test_asset_stage_travels_by_name_with_its_reason(self):
+        spec = ENTITIES_BY_KEY['asset']
+        self.assertEqual('asset_stage', spec.lookup_refs['stage_id'])
+        self.assertIn('stage_reason', spec.fields)
+
+    def test_instance_bound_stage_columns_are_not_transferred(self):
+        spec = ENTITIES_BY_KEY['asset']
+        exported = set(spec.fields) | set(spec.user_refs) | set(spec.entity_refs) | set(spec.lookup_refs)
+        for column in ('stage_decision_id', 'stage_updated_by_id', 'stage_updated_at'):
+            with self.subTest(column=column):
+                self.assertNotIn(column, exported)
+
+    def test_stage_history_is_not_an_entity(self):
+        self.assertNotIn('case_asset_stage_history',
+                         {spec.model.__tablename__ for spec in ENTITIES})
+
+    def test_mirror_columns_are_never_transferred(self):
+        for key in ('note', 'note_directory'):
+            spec = ENTITIES_BY_KEY[key]
+            exported = (set(spec.fields) | set(spec.user_refs) | set(spec.entity_refs)
+                        | set(spec.lookup_refs) | set(spec.self_refs))
+            with self.subTest(key=key):
+                self.assertFalse({column for column in exported if column.startswith('mirror_')})

@@ -42,6 +42,8 @@ from flask import send_file
 from app.blueprints.access_controls import ac_api_requires
 from app.blueprints.access_controls import ac_api_return_access_denied
 from app.blueprints.access_controls import ac_current_user_has_permission
+from app.blueprints.access_controls import ac_current_user_can_create_vulnerabilities
+from app.blueprints.access_controls import ac_current_user_can_read_vulnerabilities
 from app.blueprints.access_controls import ac_fast_check_current_user_has_case_access
 from app.blueprints.iris_user import iris_current_user
 from app.blueprints.rest.api_doc import api_doc
@@ -114,6 +116,7 @@ def export_case(case_identifier):
             exported_by=iris_current_user.user,
             include_blobs=bool(include_blobs),
             passphrase=passphrase,
+            include_vulnerabilities=ac_current_user_can_read_vulnerabilities(),
         )
     except ObjectNotFoundError:
         return response_api_not_found()
@@ -210,6 +213,7 @@ def perform_import():
             customer_identifier=body.get('customer_id'),
             group_grants=body.get('acl_grants'),
             may_create_placeholders=may_create_placeholders,
+            may_create_vulnerabilities=ac_current_user_can_create_vulnerabilities(),
         )
     except ObjectNotFoundError:
         return response_api_not_found()

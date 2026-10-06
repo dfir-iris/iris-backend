@@ -663,6 +663,82 @@ def create_safe_hooks():
     create_safe(db.session, IrisHook, hook_name='on_postload_war_room_datastore_file_delete',
                 hook_description='Triggered on war room datastore file deletion, after commit in DB')
 
+    # --- War Room decisions
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_decision_create',
+                hook_description='Triggered on war room decision creation, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_decision_update',
+                hook_description='Triggered on war room decision update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_decision_vote',
+                hook_description='Triggered on war room decision vote, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_decision_implement',
+                hook_description='Triggered on war room decision marked implemented, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_decision_reopen',
+                hook_description='Triggered on war room decision marked not implemented, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_decision_delete',
+                hook_description='Triggered on war room decision deletion, after commit in DB')
+
+    # --- War Room teams
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_team_create',
+                hook_description='Triggered on war room team creation, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_team_update',
+                hook_description='Triggered on war room team update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_team_delete',
+                hook_description='Triggered on war room team deletion, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_team_member_add',
+                hook_description='Triggered on war room team member addition, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_team_member_remove',
+                hook_description='Triggered on war room team member removal, after commit in DB')
+
+    # --- War Room scope
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_scope_stage_update',
+                hook_description='Triggered on asset stage change from the war room scope, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_staged_object_create',
+                hook_description='Triggered on war room staged object creation, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_staged_object_update',
+                hook_description='Triggered on war room staged object update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_staged_object_delete',
+                hook_description='Triggered on war room staged object deletion, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_staged_object_push',
+                hook_description='Triggered on war room staged object push to cases, after commit in DB')
+
+    # --- War Room task fan-out and note shares
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_task_fan_out_create',
+                hook_description='Triggered on war room task fan-out to cases, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_task_fan_out_delete',
+                hook_description='Triggered on war room task unlinked from a case, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_note_share_create',
+                hook_description='Triggered on war room note share creation, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_note_share_update',
+                hook_description='Triggered on war room note share update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_note_share_delete',
+                hook_description='Triggered on war room note share deletion, after commit in DB')
+
+    # --- War Room vulnerabilities
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_vulnerability_track',
+                hook_description='Triggered on vulnerability tracked by a war room, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_vulnerability_update',
+                hook_description='Triggered on war room tracked vulnerability note update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_vulnerability_untrack',
+                hook_description='Triggered on vulnerability no longer tracked by a war room, after commit in DB')
+
+    # --- Vulnerability catalogue
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_create',
+                hook_description='Triggered on vulnerability catalogue entry creation, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_update',
+                hook_description='Triggered on vulnerability catalogue entry update (cve.org sync included), after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_delete',
+                hook_description='Triggered on vulnerability catalogue entry deletion, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_merge',
+                hook_description='Triggered on vulnerability catalogue entry merge, after commit in DB')
+
+    # --- Vulnerability findings
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_finding_create',
+                hook_description='Triggered on vulnerability finding recorded on case or registry assets, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_finding_update',
+                hook_description='Triggered on vulnerability finding update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_vulnerability_finding_delete',
+                hook_description='Triggered on vulnerability finding deletion, after commit in DB')
+
     # --- Alert clusters
     create_safe(db.session, IrisHook, hook_name='on_postload_alert_cluster_create',
                 hook_description='Triggered on alert cluster creation, after commit in DB')

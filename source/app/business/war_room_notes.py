@@ -67,6 +67,13 @@ def _fire_mention_notifications(note, actor_id, is_update):
             'war-room note mention notification failed')
 
 
+def _sync_note_shares(war_room_id, actor_id):
+    """Best-effort refresh of the case mirrors of this room's shared notes.
+    Runs after the commit and never fails the note write."""
+    from app.business.war_room_note_shares import war_room_note_shares_reconcile_safe
+    war_room_note_shares_reconcile_safe(war_room_id, actor_id=actor_id)
+
+
 def _resolve_folder_id(war_room_id, folder_id):
     """Coerce a folder-id payload to `None | int` and enforce that the
     folder (if given) belongs to the same war room. Keeps notes from
@@ -116,6 +123,7 @@ def war_room_note_create(war_room_id, title, content=None,
     db.session.commit()
     track_activity(f'created war room note "{note.title}"', war_room_id=war_room_id)
     _fire_mention_notifications(note, created_by_id, is_update=False)
+    _sync_note_shares(war_room_id, created_by_id)
     note = call_modules_hook('on_postload_war_room_note_create', note)
     return note
 
@@ -148,6 +156,7 @@ def war_room_note_update(war_room_id, note_id, title=None, content=None,
     # shouldn't re-page every mentioned user.
     if content is not None and content != prior_content:
         _fire_mention_notifications(note, updated_by_id, is_update=True)
+    _sync_note_shares(war_room_id, updated_by_id)
     note = call_modules_hook('on_postload_war_room_note_update', note)
     return note
 
@@ -158,6 +167,7 @@ def war_room_note_delete(war_room_id, note_id):
     db.session.delete(note)
     db.session.commit()
     track_activity(f'deleted war room note "{title}"', war_room_id=war_room_id)
+    _sync_note_shares(war_room_id, None)
     call_modules_hook('on_postload_war_room_note_delete',
                       {'war_room_id': war_room_id, 'note_id': note_id})
 
@@ -218,4 +228,5 @@ def war_room_note_restore_revision(war_room_id, note_id, revision_number,
         f'restored revision #{revision_number} of note "{note.title}"',
         war_room_id=war_room_id,
     )
+    _sync_note_shares(war_room_id, updated_by_id)
     return note

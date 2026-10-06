@@ -93,6 +93,10 @@ class WarRoom(db.Model):
     archived_at = Column(DateTime, nullable=True)
     archived_by_id = Column(BigInteger, ForeignKey('user.id'), nullable=True)
     custom_attributes = Column(JSONB, nullable=True)
+    # SitRep rhythm. NULL = no cadence; the UI shows "next SitRep due"
+    # and nags `sitrep_reminder_minutes` before the deadline.
+    sitrep_cadence_minutes = Column(Integer, nullable=True)
+    sitrep_reminder_minutes = Column(Integer, nullable=True)
 
     created_by = relationship('User', foreign_keys=[created_by_id])
     closed_by = relationship('User', foreign_keys=[closed_by_id])
@@ -664,6 +668,25 @@ class WarRoomTask(db.Model):
                           backref='subtasks')
 
 
+class WarRoomTaskTeam(db.Model):
+    """A war-room task assigned to a team of the same room.
+
+    On top of the single `WarRoomTask.assignee_id`: a task can have one
+    person and any number of teams. Same-room is enforced by the
+    business layer.
+    """
+    __tablename__ = 'war_room_task_team'
+
+    task_id = Column(BigInteger,
+                     ForeignKey('war_room_task.task_id', ondelete='CASCADE'),
+                     primary_key=True, nullable=False)
+    team_id = Column(BigInteger,
+                     ForeignKey('war_room_team.team_id', ondelete='CASCADE'),
+                     primary_key=True, nullable=False, index=True)
+    assigned_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    assigned_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+
 class WarRoomNoteFolder(db.Model):
     """Folder in a war-room notes tree.
 
@@ -813,3 +836,191 @@ class WarRoomDatastoreFile(db.Model):
 
     war_room = relationship('WarRoom')
     uploaded_by = relationship('User')
+
+
+WAR_ROOM_DECISION_STATUSES = ('proposed', 'approved', 'rejected', 'superseded')
+
+WAR_ROOM_DECISION_VERDICTS = ('approved', 'rejected')
+
+
+class WarRoomDecision(db.Model):
+    """Entry of the war-room decision register (displayed `D-<number>`).
+
+    A decision can be promoted from a `/decision` chat message
+    (`chat_message_id`), carries a target date & time (`target_at`,
+    naive UTC) and an optional approver list. "Overdue" is computed:
+    `target_at` in the past, not implemented, still proposed/approved.
+    """
+    __tablename__ = 'war_room_decision'
+    __table_args__ = (
+        UniqueConstraint('war_room_id', 'number', name='uq_war_room_decision_number'),
+        CheckConstraint("status IN ('proposed', 'approved', 'rejected', 'superseded')",
+                        name='ck_war_room_decision_status'),
+    )
+
+    decision_id = Column(BigInteger, primary_key=True)
+    war_room_id = Column(BigInteger,
+                         ForeignKey('war_room.war_room_id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+    number = Column(Integer, nullable=False)
+    title = Column(String(256), nullable=False)
+    rationale = Column(Text, nullable=True)
+    status = Column(String(16), nullable=False, server_default=text("'proposed'"))
+    target_at = Column(DateTime, nullable=True)
+    owner_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    supersedes_id = Column(BigInteger,
+                           ForeignKey('war_room_decision.decision_id', ondelete='SET NULL'),
+                           nullable=True)
+    chat_message_id = Column(BigInteger,
+                             ForeignKey('war_room_chat_message.message_id', ondelete='SET NULL'),
+                             nullable=True)
+    decided_at = Column(DateTime, nullable=True)
+    decided_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    implemented_at = Column(DateTime, nullable=True)
+    implemented_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    created_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime, nullable=False, server_default=text('now()'))
+
+    war_room = relationship('WarRoom')
+    owner = relationship('User', foreign_keys=[owner_id])
+    decided_by = relationship('User', foreign_keys=[decided_by_id])
+    implemented_by = relationship('User', foreign_keys=[implemented_by_id])
+    created_by = relationship('User', foreign_keys=[created_by_id])
+    supersedes = relationship('WarRoomDecision', remote_side=[decision_id])
+    approvers = relationship('WarRoomDecisionApprover', back_populates='decision',
+                             cascade='all, delete-orphan', passive_deletes=True)
+
+
+class WarRoomDecisionApprover(db.Model):
+    """Approver of a decision and their verdict (NULL = pending)."""
+    __tablename__ = 'war_room_decision_approver'
+
+    decision_id = Column(BigInteger,
+                         ForeignKey('war_room_decision.decision_id', ondelete='CASCADE'),
+                         primary_key=True, nullable=False)
+    user_id = Column(BigInteger, ForeignKey('user.id', ondelete='CASCADE'),
+                     primary_key=True, nullable=False)
+    verdict = Column(String(16), nullable=True)
+    comment = Column(Text, nullable=True)
+    responded_at = Column(DateTime, nullable=True)
+
+    decision = relationship('WarRoomDecision', back_populates='approvers')
+    user = relationship('User')
+
+
+class WarRoomDecisionCase(db.Model):
+    """Cases a decision applies to (subset of the attached cases)."""
+    __tablename__ = 'war_room_decision_case'
+
+    decision_id = Column(BigInteger,
+                         ForeignKey('war_room_decision.decision_id', ondelete='CASCADE'),
+                         primary_key=True, nullable=False)
+    case_id = Column(BigInteger, ForeignKey('cases.case_id', ondelete='CASCADE'),
+                     primary_key=True, nullable=False, index=True)
+
+
+class WarRoomDecisionAsset(db.Model):
+    """Case assets a decision applies to (e.g. "keep SP-FARM-02 online")."""
+    __tablename__ = 'war_room_decision_asset'
+
+    decision_id = Column(BigInteger,
+                         ForeignKey('war_room_decision.decision_id', ondelete='CASCADE'),
+                         primary_key=True, nullable=False)
+    asset_id = Column(BigInteger, ForeignKey('case_assets.asset_id', ondelete='CASCADE'),
+                      primary_key=True, nullable=False, index=True)
+
+
+class WarRoomStagedObject(db.Model):
+    """Asset or IOC spotted in the war room but not yet pushed to a case.
+
+    `payload` holds the allow-listed asset/IOC fields; pushing creates
+    the object in each target case through the regular case business
+    functions and then drops the staged row.
+    """
+    __tablename__ = 'war_room_staged_object'
+    __table_args__ = (
+        CheckConstraint("object_type IN ('asset', 'ioc')", name='ck_war_room_staged_object_type'),
+    )
+
+    id = Column(BigInteger, primary_key=True)
+    war_room_id = Column(BigInteger,
+                         ForeignKey('war_room.war_room_id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+    object_type = Column(String(8), nullable=False)
+    payload = Column(JSONB, nullable=False)
+    proposed_case_ids = Column(JSONB, nullable=True)
+    note = Column(Text, nullable=True)
+    source_message_id = Column(BigInteger,
+                               ForeignKey('war_room_chat_message.message_id', ondelete='SET NULL'),
+                               nullable=True)
+    created_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    created_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    created_by = relationship('User')
+
+
+class WarRoomNoteShare(db.Model):
+    """Share of a war-room note (or folder subtree) with attached cases.
+
+    `delivery='mirror'` keeps a read-only copy of every shared note in a
+    locked "War room · <name>" directory of each target case, rewritten
+    whenever the source changes. `delivery='copy'` is a one-time copy;
+    the row is kept for audit only. `scope='all'` targets every case
+    attached to the room (now and later); `scope='cases'` targets the
+    `WarRoomNoteShareCase` rows.
+    """
+    __tablename__ = 'war_room_note_share'
+    __table_args__ = (
+        CheckConstraint('(note_id IS NULL) <> (folder_id IS NULL)', name='ck_war_room_note_share_target'),
+        CheckConstraint("scope IN ('all', 'cases')", name='ck_war_room_note_share_scope'),
+        CheckConstraint("delivery IN ('mirror', 'copy')", name='ck_war_room_note_share_delivery'),
+    )
+
+    share_id = Column(BigInteger, primary_key=True)
+    war_room_id = Column(BigInteger,
+                         ForeignKey('war_room.war_room_id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+    note_id = Column(BigInteger, ForeignKey('war_room_note.note_id', ondelete='CASCADE'),
+                     nullable=True, index=True)
+    folder_id = Column(BigInteger, ForeignKey('war_room_note_folder.id', ondelete='CASCADE'),
+                       nullable=True, index=True)
+    scope = Column(String(8), nullable=False, server_default=text("'cases'"))
+    include_future = Column(Boolean, nullable=False, default=False, server_default=text('false'))
+    delivery = Column(String(8), nullable=False, server_default=text("'mirror'"))
+    created_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    created_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    updated_at = Column(DateTime, nullable=False, server_default=text('now()'))
+
+    created_by = relationship('User')
+    cases = relationship('WarRoomNoteShareCase', cascade='all, delete-orphan', passive_deletes=True)
+
+
+class WarRoomNoteShareCase(db.Model):
+    """Target case of a `scope='cases'` note share."""
+    __tablename__ = 'war_room_note_share_case'
+
+    share_id = Column(BigInteger,
+                      ForeignKey('war_room_note_share.share_id', ondelete='CASCADE'),
+                      primary_key=True, nullable=False)
+    case_id = Column(BigInteger, ForeignKey('cases.case_id', ondelete='CASCADE'),
+                     primary_key=True, nullable=False, index=True)
+
+
+class WarRoomTaskCaseLink(db.Model):
+    """Fan-out of a war-room task into a case task, one per case."""
+    __tablename__ = 'war_room_task_case_link'
+    __table_args__ = (
+        UniqueConstraint('task_id', 'case_id', name='uq_war_room_task_case_link'),
+    )
+
+    id = Column(BigInteger, primary_key=True)
+    task_id = Column(BigInteger,
+                     ForeignKey('war_room_task.task_id', ondelete='CASCADE'),
+                     nullable=False, index=True)
+    case_id = Column(BigInteger, ForeignKey('cases.case_id', ondelete='CASCADE'),
+                     nullable=False, index=True)
+    case_task_id = Column(BigInteger, ForeignKey('case_tasks.id', ondelete='CASCADE'),
+                          nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    created_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)

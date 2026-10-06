@@ -40,6 +40,11 @@ from app.business.assets import assets_delete
 from app.business.assets import get_similar_assets
 from app.business.assets import get_case_client_id
 from app.business.assets import get_user_cases_fast
+from app.business.asset_stages import asset_stages_decision_war_room_id
+from app.business.asset_stages import asset_stages_history
+from app.business.asset_stages import asset_stages_set_for_asset
+from app.blueprints.rest.v2.war_rooms.access import require_war_room_read
+from app.blueprints.rest.v2.war_rooms.access import war_room_redact_stage_history
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
@@ -154,6 +159,51 @@ class AssetsOperations:
         except BusinessProcessingError as e:
             return response_api_error(e.get_message())
 
+    def set_stage(self, case_identifier, identifier):
+        if not cases_exists(case_identifier):
+            return response_api_not_found()
+        if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            asset = self._get_asset_in_case(identifier, case_identifier)
+
+            request_data = request.get_json(silent=True)
+            if not isinstance(request_data, dict):
+                return response_api_error('Invalid request')
+            if 'stage_id' not in request_data:
+                return response_api_error('stage_id is required')
+
+            decision_id = request_data.get('decision_id')
+            if decision_id is not None:
+                # The decision must come from a war room the caller can
+                # read; answer like an unknown decision otherwise so its
+                # existence does not leak.
+                war_room_id = asset_stages_decision_war_room_id(decision_id)
+                if war_room_id is None or require_war_room_read(war_room_id) is not None:
+                    return response_api_error('Decision not found in a war room this case is attached to')
+
+            updated_asset = asset_stages_set_for_asset(asset, request_data.get('stage_id'),
+                                                       request_data.get('reason'), decision_id,
+                                                       iris_current_user.id)
+            return response_api_success(self._schema.dump(updated_asset))
+
+        except ObjectNotFoundError:
+            return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
+
+    def stage_history(self, case_identifier, identifier):
+        if not ac_fast_check_current_user_has_case_access(case_identifier,
+                                                          [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+            return ac_api_return_access_denied(caseid=case_identifier)
+
+        try:
+            asset = self._get_asset_in_case(identifier, case_identifier)
+            return response_api_success(war_room_redact_stage_history(asset_stages_history(asset)))
+        except ObjectNotFoundError:
+            return response_api_not_found()
+
 
 assets_operations = AssetsOperations()
 case_assets_blueprint = Blueprint('case_assets',
@@ -225,3 +275,17 @@ def get_asset_other_case_links(case_identifier, identifier):
     links = list(get_similar_assets(
         asset.asset_name, asset.asset_type_id, case_identifier, customer_id, cases_access))
     return response_api_success(links)
+
+
+@case_assets_blueprint.put('/<int:identifier>/stage')
+@ac_api_requires()
+@api_doc(response=CaseAssetsSchema, tags=['CaseAssets'], summary='Set the stage of a case asset')
+def set_asset_stage(case_identifier, identifier):
+    return assets_operations.set_stage(case_identifier, identifier)
+
+
+@case_assets_blueprint.get('/<int:identifier>/stage-history')
+@ac_api_requires()
+@api_doc(tags=['CaseAssets'], summary='List the stage changes of a case asset, newest first')
+def get_asset_stage_history(case_identifier, identifier):
+    return assets_operations.stage_history(case_identifier, identifier)

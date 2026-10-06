@@ -34,6 +34,9 @@ from app.business.notes import notes_delete_revision
 from app.business.notes import notes_update
 from app.business.notes import notes_get
 from app.business.notes import notes_delete
+from app.business.notes import notes_check_writable
+from app.business.notes_directories import notes_directories_check_can_receive
+from app.business.notes_directories import notes_directories_check_writable
 from app.datamgmt.case.case_db import get_case
 from app.datamgmt.case.case_notes_db import add_comment_to_note
 from app.datamgmt.case.case_notes_db import get_directories_with_note_count
@@ -125,6 +128,8 @@ def case_note_delete(cur_id, caseid):
         notes_delete(note)
         return response_success(f'Note deleted {cur_id}')
 
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
     except Exception as e:
         return response_error('Unable to remove note', data=e.__traceback__)
 
@@ -138,6 +143,7 @@ def case_note_save(cur_id, caseid):
 
     try:
         note = notes_get(cur_id)
+        notes_check_writable(note)
         request_data = call_modules_hook('on_preload_note_update', request.get_json(), caseid=note.note_case_id)
 
         request_data['note_id'] = note.note_id
@@ -243,6 +249,7 @@ def case_directory_add(caseid):
         request_data.pop('id', None)
         request_data['case_id'] = caseid
         new_directory = directory_schema.load(request_data)
+        notes_directories_check_can_receive(new_directory.parent_id)
 
         db.session.add(new_directory)
         db.session.commit()
@@ -252,6 +259,8 @@ def case_directory_add(caseid):
 
     except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_notes_rest_blueprint.route('/case/notes/directories/update/<dir_id>', methods=['POST'])
@@ -265,6 +274,8 @@ def case_directory_update(dir_id, caseid):
         if not directory:
             return response_error(msg="Invalid directory ID")
 
+        notes_directories_check_writable(directory)
+
         directory_schema = CaseNoteDirectorySchema()
         request_data = request.get_json()
 
@@ -275,6 +286,7 @@ def case_directory_update(dir_id, caseid):
                                               current_id=dir_id)
 
         new_directory = directory_schema.load(request_data, instance=directory, partial=True)
+        notes_directories_check_can_receive(new_directory.parent_id)
 
         db.session.commit()
 
@@ -283,6 +295,9 @@ def case_directory_update(dir_id, caseid):
 
     except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
+
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
     except Exception as e:
         app.logger.exception(f"Failed to update directory: {e}")
@@ -300,6 +315,8 @@ def case_directory_delete(dir_id, caseid):
         if not directory:
             return response_error(msg="Invalid directory ID")
 
+        notes_directories_check_writable(directory)
+
         # Proceed to delete directory, but remove all associated notes and subdirectories recursively
         has_succeed = delete_directory(directory)
         if has_succeed:
@@ -310,6 +327,8 @@ def case_directory_delete(dir_id, caseid):
 
     except ValidationError as e:
         return response_error(msg="Data error", data=e.messages)
+    except BusinessProcessingError as e:
+        return response_error(e.get_message(), data=e.get_data())
 
 
 @case_notes_rest_blueprint.route('/case/notes/groups/list', methods=['GET'])

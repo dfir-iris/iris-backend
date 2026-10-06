@@ -14,6 +14,9 @@ from sqlalchemy.orm import aliased
 
 from app.db import db
 from app.models.war_rooms import WarRoomTask
+from app.models.war_rooms import WarRoomTaskTeam
+from app.models.war_rooms import WarRoomTeam
+from app.models.war_rooms import WarRoomTeamMember
 
 
 _SUBTASKS_SUPPORTED = None
@@ -138,3 +141,76 @@ def apply_due_range_filter(query, due_from, due_to, include_no_due):
     if include_no_due:
         range_conds.append(WarRoomTask.due_at.is_(None))
     return query.filter(or_(*range_conds))
+
+
+def apply_team_filter(query, team_ids):
+    """Tasks assigned to one of `team_ids`; `0` in the list means "no team"."""
+    conds = []
+    real_ids = [team_id for team_id in team_ids if team_id]
+    if 0 in team_ids:
+        conds.append(~WarRoomTask.task_id.in_(db.session.query(WarRoomTaskTeam.task_id)))
+    if real_ids:
+        conds.append(WarRoomTask.task_id.in_(
+            db.session.query(WarRoomTaskTeam.task_id).filter(WarRoomTaskTeam.team_id.in_(real_ids))
+        ))
+    if conds:
+        return query.filter(or_(*conds))
+    return query
+
+
+def apply_mine_filter(query, user_id):
+    """Tasks assigned to `user_id` or to a team `user_id` belongs to."""
+    my_team_tasks = (
+        db.session.query(WarRoomTaskTeam.task_id)
+        .join(WarRoomTeamMember, WarRoomTeamMember.team_id == WarRoomTaskTeam.team_id)
+        .filter(WarRoomTeamMember.user_id == user_id)
+    )
+    return query.filter(or_(WarRoomTask.assignee_id == user_id, WarRoomTask.task_id.in_(my_team_tasks)))
+
+
+def task_teams_db_room_team_ids(war_room_id, team_ids):
+    """The subset of `team_ids` that are teams of `war_room_id`."""
+    if not team_ids:
+        return set()
+    rows = (
+        db.session.query(WarRoomTeam.team_id)
+        .filter(WarRoomTeam.war_room_id == war_room_id, WarRoomTeam.team_id.in_(list(team_ids)))
+        .all()
+    )
+    return {row.team_id for row in rows}
+
+
+def task_teams_db_for_tasks(task_ids):
+    """Rows `(task_id, team_id, name, color)` of the given tasks, by team name."""
+    task_ids = list(task_ids or ())
+    if not task_ids:
+        return []
+    return (
+        db.session.query(WarRoomTaskTeam.task_id, WarRoomTeam.team_id, WarRoomTeam.name, WarRoomTeam.color)
+        .join(WarRoomTeam, WarRoomTeam.team_id == WarRoomTaskTeam.team_id)
+        .filter(WarRoomTaskTeam.task_id.in_(task_ids))
+        .order_by(func.lower(WarRoomTeam.name).asc(), WarRoomTeam.team_id.asc())
+        .all()
+    )
+
+
+def task_teams_db_replace(task_id, team_ids, assigned_by_id):
+    """Make `team_ids` the teams of `task_id`, without committing.
+
+    Returns the ids that were not assigned before."""
+    current = {
+        row.team_id for row in
+        db.session.query(WarRoomTaskTeam.team_id).filter(WarRoomTaskTeam.task_id == task_id).all()
+    }
+    wanted = set(team_ids)
+    removed = current - wanted
+    if removed:
+        (
+            db.session.query(WarRoomTaskTeam)
+            .filter(WarRoomTaskTeam.task_id == task_id, WarRoomTaskTeam.team_id.in_(list(removed)))
+            .delete(synchronize_session=False)
+        )
+    added = [team_id for team_id in team_ids if team_id not in current]
+    for team_id in added:
+        db.session.add(WarRoomTaskTeam(task_id=task_id, team_id=team_id, assigned_by_id=assigned_by_id))
+    return added

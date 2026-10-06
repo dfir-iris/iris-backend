@@ -34,6 +34,8 @@ import secrets
 
 from app import bc
 from app.business.case_transfer.manifest import BundleFormatError
+from app.business.vulnerabilities import vulnerabilities_transfer_create
+from app.business.vulnerabilities import vulnerabilities_transfer_match
 from app.datamgmt.case_transfer.transfer_db import create_lookup_row
 from app.datamgmt.case_transfer.transfer_db import create_placeholder_user
 from app.datamgmt.case_transfer.transfer_db import email_exists
@@ -343,6 +345,22 @@ def _lookup_entries(lookups, lookup_key):
     return entries
 
 
+def _find_lookup_ids(lookup_key, names):
+    # Vulnerabilities match on identifier or alias, after normalisation.
+    if lookup_key == 'vulnerability':
+        return vulnerabilities_transfer_match(names)
+    return find_lookup_ids_by_name(lookup_key, names)
+
+
+def _create_lookup(lookup_key, entry):
+    if lookup_key == 'vulnerability':
+        try:
+            return vulnerabilities_transfer_create(entry)
+        except BusinessProcessingError as e:
+            raise BundleFormatError(e.get_message())
+    return create_lookup_row(lookup_key, entry)
+
+
 def inspect_lookups(lookups):
     """What each piece of reference data will resolve to, without writing anything."""
     report = {}
@@ -353,7 +371,7 @@ def inspect_lookups(lookups):
             continue
 
         names = {entry.get('name') for entry in entries if entry.get('name') is not None}
-        by_name = find_lookup_ids_by_name(lookup_key, names)
+        by_name = _find_lookup_ids(lookup_key, names)
 
         report[lookup_key] = []
         for entry in entries:
@@ -366,18 +384,23 @@ def inspect_lookups(lookups):
                 # Some reference tables drive behaviour rather than labelling it;
                 # inventing a row there would produce a case the target's own
                 # workflows cannot act on, so the operator has to choose.
-                'requires_decision': matched_id is None and not spec.creatable,
+                'requires_decision': matched_id is None and not spec.creatable and not spec.optional,
+                # Optional reference data the target does not have is simply
+                # left out (e.g. an asset stage unknown to this instance).
+                'will_drop': matched_id is None and not spec.creatable and spec.optional,
             })
 
     return report
 
 
-def resolve_lookups(lookups, decisions, customer_identifier=None):
+def resolve_lookups(lookups, decisions, customer_identifier=None, may_create_vulnerabilities=True):
     """Apply lookup decisions and return `(ref_map, created)`.
 
     Default is match-by-name, create-if-missing. `decisions` overrides any
     single ref; `customer_identifier` overrides the customer wholesale, since
-    the operator picks that from the target's own customer list.
+    the operator picks that from the target's own customer list. Without
+    `may_create_vulnerabilities` an unknown vulnerability is refused rather
+    than added to the catalogue.
     """
     decisions = decisions or {}
     ref_map = {}
@@ -389,7 +412,7 @@ def resolve_lookups(lookups, decisions, customer_identifier=None):
             continue
 
         names = {entry.get('name') for entry in entries if entry.get('name') is not None}
-        by_name = find_lookup_ids_by_name(lookup_key, names)
+        by_name = _find_lookup_ids(lookup_key, names)
 
         for entry in entries:
             ref = entry.get('ref')
@@ -422,12 +445,21 @@ def resolve_lookups(lookups, decisions, customer_identifier=None):
                 ref_map[ref] = matched_id
                 continue
 
+            if not spec.creatable and spec.optional:
+                ref_map[ref] = None
+                continue
+
             if not spec.creatable:
                 raise BusinessProcessingError(
                     f'No {lookup_key} named "{entry.get("name")}" on this instance — '
                     f'choose an existing one for {ref}')
 
-            new_id = create_lookup_row(lookup_key, entry)
+            if lookup_key == 'vulnerability' and not may_create_vulnerabilities:
+                raise BusinessProcessingError(
+                    f'Vulnerability "{entry.get("name")}" is not in this instance\'s catalogue and you may not '
+                    f'create vulnerabilities — map {ref} to an existing entry')
+
+            new_id = _create_lookup(lookup_key, entry)
             # Later entries in the same bundle may carry the same name; keep the
             # local cache in step so we create it once.
             by_name[entry.get('name')] = new_id

@@ -110,6 +110,56 @@ def check_ua_case_client(user_id: int, case_id: int) -> Optional[int]:
     return result.access_level
 
 
+def check_ua_cases_client(user_id: int, case_ids) -> dict:
+    """Batched `check_ua_case_client`: `{case_id: access_level}` for the
+    cases of `case_ids` the user reaches through the customer of the case
+    (every existing case for a server administrator). One query."""
+    case_ids = list(case_ids or ())
+    if not case_ids:
+        return {}
+
+    if ac_current_user_has_permission(Permissions.server_administrator):
+        rows = Cases.query.with_entities(Cases.case_id).filter(Cases.case_id.in_(case_ids)).all()
+        return {row.case_id: CaseAccessLevel.full_access.value for row in rows}
+
+    rows = UserClient.query.with_entities(
+        Cases.case_id,
+        UserClient.access_level
+    ).filter(
+        UserClient.user_id == user_id,
+        Cases.case_id.in_(case_ids)
+    ).join(
+        Cases,
+        UserClient.client_id == Cases.client_id
+    ).all()
+
+    levels = {}
+    for row in rows:
+        levels.setdefault(row.case_id, row.access_level)
+    return levels
+
+
+def get_cases_effective_access(user_identifier, case_identifiers) -> dict:
+    """Batched `get_case_effective_access`: `{case_id: access_level}` for
+    the cases of `case_identifiers` holding an effective-access row. One
+    query."""
+    case_identifiers = list(case_identifiers or ())
+    if not case_identifiers:
+        return {}
+    rows = UserCaseEffectiveAccess.query.with_entities(
+        UserCaseEffectiveAccess.case_id,
+        UserCaseEffectiveAccess.access_level
+    ).filter(
+        UserCaseEffectiveAccess.user_id == user_identifier,
+        UserCaseEffectiveAccess.case_id.in_(case_identifiers)
+    ).all()
+
+    levels = {}
+    for row in rows:
+        levels.setdefault(row.case_id, row.access_level)
+    return levels
+
+
 def get_case_effective_access(user_identifier, case_identifier) -> Optional[int]:
     row = UserCaseEffectiveAccess.query.with_entities(
         UserCaseEffectiveAccess.access_level

@@ -18,6 +18,7 @@ name uniqueness, membership add/remove, and cascade delete all key off
 import re
 
 from app.db import db
+from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -101,7 +102,7 @@ def war_room_team_create(war_room_id, name, description=None, color=None,
         f'Created war-room team "{team.name}"',
         user_input=False,
     )
-    return team
+    return call_modules_hook('on_postload_war_room_team_create', team)
 
 
 def war_room_team_update(war_room_id, team_id, name=None, description=None,
@@ -129,13 +130,15 @@ def war_room_team_update(war_room_id, team_id, name=None, description=None,
         team.color = _validate_color(color)
 
     db.session.commit()
-    return team
+    return call_modules_hook('on_postload_war_room_team_update', team)
 
 
 def war_room_team_delete(war_room_id, team_id):
     team = war_room_team_get(war_room_id, team_id)
+    deleted = {'war_room_id': war_room_id, 'team_id': team.team_id, 'name': team.name}
     db.session.delete(team)
     db.session.commit()
+    call_modules_hook('on_postload_war_room_team_delete', deleted)
 
 
 def war_room_team_members_list(war_room_id, team_id):
@@ -204,6 +207,9 @@ def war_room_team_member_add(war_room_id, team_id, user_id, added_by_id=None):
     )
     db.session.add(row)
     db.session.commit()
+    call_modules_hook('on_postload_war_room_team_member_add',
+                      {'war_room_id': war_room_id, 'team_id': team_id, 'user_id': user_id,
+                       'added_by_id': added_by_id})
     return row, auto_added_room_member
 
 
@@ -219,6 +225,8 @@ def war_room_team_member_remove(war_room_id, team_id, user_id):
         raise ObjectNotFoundError('Team member not found')
     db.session.delete(row)
     db.session.commit()
+    call_modules_hook('on_postload_war_room_team_member_remove',
+                      {'war_room_id': war_room_id, 'team_id': team_id, 'user_id': user_id})
 
 
 def war_room_team_member_user_ids(war_room_id, team_ids):
@@ -239,3 +247,19 @@ def war_room_team_member_user_ids(war_room_id, team_ids):
         .all()
     )
     return {r.user_id for r in rows}
+
+
+def _handle_key(value):
+    return re.sub(r'[\s_-]+', ' ', (value or '').strip().lower())
+
+
+def war_room_team_find_by_handle(war_room_id, handle):
+    """Team of `war_room_id` named `handle`, case-insensitive, `-` and
+    `_` standing for spaces (`@blue-team` → "Blue Team"); None if none."""
+    key = _handle_key(handle)
+    if not key:
+        return None
+    for team in war_room_team_list(war_room_id):
+        if _handle_key(team.name) == key:
+            return team
+    return None

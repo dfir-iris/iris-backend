@@ -42,6 +42,7 @@ from app.business.notes import notes_get_revision
 from app.business.notes import notes_list_revisions
 from app.business.notes import notes_restore_revision
 from app.business.notes import notes_search
+from app.business.notes import notes_check_writable
 from app.business.cases import cases_exists
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -176,6 +177,9 @@ class NotesOperations:
                 return ac_api_return_access_denied(caseid=note.note_case_id)
             self._check_note_and_case_identifier_match(note, case_identifier)
 
+            # War-room mirrors are read-only: refuse before the load mutates it.
+            notes_check_writable(note)
+
             request_data = call_deprecated_on_preload_modules_hook('note_update', request.get_json(),
                                                                    note.note_case_id)
             request_data['note_id'] = note.note_id
@@ -207,6 +211,8 @@ class NotesOperations:
 
         except ObjectNotFoundError:
             return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
     # ------- Revisions ---------------------------------------------------
     # Brought back from the legacy `/case/notes/<id>/revisions/...`

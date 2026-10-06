@@ -90,6 +90,20 @@ def _parse_doc_name(doc_name):
     return kind, obj_id
 
 
+def _sync_war_room_note_shares(war_room_id, author_id):
+    """Refresh the case mirrors of a flushed war-room note (best effort,
+    never raises)."""
+    from app.business.war_room_note_shares import war_room_note_shares_reconcile_safe
+    war_room_note_shares_reconcile_safe(war_room_id, actor_id=author_id)
+
+
+def _is_mirror_note(note):
+    """A case note mirrored from a war room (read-only case-side).
+    Ids are ints when set; anything else counts as unset."""
+    return (isinstance(getattr(note, 'mirror_source_note_id', None), int)
+            or isinstance(getattr(note, 'mirror_war_room_id', None), int))
+
+
 def resolve_doc(doc_name, user_id):
     """Look up the object referenced by `doc_name` and the caller's
     permissions.
@@ -132,9 +146,12 @@ def resolve_doc(doc_name, user_id):
         read_level = write_level or ac_fast_check_user_has_case_access(
             user_id, note.note_case_id, [CaseAccessLevel.read_only],
         )
+        # A war-room mirror is read-only from the case side whatever the
+        # caller's case access: the war room is its source of truth.
+        is_mirror = _is_mirror_note(note)
         return {'kind': kind, 'id': obj_id, 'exists': True,
                 'can_read': read_level is not None,
-                'can_write': write_level is not None,
+                'can_write': write_level is not None and not is_mirror,
                 'current_content': note.note_content}
 
     if kind == 'case-summary':
@@ -446,6 +463,9 @@ def flush_to_source(doc_name):
         note = Notes.query.filter_by(note_id=obj_id).first()
         if note is None or _source_matches(note.note_content, new_content):
             return
+        if _is_mirror_note(note):
+            # Never write a stale/rogue snapshot back into a mirror.
+            return
         title, case_id = note.note_title, note.note_case_id
         if _write_source_column(Notes, {'note_id': obj_id},
                                 {'note_content': new_content}):
@@ -473,6 +493,7 @@ def flush_to_source(doc_name):
                                 {'content': new_content}):
             _track_flush(f'updated war room note "{title}"', author_id,
                          war_room_id=war_room_id)
+            _sync_war_room_note_shares(war_room_id, author_id)
         return
 
     if kind == 'war-room-summary':

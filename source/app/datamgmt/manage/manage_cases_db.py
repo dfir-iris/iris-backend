@@ -33,6 +33,7 @@ from app.datamgmt.manage.manage_case_state_db import get_case_state_by_name
 from app.datamgmt.conversions import convert_sort_direction
 from app.datamgmt.authorization import has_deny_all_access_level
 from app.datamgmt.states import delete_case_states
+from app.datamgmt.vulnerabilities.vulnerabilities_db import findings_db_delete_for_case
 from app.models.models import NoteRevisions
 from app.models.assets import alert_assets_association, CaseAssets
 from app.models.models import TaskAssignee
@@ -473,6 +474,9 @@ def delete_case(case_id):
 
     delete_case_states(caseid=case_id)
     UserActivity.query.filter(UserActivity.case_id == case_id).delete()
+    # Vulnerability findings hang off the assets, which may outlive the
+    # case when an alert still references them: drop them first.
+    findings_db_delete_for_case(case_id)
     _delete_evidences(case_id)
     _delete_iocs(case_id)
 

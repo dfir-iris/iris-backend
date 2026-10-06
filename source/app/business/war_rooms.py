@@ -246,6 +246,7 @@ def war_room_update(war_room_id, name=None, description=None, state=None,
     war_room = war_room_get(war_room_id)
 
     previous_state = war_room.state
+    previous_name = war_room.name
     if name is not None:
         war_room.name = _validate_name(name)
     if description is not None:
@@ -277,6 +278,10 @@ def war_room_update(war_room_id, name=None, description=None, state=None,
         )
     else:
         track_activity(f'updated war room "{war_room.name}"', war_room_id=war_room_id)
+    if war_room.name != previous_name:
+        # Renames the locked "War room · <name>" mirror directories.
+        from app.business.war_room_note_shares import war_room_note_shares_reconcile_safe
+        war_room_note_shares_reconcile_safe(war_room_id)
     war_room = call_modules_hook('on_postload_war_room_update', war_room)
     return war_room
 
@@ -438,6 +443,11 @@ def war_room_attach_case(war_room_id, case_id, attached_by_id=None, note=None):
     # transition visible immediately rather than on the next turn.
     _archive_stale_war_room_conversations(war_room_id)
 
+    # Shared war-room notes: extend include_future shares, then mirror
+    # into the new case (best effort, never fails the attach).
+    from app.business.war_room_note_shares import war_room_note_shares_on_case_attached
+    war_room_note_shares_on_case_attached(war_room_id, case_id, actor_id=attached_by_id)
+
     link = call_modules_hook('on_postload_war_room_case_attach', link, caseid=case_id)
     return link
 
@@ -493,6 +503,9 @@ def war_room_detach_case(war_room_id, case_id):
         f'detached case {case_label} from war room "{war_room.name}"',
         caseid=case_id, war_room_id=war_room_id,
     )
+    # Remove this room's mirrors from the detached case (best effort).
+    from app.business.war_room_note_shares import war_room_note_shares_on_case_detached
+    war_room_note_shares_on_case_detached(war_room_id, case_id)
     call_modules_hook('on_postload_war_room_case_detach',
                       {'war_room_id': war_room_id, 'case_id': case_id},
                       caseid=case_id)

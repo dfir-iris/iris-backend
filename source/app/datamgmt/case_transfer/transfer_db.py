@@ -106,6 +106,9 @@ def _entity_query(spec, case_identifier):
     if spec.case_column is not None:
         return spec.model.query.filter(getattr(spec.model, spec.case_column) == case_identifier)
 
+    if spec.key.startswith('asset_vulnerability'):
+        return _vulnerability_entity_query(spec, case_identifier)
+
     from app.models.assets import CaseAssets
     from app.models.cases import CasesEvent
     from app.models.evidences import CaseReceivedFile
@@ -132,6 +135,25 @@ def _entity_query(spec, case_identifier):
         parent_model,
         getattr(spec.model, local_column) == getattr(parent_model, parent_column)
     ).filter(case_column == case_identifier)
+
+
+def _vulnerability_entity_query(spec, case_identifier):
+    """Findings of the case assets (and their evidence links), on public
+    catalogue entries only: a private entry, and everything recorded
+    against it, never leaves the instance."""
+    from app.models.assets import CaseAssets
+    from app.models.vulnerabilities import CaseAssetVulnerability
+    from app.models.vulnerabilities import Vulnerability
+
+    query = spec.model.query
+    if spec.model is not CaseAssetVulnerability:
+        query = query.join(CaseAssetVulnerability, CaseAssetVulnerability.finding_id == spec.model.finding_id)
+    return (
+        query
+        .join(CaseAssets, CaseAssets.asset_id == CaseAssetVulnerability.asset_id)
+        .join(Vulnerability, Vulnerability.vulnerability_id == CaseAssetVulnerability.vulnerability_id)
+        .filter(CaseAssets.case_id == case_identifier, Vulnerability.is_private.is_(False))
+    )
 
 
 def read_case_bundle(case_identifier):

@@ -312,6 +312,16 @@ class Notes(db.Model):
     custom_attributes = Column(JSON)
     directory_id = Column(ForeignKey('note_directory.id'), nullable=True)
     modification_history = Column(JSON)
+    # Set when this case note is a read-only mirror of a war-room note
+    # (see `WarRoomNoteShare`). The war room is the source of truth; the
+    # mirror is rewritten by the share reconciler and refused by every
+    # case-side write path.
+    mirror_source_note_id = Column(BigInteger,
+                                   ForeignKey('war_room_note.note_id', ondelete='SET NULL'),
+                                   nullable=True, index=True)
+    mirror_war_room_id = Column(BigInteger,
+                                ForeignKey('war_room.war_room_id', ondelete='SET NULL'),
+                                nullable=True)
 
     user = relationship('User')
     case = relationship('Cases')
@@ -341,6 +351,11 @@ class NoteDirectory(db.Model):
     name = Column(Text, nullable=False)
     parent_id = Column(ForeignKey('note_directory.id'), nullable=True)
     case_id = Column(ForeignKey('cases.case_id'), nullable=False)
+    # Set on the locked "War room · <name>" directory that holds the
+    # mirrored notes of a war room in this case.
+    mirror_war_room_id = Column(BigInteger,
+                                ForeignKey('war_room.war_room_id', ondelete='SET NULL'),
+                                nullable=True)
 
     parent = relationship('NoteDirectory', remote_side=[id], backref='subdirectories')
     case = relationship('Cases', backref='note_directories')

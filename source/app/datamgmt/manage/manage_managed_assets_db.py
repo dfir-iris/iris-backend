@@ -183,6 +183,12 @@ def _visible_case_sighting_ids(asset, scope):
     ).where(and_(*conditions))
 
 
+def managed_assets_db_visible_case_asset_ids(asset, scope):
+    """Select of the `case_assets.asset_id`s of `asset` that `scope` may
+    see (its visible sightings), for other modules to filter on."""
+    return _visible_case_sighting_ids(asset, scope)
+
+
 # ---------------------------------------------------------------------------
 # Reads
 # ---------------------------------------------------------------------------
@@ -218,6 +224,19 @@ def _registry_visibility_clause(scope):
     if scope.get_case_ids() is None:
         return None
     return or_(ManagedAsset.source != 'observed', _sighting_exists_clause(scope))
+
+
+def managed_assets_db_scope_clauses(scope):
+    """Predicates on `ManagedAsset` restricting it to what `scope` may
+    see (customer membership and row visibility), for other modules."""
+    clauses = []
+    client_ids = scope.get_client_ids()
+    if client_ids is not None:
+        clauses.append(ManagedAsset.client_id.in_(list(client_ids)))
+    visibility = _registry_visibility_clause(scope)
+    if visibility is not None:
+        clauses.append(visibility)
+    return clauses
 
 
 def managed_assets_db_is_visible(asset, scope):

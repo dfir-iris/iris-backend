@@ -91,14 +91,17 @@ def managed_assets_viewer_scope(user, permissions):
     """
     # Late import: `iris_engine.access_control.utils` imports back into
     # the business package, so resolving it at module scope would cycle.
+    from app.iris_engine.access_control.utils import ac_get_administrator_readable_case_ids
     from app.iris_engine.access_control.utils import ac_get_fast_user_cases_access
     from app.business.access_controls import access_controls_user_accessible_customers
 
+    user_id = getattr(user, 'id', None)
     is_administrator = ac_has_permission_server_administrator(permissions)
     if is_administrator:
-        return ManagedAssetViewerScope(client_ids=None, case_ids=None, is_administrator=True)
+        # Unrestricted, except for the cases that explicitly deny this admin.
+        case_ids = ac_get_administrator_readable_case_ids(user_id) if user_id is not None else None
+        return ManagedAssetViewerScope(client_ids=None, case_ids=case_ids, is_administrator=True)
 
-    user_id = getattr(user, 'id', None)
     if user_id is None:
         return ManagedAssetViewerScope(client_ids=set(), case_ids=[], is_administrator=False)
 

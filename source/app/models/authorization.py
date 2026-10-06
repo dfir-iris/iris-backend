@@ -94,6 +94,21 @@ class Permissions(enum.Enum):
     # `/api/v2/cases/<id>/access/*`.
     case_access_manage = 0x8000000
 
+    # Curate the vulnerability catalogue: edit any entry (not only the
+    # ones the holder created). Deleting and merging entries stays with
+    # server administrators.
+    vulnerabilities_write = 0x10000000
+
+    # See any vulnerability data: the catalogue, the findings on the case
+    # and registry assets the holder can already see, the war-room matrix
+    # and tracked entries. Without it, vulnerability data is hidden
+    # everywhere (on top of the case / registry access checks).
+    vulnerabilities_read = 0x20000000
+    # Add catalogue entries (public quick add or private IRIS-VULN-*),
+    # record and update findings on the assets the holder can write, and
+    # track vulnerabilities on war rooms. Requires `vulnerabilities_read`.
+    vulnerabilities_create = 0x40000000
+
 
 class WarRoomAccessLevel(enum.Enum):
     deny_all = 0x1

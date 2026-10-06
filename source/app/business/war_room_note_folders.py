@@ -23,6 +23,13 @@ from app.models.errors import ObjectNotFoundError
 from app.models.war_rooms import WarRoomNoteFolder
 
 
+def _sync_note_shares(war_room_id):
+    """Best-effort refresh of shared-folder mirrors (a move or delete
+    changes which notes a folder share covers). Never raises."""
+    from app.business.war_room_note_shares import war_room_note_shares_reconcile_safe
+    war_room_note_shares_reconcile_safe(war_room_id)
+
+
 def war_room_note_folders_get(identifier: int) -> WarRoomNoteFolder:
     folder = get_folder(identifier)
     if folder is None:
@@ -47,6 +54,7 @@ def war_room_note_folders_update(folder: WarRoomNoteFolder) -> WarRoomNoteFolder
         f'updated war-room note folder "{folder.name}"',
         war_room_id=folder.war_room_id,
     )
+    _sync_note_shares(folder.war_room_id)
     return folder
 
 
@@ -59,6 +67,7 @@ def war_room_note_folders_delete(folder: WarRoomNoteFolder) -> None:
         f'deleted war-room note folder "{name}"',
         war_room_id=war_room_id,
     )
+    _sync_note_shares(war_room_id)
 
 
 def verify_parent_folder(parent_id: Optional[int], war_room_id: int,

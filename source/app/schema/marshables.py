@@ -66,6 +66,7 @@ from app.models.evidences import EvidenceTypes, CaseReceivedFile
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
 from app.models.assets import AssetsType, CaseAssets, AnalysisStatus
+from app.models.assets import AssetStage
 from app.models.models import CaseTasks
 from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent
@@ -84,6 +85,7 @@ from app.models.iocs import Ioc
 from app.models.models import IocType
 from app.models.models import IrisModule
 from app.models.models import Notes
+from app.models.war_rooms import WarRoom
 from app.models.models import NotesGroup
 from app.models.models import ServerSettings
 from app.models.models import TaskStatus
@@ -198,6 +200,8 @@ class CaseNoteDirectorySchema(ma.SQLAlchemyAutoSchema):
     It also includes a method for verifying the directory name.
 
     """
+
+    mirror_war_room_id = auto_field('mirror_war_room_id', dump_only=True)
 
     class Meta:
         model = NoteDirectory
@@ -526,12 +530,36 @@ class CaseNoteSchema(ma.SQLAlchemyAutoSchema):
     """
     comments = fields.Nested('CommentSchema', many=True)
     directory = fields.Nested('CaseNoteDirectorySchema', many=False)
+    # Mirror columns are owned by the war-room note-share reconciler.
+    mirror_source_note_id = auto_field('mirror_source_note_id', dump_only=True)
+    mirror_war_room_id = auto_field('mirror_war_room_id', dump_only=True)
+    # `{war_room_id, war_room_name, source_note_id, read_only}` for a
+    # read-only war-room mirror, null for a plain case note.
+    mirror = fields.Method('_get_mirror', dump_only=True)
 
     class Meta:
         model = Notes
         load_instance = True
         include_fk = True
         unknown = EXCLUDE
+
+    @staticmethod
+    def _get_mirror(note):
+        source_note_id = getattr(note, 'mirror_source_note_id', None)
+        war_room_id = getattr(note, 'mirror_war_room_id', None)
+        if source_note_id is None and war_room_id is None:
+            return None
+        war_room_name = None
+        if war_room_id is not None:
+            # Identity-map lookup: one query per war room, not per note.
+            war_room = db.session.get(WarRoom, war_room_id)
+            war_room_name = war_room.name if war_room else None
+        return {
+            'war_room_id': war_room_id,
+            'war_room_name': war_room_name,
+            'source_note_id': source_note_id,
+            'read_only': True,
+        }
 
     def verify_directory_id(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Verifies that the directory ID is valid.
@@ -773,6 +801,14 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
     alerts = fields.Nested('AlertSchema', many=True, exclude=['assets'])
     analysis_status = fields.Nested('AnalysisStatusSchema', required=False)
     iocs = fields.Nested('IocSchemaForAPIV2', many=True, only=['ioc_id'])
+    # Stage columns are only writable through the dedicated stage
+    # endpoint (`asset_stages_set_for_asset`), which keeps the history.
+    stage_id = auto_field('stage_id', dump_only=True)
+    stage_reason = auto_field('stage_reason', dump_only=True)
+    stage_decision_id = auto_field('stage_decision_id', dump_only=True)
+    stage_updated_at = auto_field('stage_updated_at', dump_only=True)
+    stage_updated_by_id = auto_field('stage_updated_by_id', dump_only=True)
+    stage = fields.Nested('AssetStageSchema', dump_only=True)
 
     class Meta:
         model = CaseAssets
@@ -2195,6 +2231,15 @@ class TaskLogSchema(ma.Schema):
     log_content: Optional[str] = fields.String(required=False, validate=Length(min=1))
 
     class Meta:
+        load_instance = True
+        unknown = EXCLUDE
+
+
+class AssetStageSchema(ma.SQLAlchemyAutoSchema):
+    """Dump-only schema of an asset stage (taxonomy entry)."""
+
+    class Meta:
+        model = AssetStage
         load_instance = True
         unknown = EXCLUDE
 

@@ -92,8 +92,22 @@ def _blob_source_path(datastore_file):
     return file_path
 
 
-def build_case_archive(case_identifier, exported_by, include_blobs=True, passphrase=None):
+def _strip_vulnerabilities(entities, lookup_ids):
+    """Drop the vulnerability findings, their evidence links and the
+    catalogue entries they point to, for an exporter who may not read
+    vulnerabilities."""
+    for key in [key for key in entities if key.startswith('asset_vulnerability')]:
+        del entities[key]
+    if 'vulnerability' in lookup_ids:
+        lookup_ids['vulnerability'] = set()
+
+
+def build_case_archive(case_identifier, exported_by, include_blobs=True, passphrase=None,
+                       include_vulnerabilities=True):
     """Build a bundle for `case_identifier`.
+
+    Without `include_vulnerabilities` (the exporter lacks the vulnerability
+    read permission) the findings and catalogue entries are left out.
 
     Returns `(archive_path, download_name, workspace)`. The caller owns the
     workspace and must clean it up once the response has been sent.
@@ -107,6 +121,8 @@ def build_case_archive(case_identifier, exported_by, include_blobs=True, passphr
 
     # Re-read after flushing so the freshly rendered markdown is what travels.
     case_row, entities, collector = read_case_bundle(case_identifier)
+    if not include_vulnerabilities:
+        _strip_vulnerabilities(entities, collector.lookup_ids)
 
     principals = read_principals(collector.principal_ids)
     lookups = read_lookups(collector.lookup_ids)

@@ -33,9 +33,11 @@ MANUAL_ACTION = 'manual_trigger'
 
 # Longest first: `alert_cluster_create` must not parse as `alert`
 _OBJECT_TYPES = (
+    'vulnerability_finding',
     'activities_report',
     'alert_cluster',
     'global_task',
+    'vulnerability',
     'notification',
     'war_room',
     'evidence',
@@ -50,6 +52,8 @@ _OBJECT_TYPES = (
 )
 
 _OBJECT_LABELS = {
+    'vulnerability_finding': 'Vulnerability finding',
+    'vulnerability': 'Vulnerability',
     'activities_report': 'Activities report',
     'alert_cluster': 'Alert cluster',
     'global_task': 'Global task',
@@ -78,6 +82,10 @@ _SPECIAL_ACTIONS = {
     'case_detach': 'case detached',
     'member_add': 'member added',
     'member_remove': 'member removed',
+    'team_member_add': 'team member added',
+    'team_member_remove': 'team member removed',
+    'task_fan_out_create': 'task fanned out',
+    'task_fan_out_delete': 'task fan-out removed',
     'poll_vote': 'poll vote',
     'reaction_toggle': 'reaction toggled',
     'message_pin': 'message pinned',
@@ -102,6 +110,11 @@ _PAST_TENSE = {
     'detach': 'detached',
     'pin': 'pinned',
     'toggle': 'toggled',
+    'track': 'tracked',
+    'untrack': 'untracked',
+    'vote': 'voted',
+    'implement': 'implemented',
+    'push': 'pushed',
 }
 
 

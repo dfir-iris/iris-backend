@@ -41,6 +41,8 @@ from app.business.notes_directories import notes_directories_update
 from app.business.notes_directories import notes_directories_delete
 from app.business.cases import cases_exists
 from app.business.notes_directories import notes_directories_filter
+from app.business.notes_directories import notes_directories_check_can_receive
+from app.business.notes_directories import notes_directories_check_writable
 from app.models.authorization import CaseAccessLevel
 
 
@@ -95,6 +97,8 @@ class NotesDirectories:
             return response_api_created(self._schema.dump(directory))
         except ValidationError as e:
             return response_api_error('Data error', data=e.normalized_messages())
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
     def get(self, case_identifier, identifier):
         if not cases_exists(case_identifier):
@@ -123,8 +127,19 @@ class NotesDirectories:
 
             request_data = request.get_json()
 
+            # War-room mirror directories are locked, and nothing moves into them.
+            try:
+                notes_directories_check_writable(directory)
+            except BusinessProcessingError as e:
+                return response_api_error(e.get_message())
+
             if request_data.get('parent_id') is not None:
                 self._schema.verify_parent_id(request_data['parent_id'], case_id=case_identifier, current_id=identifier)
+                # Only once the parent is known to belong to this case.
+                try:
+                    notes_directories_check_can_receive(request_data['parent_id'])
+                except BusinessProcessingError as e:
+                    return response_api_error(e.get_message())
             new_directory = self._load(request_data, instance=directory, partial=True)
             notes_directories_update(new_directory)
             return response_api_success(self._schema.dump(new_directory))
@@ -145,6 +160,8 @@ class NotesDirectories:
             return response_api_deleted()
         except ObjectNotFoundError:
             return response_api_not_found()
+        except BusinessProcessingError as e:
+            return response_api_error(e.get_message(), data=e.get_data())
 
 
 notes_directories = NotesDirectories()

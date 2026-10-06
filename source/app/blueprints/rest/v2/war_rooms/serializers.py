@@ -32,6 +32,8 @@ def serialize_war_room(war_room):
         'archived_at': war_room.archived_at.isoformat() if war_room.archived_at else None,
         'archived_by_id': war_room.archived_by_id,
         'custom_attributes': war_room.custom_attributes,
+        'sitrep_cadence_minutes': getattr(war_room, 'sitrep_cadence_minutes', None),
+        'sitrep_reminder_minutes': getattr(war_room, 'sitrep_reminder_minutes', None),
     }
 
 

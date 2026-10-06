@@ -66,12 +66,14 @@ _MAX_DEPTH = 8
 
 _NAME_KEYS = (
     'case_name', 'alert_title', 'cluster_title', 'note_title', 'task_title', 'event_title',
-    'asset_name', 'ioc_value', 'file_original_name', 'filename', 'title', 'name',
+    'asset_name', 'ioc_value', 'file_original_name', 'filename', 'identifier', 'title', 'name',
 )
 
 _ID_KEYS = {
     'alert_cluster': ('cluster_id', 'id'),
     'war_room': ('war_room_id', 'id'),
+    'vulnerability': ('vulnerability_id', 'id'),
+    'vulnerability_finding': ('finding_id', 'id'),
     'case': ('case_id', 'id'),
 }
 
@@ -201,6 +203,9 @@ def _ui_path(object_type, action, subject, object_id, case_id):
         return f'/alerts/{object_id}'
     if object_type == 'alert_cluster' and object_id:
         return f'/alert-clusters/{object_id}'
+    if object_type == 'vulnerability':
+        vulnerability_id = subject.get('vulnerability_id')
+        return f'/manage/vulnerabilities/{vulnerability_id}' if vulnerability_id else None
     if object_type == 'war_room':
         war_room_id = subject.get('war_room_id') or (object_id if action in ('create', 'update', 'archive',
                                                                             'unarchive') else None)

@@ -632,3 +632,17 @@ WEBHOOKS_DELIVERY_RETENTION_DAYS  # read in iris_engine/webhooks/tasks.py throug
 webhooks_prune_task  # Celery task iris.webhooks.prune_deliveries, run by the beat schedule
 _register_webhooks_beat_schedule  # celery.on_after_finalize receiver (iris_engine/webhooks/tasks.py)
 trust_env  # requests.Session attribute read by requests (iris_engine/webhooks/sender.py)
+
+######### War-room stages: ORM relationships / schema fields / marshmallow hooks resolved by name
+stage_updated_by_id  # CaseAssets column, dumped by CaseAssetsSchema
+changed_by  # CaseAssetStageHistory relationship
+decided_by  # WarRoomDecision relationship
+implemented_by  # WarRoomDecision relationship
+supersedes  # WarRoomDecision self-relationship
+approvers  # WarRoomDecision relationship
+_get_mirror  # fields.Method target on CaseNoteSchema
+AssetStageSchema  # resolved by string from fields.Nested('AssetStageSchema')
+CVE_SYNC_ENABLED  # read in business/vulnerabilities_cve_sync.py through app.config
+CVE_API_URL  # read in business/vulnerabilities_cve_sync.py through app.config
+CVE_API_TIMEOUT_SECONDS  # read in business/vulnerabilities_cve_sync.py through app.config
+assigned_at  # unused variable (source/app/models/war_rooms.py:686)

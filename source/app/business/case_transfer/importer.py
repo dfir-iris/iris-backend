@@ -309,8 +309,17 @@ def _restore_blobs(bundle, manifest, datastore_rows):
     return written_paths
 
 
+def _drop_orphan_stage_reasons(asset_rows):
+    """A stage this instance does not know is dropped on import; its
+    justification goes with it rather than dangling on a stage-less asset."""
+    for row, _ in asset_rows:
+        if row.stage_id is None:
+            row.stage_reason = None
+
+
 def apply_import(token, owner_id, principal_decisions=None, lookup_decisions=None,
-                 customer_identifier=None, group_grants=None, may_create_placeholders=False):
+                 customer_identifier=None, group_grants=None, may_create_placeholders=False,
+                 may_create_vulnerabilities=True):
     """Turn a staged bundle into a real case. Returns the new `Cases` row."""
     workspace = resolve_workspace(token)
     _assert_owner(workspace, owner_id)
@@ -321,7 +330,8 @@ def apply_import(token, owner_id, principal_decisions=None, lookup_decisions=Non
     written_paths = []
     try:
         lookup_ref_map, created_lookups = resolve_lookups(
-            lookups, lookup_decisions, customer_identifier)
+            lookups, lookup_decisions, customer_identifier,
+            may_create_vulnerabilities=may_create_vulnerabilities)
 
         principal_ref_map, principal_report = resolve_principals(
             principals, principal_decisions, owner_id, may_create_placeholders)
@@ -338,6 +348,7 @@ def apply_import(token, owner_id, principal_decisions=None, lookup_decisions=Non
         _record_provenance(case, manifest, principal_report)
 
         written_rows = write_case_bundle(case.case_id, entities, ref_map)
+        _drop_orphan_stage_reasons(written_rows.get('asset') or [])
 
         with BundleReader(archive_path, _max_archive_bytes()) as bundle:
             written_paths = _restore_blobs(bundle, manifest,

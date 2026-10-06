@@ -51,9 +51,13 @@ def get_note(note_id):
 
 
 def get_directory(directory_id):
-    return NoteDirectory.query.filter(and_(
-        NoteDirectory.id == directory_id
-    )).first()
+    # Pure read, also called while a loaded-but-unvalidated note or
+    # directory is pending: autoflushing it here would raise the FK
+    # violation outside the caller's persistence error handling.
+    with db.session.no_autoflush:
+        return NoteDirectory.query.filter(and_(
+            NoteDirectory.id == directory_id
+        )).first()
 
 
 def get_case_root_directory(case_id):
@@ -61,11 +65,13 @@ def get_case_root_directory(case_id):
 
     A case has no directory at all until someone creates one (only case
     templates pre-populate the tree), so callers that need a directory
-    to write into must handle the None.
+    to write into must handle the None. Locked war-room mirror
+    directories are never returned: nothing may be written into them.
     """
     return NoteDirectory.query.filter(and_(
         NoteDirectory.case_id == case_id,
-        NoteDirectory.parent_id.is_(None)
+        NoteDirectory.parent_id.is_(None),
+        NoteDirectory.mirror_war_room_id.is_(None)
     )).order_by(NoteDirectory.id).first()
 
 
