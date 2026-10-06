@@ -285,6 +285,46 @@ class TestsRestAlerts(TestCase):
         # TODO should be 201
         self.assertEqual(200, response.status_code)
 
+    def _create_alert_with_ioc_and_assets(self):
+        body = {
+            'alert_title': 'title',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+            'alert_iocs': [{'ioc_value': 'evil.example', 'ioc_tlp_id': 1, 'ioc_type_id': 2}],
+            'alert_assets': [{'asset_type_id': 1, 'asset_name': 'kept'},
+                             {'asset_type_id': 1, 'asset_name': 'dropped'}],
+        }
+        return self._subject.create('/api/v2/alerts', body).json()
+
+    def test_escalate_alert_should_return_200_when_import_lists_are_omitted(self):
+        alert = self._create_alert_with_ioc_and_assets()
+        response = self._subject.create(f'/api/v2/alerts/escalate/{alert["alert_id"]}',
+                                        {'case_title': 'escalated'})
+        self.assertEqual(200, response.status_code)
+
+    def test_merge_alert_should_return_200_when_import_lists_are_omitted(self):
+        case_identifier = self._subject.create_dummy_case()
+        alert = self._create_alert_with_ioc_and_assets()
+        response = self._subject.create(f'/api/v2/alerts/merge/{alert["alert_id"]}',
+                                        {'target_case_id': case_identifier})
+        self.assertEqual(200, response.status_code)
+
+    def test_escalate_alert_should_import_only_the_selected_iocs_and_assets(self):
+        alert = self._create_alert_with_ioc_and_assets()
+        kept_asset = next(asset for asset in alert['assets'] if asset['asset_name'] == 'kept')
+        body = {
+            'case_title': 'escalated',
+            'iocs_import_list': [alert['iocs'][0]['ioc_uuid']],
+            'assets_import_list': [kept_asset['asset_uuid']],
+        }
+        case = self._subject.create(f'/api/v2/alerts/escalate/{alert["alert_id"]}', body).json()
+
+        iocs = self._subject.get(f'/api/v2/cases/{case["case_id"]}/iocs').json()['data']
+        assets = self._subject.get(f'/api/v2/cases/{case["case_id"]}/assets').json()['data']
+        self.assertEqual(['evil.example'], [ioc['ioc_value'] for ioc in iocs])
+        self.assertEqual(['kept'], [asset['asset_name'] for asset in assets])
+
     def test_create_customer_should_return_400_when_user_has_customer_alert_right(self):
         group_identifier = self._subject.create_dummy_group([IRIS_PERMISSION_ALERTS_WRITE])
         user = self._subject.create_dummy_user()

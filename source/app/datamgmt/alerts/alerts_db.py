@@ -802,15 +802,15 @@ def _new_case_tag_titles(case: Cases, case_tags: Optional[str]) -> List[str]:
     return [title for title in _parse_case_tags(case_tags) if title not in existing_titles]
 
 
-def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_list: List[str], case_title: str,
+def create_case_from_alerts(alerts: List[Alert], iocs_list: Optional[List[str]], assets_list: Optional[List[str]], case_title: str,
                             note: str, import_as_event: bool, case_tags: str, template_id: int) -> Cases:
     """
     Create a case from multiple alerts
 
     args:
         alerts (Alert): The Alerts
-        iocs_list (list): The list of IOCs
-        assets_list (list): The list of assets
+        iocs_list (list): The UUIDs of the alert IOCs to import; None imports none
+        assets_list (list): The UUIDs of the alert assets to import; None imports none
         note (str): The note to add to the case
         import_as_event (bool): Whether to import the alert as an event
         case_tags (str): The tags to add to the case
@@ -874,7 +874,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
         asset_links = []
 
         # Add the IOCs to the case
-        for ioc_uuid in iocs_list:
+        for ioc_uuid in iocs_list or []:
             for alert_ioc in alert.iocs:
                 if str(alert_ioc.ioc_uuid) == ioc_uuid:
 
@@ -882,7 +882,7 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
                     ioc_links.append(alert_ioc.ioc_id)
 
         # Add the assets to the case
-        for asset_uuid in assets_list:
+        for asset_uuid in assets_list or []:
             for alert_asset in alert.assets:
                 if str(alert_asset.asset_uuid) == asset_uuid:
                     alert_asset.analysis_status_id = get_unspecified_analysis_status_id()
@@ -938,15 +938,15 @@ def create_case_from_alerts(alerts: List[Alert], iocs_list: List[str], assets_li
     return case
 
 
-def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List[str], case_title: str,
+def create_case_from_alert(alert: Alert, iocs_list: Optional[List[str]], assets_list: Optional[List[str]], case_title: str,
                            note: str, import_as_event: bool, case_tags: str, template_id: int) -> Cases:
     """
     Create a case from an alert
 
     args:
         alert (Alert): The Alert
-        iocs_list (list): The list of IOCs
-        assets_list (list): The list of assets
+        iocs_list (list): The UUIDs of the alert IOCs to import; None imports none
+        assets_list (list): The UUIDs of the alert assets to import; None imports none
         note (str): The note to add to the case
         import_as_event (bool): Whether to import the alert as an event
         case_tags (str): The tags to add to the case
@@ -1005,7 +1005,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
     asset_links = []
 
     # Add the IOCs to the case
-    for ioc_uuid in iocs_list:
+    for ioc_uuid in iocs_list or []:
         for alert_ioc in alert.iocs:
             if str(alert_ioc.ioc_uuid) == ioc_uuid:
 
@@ -1040,7 +1040,7 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
                 ioc_links.append(alert_ioc.ioc_id)
 
     # Add the assets to the case
-    for asset_uuid in assets_list:
+    for asset_uuid in assets_list or []:
         for alert_asset in alert.assets:
             if str(alert_asset.asset_uuid) == asset_uuid:
                 alert_asset.analysis_status_id = get_unspecified_analysis_status_id()
@@ -1111,17 +1111,17 @@ def create_case_from_alert(alert: Alert, iocs_list: List[str], assets_list: List
     return case
 
 
-def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
-                        assets_list: List[str], note: str, import_as_event: bool, case_tags: str):
+def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: Optional[List[str]],
+                        assets_list: Optional[List[str]], note: str, import_as_event: bool, case_tags: str):
     """
     Merge an alert in a case
 
     args:
         alert (Alert): The Alert
         case (Cases): The Case
-        iocs_list (list): The list of IOCs
+        iocs_list (list): The UUIDs of the alert IOCs to import; None imports none
         case_title (str): The title of the case
-        assets_list (list): The list of assets
+        assets_list (list): The UUIDs of the alert assets to import; None imports none
         note (str): The note to add to the case
         import_as_event (bool): Whether to import the alert as an event
         case_tags (str): The tags to add to the case
@@ -1155,7 +1155,7 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
     asset_links = []
 
     # Add the IOCs to the case
-    for ioc_uuid in iocs_list:
+    for ioc_uuid in iocs_list or []:
         for alert_ioc in alert.iocs:
             if str(alert_ioc.ioc_uuid) == ioc_uuid:
 
@@ -1172,7 +1172,7 @@ def merge_alert_in_case(alert: Alert, case: Cases, iocs_list: List[str],
                 ioc_links.append(alert_ioc.ioc_id)
 
     # Add the assets to the case
-    for asset_uuid in assets_list:
+    for asset_uuid in assets_list or []:
         for alert_asset in alert.assets:
             # Filter selected assets by the user
             if str(alert_asset.asset_uuid) == asset_uuid:

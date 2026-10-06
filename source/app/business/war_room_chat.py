@@ -911,7 +911,8 @@ def _require_threads():
         )
 
 
-def create_reply(war_room_id, parent_message_id, author_id, body, kind='message'):
+def create_reply(war_room_id, parent_message_id, author_id, body, kind='message',
+                 file_ids=None):
     """Post a reply hanging off a thread root.
 
     Threads are two-level: replying to a reply folds the new row up to
@@ -923,6 +924,9 @@ def create_reply(war_room_id, parent_message_id, author_id, body, kind='message'
     on the main stream, and the "who decided what and when" index can
     surface these entries whether they were posted top-level or in a
     thread.
+
+    `file_ids` carries war-room datastore uploads (pasted / dropped
+    images, files) exactly like `create_message`.
     """
     _require_threads()
     root = _get_root_message(war_room_id, parent_message_id)
@@ -936,7 +940,13 @@ def create_reply(war_room_id, parent_message_id, author_id, body, kind='message'
         raise BusinessProcessingError(
             f'Kind "{kind}" is not allowed as a thread reply'
         )
-    body = _validate_body(body, kind)
+    attachments = _resolve_attachments(war_room_id, file_ids)
+    # Same relaxation as `create_message`: an attachment-only plain
+    # reply is valid, the payload lives in the file.
+    if kind == 'message' and attachments and not (isinstance(body, str) and body.strip()):
+        body = _validate_body(body, 'system')
+    else:
+        body = _validate_body(body, kind)
 
     msg = WarRoomChatMessage()
     msg.war_room_id = war_room_id
@@ -944,6 +954,13 @@ def create_reply(war_room_id, parent_message_id, author_id, body, kind='message'
     msg.body = body
     msg.kind = kind
     msg.parent_message_id = root.message_id
+    if attachments is not None:
+        # Same guard as `create_message` for a database that hasn't
+        # applied the attachments migration yet.
+        try:
+            msg.attachments = attachments
+        except Exception:
+            pass
     db.session.add(msg)
     db.session.commit()
 

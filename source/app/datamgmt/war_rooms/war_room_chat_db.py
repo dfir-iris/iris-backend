@@ -97,6 +97,9 @@ def build_threads_query(war_room_id, limit):
         )
         .filter(WarRoomChatMessage.war_room_id == war_room_id)
         .filter(WarRoomChatMessage.parent_message_id.isnot(None))
+        # Soft-deleted replies are hidden in the thread pane — don't
+        # count them either.
+        .filter(WarRoomChatMessage.deleted_at.is_(None))
         .group_by(WarRoomChatMessage.parent_message_id)
         .subquery()
     )

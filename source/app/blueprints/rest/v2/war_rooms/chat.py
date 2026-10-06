@@ -870,8 +870,13 @@ def post_reply(war_room_id, message_id):
     if not isinstance(raw, dict):
         return response_api_error('Invalid request')
     body = raw.get('body')
+    file_ids = raw.get('file_ids') or []
     if not isinstance(body, str):
-        return response_api_error('body is required')
+        # Attachment-only replies are legal, same as top-level posts.
+        if file_ids:
+            body = ''
+        else:
+            return response_api_error('body is required')
 
     # Slash commands inside a reply. Only the "trace" kinds — /decision,
     # /pin, /note — persist as structured rows on the thread itself; the
@@ -897,6 +902,7 @@ def post_reply(war_room_id, message_id):
     try:
         msg = create_reply(
             war_room_id, message_id, iris_current_user.id, body, kind=kind,
+            file_ids=file_ids,
         )
     except ObjectNotFoundError:
         return response_api_not_found()
