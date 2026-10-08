@@ -33,6 +33,620 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-suggestions:
+    get:
+      operationId: list_ai_suggestions_route_get
+      summary: List the AI suggestions the user can see
+      tags:
+      - AiSuggestions
+      security:
+      - ApiKey: []
+      parameters:
+      - name: entity_type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entity_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Suggestion status, 'open' by default, 'all' for every status
+      - name: run_uuid
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-suggestions/{identifier}:
+    get:
+      operationId: get_ai_suggestion_route_get
+      summary: Get an AI suggestion
+      tags:
+      - AiSuggestions
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-suggestions/{identifier}/accept:
+    post:
+      operationId: accept_ai_suggestion_route_post
+      summary: 'Accept an AI suggestion: its proposed write action runs as the current user'
+      tags:
+      - AiSuggestions
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-suggestions/{identifier}/answer:
+    post:
+      operationId: answer_ai_suggestion_route_post
+      summary: Answer an AI information request and resume its workflow run
+      tags:
+      - AiSuggestions
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-suggestions/{identifier}/dismiss:
+    post:
+      operationId: dismiss_ai_suggestion_route_post
+      summary: Dismiss an AI suggestion
+      tags:
+      - AiSuggestions
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-suggestions/counts:
+    get:
+      operationId: count_ai_suggestions_route_get
+      summary: Count the open AI suggestions per entity
+      tags:
+      - AiSuggestions
+      security:
+      - ApiKey: []
+      parameters:
+      - name: entity_type
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Entity type
+      - name: entity_ids
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Comma-separated entity ids
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows:
+    get:
+      operationId: list_ai_workflows_route_get
+      summary: List AI workflows (own workflows, all for administrators) with 24h run counts
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_ai_workflow_route_post
+      summary: Create an AI workflow
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/{identifier}:
+    delete:
+      operationId: delete_ai_workflow_route_delete
+      summary: Delete an AI workflow (active runs are cancelled, history kept)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_ai_workflow_route_get
+      summary: Get an AI workflow
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_ai_workflow_route_put
+      summary: Update an AI workflow (a definition change creates a new version)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/inbound-token:
+    post:
+      operationId: rotate_ai_workflow_inbound_token_route_post
+      summary: Rotate the inbound webhook token and signing secret of a workflow (both shown once)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/run:
+    post:
+      operationId: run_ai_workflow_route_post
+      summary: Run an AI workflow manually; the run acts as the workflow owner
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/signing-secret:
+    post:
+      operationId: rotate_ai_workflow_signing_secret_route_post
+      summary: Create or rotate the webhook signing secret of a workflow (shown once)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/versions:
+    get:
+      operationId: list_ai_workflow_versions_route_get
+      summary: List the versions of an AI workflow
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/versions/{version}:
+    get:
+      operationId: get_ai_workflow_version_route_get
+      summary: Get one version snapshot of an AI workflow
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/callbacks/{wait_uuid}:
+    post:
+      operationId: ai_workflows_callback_route_post
+      summary: Resolve a pending AI workflow callback wait (bearer callback token, optional HMAC signature)
+      tags:
+      - AiWorkflowsInbound
+      security:
+      - ApiKey: []
+      parameters:
+      - name: wait_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/catalogue:
+    get:
+      operationId: get_ai_workflows_catalogue_route_get
+      summary: Node types, tools, hooks, keystore names and LLM status for the workflow editor
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/hooks/{workflow_uuid}:
+    post:
+      operationId: ai_workflows_hook_route_post
+      summary: Start a webhook-triggered AI workflow (bearer inbound token, HMAC signature with the signing
+        secret)
+      tags:
+      - AiWorkflowsInbound
+      security:
+      - ApiKey: []
+      parameters:
+      - name: workflow_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/inbound-events:
+    get:
+      operationId: list_ai_workflow_inbound_events_route_get
+      summary: List inbound callback / webhook attempts (administrator or workflow owner)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: workflow_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/runs:
+    get:
+      operationId: list_ai_workflow_runs_route_get
+      summary: List the AI workflow runs the user can see
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: workflow_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entity_type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: entity_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/runs/{run_uuid}:
+    get:
+      operationId: get_ai_workflow_run_route_get
+      summary: Get an AI workflow run with its steps, tool calls, LLM calls, waits and suggestions
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: run_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/runs/{run_uuid}/cancel:
+    post:
+      operationId: cancel_ai_workflow_run_route_post
+      summary: Cancel an active AI workflow run
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: run_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/runs/{run_uuid}/export:
+    get:
+      operationId: export_ai_workflow_run_route_get
+      summary: Export the full JSON trace of a run (administrator or workflow owner)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: run_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/runs/{run_uuid}/rerun:
+    post:
+      operationId: rerun_ai_workflow_run_route_post
+      summary: Start a new run with the trigger of an existing run (acts as the workflow owner)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: run_uuid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/validate:
+    post:
+      operationId: validate_ai_workflow_route_post
+      summary: Validate a workflow graph and trigger without saving it
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/alert-clusters:
     get:
       operationId: list_clusters_get
@@ -6717,6 +7331,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/keystore:
+    get:
+      operationId: list_keystore_entries_route_get
+      summary: List the keystore entries the user can see (secret values are never returned)
+      tags:
+      - AiKeystore
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_keystore_entry_route_post
+      summary: Create a personal or shared keystore entry
+      tags:
+      - AiKeystore
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/keystore/{identifier}:
+    delete:
+      operationId: delete_keystore_entry_route_delete
+      summary: Delete a keystore entry
+      tags:
+      - AiKeystore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_keystore_entry_route_put
+      summary: Update a keystore entry (an omitted value keeps the stored one)
+      tags:
+      - AiKeystore
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
         '400':
           $ref: '#/components/responses/ApiError'
         '403':

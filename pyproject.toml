@@ -30,7 +30,9 @@ name = "Do not import API layer from the business layer"
 type = "forbidden"
 source_modules = ["app.business.access_controls", "app.business.assets", "app.business.cases", "app.business.alerts",
                   "app.business.vulnerabilities", "app.business.vulnerability_findings",
-                  "app.business.vulnerabilities_cvss", "app.business.vulnerabilities_cve_sync"]
+                  "app.business.vulnerabilities_cvss", "app.business.vulnerabilities_cve_sync",
+                  "app.business.ai_workflows", "app.business.ai_suggestions", "app.business.ai_workflows_inbound",
+                  "app.business.ai_keystore"]
 forbidden_modules = "app.blueprints"
 allow_indirect_imports = true
 

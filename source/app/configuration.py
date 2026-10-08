@@ -233,6 +233,7 @@ class CeleryConfig:
     include = [
         'app.iris_engine.cluster_rules.tasks',
         'app.iris_engine.webhooks.tasks',
+        'app.iris_engine.ai_workflows.tasks',
     ]
 
 
@@ -374,6 +375,26 @@ class Config:
     """
     WEBHOOKS_ALLOW_PRIVATE_EGRESS = config.load('IRIS', 'WEBHOOKS_ALLOW_PRIVATE_EGRESS', fallback="True") == "True"
     WEBHOOKS_DELIVERY_RETENTION_DAYS = int(config.load('IRIS', 'WEBHOOKS_DELIVERY_RETENTION_DAYS', fallback=30))
+
+    """ AI workflows
+    Node-graph workflows that run an AI agent on events, on a schedule, on demand or
+    on an inbound webhook. Runs act as the workflow owner (or the user who started
+    them) and never exceed that user's permissions. Unlike webhooks, any holder of
+    `ai_workflows_write` can configure HTTP nodes, so private destinations are refused
+    unless explicitly allowed. A workflow-originated change can trigger other
+    workflows up to MAX_CHAIN_DEPTH levels. Runs, their trace and the inbound
+    request log older than the retention are pruned daily.
+    """
+    AI_WORKFLOWS_ENABLED = config.load('IRIS', 'AI_WORKFLOWS_ENABLED', fallback="True") == "True"
+    AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS = config.load('IRIS', 'AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS',
+                                                    fallback="False") == "True"
+    AI_WORKFLOWS_MAX_CHAIN_DEPTH = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_CHAIN_DEPTH', fallback=2))
+    AI_WORKFLOWS_MAX_STEPS_PER_RUN = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_STEPS_PER_RUN', fallback=100))
+    AI_WORKFLOWS_RETENTION_DAYS = int(config.load('IRIS', 'AI_WORKFLOWS_RETENTION_DAYS', fallback=90))
+    AI_WORKFLOWS_MAX_INBOUND_BYTES = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_INBOUND_BYTES',
+                                                     fallback=1024 * 1024))
+    # Base URL external systems use to call IRIS back; defaults to the public URL
+    AI_WORKFLOWS_CALLBACK_BASE_URL = config.load('IRIS', 'AI_WORKFLOWS_CALLBACK_BASE_URL', fallback='') or ''
 
     """ Case transfer (export / import between instances)
     Uploaded bundles are staged under UPLOADED_PATH before being applied. The size cap

@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_tokens_today
 from app.db import db
 from app.models.authorization import User
 from app.models.case_chat import (
@@ -418,7 +419,8 @@ def sum_tokens_today(*, user_id: Optional[int] = None) -> int:
     )
     if user_id is not None:
         query = query.filter(CaseChatEgressAudit.user_id == user_id)
-    return int(query.scalar() or 0)
+    # AI workflow LLM calls draw on the same daily budgets
+    return int(query.scalar() or 0) + ai_workflows_db_tokens_today(user_id=user_id)
 
 
 def list_egress_audit(

@@ -50,6 +50,7 @@ EVENT_TYPES = (
     'alert_escalated',
     'war_room_message',
     'war_room_thread_reply',
+    'ai_suggestion',
     'module_custom',
 )
 

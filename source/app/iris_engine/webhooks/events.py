@@ -34,6 +34,8 @@ MANUAL_ACTION = 'manual_trigger'
 # Longest first: `alert_cluster_create` must not parse as `alert`
 _OBJECT_TYPES = (
     'vulnerability_finding',
+    'ai_workflow_run',
+    'ai_suggestion',
     'activities_report',
     'alert_cluster',
     'global_task',
@@ -53,6 +55,8 @@ _OBJECT_TYPES = (
 
 _OBJECT_LABELS = {
     'vulnerability_finding': 'Vulnerability finding',
+    'ai_workflow_run': 'AI workflow run',
+    'ai_suggestion': 'AI suggestion',
     'vulnerability': 'Vulnerability',
     'activities_report': 'Activities report',
     'alert_cluster': 'Alert cluster',
@@ -104,6 +108,9 @@ _PAST_TENSE = {
     'publish': 'published',
     'close': 'closed',
     'reopen': 'reopened',
+    'complete': 'completed',
+    'accept': 'accepted',
+    'dismiss': 'dismissed',
     'add': 'added',
     'remove': 'removed',
     'attach': 'attached',

@@ -54,6 +54,8 @@ _DEFAULT_CHANNEL_STATE = {
     'alert_escalated':       {'in_app': True, 'email': False},
     'war_room_message':      {'in_app': True, 'email': False},
     'war_room_thread_reply': {'in_app': True, 'email': False},
+    # AI workflow suggestions (`iris_engine/ai_workflows/suggestions.py`)
+    'ai_suggestion':         {'in_app': True, 'email': False},
     # Modules opt in per-invocation — see `notify(..., default_channels)`
     # for the override knob. Default here is in-app only.
     'module_custom':         {'in_app': True, 'email': False},

@@ -759,6 +759,16 @@ def create_safe_hooks():
     create_safe(db.session, IrisHook, hook_name='on_postload_notification_create',
                 hook_description='Triggered when a user receives an in-app notification, after commit in DB')
 
+    # --- AI workflows
+    create_safe(db.session, IrisHook, hook_name='on_postload_ai_workflow_run_complete',
+                hook_description='Triggered when an AI workflow run ends (succeeded, failed or cancelled)')
+    create_safe(db.session, IrisHook, hook_name='on_postload_ai_suggestion_create',
+                hook_description='Triggered when an AI workflow creates a suggestion, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_ai_suggestion_accept',
+                hook_description='Triggered when an analyst accepts or answers an AI suggestion, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_ai_suggestion_dismiss',
+                hook_description='Triggered when an analyst dismisses an AI suggestion, after commit in DB')
+
 
 def create_safe_languages():
     """Creates new Language objects if they do not already exist.

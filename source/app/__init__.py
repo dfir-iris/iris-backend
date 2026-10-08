@@ -544,8 +544,10 @@ register_blueprints(app)
 # `call_modules_hook`, which runs wherever a hook fires.
 from app.iris_engine.notifications.hook_listeners import register_notification_listeners
 from app.iris_engine.webhooks.dispatch import webhooks_register_listener
+from app.iris_engine.ai_workflows.triggers import ai_workflows_triggers_register_listener
 register_notification_listeners()
 webhooks_register_listener()
+ai_workflows_triggers_register_listener()
 
 # Database bootstrap + base-data seeding. Deliberately NOT executed at
 # import time — the entrypoint runs it once via

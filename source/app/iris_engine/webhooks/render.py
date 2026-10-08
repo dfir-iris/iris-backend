@@ -30,12 +30,16 @@ decrypted, and gets back the request plus a masked copy for the log.
 """
 
 import base64
+import contextvars
 import hashlib
 import hmac
 import json
+import operator
 import re
+import string
 import time
 from urllib.parse import parse_qsl
+from urllib.parse import quote
 from urllib.parse import urlencode
 from urllib.parse import urlsplit
 from urllib.parse import urlunsplit
@@ -43,7 +47,12 @@ from urllib.parse import urlunsplit
 from jinja2 import ChainableUndefined
 from jinja2 import TemplateError
 from jinja2 import Undefined
+from jinja2 import pass_eval_context
+from jinja2.compiler import CodeGenerator
+from jinja2.filters import do_indent
+from jinja2.filters import do_replace
 from jinja2.sandbox import SandboxedEnvironment
+from jinja2.sandbox import SecurityError
 
 from app.models.webhooks import AUTH_BASIC
 from app.models.webhooks import AUTH_BEARER
@@ -132,16 +141,251 @@ def _pluck(items, path=''):
     return values[0] if len(values) == 1 else values
 
 
-def _environment():
-    env = SandboxedEnvironment(undefined=ChainableUndefined, autoescape=False, keep_trailing_newline=True)
+# Resource limits. The sandbox stops a template from reaching Python
+# internals but not from burning CPU or memory: `{{ 9 ** 9 ** 9 }}`,
+# `{{ "x" * 10 ** 9 }}`, nested `range()` loops or a doubling `~` chain
+# would each pin a worker. These caps are far above anything a real
+# template needs.
+_MAX_EXPONENT = 100
+_MAX_INT_BITS = 4096
+_MAX_REPEAT = 100_000
+_MAX_WIDTH = 10_000
+_MAX_STRING = 5 * 1024 * 1024
+_RANGE_BUDGET = 100_000
+_RENDER_SECONDS = 10
+
+_BUDGET = contextvars.ContextVar('webhooks_render_budget', default=None)
+
+_PERCENT_SPEC = re.compile(r'%(?:\([^)]*\))?[-#0 +]*(\*|\d+)?(?:\.(\*|\d+))?')
+_WIDTH_ARGUMENT_METHODS = ('ljust', 'rjust', 'center', 'zfill')
+
+
+class _Budget:
+
+    def __init__(self):
+        self.range_left = _RANGE_BUDGET
+        self.deadline = time.monotonic() + _RENDER_SECONDS
+
+
+def _tick():
+    budget = _BUDGET.get()
+    if budget is not None and time.monotonic() > budget.deadline:
+        raise SecurityError(f'template took longer than {_RENDER_SECONDS}s to render')
+
+
+def _limited(function):
+    """Run `function` with a fresh render budget unless one is active."""
+    def wrapper(*args, **kwargs):
+        if _BUDGET.get() is not None:
+            return function(*args, **kwargs)
+        token = _BUDGET.set(_Budget())
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _BUDGET.reset(token)
+    return wrapper
+
+
+def _check_size(value, limit, what):
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value.bit_length() > _MAX_INT_BITS:
+            raise SecurityError(f'{what} produces an integer larger than {_MAX_INT_BITS} bits')
+    elif isinstance(value, (str, bytes, list, tuple)) and len(value) > limit:
+        raise SecurityError(f'{what} produces more than {limit} items')
+    return value
+
+
+def _sequence(value):
+    return isinstance(value, (str, bytes, list, tuple))
+
+
+def _check_width(width, what):
+    if isinstance(width, int) and width > _MAX_WIDTH:
+        raise SecurityError(f'{what} width is limited to {_MAX_WIDTH}')
+
+
+def _check_percent_format(fmt):
+    for match in _PERCENT_SPEC.finditer(fmt):
+        for part in match.groups():
+            if part == '*':
+                raise SecurityError('"*" widths are not allowed in format strings')
+            if part and int(part) > _MAX_WIDTH:
+                raise SecurityError(f'format widths are limited to {_MAX_WIDTH}')
+
+
+def _check_brace_format(fmt):
+    try:
+        fields = list(string.Formatter().parse(fmt))
+    except ValueError:
+        return
+    for _literal, _name, spec, _conversion in fields:
+        if not spec:
+            continue
+        if '{' in spec:
+            raise SecurityError('nested format fields are not allowed')
+        for number in re.findall(r'\d+', spec):
+            if int(number) > _MAX_WIDTH:
+                raise SecurityError(f'format widths are limited to {_MAX_WIDTH}')
+
+
+def _check_replace(text, old, new, count):
+    occurrences = text.count(old) if old else len(text) + 1
+    if count is not None and count >= 0:
+        occurrences = min(occurrences, count)
+    if len(text) + occurrences * max(0, len(new) - len(old)) > _MAX_STRING:
+        raise SecurityError(f'replace() would produce more than {_MAX_STRING} characters')
+
+
+def _safe_range(*args):
+    rng = range(*args)
+    budget = _BUDGET.get()
+    if budget is not None:
+        budget.range_left -= len(rng)
+        if budget.range_left < 0:
+            raise SecurityError(f'templates may iterate over at most {_RANGE_BUDGET} range() items')
+    elif len(rng) > _RANGE_BUDGET:
+        raise SecurityError(f'range() is limited to {_RANGE_BUDGET} items')
+    return rng
+
+
+def _center(value, width=80):
+    _check_width(width, 'center')
+    return str(_plain(value) if _plain(value) is not None else '').center(width)
+
+
+def _indent(value, width=4, first=False, blank=False):
+    text = str(_plain(value) if _plain(value) is not None else '')
+    pad = width if isinstance(width, str) else ' ' * min(int(width), _MAX_WIDTH + 1)
+    _check_width(len(pad), 'indent')
+    if len(text) + (text.count('\n') + 1) * len(pad) > _MAX_STRING:
+        raise SecurityError(f'indent would produce more than {_MAX_STRING} characters')
+    return do_indent(text, width, first, blank)
+
+
+def _format(value, *args, **kwargs):
+    fmt = str(_plain(value) if _plain(value) is not None else '')
+    _check_percent_format(fmt)
+    return _check_size(fmt % (kwargs or args), _MAX_STRING, 'format')
+
+
+@pass_eval_context
+def _replace(eval_ctx, value, old, new, count=None):
+    _check_replace(str(value), str(old), str(new), count)
+    return do_replace(eval_ctx, value, old, new, count)
+
+
+class _CodeGenerator(CodeGenerator):
+    """Route `a ~ b` through the environment so its size is checked."""
+
+    def visit_Concat(self, node, frame):
+        self.write('environment.limited_concat((')
+        for arg in node.nodes:
+            self.visit(arg, frame)
+            self.write(', ')
+        self.write('))')
+
+
+class _LimitedSandbox(SandboxedEnvironment):
+
+    intercepted_binops = frozenset(['*', '**', '+', '%'])
+    code_generator_class = _CodeGenerator
+
+    def call_binop(self, context, operator_name, left, right):
+        _tick()
+        if operator_name == '**':
+            if isinstance(right, (int, float)) and abs(right) > _MAX_EXPONENT:
+                raise SecurityError(f'exponents are limited to {_MAX_EXPONENT}')
+            return _check_size(operator.pow(left, right), _MAX_REPEAT, 'power')
+        if operator_name == '*':
+            for sequence, times in ((left, right), (right, left)):
+                if _sequence(sequence) and isinstance(times, int) and len(sequence) * max(times, 0) > _MAX_REPEAT:
+                    raise SecurityError(f'repetition is limited to {_MAX_REPEAT} items')
+            return _check_size(operator.mul(left, right), _MAX_REPEAT, 'multiplication')
+        if operator_name == '+':
+            if _sequence(left) and _sequence(right) and len(left) + len(right) > _MAX_STRING:
+                raise SecurityError(f'concatenation is limited to {_MAX_STRING} items')
+            return _check_size(operator.add(left, right), _MAX_STRING, 'addition')
+        if operator_name == '%':
+            if isinstance(left, str):
+                _check_percent_format(left)
+            return _check_size(operator.mod(left, right), _MAX_STRING, 'format')
+        return super().call_binop(context, operator_name, left, right)
+
+    def limited_concat(self, values):
+        _tick()
+        parts = [str(v) for v in values]
+        if sum(len(p) for p in parts) > _MAX_STRING:
+            raise SecurityError(f'concatenation is limited to {_MAX_STRING} characters')
+        return ''.join(parts)
+
+    def getattr(self, obj, attribute):
+        _tick()
+        return super().getattr(obj, attribute)
+
+    def getitem(self, obj, argument):
+        _tick()
+        return super().getitem(obj, argument)
+
+    def wrap_str_format(self, value):
+        wrapper = super().wrap_str_format(value)
+        if wrapper is None:
+            return None
+        fmt = value.__self__
+
+        def checked(*args, **kwargs):
+            _check_brace_format(fmt)
+            return _check_size(wrapper(*args, **kwargs), _MAX_STRING, 'format')
+        return checked
+
+    def call(self, context, obj, /, *args, **kwargs):
+        _tick()
+        owner = getattr(obj, '__self__', None)
+        name = getattr(obj, '__name__', '')
+        if isinstance(owner, str):
+            if name in _WIDTH_ARGUMENT_METHODS and args:
+                _check_width(args[0], name)
+            elif name == 'expandtabs':
+                size = args[0] if args else kwargs.get('tabsize', 8)
+                if isinstance(size, int) and owner.count('\t') * size > _MAX_STRING:
+                    raise SecurityError(f'expandtabs would produce more than {_MAX_STRING} characters')
+            elif name == 'replace' and len(args) >= 2:
+                _check_replace(owner, str(args[0]), str(args[1]), args[2] if len(args) > 2 else kwargs.get('count'))
+        return super().call(context, obj, *args, **kwargs)
+
+
+def _url_finalize(value):
+    """Percent-encode every value interpolated into a URL template, so
+    data cannot inject a path segment, a query or a fragment."""
+    value = _plain(value)
+    if value is None:
+        return ''
+    return quote(str(value), safe='')
+
+
+def _fenced_finalize(value):
+    """Escape `<` in every value interpolated into an LLM prompt, so data
+    cannot open or close the tags that fence untrusted input."""
+    return str(value).replace('<', '\\u003c')
+
+
+def _environment(finalize=None):
+    env = _LimitedSandbox(undefined=ChainableUndefined, autoescape=False, keep_trailing_newline=True,
+                          finalize=finalize)
+    env.globals['range'] = _safe_range
     env.filters['tojson'] = _tojson
     env.filters['json_escape'] = _json_escape
     env.filters['link'] = _link
     env.filters['pluck'] = _pluck
+    env.filters['center'] = _center
+    env.filters['indent'] = _indent
+    env.filters['format'] = _format
+    env.filters['replace'] = _replace
     return env
 
 
 _ENV = _environment()
+_URL_ENV = _environment(finalize=_url_finalize)
+_FENCED_ENV = _environment(finalize=_fenced_finalize)
 
 
 def webhooks_template_context(event, delivery_id=None, webhook=None) -> dict:
@@ -161,9 +405,27 @@ def webhooks_template_context(event, delivery_id=None, webhook=None) -> dict:
     return context
 
 
-def webhooks_render_template(source, context, field='template') -> str:
+@_limited
+def webhooks_render_template(source, context, field='template', max_output=None, quote_values=False,
+                             fence_values=False) -> str:
+    """Render `source`. `max_output` caps the rendered size (characters);
+    `quote_values` percent-encodes every interpolated value (URLs);
+    `fence_values` escapes `<` in them (LLM prompts)."""
+    env = _URL_ENV if quote_values else (_FENCED_ENV if fence_values else _ENV)
     try:
-        return _ENV.from_string(source or '').render(**context)
+        template = env.from_string(source or '')
+        if max_output is None:
+            return template.render(**context)
+        chunks = []
+        size = 0
+        for chunk in template.generate(**context):
+            size += len(chunk)
+            if size > max_output:
+                raise WebhookRenderError(field, f'rendered output is larger than {max_output} characters')
+            chunks.append(chunk)
+        return ''.join(chunks)
+    except WebhookRenderError:
+        raise
     except TemplateError as e:
         raise WebhookRenderError(field, _template_error(e))
     except Exception as e:
@@ -198,6 +460,7 @@ def webhooks_check_condition(expression):
         raise WebhookRenderError('condition', _template_error(e))
 
 
+@_limited
 def webhooks_eval_condition(expression, context) -> bool:
     """True when there is no condition or it evaluates truthy."""
     expression = _strip_braces(expression)
@@ -231,9 +494,13 @@ def _entry_value(entry, render, field):
     return render(entry.get('value'), field)
 
 
-def webhooks_render_request(config, context, signing_secret=None, user_agent='IRIS', timestamp=None) -> dict:
+def webhooks_render_request(config, context, signing_secret=None, user_agent='IRIS', timestamp=None,
+                            quote_url_values=False, max_output=None) -> dict:
     """Build the request for `config` (a dict shaped like the API body,
     secret values decrypted) in `context`.
+
+    `quote_url_values` percent-encodes the values interpolated into the
+    URL template; `max_output` caps each rendered field (characters).
 
     Returns `{method, url, headers, body, log_url, log_headers, errors}`.
     `errors` lists `{field, message}`; when non-empty the request must
@@ -242,15 +509,16 @@ def webhooks_render_request(config, context, signing_secret=None, user_agent='IR
     """
     errors = []
 
-    def render(source, field):
+    def render(source, field, quote_values=False):
         try:
-            return webhooks_render_template(source, context, field)
+            return webhooks_render_template(source, context, field, max_output=max_output,
+                                            quote_values=quote_values)
         except WebhookRenderError as e:
             errors.append({'field': e.field, 'message': e.message})
             return ''
 
     method = (config.get('method') or 'POST').upper()
-    url = render(config.get('url'), 'url').strip()
+    url = render(config.get('url'), 'url', quote_values=quote_url_values).strip()
 
     params = []
     log_params = []

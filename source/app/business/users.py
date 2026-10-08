@@ -45,6 +45,7 @@ from app.datamgmt.manage.manage_users_db import remove_cases_access_from_user as
 from app.datamgmt.manage.manage_users_db import update_user_customers as update_user_customers
 from app.datamgmt.manage.manage_users_db import update_user_groups as update_user_groups
 from app.datamgmt.comments import user_has_comments
+from app.datamgmt.ai_workflows.ai_workflows_business_db import ai_workflows_business_db_count_owned
 from app.iris_engine.utils.tracker import track_activity
 
 # Display timezone preference. `browser` defers to the timezone of
@@ -134,6 +135,9 @@ def users_delete(user: User):
         raise BusinessProcessingError('Cannot delete active user')
     if user_has_comments(user):
         raise BusinessProcessingError('Cannot delete user with associated comments')
+    owned_workflows = ai_workflows_business_db_count_owned(user.id)
+    if owned_workflows:
+        raise BusinessProcessingError(f'User owns {owned_workflows} AI workflows; transfer ownership first')
     delete_user(user.id)
     track_activity(message=f'deleted user ID {user.id}', ctx_less=True)
 

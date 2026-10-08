@@ -53,6 +53,10 @@ from app.blueprints.rest.v2.cluster_rules import cluster_rules_blueprint
 from app.blueprints.rest.v2.investigation_flows import investigation_flows_blueprint
 from app.blueprints.rest.v2.case_chat import case_chat_blueprint
 from app.blueprints.rest.v2.mcp import mcp_blueprint
+from app.blueprints.rest.v2.keystore import keystore_blueprint
+from app.blueprints.rest.v2.ai_workflows import ai_workflows_blueprint
+from app.blueprints.rest.v2.ai_workflows_public import ai_workflows_public_blueprint
+from app.blueprints.rest.v2.ai_suggestions import ai_suggestions_blueprint
 
 
 # Create root /api/v2 blueprint
@@ -93,4 +97,8 @@ rest_v2_blueprint.register_blueprint(cluster_rules_blueprint)
 rest_v2_blueprint.register_blueprint(investigation_flows_blueprint)
 rest_v2_blueprint.register_blueprint(case_chat_blueprint)
 rest_v2_blueprint.register_blueprint(mcp_blueprint)
+rest_v2_blueprint.register_blueprint(keystore_blueprint)
+rest_v2_blueprint.register_blueprint(ai_workflows_blueprint)
+rest_v2_blueprint.register_blueprint(ai_workflows_public_blueprint)
+rest_v2_blueprint.register_blueprint(ai_suggestions_blueprint)
 rest_v2_blueprint.register_blueprint(api_blueprint)

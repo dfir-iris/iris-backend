@@ -100,6 +100,11 @@ def runtime_config_get() -> Response:
         'vulnerabilities': {
             'cve_sync_enabled': bool(app.config.get('CVE_SYNC_ENABLED', True)),
         },
+        # AI workflows: the settings page, the suggestion panels and the
+        # Run buttons only show when the feature is on.
+        'ai_workflows': {
+            'enabled': bool(app.config.get('AI_WORKFLOWS_ENABLED', False)),
+        },
     })
 
 

@@ -109,6 +109,13 @@ class Permissions(enum.Enum):
     # track vulnerabilities on war rooms. Requires `vulnerabilities_read`.
     vulnerabilities_create = 0x40000000
 
+    # See AI workflows, their runs (on the entities the holder can
+    # access) and use the keystore entries shared with them.
+    ai_workflows_read = 0x80000000
+    # Create and edit AI workflows (owned by the holder) and keystore
+    # entries. Runs always act within the owner's own permissions.
+    ai_workflows_write = 0x100000000
+
 
 class WarRoomAccessLevel(enum.Enum):
     deny_all = 0x1
