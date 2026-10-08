@@ -114,16 +114,16 @@ class TestMarkdownEscape(TestCase):
 
 def _sections(case_name='Case | A', reason='line1\nline2'):
     return {
-        'changes': [{'type': 'stage', 'at': _NOW.isoformat(), 'case_id': 1, 'case_name': case_name,
-                     'asset_id': 5, 'asset_name': 'srv|01', 'from_stage_name': None,
-                     'to_stage_name': 'Isolated', 'reason': reason, 'changed_by_name': 'Ann'}],
+        'changes': [{'type': 'flag', 'at': _NOW.isoformat(), 'case_id': 1, 'case_name': case_name,
+                     'asset_id': 5, 'asset_name': 'srv|01', 'flag_name': 'Isolated',
+                     'action': 'set', 'reason': reason, 'changed_by_name': 'Ann'}],
         'cases': [{'case_id': 1, 'case_name': case_name, 'customer_name': 'ACME',
                    'state_name': 'Open', 'assets_total': 3, 'assets_done': 1,
                    'assets_exception': 1, 'tasks_open': 2}],
         'decisions': [{'decision_id': 9, 'ref': 'D-2', 'title': 'Reset *all*', 'status': 'approved',
                        'target_at': _NOW.isoformat(), 'is_overdue': True, 'owner_name': 'Bob'}],
         'exceptions': [{'asset_id': 6, 'asset_name': 'legacy', 'case_id': 1, 'case_name': case_name,
-                        'stage_name': 'Unpatched', 'reason': 'vendor EOL', 'decision_ref': 'D-2'}],
+                        'flag_name': "Can't be patched", 'reason': 'vendor EOL', 'decision_ref': 'D-2'}],
         'next_actions': [{'type': 'task', 'task_id': 3, 'title': 'Call <ISP>',
                           'due_at': None, 'assignee_name': None}],
     }
@@ -139,11 +139,22 @@ class TestAutoDraftRender(TestCase):
         self.assertIn('# SitRep — Wave \\| 1', md)
         self.assertIn('| #1 Case \\| A | ACME | Open | 3 | 1 | 1 | 2 |', md)
         self.assertIn('**srv\\|01**', md)
-        self.assertIn('no stage → Isolated — line1 line2', md)
+        self.assertIn('flagged Isolated — line1 line2', md)
         self.assertIn('**D-2** Reset \\*all\\* — approved', md)
         self.assertIn('**overdue**', md)
         self.assertIn('vendor EOL (D-2)', md)
         self.assertIn('- [ ] Call \\<ISP\\>', md)
+        self.assertIn("Can't be patched: vendor EOL", md)
+
+    def test_flag_change_verbs(self):
+        for action, expected in (('updated', 'flag updated: Isolated'), ('cleared', 'flag removed: Isolated')):
+            sections = _sections(reason=None)
+            sections['changes'][0]['action'] = action
+            md = sitrep_auto_draft_render('WR', _NOW, _NOW, sections)
+            self.assertIn(expected, md, msg=action)
+        sections = _sections(reason=None)
+        sections['changes'][0]['flag_name'] = None
+        self.assertIn('flagged deleted flag', sitrep_auto_draft_render('WR', _NOW, _NOW, sections))
 
     def test_table_rows_have_constant_column_count(self):
         md = sitrep_auto_draft_render('WR', _NOW, _NOW, _sections(case_name='a|b|c\n|d'))
@@ -174,7 +185,7 @@ class TestAutoDraftScope(TestCase):
             'sitreps_db_case_rows': MagicMock(return_value=[]),
             'sitreps_db_exception_assets': MagicMock(return_value=[]),
             'sitreps_db_open_tasks': MagicMock(return_value=[]),
-            'sitreps_db_stage_transitions': MagicMock(return_value=[]),
+            'sitreps_db_flag_changes': MagicMock(return_value=[]),
             'sitreps_db_cases_attached_since': MagicMock(return_value=[]),
         }
         patchers = [patch(f'{_MODULE}.{name}', mock) for name, mock in mocks.items()]
@@ -187,7 +198,7 @@ class TestAutoDraftScope(TestCase):
 
         self.assertEqual([1, 3], mocks['sitreps_db_case_rows'].call_args[0][1])
         self.assertEqual([1, 3], mocks['sitreps_db_exception_assets'].call_args[0][0])
-        self.assertEqual([1, 3], mocks['sitreps_db_stage_transitions'].call_args[0][0])
+        self.assertEqual([1, 3], mocks['sitreps_db_flag_changes'].call_args[0][0])
         self.assertEqual([1, 3], mocks['sitreps_db_cases_attached_since'].call_args[0][1])
         self.assertEqual(room.created_at.isoformat(), draft['since'])
         self.assertTrue(draft['title'].startswith('SitRep — WR — '))
@@ -215,7 +226,7 @@ class TestAutoDraftScope(TestCase):
                 patch(f'{_MODULE}.sitreps_db_case_rows', return_value=[]), \
                 patch(f'{_MODULE}.sitreps_db_exception_assets', return_value=[]), \
                 patch(f'{_MODULE}.sitreps_db_open_tasks', return_value=[]), \
-                patch(f'{_MODULE}.sitreps_db_stage_transitions', return_value=[]), \
+                patch(f'{_MODULE}.sitreps_db_flag_changes', return_value=[]), \
                 patch(f'{_MODULE}.sitreps_db_cases_attached_since', return_value=[]):
             draft = sitrep_auto_draft(1, [])
         types = sorted((c['type'], c['ref']) for c in draft['sections']['changes'])

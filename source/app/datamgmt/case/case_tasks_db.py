@@ -193,6 +193,7 @@ def update_task_assignees(task_identifier, task_assignee_list, caseid):
 
     allowed_users = [u.get('user_id') for u in get_users_list_restricted_from_case(caseid)]
 
+    added = set()
     for uid in assignees_to_add:
         if uid not in allowed_users:
             continue
@@ -203,6 +204,7 @@ def update_task_assignees(task_identifier, task_assignee_list, caseid):
             ta.task_id = task_identifier
             ta.user_id = user.id
             db.session.add(ta)
+            added.add(user.id)
 
     for uid in assignees_to_remove:
         TaskAssignee.query.filter(
@@ -211,6 +213,7 @@ def update_task_assignees(task_identifier, task_assignee_list, caseid):
         ).delete()
 
     db.session.commit()
+    return added
 
 
 def add_task(task, assignee_id_list, user_id, caseid):

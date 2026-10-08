@@ -280,22 +280,28 @@ def _resolve_parent(war_room_id, parent_task_id):
     return parent
 
 
-def _fire_mention_notifications(task, actor_id, is_update):
+def _mention_text(title, description):
+    # Mentions in either the title or the body — description carries
+    # the TipTap HTML for the mention span; title is plain text but
+    # extract works safely on either (yields empty set for pure text).
+    return ' '.join(filter(None, [title, description]))
+
+
+def _fire_mention_notifications(task, actor_id, is_update, previous_text=None):
     """Notify war-room members mentioned in a task's title or description.
+    On an update, only the mentions the save added (`previous_text` is
+    `_mention_text` before it), so editing the task doesn't re-ping them.
 
     Silent on failure — a broken notification pipeline must not fail a
     task write.
     """
     try:
-        from app.iris_engine.notifications.mentions import resolve_mentions_to_user_ids
+        from app.iris_engine.notifications.mentions import mentions_added_user_ids
         from app.iris_engine.notifications.service import notify_many
         from app.models.war_rooms import WarRoomMember
 
-        # Mentions in either the title or the body — description carries
-        # the TipTap HTML for the mention span; title is plain text but
-        # extract works safely on either (yields empty set for pure text).
-        combined = ' '.join(filter(None, [task.title, task.description]))
-        mentioned = resolve_mentions_to_user_ids(combined, task.war_room_id)
+        mentioned = mentions_added_user_ids(previous_text, _mention_text(task.title, task.description),
+                                            task.war_room_id)
         if not mentioned:
             return
 
@@ -410,7 +416,8 @@ def war_room_task_update(war_room_id, task_id, **fields):
     _notify_assigned_teams(task, added_team_ids, updated_by_id)
     # Fire only when the mention-carrying fields changed.
     if task.title != prior_title or task.description != prior_description:
-        _fire_mention_notifications(task, updated_by_id, is_update=True)
+        _fire_mention_notifications(task, updated_by_id, is_update=True,
+                                    previous_text=_mention_text(prior_title, prior_description))
     task = call_modules_hook('on_postload_war_room_task_update', task)
     return task
 

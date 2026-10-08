@@ -32,8 +32,9 @@ one exception and are patched in a second pass once the whole entity is in.
 
 from app.models.alerts import Severity
 from app.models.assets import AnalysisStatus
-from app.models.assets import AssetStage
+from app.models.assets import AssetFlag
 from app.models.assets import AssetsType
+from app.models.assets import CaseAssetFlag
 from app.models.assets import CaseAssets
 from app.models.cases import CaseClassification
 from app.models.cases import CaseEventTimeline
@@ -92,8 +93,8 @@ class LookupSpec:
 
     `optional` lookups are dropped (the referencing column is left null)
     when the target has no row of that name, instead of blocking the
-    import on an operator decision. Used for the asset stage: the target's
-    stage taxonomy is its own and is never extended by an import.
+    import on an operator decision. Used for the asset flags: the target's
+    flag taxonomy is its own and is never extended by an import.
     """
 
     def __init__(self, key, model, pk, name_column, extra_columns=(), creatable=True, optional=False):
@@ -118,10 +119,13 @@ class EntitySpec:
     blob_column   column naming this row's blob inside the archive, exported as
                   `_blob` — the row's own id is worthless to the target, so the
                   bundle needs a stable name to look the bytes up by
+    required_refs ref columns that must resolve on import; a row whose required
+                  ref resolves to nothing (an optional lookup the target lacks)
+                  is skipped
     """
 
     def __init__(self, key, model, pk, case_column=None, fields=(), user_refs=(),
-                 entity_refs=None, lookup_refs=None, self_refs=(), blob_column=None):
+                 entity_refs=None, lookup_refs=None, self_refs=(), blob_column=None, required_refs=()):
         self.key = key
         self.model = model
         self.pk = pk
@@ -132,6 +136,7 @@ class EntitySpec:
         self.lookup_refs = dict(lookup_refs or {})
         self.self_refs = tuple(self_refs)
         self.blob_column = blob_column
+        self.required_refs = tuple(required_refs)
 
 
 _LOOKUP_SPECS = (
@@ -154,7 +159,7 @@ _LOOKUP_SPECS = (
     LookupSpec('task_status', TaskStatus, 'id', 'status_name',
                extra_columns=('status_description', 'status_bscolor'), creatable=False),
     LookupSpec('evidence_type', EvidenceTypes, 'id', 'name', extra_columns=('description',)),
-    LookupSpec('asset_stage', AssetStage, 'id', 'name', creatable=False, optional=True),
+    LookupSpec('asset_flag', AssetFlag, 'id', 'name', creatable=False, optional=True),
     LookupSpec('event_category', EventCategory, 'id', 'name'),
     # Public catalogue entries travel by identifier. Matching and creation
     # on the target go through `business.vulnerabilities` (alias-aware,
@@ -224,17 +229,12 @@ ENTITIES = [
     EntitySpec('notes_group_link', NotesGroupLink, 'link_id', case_column='case_id',
                entity_refs={'group_id': 'notes_group', 'note_id': 'note'}),
 
-    # The stage travels by name (+ its reason). `stage_decision_id` and
-    # `stage_updated_by_id` point at war-room / user rows of the source
-    # instance and are deliberately left out, as is the stage history.
     EntitySpec('asset', CaseAssets, 'asset_id', case_column='case_id',
                fields=('asset_name', 'asset_description', 'asset_domain', 'asset_ip', 'asset_info',
                        'asset_compromise_status_id', 'asset_tags', 'date_added', 'date_update',
-                       'custom_attributes', 'asset_enrichment', 'modification_history',
-                       'stage_reason'),
+                       'custom_attributes', 'asset_enrichment', 'modification_history'),
                user_refs=('user_id',),
-               lookup_refs={'asset_type_id': 'asset_type', 'analysis_status_id': 'analysis_status',
-                            'stage_id': 'asset_stage'}),
+               lookup_refs={'asset_type_id': 'asset_type', 'analysis_status_id': 'analysis_status'}),
 
     EntitySpec('ioc', Ioc, 'ioc_id', case_column='case_id',
                fields=('ioc_value', 'ioc_description', 'ioc_tags', 'ioc_misp',
@@ -253,6 +253,17 @@ ENTITIES = [
                user_refs=('user_id',),
                self_refs=('parent_event_id',)),
 
+    # Flags travel by name, with their reason and their "Asset status"
+    # event. A flag the target does not know is dropped. `decision_id`
+    # points at a war room of the source instance and is left out, as is
+    # the flag history.
+    EntitySpec('asset_flag', CaseAssetFlag, None, case_column='case_id',
+               fields=('reason', 'set_at'),
+               user_refs=('set_by_id',),
+               entity_refs={'asset_id': 'asset', 'event_id': 'event'},
+               lookup_refs={'flag_id': 'asset_flag'},
+               required_refs=('flag_id',)),
+
     EntitySpec('event_timeline', CaseEventTimeline, None,
                entity_refs={'event_id': 'event', 'timeline_id': 'timeline'}),
 
@@ -268,7 +279,7 @@ ENTITIES = [
 
     # Findings on public entries only. `decision_id` points at a war room
     # of the source instance and the change history stays behind, like
-    # the asset stage history.
+    # the asset flag history.
     EntitySpec('asset_vulnerability', CaseAssetVulnerability, 'finding_id',
                fields=('remediation_status', 'not_affected_justification', 'status_reason',
                        'exploitation_status', 'exploited_at', 'detection_source', 'detected_at', 'component',

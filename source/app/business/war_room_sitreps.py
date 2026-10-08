@@ -14,7 +14,7 @@ from app.datamgmt.war_rooms.war_room_sitreps_db import sitreps_db_decisions
 from app.datamgmt.war_rooms.war_room_sitreps_db import sitreps_db_exception_assets
 from app.datamgmt.war_rooms.war_room_sitreps_db import sitreps_db_last_published_at
 from app.datamgmt.war_rooms.war_room_sitreps_db import sitreps_db_open_tasks
-from app.datamgmt.war_rooms.war_room_sitreps_db import sitreps_db_stage_transitions
+from app.datamgmt.war_rooms.war_room_sitreps_db import sitreps_db_flag_changes
 from app.db import db
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
@@ -356,12 +356,12 @@ def _decision_is_open(row):
 
 def _collect_changes(war_room_id, case_ids, since, decisions):
     changes = []
-    for row in sitreps_db_stage_transitions(case_ids, since, _DRAFT_MAX_TRANSITIONS):
+    for row in sitreps_db_flag_changes(case_ids, since, _DRAFT_MAX_TRANSITIONS):
         changes.append({
-            'type': 'stage', 'at': _iso(row.changed_at),
+            'type': 'flag', 'at': _iso(row.changed_at),
             'case_id': row.case_id, 'case_name': row.case_name,
             'asset_id': row.asset_id, 'asset_name': row.asset_name,
-            'from_stage_name': row.from_stage_name, 'to_stage_name': row.to_stage_name,
+            'flag_name': row.flag_name, 'action': row.action,
             'reason': row.reason, 'changed_by_name': row.changed_by_name,
         })
     for row in decisions:
@@ -406,7 +406,7 @@ def sitrep_auto_draft_sections(war_room_id, readable_case_ids, since, now):
     exceptions = [{
         'asset_id': row.asset_id, 'asset_name': row.asset_name,
         'case_id': row.case_id, 'case_name': row.case_name,
-        'stage_name': row.stage_name, 'reason': row.stage_reason,
+        'flag_name': row.flag_name, 'reason': row.reason,
         'decision_ref': _decision_ref(row.decision_number) if row.decision_number else None,
     } for row in sitreps_db_exception_assets(case_ids, _DRAFT_MAX_EXCEPTIONS,
                                              war_room_id=war_room_id)]
@@ -441,10 +441,10 @@ def _render_change(change):
     e = sitrep_md_escape
     at = _iso_to_display(change.get('at'))
     kind = change['type']
-    if kind == 'stage':
+    if kind == 'flag':
+        verb = {'set': 'flagged', 'updated': 'flag updated:', 'cleared': 'flag removed:'}.get(change['action'], '')
         line = (f'- {at} — **{e(change["asset_name"])}** ({e(change["case_name"])}): '
-                f'{e(change["from_stage_name"]) or "no stage"} → '
-                f'{e(change["to_stage_name"]) or "no stage"}')
+                f'{verb} {e(change["flag_name"]) or "deleted flag"}')
         if change.get('reason'):
             line += f' — {e(change["reason"])}'
         return line
@@ -511,7 +511,7 @@ def sitrep_auto_draft_render(war_room_name, since, generated_at, sections):
     lines += ['', '## Exceptions', '']
     for x in sections['exceptions']:
         line = (f'- **{e(x["asset_name"])}** ({e(x["case_name"])}) — '
-                f'{e(x["stage_name"])}: {e(x["reason"]) or "no reason given"}')
+                f'{e(x["flag_name"])}: {e(x["reason"]) or "no reason given"}')
         if x.get('decision_ref'):
             line += f' ({x["decision_ref"]})'
         lines.append(line)

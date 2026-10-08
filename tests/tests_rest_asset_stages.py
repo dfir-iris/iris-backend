@@ -162,6 +162,14 @@ class TestsRestAssetStages(TestCase):
         self.assertEqual(400, response.status_code)
         self.assertEqual('Stage is in use by 1 asset', response.json()['message'])
 
+    def test_delete_should_return_204_once_the_asset_using_it_is_deleted(self):
+        stage = self._create_stage().json()
+        case_identifier, asset_identifier = self._create_asset()
+        self._set_stage(case_identifier, asset_identifier, {'stage_id': stage['id']})
+        self._subject.delete(f'/api/v2/cases/{case_identifier}/assets/{asset_identifier}')
+        response = self._subject.delete(f'{_STAGES}/{stage["id"]}')
+        self.assertEqual(204, response.status_code)
+
     def test_reorder_should_apply_the_new_order(self):
         reversed_order = list(reversed(self._initial_order))
         response = self._subject.create(f'{_STAGES}/reorder', {'ids': reversed_order})
@@ -311,6 +319,14 @@ class TestsRestCaseAssetStage(TestCase):
         self.assertEqual('legacy OS', latest['reason'])
         self.assertIsNotNone(latest['changed_by_name'])
         self.assertIsNone(history[1]['from_stage_name'])
+
+    def test_delete_asset_should_return_204_when_it_has_a_stage_history(self):
+        self._set({'stage_id': self._stages['Identified']})
+        self._set({'stage_id': self._stages['Unpatched'], 'reason': 'legacy OS'})
+        response = self._subject.delete(f'/api/v2/cases/{self._case_identifier}/assets/{self._asset_identifier}')
+        self.assertEqual(204, response.status_code)
+        response = self._subject.get(self._path('stage-history'))
+        self.assertEqual(404, response.status_code)
 
     def test_setting_the_same_stage_twice_should_record_once(self):
         self._set({'stage_id': self._stages['Identified']})

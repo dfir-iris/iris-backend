@@ -42,6 +42,7 @@ from app.datamgmt.manage.manage_cases_db import reopen_case
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.module_handler.module_handler import configure_module_on_init
 from app.iris_engine.module_handler.module_handler import instantiate_module_from_name
+from app.iris_engine.notifications.hook_listeners import notifications_case_updated
 from app.iris_engine.tasker.tasks import task_case_update
 from app.iris_engine.utils.common import build_upload_path
 from app.iris_engine.utils.tracker import track_activity
@@ -172,6 +173,7 @@ def api_reopen_case(identifier):
     case = get_case(identifier)
     if not case:
         return response_error("Tried to reopen an non-existing case")
+    previous_state_id = case.state_id
 
     res = reopen_case(identifier)
     if not res:
@@ -189,6 +191,7 @@ def api_reopen_case(identifier):
                 db.session.add(alert)
 
     case = call_modules_hook('on_postload_case_update', case, caseid=identifier)
+    notifications_case_updated(case, previous_state_id, case.owner_id, case.reviewer_id)
 
     add_obj_history_entry(case, 'case reopen')
     track_activity(f"reopen case ID {identifier}", caseid=identifier)
@@ -209,6 +212,7 @@ def api_case_close(identifier):
     case = get_case(identifier)
     if not case:
         return response_error('Tried to close an non-existing case')
+    previous_state_id = case.state_id
 
     res = close_case(identifier)
     if not res:
@@ -234,6 +238,7 @@ def api_case_close(identifier):
                 db.session.add(alert)
 
     case = call_modules_hook('on_postload_case_update', case, caseid=identifier)
+    notifications_case_updated(case, previous_state_id, case.owner_id, case.reviewer_id)
 
     add_obj_history_entry(case, 'case closed')
     track_activity(f'closed case ID {identifier}', caseid=identifier, ctx_less=False)
@@ -292,11 +297,18 @@ def update_case_info(identifier):
             'case_customer')
         request_data['reviewer_id'] = None if request_data.get('reviewer_id') == '' else request_data.get('reviewer_id')
 
+        # The load mutates `case`: snapshot what cases_update compares.
+        previous_case_state = case.state_id
+        previous_reviewer_id = case.reviewer_id
+        previous_owner_id = case.owner_id
         updated_case = case_schema.load(request_data, instance=case, partial=True)
 
         protagonists = request_data.get('protagonists')
         tags = request_data.get('case_tags')
-        case = cases_update(case, updated_case, protagonists, tags)
+        case = cases_update(case, updated_case, protagonists, tags,
+                            previous_case_state=previous_case_state,
+                            previous_reviewer_id=previous_reviewer_id,
+                            previous_owner_id=previous_owner_id)
         return response_success('Updated', data=case_schema.dump(case))
     except ValidationError as e:
         return response_error('Data error', e.messages)

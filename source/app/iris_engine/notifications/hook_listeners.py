@@ -28,6 +28,7 @@ from typing import Optional
 
 from app.iris_engine.module_handler import module_handler as _mh
 from app.iris_engine.notifications.mentions import extract_mentioned_user_ids
+from app.iris_engine.notifications.mentions import mentions_added_user_ids
 from app.iris_engine.notifications.service import notify
 from app.iris_engine.notifications.service import notify_many
 
@@ -68,19 +69,33 @@ def _safe(fn: Callable[..., Any]) -> Callable[..., Any]:
 # --- Note listeners ---------------------------------------------------------
 
 @_safe
-def _on_note(note) -> None:
-    """Fire mention notifications for a note create/update.
+def _on_note_create(note) -> None:
+    """Fire mention notifications for a new note.
 
     Uses the extractor which handles both TipTap mention spans and
-    legacy `@handle` text. We can't diff against a previous revision
-    here (note_revisions are persisted separately and would double the
-    query cost per save); duplicate mentions across edits are dealt
-    with client-side by the bell aggregating on `source_type+source_id`.
+    legacy `@handle` text.
     """
     if note is None:
         return
-    content = getattr(note, 'note_content', None)
-    user_ids = extract_mentioned_user_ids(content)
+    _notify_note_mentions(note, extract_mentioned_user_ids(getattr(note, 'note_content', None)))
+
+
+@_safe
+def notifications_note_updated(note, previous_content: Optional[str]) -> None:
+    """Fire mention notifications for the mentions a note save added.
+
+    Called by `notes_update` with the content from before the save, not
+    hooked on `on_postload_note_update`: the hook only carries the saved
+    note, and notifying every mention it holds re-pinged everybody on
+    each save.
+    """
+    if note is None:
+        return
+    _notify_note_mentions(note, mentions_added_user_ids(previous_content,
+                                                        getattr(note, 'note_content', None)))
+
+
+def _notify_note_mentions(note, user_ids) -> None:
     if not user_ids:
         return
 
@@ -171,14 +186,11 @@ def _make_comment_listener(kind: str):
 # --- Task listeners ---------------------------------------------------------
 
 @_safe
-def _on_task(task) -> None:
-    """Notify assignees on case-task create/update.
+def _on_task_create(task) -> None:
+    """Notify assignees on case-task create.
 
     Case tasks use the `task_assignee` join table for their assignees
     (see models.TaskAssignee); we read the current set at fire time.
-    We don't diff pre/post so an edit re-notifies — acceptable v1
-    trade-off. See plan for follow-up work to add a per-task
-    idempotency window.
     """
     if task is None:
         return
@@ -192,7 +204,25 @@ def _on_task(task) -> None:
         row.user_id for row in
         TaskAssignee.query.filter(TaskAssignee.task_id == task_id).all()
     ]
-    if not assignee_ids:
+    _notify_task_assignees(task, assignee_ids)
+
+
+@_safe
+def notifications_task_assignees_added(task, user_ids) -> None:
+    """Notify the assignees a case-task update added.
+
+    Called by `tasks_update` rather than hooked on
+    `on_postload_task_update`, which only carries the saved task: telling
+    every assignee re-notified them on each edit.
+    """
+    if task is None:
+        return
+    _notify_task_assignees(task, user_ids)
+
+
+def _notify_task_assignees(task, assignee_ids) -> None:
+    task_id = getattr(task, 'id', None)
+    if not task_id or not assignee_ids:
         return
     title = getattr(task, 'task_title', 'A task')
     case_id = getattr(task, 'task_case_id', None)
@@ -256,13 +286,16 @@ def _on_case_create(case) -> None:
 
 
 @_safe
-def _on_case_update(case) -> None:
-    """Case update fires two notifications: state change (if the case
-    is set) and reviewer/owner assignment (mirrors create).
+def notifications_case_updated(case, previous_state_id: Optional[int],
+                               previous_owner_id: Optional[int],
+                               previous_reviewer_id: Optional[int]) -> None:
+    """Notify what a case update changed: a new reviewer, a new owner, or
+    the owner when the state moved.
 
-    We can't observe deltas without a "before" — a follow-up can add
-    a light per-case state stash. For v1 we fire on every update; the
-    bell UX de-noise falls back to the read-status filter."""
+    Called by the case update / close / reopen paths with the values from
+    before the change, not hooked on `on_postload_case_update`: the hook
+    only carries the saved case, and notifying from it pinged the owner
+    and the reviewer on every save — editing the summary included."""
     if case is None:
         return
     case_id = getattr(case, 'case_id', None)
@@ -270,10 +303,10 @@ def _on_case_update(case) -> None:
         return
     link = f'/case/{case_id}'
     body = getattr(case, 'name', None) or ''
+    actor_id = _actor_id()
 
-    # Reviewer assignment
     reviewer_id = getattr(case, 'reviewer_id', None)
-    if reviewer_id and _actor_id() != int(reviewer_id):
+    if reviewer_id and reviewer_id != previous_reviewer_id and actor_id != int(reviewer_id):
         notify(
             user_id=int(reviewer_id),
             event_type='case_assigned',
@@ -284,14 +317,24 @@ def _on_case_update(case) -> None:
             source_id=case_id,
         )
 
-    # State change — we fire against the owner unless the actor IS
-    # the owner. Fires on every update; see comment above.
     owner_id = getattr(case, 'owner_id', None)
-    if owner_id and _actor_id() != int(owner_id):
+    if not owner_id or actor_id == int(owner_id):
+        return
+    if owner_id != previous_owner_id:
+        notify(
+            user_id=int(owner_id),
+            event_type='case_assigned',
+            title='You were made the owner of a case',
+            body=body,
+            link=link,
+            source_type='case',
+            source_id=case_id,
+        )
+    elif getattr(case, 'state_id', None) != previous_state_id:
         notify(
             user_id=int(owner_id),
             event_type='case_state_change',
-            title='A case you own was updated',
+            title='The state of a case you own changed',
             body=body,
             link=link,
             source_type='case',
@@ -344,9 +387,8 @@ def _on_alert_escalate(alert) -> None:
 # Map hook name -> listener. Populated at import time so a single
 # `register_notification_listeners()` call wires everything.
 _HOOK_MAP = {
-    # Notes
-    'on_postload_note_create': _on_note,
-    'on_postload_note_update': _on_note,
+    # Notes — updates go through `notifications_note_updated`
+    'on_postload_note_create': _on_note_create,
     # Comments (one listener per parent kind because payload shape
     # differs slightly per kind — see _make_comment_listener).
     'on_postload_note_commented': _make_comment_listener('note'),
@@ -363,14 +405,12 @@ _HOOK_MAP = {
     'on_postload_event_comment_update': _make_comment_listener('event'),
     'on_postload_alert_commented': _make_comment_listener('alert'),
     'on_postload_alert_comment_update': _make_comment_listener('alert'),
-    # Tasks
-    'on_postload_task_create': _on_task,
-    'on_postload_task_update': _on_task,
+    # Tasks — updates go through `notifications_task_assignees_added`
+    'on_postload_task_create': _on_task_create,
     'on_postload_global_task_create': _on_global_task,
     'on_postload_global_task_update': _on_global_task,
-    # Cases
+    # Cases — updates go through `notifications_case_updated`
     'on_postload_case_create': _on_case_create,
-    'on_postload_case_update': _on_case_update,
     # Alerts
     'on_postload_alert_create': _on_alert,
     'on_postload_alert_update': _on_alert,

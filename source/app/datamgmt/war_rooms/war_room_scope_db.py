@@ -24,6 +24,7 @@ allowed to see: the blueprint computes it (attached ∩ readable), this
 layer never widens it.
 """
 
+from sqlalchemy import case as sa_case
 from sqlalchemy import func
 from sqlalchemy import or_
 
@@ -31,8 +32,9 @@ from app.datamgmt.vulnerabilities.vulnerabilities_db import findings_db_asset_co
 from app.datamgmt.vulnerabilities.vulnerabilities_db import findings_db_asset_ids_with_vulnerability
 from app.db import db
 from app.models.assets import AnalysisStatus
-from app.models.assets import AssetStage
+from app.models.assets import AssetFlag
 from app.models.assets import AssetsType
+from app.models.assets import CaseAssetFlag
 from app.models.assets import CaseAssets
 from app.models.authorization import User
 from app.models.cases import Cases
@@ -90,8 +92,19 @@ def _ioc_count_subquery():
     )
 
 
-def _filter_assets(query, vuln_sq, case_ids, search=None, stage_id=None, stage_none=False, compromised=False,
-                   vulnerable=None, vulnerability=None):
+def _has_flag(flag_id=None, kind=None):
+    """EXISTS clause: the `CaseAssets` row carries a flag (of id
+    `flag_id`, of kind `kind`, or any)."""
+    query = db.session.query(CaseAssetFlag.asset_id).filter(CaseAssetFlag.asset_id == CaseAssets.asset_id)
+    if flag_id is not None:
+        query = query.filter(CaseAssetFlag.flag_id == flag_id)
+    if kind is not None:
+        query = query.join(AssetFlag, AssetFlag.id == CaseAssetFlag.flag_id).filter(AssetFlag.kind == kind)
+    return query.exists()
+
+
+def _filter_assets(query, vuln_sq, case_ids, search=None, flag_id=None, flag_none=False, without_flag_id=None,
+                   compromised=False, vulnerable=None, vulnerability=None):
     """Apply the scope asset filters to a query over `CaseAssets` already
     outer-joined to `vuln_sq`."""
     query = query.filter(CaseAssets.case_id.in_(list(case_ids)))
@@ -104,10 +117,12 @@ def _filter_assets(query, vuln_sq, case_ids, search=None, stage_id=None, stage_n
             CaseAssets.asset_description.ilike(pattern, escape='\\'),
             CaseAssets.asset_tags.ilike(pattern, escape='\\'),
         ))
-    if stage_none:
-        query = query.filter(CaseAssets.stage_id.is_(None))
-    elif stage_id is not None:
-        query = query.filter(CaseAssets.stage_id == stage_id)
+    if flag_none:
+        query = query.filter(~_has_flag())
+    elif flag_id is not None:
+        query = query.filter(_has_flag(flag_id=flag_id))
+    if without_flag_id is not None:
+        query = query.filter(~_has_flag(flag_id=without_flag_id))
     if compromised:
         query = query.filter(CaseAssets.asset_compromise_status_id == 1)
     if vulnerable == 'open':
@@ -121,7 +136,7 @@ def _filter_assets(query, vuln_sq, case_ids, search=None, stage_id=None, stage_n
     return query
 
 
-def war_room_scope_db_assets(case_ids, search=None, stage_id=None, stage_none=False,
+def war_room_scope_db_assets(case_ids, search=None, flag_id=None, flag_none=False, without_flag_id=None,
                              compromised=False, vulnerable=None, vulnerability=None, limit=5000,
                              offset=0, sort='name'):
     """Assets of `case_ids`, at most `limit + 1` rows from `offset` (caller
@@ -152,10 +167,6 @@ def war_room_scope_db_assets(case_ids, search=None, stage_id=None, stage_none=Fa
             CaseAssets.asset_compromise_status_id,
             CaseAssets.analysis_status_id,
             AnalysisStatus.name.label('analysis_status_name'),
-            CaseAssets.stage_id,
-            CaseAssets.stage_reason,
-            CaseAssets.stage_decision_id,
-            CaseAssets.stage_updated_at,
             CaseAssets.case_id,
             Cases.name.label('case_name'),
             Cases.client_id.label('customer_id'),
@@ -175,8 +186,9 @@ def war_room_scope_db_assets(case_ids, search=None, stage_id=None, stage_none=Fa
         .outerjoin(ioc_count_sq, ioc_count_sq.c.asset_id == CaseAssets.asset_id)
         .outerjoin(vuln_sq, vuln_sq.c.asset_id == CaseAssets.asset_id)
     )
-    query = _filter_assets(query, vuln_sq, case_ids, search=search, stage_id=stage_id, stage_none=stage_none,
-                           compromised=compromised, vulnerable=vulnerable, vulnerability=vulnerability)
+    query = _filter_assets(query, vuln_sq, case_ids, search=search, flag_id=flag_id, flag_none=flag_none,
+                           without_flag_id=without_flag_id, compromised=compromised, vulnerable=vulnerable,
+                           vulnerability=vulnerability)
 
     if sort == 'case':
         order = (CaseAssets.case_id.asc(), func.lower(CaseAssets.asset_name).asc(), CaseAssets.asset_id.asc())
@@ -188,29 +200,70 @@ def war_room_scope_db_assets(case_ids, search=None, stage_id=None, stage_none=Fa
     return query.limit(limit + 1).all()
 
 
-def war_room_scope_db_assets_breakdown(case_ids, search=None, stage_id=None, stage_none=False,
-                                       compromised=False, vulnerable=None, vulnerability=None):
-    """Rows `(case_id, stage_id, stage_kind, assets, vuln_open, vuln_exploited_open)`
-    over every asset matching the filters, grouped per case and stage.
-    One query whatever the number of cases."""
+def war_room_scope_db_assets_breakdown(case_ids, search=None, flag_id=None, flag_none=False,
+                                       without_flag_id=None, compromised=False, vulnerable=None,
+                                       vulnerability=None):
+    """Rows `(case_id, assets, done, unflagged, vuln_open, vuln_exploited_open)`
+    over every asset matching the filters, grouped per case (`done`: assets
+    carrying a flag of kind `done`). One query whatever the number of cases."""
     if not case_ids:
         return []
     vuln_sq = findings_db_asset_counts_subquery()
     query = (
         db.session.query(
             CaseAssets.case_id,
-            CaseAssets.stage_id,
-            AssetStage.kind.label('stage_kind'),
             func.count(CaseAssets.asset_id).label('assets'),
+            func.coalesce(func.sum(sa_case((_has_flag(kind='done'), 1), else_=0)), 0).label('done'),
+            func.coalesce(func.sum(sa_case((_has_flag(), 0), else_=1)), 0).label('unflagged'),
             func.coalesce(func.sum(vuln_sq.c.vuln_open_count), 0).label('vuln_open'),
             func.coalesce(func.sum(vuln_sq.c.vuln_exploited_open_count), 0).label('vuln_exploited_open'),
         )
-        .outerjoin(AssetStage, AssetStage.id == CaseAssets.stage_id)
         .outerjoin(vuln_sq, vuln_sq.c.asset_id == CaseAssets.asset_id)
     )
-    query = _filter_assets(query, vuln_sq, case_ids, search=search, stage_id=stage_id, stage_none=stage_none,
-                           compromised=compromised, vulnerable=vulnerable, vulnerability=vulnerability)
-    return query.group_by(CaseAssets.case_id, CaseAssets.stage_id, AssetStage.kind).all()
+    query = _filter_assets(query, vuln_sq, case_ids, search=search, flag_id=flag_id, flag_none=flag_none,
+                           without_flag_id=without_flag_id, compromised=compromised, vulnerable=vulnerable,
+                           vulnerability=vulnerability)
+    return query.group_by(CaseAssets.case_id).all()
+
+
+def war_room_scope_db_flag_totals(case_ids, search=None, flag_id=None, flag_none=False, without_flag_id=None,
+                                  compromised=False, vulnerable=None, vulnerability=None):
+    """Rows `(flag_id, assets)`: matching assets carrying each flag."""
+    if not case_ids:
+        return []
+    vuln_sq = findings_db_asset_counts_subquery()
+    query = (
+        db.session.query(
+            CaseAssetFlag.flag_id,
+            func.count(CaseAssets.asset_id).label('assets'),
+        )
+        .select_from(CaseAssets)
+        .join(CaseAssetFlag, CaseAssetFlag.asset_id == CaseAssets.asset_id)
+        .outerjoin(vuln_sq, vuln_sq.c.asset_id == CaseAssets.asset_id)
+    )
+    query = _filter_assets(query, vuln_sq, case_ids, search=search, flag_id=flag_id, flag_none=flag_none,
+                           without_flag_id=without_flag_id, compromised=compromised, vulnerable=vulnerable,
+                           vulnerability=vulnerability)
+    return query.group_by(CaseAssetFlag.flag_id).all()
+
+
+def war_room_scope_db_asset_flags(asset_ids):
+    """Flags set on `asset_ids`, in taxonomy order."""
+    if not asset_ids:
+        return []
+    return (
+        db.session.query(
+            CaseAssetFlag.asset_id,
+            CaseAssetFlag.flag_id,
+            CaseAssetFlag.reason,
+            CaseAssetFlag.decision_id,
+            CaseAssetFlag.set_at,
+        )
+        .join(AssetFlag, AssetFlag.id == CaseAssetFlag.flag_id)
+        .filter(CaseAssetFlag.asset_id.in_(list(asset_ids)))
+        .order_by(CaseAssetFlag.asset_id.asc(), AssetFlag.sort_order.asc(), AssetFlag.id.asc())
+        .all()
+    )
 
 
 def war_room_scope_db_asset_sightings(case_ids, name_keys):
@@ -375,8 +428,8 @@ def war_room_scope_db_tlp_exists(tlp_id):
     return db.session.query(Tlp.tlp_id).filter(Tlp.tlp_id == tlp_id).first() is not None
 
 
-def war_room_scope_db_stage_exists(stage_id):
-    return db.session.query(AssetStage.id).filter(AssetStage.id == stage_id).first() is not None
+def war_room_scope_db_flag_exists(flag_id):
+    return db.session.query(AssetFlag.id).filter(AssetFlag.id == flag_id).first() is not None
 
 
 def war_room_scope_db_ioc_type_get(ioc_type_id):

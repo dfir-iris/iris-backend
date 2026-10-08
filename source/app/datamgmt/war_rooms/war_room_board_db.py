@@ -20,7 +20,8 @@ from sqlalchemy import func
 
 from app.db import db
 from app.models.alerts import Severity
-from app.models.assets import AssetStage
+from app.models.assets import AssetFlag
+from app.models.assets import CaseAssetFlag
 from app.models.assets import CaseAssets
 from app.models.assets import CompromiseStatus
 from app.models.authorization import User
@@ -49,8 +50,8 @@ def war_room_board_db_attached_case_ids(war_room_id):
     return [r.case_id for r in rows]
 
 
-def war_room_board_db_stages():
-    return AssetStage.query.order_by(AssetStage.sort_order.asc(), AssetStage.id.asc()).all()
+def war_room_board_db_flags():
+    return AssetFlag.query.order_by(AssetFlag.sort_order.asc(), AssetFlag.id.asc()).all()
 
 
 def war_room_board_db_case_rows(case_ids):
@@ -91,41 +92,81 @@ def war_room_board_db_case_rows(case_ids):
     )
 
 
-def war_room_board_db_stage_counts(case_ids):
-    """Rows `(case_id, stage_id, total, compromised)` grouped per case
-    and stage (`stage_id` NULL = unstaged)."""
+def war_room_board_db_asset_counts(case_ids):
+    """Rows `(case_id, total, compromised, flagged)` per case; `flagged`
+    counts the assets carrying at least one flag."""
     if not case_ids:
         return []
     compromised = sa_case(
         (CaseAssets.asset_compromise_status_id == CompromiseStatus.compromised.value, 1),
         else_=0,
     )
+    flagged = sa_case((_has_flag(), 1), else_=0)
     return (
         db.session.query(
             CaseAssets.case_id,
-            CaseAssets.stage_id,
             func.count(CaseAssets.asset_id).label('total'),
             func.coalesce(func.sum(compromised), 0).label('compromised'),
+            func.coalesce(func.sum(flagged), 0).label('flagged'),
         )
         .filter(CaseAssets.case_id.in_(list(case_ids)))
-        .group_by(CaseAssets.case_id, CaseAssets.stage_id)
+        .group_by(CaseAssets.case_id)
         .all()
     )
 
 
-def war_room_board_db_compromised_unstaged(case_ids, first_progress_stage_id, limit):
-    """Compromised assets with no stage or still at the first progress stage."""
+def war_room_board_db_flag_counts(case_ids):
+    """Rows `(case_id, flag_id, total)`: assets carrying each flag, per case."""
     if not case_ids:
         return []
-    stage_clause = CaseAssets.stage_id.is_(None)
-    if first_progress_stage_id is not None:
-        stage_clause = stage_clause | (CaseAssets.stage_id == first_progress_stage_id)
+    return (
+        db.session.query(
+            CaseAssetFlag.case_id,
+            CaseAssetFlag.flag_id,
+            func.count(CaseAssetFlag.asset_id).label('total'),
+        )
+        .filter(CaseAssetFlag.case_id.in_(list(case_ids)))
+        .group_by(CaseAssetFlag.case_id, CaseAssetFlag.flag_id)
+        .all()
+    )
+
+
+def war_room_board_db_kind_counts(case_ids):
+    """Rows `(case_id, kind, total)`: assets carrying at least one flag of
+    each kind, per case (an asset may count under several kinds)."""
+    if not case_ids:
+        return []
+    return (
+        db.session.query(
+            CaseAssetFlag.case_id,
+            AssetFlag.kind,
+            func.count(func.distinct(CaseAssetFlag.asset_id)).label('total'),
+        )
+        .join(AssetFlag, AssetFlag.id == CaseAssetFlag.flag_id)
+        .filter(CaseAssetFlag.case_id.in_(list(case_ids)))
+        .group_by(CaseAssetFlag.case_id, AssetFlag.kind)
+        .all()
+    )
+
+
+def _has_flag():
+    return (
+        db.session.query(CaseAssetFlag.asset_id)
+        .filter(CaseAssetFlag.asset_id == CaseAssets.asset_id)
+        .exists()
+    )
+
+
+def war_room_board_db_compromised_unflagged(case_ids, limit):
+    """Compromised assets that carry no flag at all."""
+    if not case_ids:
+        return []
     return (
         db.session.query(CaseAssets.asset_id, CaseAssets.asset_name, CaseAssets.case_id)
         .filter(
             CaseAssets.case_id.in_(list(case_ids)),
             CaseAssets.asset_compromise_status_id == CompromiseStatus.compromised.value,
-            stage_clause,
+            ~_has_flag(),
         )
         .order_by(CaseAssets.case_id.asc(), CaseAssets.asset_id.asc())
         .limit(limit)
@@ -134,6 +175,7 @@ def war_room_board_db_compromised_unstaged(case_ids, first_progress_stage_id, li
 
 
 def war_room_board_db_exceptions_without_decision(case_ids, limit):
+    """One row per (asset, exception flag) not backed by a decision."""
     if not case_ids:
         return []
     return (
@@ -141,15 +183,16 @@ def war_room_board_db_exceptions_without_decision(case_ids, limit):
             CaseAssets.asset_id,
             CaseAssets.asset_name,
             CaseAssets.case_id,
-            AssetStage.name.label('stage_name'),
+            AssetFlag.name.label('flag_name'),
         )
-        .join(AssetStage, AssetStage.id == CaseAssets.stage_id)
+        .join(CaseAssetFlag, CaseAssetFlag.asset_id == CaseAssets.asset_id)
+        .join(AssetFlag, AssetFlag.id == CaseAssetFlag.flag_id)
         .filter(
             CaseAssets.case_id.in_(list(case_ids)),
-            AssetStage.kind == 'exception',
-            CaseAssets.stage_decision_id.is_(None),
+            AssetFlag.kind == 'exception',
+            CaseAssetFlag.decision_id.is_(None),
         )
-        .order_by(CaseAssets.case_id.asc(), CaseAssets.asset_id.asc())
+        .order_by(CaseAssets.case_id.asc(), CaseAssets.asset_id.asc(), AssetFlag.sort_order.asc())
         .limit(limit)
         .all()
     )

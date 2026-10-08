@@ -53,7 +53,7 @@ class TestsRestWarRoomBoard(TestCase):
         response = self._board(room_id)
         self.assertEqual(200, response.status_code)
         body = response.json()
-        for key in ('generated_at', 'kpis', 'stages', 'cases', 'attention', 'decisions'):
+        for key in ('generated_at', 'kpis', 'flags', 'cases', 'attention', 'decisions'):
             self.assertIn(key, body)
         self.assertEqual(0, body['kpis']['cases'])
 
@@ -65,11 +65,30 @@ class TestsRestWarRoomBoard(TestCase):
         body = self._board(room_id).json()
         self.assertEqual(1, body['kpis']['cases'])
         self.assertEqual(2, body['kpis']['assets'])
-        self.assertEqual(2, body['kpis']['unstaged'])
+        self.assertEqual(2, body['kpis']['unflagged'])
+        self.assertEqual(0, body['kpis']['flagged'])
         case = body['cases'][0]
         self.assertEqual(case_id, case['case_id'])
         self.assertTrue(case['accessible'])
         self.assertEqual(2, case['assets_total'])
+
+    def test_board_should_count_flagged_assets_per_flag_and_kind(self):
+        room_id = self._room()
+        case_id = self._attach_case(room_id)
+        flagged_id = self._asset(case_id, 'dc01')
+        self._asset(case_id, 'ws042')
+        flags = {flag['name']: flag for flag in self._subject.get('/api/v2/manage/asset-flags').json()}
+        flag = next(flag for flag in flags.values()
+                    if flag['kind'] == 'status' and not flag['requires_reason'] and not flag['requires_decision'])
+        self._subject.update(f'/api/v2/cases/{case_id}/assets/{flagged_id}/flags/{flag["id"]}', {})
+        body = self._board(room_id).json()
+        self.assertEqual(1, body['kpis']['flagged'])
+        self.assertEqual(1, body['kpis']['unflagged'])
+        self.assertIn(flag['id'], [entry['id'] for entry in body['flags']])
+        case = body['cases'][0]
+        self.assertEqual(1, case['by_flag'][str(flag['id'])])
+        self.assertEqual(1, case['by_kind']['status'])
+        self.assertEqual(1, case['by_kind']['none'])
 
     def test_overdue_decision_should_need_attention(self):
         room_id = self._room()

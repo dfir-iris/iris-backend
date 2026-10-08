@@ -25,7 +25,10 @@ from app.util import add_obj_history_entry
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.business.iocs import iocs_exports_to_json
+from app.business.vulnerability_findings import vulnerability_findings_case_case_deleted
+from app.business.vulnerability_findings import vulnerability_findings_case_list_for_case
 from app.iris_engine.module_handler.module_handler import call_modules_hook
+from app.iris_engine.notifications.hook_listeners import notifications_case_updated
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.access_control.utils import ac_set_new_case_access
 from app.datamgmt.case.case_db import case_db_exists
@@ -265,10 +268,12 @@ def cases_delete(case_identifier):
 
     try:
         call_modules_hook('on_preload_case_delete', case_identifier, caseid=case_identifier)
+        findings = vulnerability_findings_case_list_for_case(case_identifier)
         if not delete_case(case_identifier):
             track_activity(f'tried to delete case {case_identifier}, but it doesn\'t exist',
                            caseid=case_identifier, ctx_less=True)
             raise BusinessProcessingError('Tried to delete a non-existing case')
+        vulnerability_findings_case_case_deleted(findings)
         call_modules_hook('on_postload_case_delete', case_identifier, caseid=case_identifier)
         track_activity(f'case {case_identifier} deleted successfully', ctx_less=True)
     except Exception as e:
@@ -278,15 +283,17 @@ def cases_delete(case_identifier):
 
 def cases_update(case: Cases, updated_case, protagonists, tags,
                  previous_case_state: int | None = None,
-                 previous_reviewer_id: int | None = None) -> Cases:
+                 previous_reviewer_id: int | None = None,
+                 previous_owner_id: int | None = None) -> Cases:
     """Persist an update to a case.
 
     `case` and `updated_case` are the same SQLAlchemy instance because the
     v2 schema uses `load_instance=True` — by the time we get here
     `case.state_id` is already the NEW value. Callers that need the
     state-transition side-effects (close_date, alert cascade, reviewer
-    reset) MUST snapshot the previous state/reviewer BEFORE running
-    `schema.load(instance=case)` and pass them in explicitly.
+    reset) and the notifications MUST snapshot the previous state/reviewer/
+    owner BEFORE running `schema.load(instance=case)` and pass them in
+    explicitly.
     """
     try:
         closed_state_id = get_case_state_by_name('Closed').state_id
@@ -298,6 +305,8 @@ def cases_update(case: Cases, updated_case, protagonists, tags,
             previous_case_state = case.state_id
         if previous_reviewer_id is None:
             previous_reviewer_id = case.reviewer_id
+        if previous_owner_id is None:
+            previous_owner_id = case.owner_id
         case_previous_reviewer_id = previous_reviewer_id
         db.session.commit()
 
@@ -346,6 +355,7 @@ def cases_update(case: Cases, updated_case, protagonists, tags,
         save_case_tags(tags, case)
 
         updated_case = call_modules_hook('on_postload_case_update', data=updated_case, caseid=case.case_id)
+        notifications_case_updated(updated_case, previous_case_state, previous_owner_id, case_previous_reviewer_id)
 
         add_obj_history_entry(case, 'case info updated')
         track_activity(f'case updated "{updated_case.name}"', caseid=case.case_id)
@@ -374,6 +384,7 @@ def cases_close(case_identifier) -> Cases:
     case = get_case(case_identifier)
     if not case:
         raise ObjectNotFoundError()
+    previous_state_id = case.state_id
 
     res = close_case(case_identifier)
     if not res:
@@ -399,6 +410,7 @@ def cases_close(case_identifier) -> Cases:
                 db.session.add(alert)
 
     res = call_modules_hook('on_postload_case_update', res, caseid=case_identifier)
+    notifications_case_updated(res, previous_state_id, res.owner_id, res.reviewer_id)
 
     add_obj_history_entry(res, 'case closed')
     track_activity(f'closed case ID {case_identifier}', caseid=case_identifier, ctx_less=False)
@@ -417,6 +429,7 @@ def cases_reopen(case_identifier) -> Cases:
     case = get_case(case_identifier)
     if not case:
         raise ObjectNotFoundError()
+    previous_state_id = case.state_id
 
     res = reopen_case(case_identifier)
     if not res:
@@ -433,6 +446,7 @@ def cases_reopen(case_identifier) -> Cases:
                 db.session.add(alert)
 
     res = call_modules_hook('on_postload_case_update', res, caseid=case_identifier)
+    notifications_case_updated(res, previous_state_id, res.owner_id, res.reviewer_id)
 
     add_obj_history_entry(res, 'case reopen')
     track_activity(f'reopen case ID {case_identifier}', caseid=case_identifier)

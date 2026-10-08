@@ -54,11 +54,11 @@ class TestsRestWarRoomScope(TestCase):
         self._subject.create(f'/api/v2/war-rooms/{room_id}/members', {'user_id': member.get_identifier()})
         return member
 
-    def _stage_id(self):
-        # Other suites may apply presets: pick any stage without extra requirements.
-        stages = self._subject.get('/api/v2/manage/asset-stages').json()
-        return next(stage['id'] for stage in stages
-                    if not stage['requires_reason'] and not stage['requires_decision'])
+    def _flag_id(self):
+        # Other suites may apply presets: pick any flag without extra requirements.
+        flags = self._subject.get('/api/v2/manage/asset-flags').json()
+        return next(flag['id'] for flag in flags
+                    if not flag['requires_reason'] and not flag['requires_decision'])
 
     def test_list_assets_should_return_assets_of_attached_cases(self):
         room_id = self._room()
@@ -252,27 +252,75 @@ class TestsRestWarRoomScope(TestCase):
         response = self._subject.delete(f'/api/v2/war-rooms/{room_id}/scope/staging/{staged_id}')
         self.assertEqual(404, response.status_code)
 
-    def test_bulk_stage_should_update_then_report_unchanged(self):
+    def test_bulk_flag_should_update_then_report_unchanged(self):
         room_id = self._room()
         case_id = self._attach_case(room_id)
-        asset_id = self._asset(case_id, 'srv-stage')
+        asset_id = self._asset(case_id, 'srv-flag')
         outside_case_id = self._subject.create_dummy_case()
         outside_asset_id = self._asset(outside_case_id, 'srv-outside')
-        body = {'asset_ids': [asset_id, outside_asset_id], 'stage_id': self._stage_id()}
+        flag_id = self._flag_id()
+        body = {'asset_ids': [asset_id, outside_asset_id], 'flag_id': flag_id}
 
-        response = self._subject.create(f'/api/v2/war-rooms/{room_id}/scope/assets/stage', body)
+        response = self._subject.create(f'/api/v2/war-rooms/{room_id}/scope/assets/flags', body)
         self.assertEqual(200, response.status_code)
         statuses = {row['asset_id']: row['status'] for row in response.json()['results']}
         self.assertEqual({asset_id: 'updated', outside_asset_id: 'denied'}, statuses)
 
-        response = self._subject.create(f'/api/v2/war-rooms/{room_id}/scope/assets/stage', body)
+        response = self._subject.create(f'/api/v2/war-rooms/{room_id}/scope/assets/flags', body)
         statuses = {row['asset_id']: row['status'] for row in response.json()['results']}
         self.assertEqual('unchanged', statuses[asset_id])
 
         asset = self._subject.get(f'/api/v2/cases/{case_id}/assets/{asset_id}').json()
-        self.assertEqual(self._stage_id(), asset['stage_id'])
+        self.assertEqual([flag_id], [entry['flag_id'] for entry in asset['flags']])
         outside = self._subject.get(f'/api/v2/cases/{outside_case_id}/assets/{outside_asset_id}').json()
-        self.assertIsNone(outside['stage_id'])
+        self.assertEqual([], outside['flags'])
+
+    def test_bulk_flag_clear_should_remove_the_flag(self):
+        room_id = self._room()
+        case_id = self._attach_case(room_id)
+        asset_id = self._asset(case_id, 'srv-flag')
+        flag_id = self._flag_id()
+        path = f'/api/v2/war-rooms/{room_id}/scope/assets/flags'
+        self._subject.create(path, {'asset_ids': [asset_id], 'flag_id': flag_id})
+
+        response = self._subject.create(path, {'asset_ids': [asset_id], 'flag_id': flag_id, 'action': 'clear'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(['updated'], [row['status'] for row in response.json()['results']])
+        asset = self._subject.get(f'/api/v2/cases/{case_id}/assets/{asset_id}').json()
+        self.assertEqual([], asset['flags'])
+
+        history = self._subject.get(f'/api/v2/cases/{case_id}/assets/{asset_id}/flag-history').json()
+        self.assertEqual(['cleared', 'set'], [entry['action'] for entry in history])
+        self.assertEqual(room_id, history[0]['war_room_id'])
+
+    def test_bulk_flag_should_reject_an_unknown_action(self):
+        room_id = self._room()
+        case_id = self._attach_case(room_id)
+        asset_id = self._asset(case_id, 'srv-flag')
+        response = self._subject.create(f'/api/v2/war-rooms/{room_id}/scope/assets/flags',
+                                        {'asset_ids': [asset_id], 'flag_id': self._flag_id(), 'action': 'toggle'})
+        self.assertEqual(400, response.status_code)
+
+    def test_list_assets_should_carry_and_filter_the_flags(self):
+        room_id = self._room()
+        case_id = self._attach_case(room_id)
+        flagged_id = self._asset(case_id, 'srv-flagged')
+        other_id = self._asset(case_id, 'srv-other')
+        flag_id = self._flag_id()
+        self._subject.create(f'/api/v2/war-rooms/{room_id}/scope/assets/flags',
+                             {'asset_ids': [flagged_id], 'flag_id': flag_id})
+        path = f'/api/v2/war-rooms/{room_id}/scope/assets'
+
+        assets = {asset['asset_id']: asset for asset in self._subject.get(path).json()['data']}
+        self.assertEqual([flag_id], [entry['flag_id'] for entry in assets[flagged_id]['flags']])
+        self.assertEqual([], assets[other_id]['flags'])
+
+        with_flag = self._subject.get(path, {'flag_id': flag_id}).json()['data']
+        self.assertEqual([flagged_id], [asset['asset_id'] for asset in with_flag])
+        unflagged = self._subject.get(path, {'flag_id': 'none'}).json()['data']
+        self.assertEqual([other_id], [asset['asset_id'] for asset in unflagged])
+        without = self._subject.get(path, {'without_flag_id': flag_id}).json()['data']
+        self.assertEqual([other_id], [asset['asset_id'] for asset in without])
 
     def test_export_iocs_should_return_attachment(self):
         room_id = self._room()

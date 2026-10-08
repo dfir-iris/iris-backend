@@ -71,7 +71,7 @@ class AlertCluster(db.Model):
     # Set by the flow evaluator when a flow's conditions match this
     # cluster, so the detail page doesn't re-evaluate every render.
     cluster_investigation_flow_id = Column(
-        ForeignKey('investigation_flows.flow_id'), nullable=True
+        ForeignKey('investigation_flows.flow_id', ondelete='SET NULL'), nullable=True
     )
     modification_history = Column(JSON)
 

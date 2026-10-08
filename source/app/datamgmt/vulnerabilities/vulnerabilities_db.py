@@ -500,6 +500,26 @@ def findings_db_case_get(finding_id):
     return _case_findings_query().filter(CaseAssetVulnerability.finding_id == finding_id).first()
 
 
+def findings_db_case_for_asset(asset_id):
+    """Rows of `_case_findings_query` for every finding of one asset."""
+    return (
+        _case_findings_query()
+        .filter(CaseAssetVulnerability.asset_id == asset_id)
+        .order_by(CaseAssetVulnerability.finding_id.asc())
+        .all()
+    )
+
+
+def findings_db_case_for_case(case_id):
+    """Rows of `_case_findings_query` for every finding of a case."""
+    return (
+        _case_findings_query()
+        .filter(CaseAssets.case_id == case_id)
+        .order_by(CaseAssetVulnerability.finding_id.asc())
+        .all()
+    )
+
+
 def findings_db_case_existing(asset_ids, vulnerability_id):
     """Asset ids among `asset_ids` already carrying a finding for the entry."""
     if not asset_ids:

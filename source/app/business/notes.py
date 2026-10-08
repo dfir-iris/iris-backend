@@ -27,9 +27,11 @@ from app.models.errors import UnhandledBusinessError
 from app.models.errors import ObjectNotFoundError
 from app.datamgmt.case.case_notes_db import search_notes_in_case
 from app.datamgmt.case.case_notes_db import get_note
+from app.datamgmt.case.case_notes_db import get_note_persisted_content
 from app.datamgmt.case.case_notes_db import update_note_revision
 from app.datamgmt.case.case_notes_db import delete_note
 from app.iris_engine.module_handler.module_handler import call_modules_hook
+from app.iris_engine.notifications.hook_listeners import notifications_note_updated
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import NoteRevisions
 from app.models.models import Notes
@@ -102,6 +104,9 @@ def notes_get(identifier) -> Notes:
 def notes_update(user, note: Notes):
     notes_check_writable(note)
     notes_directories_check_can_receive(note.directory_id)
+    # Read before anything can flush the pending content (the guards
+    # above don't: `get_directory` runs without autoflush).
+    previous_content = get_note_persisted_content(note)
     try:
         if not update_note_revision(user.id, note):
             logger.debug(f'Note {note.note_id} has not changed, skipping versioning')
@@ -111,6 +116,7 @@ def notes_update(user, note: Notes):
 
         add_obj_history_entry(note, 'updated note', commit=True)
         note = call_modules_hook('on_postload_note_update', note, caseid=note.note_case_id)
+        notifications_note_updated(note, previous_content)
 
         track_activity(f'updated note "{note.note_title}"', caseid=note.note_case_id)
 

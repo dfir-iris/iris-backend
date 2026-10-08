@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""v2 endpoints for the asset stage taxonomy. Listing is open to any
+"""v2 endpoints for the asset flag taxonomy. Listing is open to any
 authenticated user; changes require server administrator."""
 
 from flask import Blueprint
@@ -29,12 +29,12 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
-from app.business.asset_stages import asset_stages_apply_preset
-from app.business.asset_stages import asset_stages_create
-from app.business.asset_stages import asset_stages_delete
-from app.business.asset_stages import asset_stages_list
-from app.business.asset_stages import asset_stages_reorder
-from app.business.asset_stages import asset_stages_update
+from app.business.asset_flags import asset_flags_apply_preset
+from app.business.asset_flags import asset_flags_create
+from app.business.asset_flags import asset_flags_delete
+from app.business.asset_flags import asset_flags_list
+from app.business.asset_flags import asset_flags_reorder
+from app.business.asset_flags import asset_flags_update
 from app.models.authorization import Permissions
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -57,56 +57,56 @@ def _handle(operation, created=False):
     return response_api_success(result)
 
 
-asset_stages_blueprint = Blueprint(
-    'asset_stages_rest_v2', __name__,
-    url_prefix='/asset-stages'
+asset_flags_blueprint = Blueprint(
+    'asset_flags_rest_v2', __name__,
+    url_prefix='/asset-flags'
 )
 
 
-@asset_stages_blueprint.get('')
+@asset_flags_blueprint.get('')
 @ac_api_requires()
-@api_doc(tags=['ManageAssetStages'], summary='List asset stages, ordered, with their usage count')
-def list_asset_stages_route():
-    return _handle(asset_stages_list)
+@api_doc(tags=['ManageAssetFlags'], summary='List asset flags, ordered, with their usage count')
+def list_asset_flags_route():
+    return _handle(asset_flags_list)
 
 
-@asset_stages_blueprint.post('')
+@asset_flags_blueprint.post('')
 @ac_api_requires(Permissions.server_administrator)
-@api_doc(response_shape='created', tags=['ManageAssetStages'], summary='Create an asset stage')
-def create_asset_stage_route():
+@api_doc(response_shape='created', tags=['ManageAssetFlags'], summary='Create an asset flag')
+def create_asset_flag_route():
     body = _body()
-    return _handle(lambda: asset_stages_create(body), created=True)
+    return _handle(lambda: asset_flags_create(body), created=True)
 
 
-@asset_stages_blueprint.post('/reorder')
+@asset_flags_blueprint.post('/reorder')
 @ac_api_requires(Permissions.server_administrator)
-@api_doc(tags=['ManageAssetStages'], summary='Reorder the asset stages (ids must list every stage once)')
-def reorder_asset_stages_route():
+@api_doc(tags=['ManageAssetFlags'], summary='Reorder the asset flags (ids must list every flag once)')
+def reorder_asset_flags_route():
     body = _body()
-    return _handle(lambda: asset_stages_reorder(body.get('ids')))
+    return _handle(lambda: asset_flags_reorder(body.get('ids')))
 
 
-@asset_stages_blueprint.post('/presets/<string:preset>')
+@asset_flags_blueprint.post('/presets/<string:preset>')
 @ac_api_requires(Permissions.server_administrator)
-@api_doc(tags=['ManageAssetStages'], summary='Replace the asset stages with a preset (only when no stage is in use)')
-def apply_asset_stages_preset_route(preset):
-    return _handle(lambda: asset_stages_apply_preset(preset))
+@api_doc(tags=['ManageAssetFlags'], summary='Replace the asset flags with a preset (only when no flag is set on an asset)')
+def apply_asset_flags_preset_route(preset):
+    return _handle(lambda: asset_flags_apply_preset(preset))
 
 
-@asset_stages_blueprint.put('/<int:identifier>')
+@asset_flags_blueprint.put('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
-@api_doc(tags=['ManageAssetStages'], summary='Update an asset stage (fields left out keep their value)')
-def update_asset_stage_route(identifier):
+@api_doc(tags=['ManageAssetFlags'], summary='Update an asset flag (fields left out keep their value)')
+def update_asset_flag_route(identifier):
     body = _body()
-    return _handle(lambda: asset_stages_update(identifier, body))
+    return _handle(lambda: asset_flags_update(identifier, body))
 
 
-@asset_stages_blueprint.delete('/<int:identifier>')
+@asset_flags_blueprint.delete('/<int:identifier>')
 @ac_api_requires(Permissions.server_administrator)
-@api_doc(response_shape='deleted', tags=['ManageAssetStages'], summary='Delete an asset stage that is not in use')
-def delete_asset_stage_route(identifier):
+@api_doc(response_shape='deleted', tags=['ManageAssetFlags'], summary='Delete an asset flag that is not set on any asset')
+def delete_asset_flag_route(identifier):
     try:
-        asset_stages_delete(identifier)
+        asset_flags_delete(identifier)
     except ObjectNotFoundError:
         return response_api_not_found()
     except BusinessProcessingError as e:

@@ -382,6 +382,29 @@ class TestsRestCaseTransfer(TestCase):
         self.assertEqual(['DC01'], [asset['asset_name'] for asset in event['assets']])
         self.assertEqual(['8.8.8.8'], [ioc['ioc_value'] for ioc in event['iocs']])
 
+    def test_round_trip_should_keep_the_asset_flags_and_their_status_event(self):
+        case_identifier = self._subject.create_dummy_case()
+        asset = self._subject.create(f'/api/v2/cases/{case_identifier}/assets',
+                                     {'asset_type_id': 1, 'asset_name': 'DC01'}).json()
+        flag = next(flag for flag in self._subject.get('/api/v2/manage/asset-flags').json()
+                    if not flag['requires_decision'])
+        self._subject.update(f'/api/v2/cases/{case_identifier}/assets/{asset["asset_id"]}/flags/{flag["id"]}',
+                             {'reason': 'EDR containment'})
+
+        imported = self._import(self._export(case_identifier))
+
+        imported_asset = self._first(imported['case_id'], 'assets', 'asset_name', 'DC01')
+        self.assertEqual([(flag['id'], 'EDR containment')],
+                         [(entry['flag_id'], entry['reason']) for entry in imported_asset['flags']])
+        timelines = self._subject.get(f'/api/v2/cases/{imported["case_id"]}/timelines').json()
+        status = next(t for t in timelines if t['name'] == 'Asset status')
+        event = self._event(imported['case_id'], f'DC01: {flag["name"]}')
+        self.assertEqual([status['timeline_id']], event['timeline_ids'])
+        self.assertEqual(event['event_id'], imported_asset['flags'][0]['event_id'])
+        history = self._subject.get(
+            f'/api/v2/cases/{imported["case_id"]}/assets/{imported_asset["asset_id"]}/flag-history').json()
+        self.assertEqual([], history)
+
     def test_round_trip_should_keep_the_note_in_its_directory(self):
         source = self._build_rich_case(self._subject.create_dummy_user())
         imported = self._import(self._export(source['case_id']))

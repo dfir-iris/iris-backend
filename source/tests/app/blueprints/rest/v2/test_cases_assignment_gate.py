@@ -58,7 +58,8 @@ class _AssignmentGateTestCase(TestCase):
             case_id=_CASE_IDENTIFIER,
             client_id=_CUSTOMER_IDENTIFIER,
             state_id=1,
-            reviewer_id=None
+            reviewer_id=None,
+            owner_id=None
         )
 
         patch(f'{_CASES_MODULE}.cases_get_by_identifier', return_value=self.case).start()

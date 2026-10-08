@@ -16,7 +16,8 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""War-room scope chat commands: /asset, /ioc, /stage, /push, /share-note.
+"""War-room scope chat commands: /asset, /ioc, /flag, /unflag, /push,
+/share-note.
 
 Called from `chat._resolve_slash` once `post_chat` has checked war-room
 write access. Authorization stays in this layer and mirrors the REST
@@ -38,9 +39,9 @@ A command that changed nothing raises `BusinessProcessingError`, so no
 misleading chat row is stored.
 
 Ambiguous names:
-  * /stage acts on every asset with that exact name (case-insensitive)
-    in every readable attached case - that is the point of staging from
-    the war room. Composer markup `[Asset "x"](/case/12/assets)` or case
+  * /flag and /unflag act on every asset with that exact name
+    (case-insensitive) in every readable attached case - that is the
+    point of flagging from the war room. Composer markup `[Asset "x"](/case/12/assets)` or case
     targets narrow it down;
   * /push prefers the war-room staging area: when a staged object has
     that name / value, the staged object(s) are pushed and the case
@@ -57,12 +58,13 @@ from app.business.war_room_chat_commands import war_room_chat_commands_asset_typ
 from app.business.war_room_chat_commands import war_room_chat_commands_case_count
 from app.business.war_room_chat_commands import war_room_chat_commands_decision_id
 from app.business.war_room_chat_commands import war_room_chat_commands_describe_results
+from app.business.war_room_chat_commands import war_room_chat_commands_flags
 from app.business.war_room_chat_commands import war_room_chat_commands_has_targets
 from app.business.war_room_chat_commands import war_room_chat_commands_ioc_types
 from app.business.war_room_chat_commands import war_room_chat_commands_match_assets
 from app.business.war_room_chat_commands import war_room_chat_commands_match_iocs
 from app.business.war_room_chat_commands import war_room_chat_commands_match_note
-from app.business.war_room_chat_commands import war_room_chat_commands_match_stage
+from app.business.war_room_chat_commands import war_room_chat_commands_match_flag
 from app.business.war_room_chat_commands import war_room_chat_commands_match_staged
 from app.business.war_room_chat_commands import war_room_chat_commands_one_source_per_type
 from app.business.war_room_chat_commands import war_room_chat_commands_parse_args
@@ -70,13 +72,12 @@ from app.business.war_room_chat_commands import war_room_chat_commands_pick_asse
 from app.business.war_room_chat_commands import war_room_chat_commands_pick_ioc_type
 from app.business.war_room_chat_commands import war_room_chat_commands_reject_words
 from app.business.war_room_chat_commands import war_room_chat_commands_resolve_targets
-from app.business.war_room_chat_commands import war_room_chat_commands_stages
 from app.business.war_room_chat_commands import war_room_chat_commands_take_decision_number
 from app.business.war_room_note_shares import war_room_note_shares_create
 from app.business.war_room_note_shares import war_room_note_shares_parse_create
 from app.business.war_room_note_shares import war_room_note_shares_resolve_targets
 from app.business.war_room_scope import war_room_scope_attached_case_ids
-from app.business.war_room_scope import war_room_scope_bulk_stage
+from app.business.war_room_scope import war_room_scope_bulk_flag
 from app.business.war_room_scope import war_room_scope_create_asset
 from app.business.war_room_scope import war_room_scope_create_ioc
 from app.business.war_room_scope import war_room_scope_list_assets
@@ -91,7 +92,8 @@ from app.models.errors import BusinessProcessingError
 
 _USAGE_ASSET = '/asset <name> [type:"<asset type>"] [#case ...|all]'
 _USAGE_IOC = '/ioc <value> [type:"<IOC type>"] [#case ...|all]'
-_USAGE_STAGE = '/stage <asset> <stage|none> [reason] [D-n] [#case ...]'
+_USAGE_FLAG = '/flag <asset> <flag> [reason] [D-n] [#case ...]'
+_USAGE_UNFLAG = '/unflag <asset> <flag> [reason] [#case ...]'
 _USAGE_PUSH = '/push <asset|ioc> <#case ...|all>'
 _USAGE_SHARE_NOTE = '/share-note <note title|note:<id>> <#case ...|all> [mirror|copy]'
 _CUSTOMER_IOC_MESSAGE = (
@@ -181,18 +183,20 @@ def chat_commands_ioc(war_room_id, rest):
     return _create_in_cases_or_stage(war_room_id, 'ioc', value, payload, parsed, ioc_type['type_name'])
 
 
-def chat_commands_stage(war_room_id, rest):
-    """`/stage <asset> <stage|none> [reason] [D-n] [#case ...]`.
-
-    Sets the stage of every readable asset with that exact name, in
-    every attached case (narrowed by composer markup or case targets).
-    Words after the stage name are the reason; `D-n` links a decision."""
+def _change_flag(war_room_id, rest, action, usage):
+    """Set (`/flag`) or remove (`/unflag`) a flag on every readable asset
+    with that exact name, in every attached case (narrowed by composer
+    markup or case targets). Words after the flag name are the reason;
+    `D-n` links a decision (set only)."""
+    command = '/flag' if action == 'set' else '/unflag'
     parsed = war_room_chat_commands_parse_args(rest)
-    name = _require_subject(parsed, _USAGE_STAGE)
+    name = _require_subject(parsed, usage)
     if parsed['all'] or parsed['customer']:
-        raise BusinessProcessingError(f'/stage already applies to every attached case. Usage: {_USAGE_STAGE}')
+        raise BusinessProcessingError(f'{command} already applies to every attached case. Usage: {usage}')
     number, words = war_room_chat_commands_take_decision_number(parsed['words'])
-    stage, cleared, reason_words = war_room_chat_commands_match_stage(words, war_room_chat_commands_stages())
+    if number is not None and action != 'set':
+        raise BusinessProcessingError(f'{command} does not take a decision. Usage: {usage}')
+    flag, reason_words = war_room_chat_commands_match_flag(words, war_room_chat_commands_flags())
     reason = parsed['options'].get('reason') or ' '.join(reason_words) or None
     decision_id = war_room_chat_commands_decision_id(war_room_id, number) if number is not None else None
 
@@ -207,15 +211,25 @@ def chat_commands_stage(war_room_id, rest):
     if not assets:
         raise BusinessProcessingError(f'No asset named "{name}" in the attached cases you can read')
 
-    result = war_room_scope_bulk_stage(
+    result = war_room_scope_bulk_flag(
         war_room_id, iris_current_user.id, [asset['asset_id'] for asset in assets],
-        None if cleared else stage['id'], reason, decision_id, readable, writable,
+        flag['id'], action, reason, decision_id, readable, writable,
     )
-    label = 'cleared in' if cleared else f'set to {stage["name"]} in'
+    label = 'set in' if action == 'set' else 'removed in'
     text, succeeded = war_room_chat_commands_describe_results(result['results'], label)
     suffix = f' (D-{number})' if number is not None else ''
     case_ids = sorted({asset['case_id'] for asset in assets})
-    return _result_row(f'Stage of asset "{name}" {text}{suffix}', succeeded, case_ids)
+    return _result_row(f'Flag {flag["name"]} on asset "{name}" {text}{suffix}', succeeded, case_ids)
+
+
+def chat_commands_flag(war_room_id, rest):
+    """`/flag <asset> <flag> [reason] [D-n] [#case ...]`."""
+    return _change_flag(war_room_id, rest, 'set', _USAGE_FLAG)
+
+
+def chat_commands_unflag(war_room_id, rest):
+    """`/unflag <asset> <flag> [reason] [#case ...]`."""
+    return _change_flag(war_room_id, rest, 'clear', _USAGE_UNFLAG)
 
 
 def _push_staged(war_room_id, staged, targets, writable):
@@ -341,7 +355,8 @@ def chat_commands_share_note(war_room_id, rest):
 _HANDLERS = {
     'asset': chat_commands_asset,
     'ioc': chat_commands_ioc,
-    'stage': chat_commands_stage,
+    'flag': chat_commands_flag,
+    'unflag': chat_commands_unflag,
     'push': chat_commands_push,
     'share-note': chat_commands_share_note,
 }

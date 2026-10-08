@@ -413,6 +413,9 @@ def write_case_bundle(new_case_identifier, entities, ref_map):
             for column in spec.self_refs:
                 setattr(row, column, None)
 
+            if any(getattr(row, column) is None for column in spec.required_refs):
+                continue
+
             if spec.case_column is not None:
                 setattr(row, spec.case_column, new_case_identifier)
 

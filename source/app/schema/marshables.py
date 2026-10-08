@@ -66,7 +66,8 @@ from app.models.evidences import EvidenceTypes, CaseReceivedFile
 from app.models.models import NoteDirectory
 from app.models.models import NoteRevisions
 from app.models.assets import AssetsType, CaseAssets, AnalysisStatus
-from app.models.assets import AssetStage
+from app.models.assets import AssetFlag
+from app.models.assets import CaseAssetFlag
 from app.models.models import CaseTasks
 from app.models.cases import Cases, CaseStatus, CaseClassification
 from app.models.cases import CasesEvent
@@ -801,14 +802,10 @@ class CaseAssetsSchema(ma.SQLAlchemyAutoSchema):
     alerts = fields.Nested('AlertSchema', many=True, exclude=['assets'])
     analysis_status = fields.Nested('AnalysisStatusSchema', required=False)
     iocs = fields.Nested('IocSchemaForAPIV2', many=True, only=['ioc_id'])
-    # Stage columns are only writable through the dedicated stage
-    # endpoint (`asset_stages_set_for_asset`), which keeps the history.
-    stage_id = auto_field('stage_id', dump_only=True)
-    stage_reason = auto_field('stage_reason', dump_only=True)
-    stage_decision_id = auto_field('stage_decision_id', dump_only=True)
-    stage_updated_at = auto_field('stage_updated_at', dump_only=True)
-    stage_updated_by_id = auto_field('stage_updated_by_id', dump_only=True)
-    stage = fields.Nested('AssetStageSchema', dump_only=True)
+    # Flags are only writable through the dedicated flag endpoints
+    # (`asset_flags_set_for_asset`), which keep the history and the
+    # "Asset status" timeline.
+    flags = fields.Nested('CaseAssetFlagSchema', many=True, dump_only=True)
 
     class Meta:
         model = CaseAssets
@@ -2235,11 +2232,22 @@ class TaskLogSchema(ma.Schema):
         unknown = EXCLUDE
 
 
-class AssetStageSchema(ma.SQLAlchemyAutoSchema):
-    """Dump-only schema of an asset stage (taxonomy entry)."""
+class AssetFlagSchema(ma.SQLAlchemyAutoSchema):
+    """Dump-only schema of an asset flag (taxonomy entry)."""
 
     class Meta:
-        model = AssetStage
+        model = AssetFlag
+        load_instance = True
+        unknown = EXCLUDE
+
+
+class CaseAssetFlagSchema(ma.SQLAlchemyAutoSchema):
+    """Dump-only schema of a flag set on a case asset."""
+    flag = fields.Nested('AssetFlagSchema', dump_only=True)
+
+    class Meta:
+        model = CaseAssetFlag
+        include_fk = True
         load_instance = True
         unknown = EXCLUDE
 

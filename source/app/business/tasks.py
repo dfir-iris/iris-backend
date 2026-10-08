@@ -30,6 +30,7 @@ from app.datamgmt.case.case_tasks_db import get_task
 from app.datamgmt.case.case_tasks_db import get_filtered_tasks
 from app.datamgmt.states import update_tasks_state
 from app.iris_engine.module_handler.module_handler import call_modules_hook
+from app.iris_engine.notifications.hook_listeners import notifications_task_assignees_added
 from app.iris_engine.utils.tracker import track_activity
 from app.models.models import CaseTasks
 from app.models.pagination_parameters import PaginationParameters
@@ -81,7 +82,7 @@ def tasks_update(task: CaseTasks, task_assignee_list):
     task.task_userid_update = iris_current_user.id
     task.task_last_update = datetime.utcnow()
 
-    update_task_assignees(task.id, task_assignee_list, task.task_case_id)
+    added_assignee_ids = update_task_assignees(task.id, task_assignee_list, task.task_case_id)
     update_tasks_state(task.task_case_id)
 
     db.session.commit()
@@ -89,6 +90,7 @@ def tasks_update(task: CaseTasks, task_assignee_list):
     task = call_modules_hook('on_postload_task_update', task, caseid=task.task_case_id)
     if not task:
         raise BusinessProcessingError('Unable to update task for internal reasons')
+    notifications_task_assignees_added(task, added_assignee_ids)
 
     track_activity(f'updated task "{task.task_title}" (status {task.status.status_name})', caseid=task.task_case_id)
     return task

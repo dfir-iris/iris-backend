@@ -329,6 +329,10 @@ def iris_cases_update(args: dict) -> dict:
                 protocol.IRIS_ACCESS_DENIED,
                 f'Not entitled to customer #{customer_identifier}.',
             )
+        # The load mutates `case`: snapshot what cases_update compares.
+        previous_case_state = case.state_id
+        previous_reviewer_id = case.reviewer_id
+        previous_owner_id = case.owner_id
         updated = _case_schema.load(
             payload, instance=case, partial=True, session=db.session
         )
@@ -336,6 +340,9 @@ def iris_cases_update(args: dict) -> dict:
             case, updated,
             args.get('protagonists') or [],
             args.get('tags') or '',
+            previous_case_state=previous_case_state,
+            previous_reviewer_id=previous_reviewer_id,
+            previous_owner_id=previous_owner_id,
         )
     except ObjectNotFoundError as exc:
         raise MCPError(protocol.INVALID_PARAMS, 'Case not found.') from exc

@@ -17,7 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """Case / war-room boundary: what a case reader sees of war rooms (asset
-stage history) and what a war-room member sees of cases (chat stream).
+flag history) and what a war-room member sees of cases (chat stream).
 
 No database: access helpers and business functions are patched."""
 
@@ -47,13 +47,13 @@ def _history_entry(war_room_id, decision_id=None):
             'decision_id': decision_id, 'decision_number': 3 if decision_id else None}
 
 
-class TestStageHistoryRedaction(TestCase):
+class TestFlagHistoryRedaction(TestCase):
 
     def test_unreadable_rooms_are_blanked_and_checked_once(self):
         entries = [_history_entry(5, 9), _history_entry(6, 10), _history_entry(5, 11), _history_entry(None)]
         with patch(f'{_ACCESS}.require_war_room_read',
                    side_effect=lambda war_room_id: None if war_room_id == 6 else 'denied') as check:
-            out = access.war_room_redact_stage_history(entries)
+            out = access.war_room_redact_flag_history(entries)
         self.assertEqual([5, 6], [call.args[0] for call in check.call_args_list])
         for entry in (out[0], out[2]):
             self.assertEqual((None, None, None, None), (entry['war_room_id'], entry['war_room_name'],
@@ -62,15 +62,15 @@ class TestStageHistoryRedaction(TestCase):
                                                  out[1]['decision_id'], out[1]['decision_number']))
         self.assertEqual(7, out[0]['case_id'])
 
-    def test_stage_history_route_redacts(self):
+    def test_flag_history_route_redacts(self):
         asset = SimpleNamespace(asset_id=11, case_id=7)
         entries = [_history_entry(5, 9)]
         with patch(f'{_ASSETS}.ac_fast_check_current_user_has_case_access', return_value='read'), \
                 patch.object(assets_routes.assets_operations, '_get_asset_in_case', return_value=asset), \
-                patch(f'{_ASSETS}.asset_stages_history', return_value=entries), \
+                patch(f'{_ASSETS}.asset_flags_history', return_value=entries), \
                 patch(f'{_ACCESS}.require_war_room_read', return_value='denied'), \
                 patch(f'{_ASSETS}.response_api_success', side_effect=lambda data: data):
-            out = assets_routes.assets_operations.stage_history(7, 11)
+            out = assets_routes.assets_operations.flag_history(7, 11)
         self.assertIsNone(out[0]['war_room_id'])
         self.assertIsNone(out[0]['war_room_name'])
         self.assertIsNone(out[0]['decision_id'])

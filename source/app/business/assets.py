@@ -35,6 +35,8 @@ from app.datamgmt.case.case_assets_db import create_asset
 from app.datamgmt.case.case_assets_db import set_ioc_links
 from app.datamgmt.case.case_assets_db import delete_asset
 from app.business.managed_assets import managed_assets_observe_asset
+from app.business.vulnerability_findings import vulnerability_findings_case_asset_deleted
+from app.business.vulnerability_findings import vulnerability_findings_case_list_for_asset
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
@@ -67,8 +69,10 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
 
 def assets_delete(asset: CaseAssets):
     call_modules_hook('on_preload_asset_delete', asset.asset_id)
+    findings = vulnerability_findings_case_list_for_asset(asset.asset_id)
     # Deletes an asset and the potential links with the IoCs from the database
     delete_asset(asset)
+    vulnerability_findings_case_asset_deleted(findings)
     call_modules_hook('on_postload_asset_delete', asset.asset_id, caseid=asset.case_id)
     track_activity(f'removed asset ID {asset.asset_name}', caseid=asset.case_id)
 

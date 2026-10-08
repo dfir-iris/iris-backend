@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""War-room board: cross-case stage / decision overview."""
+"""War-room board: cross-case asset status / decision overview."""
 
 from flask import Blueprint
 
@@ -48,7 +48,7 @@ def _readable_case_ids(case_ids):
 
 @war_rooms_board_blueprint.get('/board')
 @ac_api_requires()
-@api_doc(tags=['WarRoomBoard'], summary='Get the war room board (stages, decisions, attention list)')
+@api_doc(tags=['WarRoomBoard'], summary='Get the war room board (asset flags, decisions, attention list)')
 def get_board(war_room_id):
     err = require_war_room_read(war_room_id)
     if err is not None:

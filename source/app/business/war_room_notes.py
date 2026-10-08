@@ -26,17 +26,19 @@ def _validate_title(title):
     return title.strip()[:512]
 
 
-def _fire_mention_notifications(note, actor_id, is_update):
-    """Notify war-room members mentioned in a note.
+def _fire_mention_notifications(note, actor_id, is_update, previous_content=None):
+    """Notify war-room members mentioned in a note. On an update, only the
+    mentions the save added (`previous_content` is the body before it):
+    saving the note again must not re-ping everybody already mentioned.
 
     Silent on failure — a broken notification pipeline must not fail a
     note write."""
     try:
-        from app.iris_engine.notifications.mentions import resolve_mentions_to_user_ids
+        from app.iris_engine.notifications.mentions import mentions_added_user_ids
         from app.iris_engine.notifications.service import notify_many
         from app.models.war_rooms import WarRoomMember
 
-        mentioned = resolve_mentions_to_user_ids(note.content, note.war_room_id)
+        mentioned = mentions_added_user_ids(previous_content, note.content, note.war_room_id)
         if not mentioned:
             return
 
@@ -153,9 +155,10 @@ def war_room_note_update(war_room_id, note_id, title=None, content=None,
     db.session.commit()
     track_activity(f'updated war room note "{note.title}"', war_room_id=war_room_id)
     # Only fire when the body actually changed — pure title / folder edits
-    # shouldn't re-page every mentioned user.
+    # can't add a mention.
     if content is not None and content != prior_content:
-        _fire_mention_notifications(note, updated_by_id, is_update=True)
+        _fire_mention_notifications(note, updated_by_id, is_update=True,
+                                    previous_content=prior_content)
     _sync_note_shares(war_room_id, updated_by_id)
     note = call_modules_hook('on_postload_war_room_note_update', note)
     return note

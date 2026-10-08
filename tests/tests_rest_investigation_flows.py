@@ -136,6 +136,36 @@ class TestsRestInvestigationFlows(TestCase):
         counts = payload.get('data', payload)
         self.assertGreaterEqual(counts['alerts_attached'], 1)
 
+    def test_delete_flow_attached_to_an_alert_detaches_it(self):
+        alert = self._subject.create('/api/v2/alerts', {
+            'alert_title': 'brute force login attempt',
+            'alert_severity_id': 4,
+            'alert_status_id': 3,
+            'alert_customer_id': 1,
+        }).json()
+        flow = self._subject.create('/api/v2/investigation-flows', _flow_body(
+            flow_target='alert',
+            flow_conditions={
+                'logic': 'and',
+                'conditions': [
+                    {'field': 'alert_title', 'operator': 'like', 'value': 'brute'}
+                ],
+            },
+        )).json()
+        flow_id = flow.get('flow_id') or flow['data']['flow_id']
+        step = self._subject.create(
+            f'/api/v2/investigation-flows/{flow_id}/steps',
+            {'step_order': 1, 'step_title': 'Check auth logs'}
+        ).json()
+        step_id = step.get('step_id') or step['data']['step_id']
+        self._subject.create(f'/api/v2/investigation-flows/{flow_id}/deploy', {})
+        self._subject.create(f'/api/v2/alerts/{alert["alert_id"]}/investigation-progress/{step_id}', {})
+
+        response = self._subject.delete(f'/api/v2/investigation-flows/{flow_id}')
+        self.assertEqual(204, response.status_code)
+        after = self._subject.get(f'/api/v2/alerts/{alert["alert_id"]}').json()
+        self.assertIsNone(after['alert_investigation_flow_id'])
+
     # -------------------------------------------------------------------
     # Security regression coverage (mirror tests_rest_incident_rules.py).
     # -------------------------------------------------------------------

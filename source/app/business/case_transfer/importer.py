@@ -309,14 +309,6 @@ def _restore_blobs(bundle, manifest, datastore_rows):
     return written_paths
 
 
-def _drop_orphan_stage_reasons(asset_rows):
-    """A stage this instance does not know is dropped on import; its
-    justification goes with it rather than dangling on a stage-less asset."""
-    for row, _ in asset_rows:
-        if row.stage_id is None:
-            row.stage_reason = None
-
-
 def apply_import(token, owner_id, principal_decisions=None, lookup_decisions=None,
                  customer_identifier=None, group_grants=None, may_create_placeholders=False,
                  may_create_vulnerabilities=True):
@@ -348,7 +340,6 @@ def apply_import(token, owner_id, principal_decisions=None, lookup_decisions=Non
         _record_provenance(case, manifest, principal_report)
 
         written_rows = write_case_bundle(case.case_id, entities, ref_map)
-        _drop_orphan_stage_reasons(written_rows.get('asset') or [])
 
         with BundleReader(archive_path, _max_archive_bytes()) as bundle:
             written_paths = _restore_blobs(bundle, manifest,

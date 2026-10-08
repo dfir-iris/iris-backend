@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import hashlib
+import re
 import secrets
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -58,6 +59,14 @@ _USERS_TIMEZONE_PREFERENCE_KEY = 'timezone'
 USERS_TIME_FORMAT_DEFAULT = '24h'
 _USERS_TIME_FORMATS = ('24h', '12h', 'locale')
 _USERS_TIME_FORMAT_PREFERENCE_KEY = 'time_format'
+
+# War-room section tabs, in the order the user arranged them. The SPA owns
+# the set of tab keys (it drops unknown ones and appends missing ones), so
+# only the shape is checked here. An empty list means the default order.
+# Stored under this key in `User.preferences`.
+_USERS_WAR_ROOM_TAB_ORDER_PREFERENCE_KEY = 'war_room_tab_order'
+_USERS_WAR_ROOM_TAB_ORDER_MAX_TABS = 32
+_USERS_WAR_ROOM_TAB_KEY_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 
 
 def users_reset_mfa(user_id: int = None):
@@ -185,6 +194,35 @@ def users_set_time_format(user: User, value: str):
         preferences.pop(_USERS_TIME_FORMAT_PREFERENCE_KEY, None)
     else:
         preferences[_USERS_TIME_FORMAT_PREFERENCE_KEY] = value
+    user.preferences = preferences
+
+
+def users_is_valid_war_room_tab_order(value) -> bool:
+    if not isinstance(value, list) or len(value) > _USERS_WAR_ROOM_TAB_ORDER_MAX_TABS:
+        return False
+    if not all(isinstance(key, str) and _USERS_WAR_ROOM_TAB_KEY_PATTERN.fullmatch(key) for key in value):
+        return False
+    return len(set(value)) == len(value)
+
+
+def users_get_war_room_tab_order(user: User) -> list[str]:
+    """Return the user's war-room tab order, re-validated like the timezone."""
+    value = (user.preferences or {}).get(_USERS_WAR_ROOM_TAB_ORDER_PREFERENCE_KEY)
+    if value is not None and users_is_valid_war_room_tab_order(value):
+        return list(value)
+    return []
+
+
+def users_set_war_room_tab_order(user: User, value: list[str]):
+    if not users_is_valid_war_room_tab_order(value):
+        raise BusinessProcessingError(
+            f'war_room_tab_order must be a list of at most {_USERS_WAR_ROOM_TAB_ORDER_MAX_TABS} distinct tab keys')
+
+    preferences = dict(user.preferences or {})
+    if value:
+        preferences[_USERS_WAR_ROOM_TAB_ORDER_PREFERENCE_KEY] = list(value)
+    else:
+        preferences.pop(_USERS_WAR_ROOM_TAB_ORDER_PREFERENCE_KEY, None)
     user.preferences = preferences
 
 

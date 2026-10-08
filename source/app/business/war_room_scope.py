@@ -41,7 +41,9 @@ import uuid
 
 from marshmallow import ValidationError
 
-from app.business.asset_stages import asset_stages_set_for_asset
+from app.business.asset_flags import asset_flags_clear_for_asset
+from app.business.asset_flags import asset_flags_is_unchanged
+from app.business.asset_flags import asset_flags_set_for_asset
 from app.business.assets import assets_create
 from app.business.iocs import iocs_create
 from app.business.vulnerabilities import vulnerabilities_normalize_identifier
@@ -49,6 +51,7 @@ from app.datamgmt.vulnerabilities.vulnerabilities_db import findings_db_asset_ta
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_analysis_status_exists
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_asset_type_exists
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_asset_sightings
+from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_asset_flags
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_assets
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_assets_breakdown
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_assets_by_ids
@@ -57,6 +60,8 @@ from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_cases
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_chat_message_in_room
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_decision_in_room
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_find_asset
+from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_flag_exists
+from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_flag_totals
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_find_ioc
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_ioc_type_get
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_ioc_case_counts
@@ -65,7 +70,6 @@ from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_ioc_keys_
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_iocs
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_iocs_by_ids
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_rollback
-from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_stage_exists
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_staged_add
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_staged_count
 from app.datamgmt.war_rooms.war_room_scope_db import war_room_scope_db_staged_delete
@@ -87,7 +91,7 @@ from app.schema.marshables import IocSchemaForAPIV2
 WAR_ROOM_SCOPE_LIST_LIMIT = 5000
 WAR_ROOM_SCOPE_MAX_SOURCES = 200
 WAR_ROOM_SCOPE_MAX_TARGETS = 50
-WAR_ROOM_SCOPE_MAX_BULK_STAGE = 500
+WAR_ROOM_SCOPE_MAX_BULK_FLAG = 500
 WAR_ROOM_SCOPE_MAX_STAGED = 500
 WAR_ROOM_SCOPE_DEFAULT_PER_PAGE = 100
 WAR_ROOM_SCOPE_MAX_PER_PAGE = 500
@@ -223,13 +227,20 @@ def _validate_id_list(value, field, max_items, min_items=1):
     return ids
 
 
-def _validate_stage_id(stage_id):
-    if stage_id is None:
-        return None
-    _validate_int_id(stage_id, 'stage_id')
-    if not war_room_scope_db_stage_exists(stage_id):
-        raise BusinessProcessingError('Stage not found')
-    return stage_id
+def _validate_flag_id(flag_id, field='flag_id'):
+    _validate_int_id(flag_id, field)
+    if not war_room_scope_db_flag_exists(flag_id):
+        raise BusinessProcessingError('Flag not found')
+    return flag_id
+
+
+def _validate_flag_ids(flag_ids):
+    if flag_ids is None:
+        return []
+    ids = _validate_id_list(flag_ids, 'flag_ids', WAR_ROOM_SCOPE_MAX_TARGETS, min_items=0)
+    for flag_id in ids:
+        _validate_flag_id(flag_id)
+    return ids
 
 
 def _validate_asset_payload(payload):
@@ -425,7 +436,7 @@ def _vulnerability_tags(asset_ids):
     return tags
 
 
-def _serialize_scope_asset(row, vulnerabilities=None):
+def _serialize_scope_asset(row, vulnerabilities=None, flags=None):
     name = row.asset_name or ''
     return {
         'asset_id': row.asset_id,
@@ -440,10 +451,7 @@ def _serialize_scope_asset(row, vulnerabilities=None):
         'asset_compromise_status_id': row.asset_compromise_status_id,
         'analysis_status_id': row.analysis_status_id,
         'analysis_status_name': row.analysis_status_name,
-        'stage_id': row.stage_id,
-        'stage_reason': row.stage_reason,
-        'stage_decision_id': row.stage_decision_id,
-        'stage_updated_at': row.stage_updated_at.isoformat() if row.stage_updated_at else None,
+        'flags': flags or [],
         'case_id': row.case_id,
         'case_name': row.case_name,
         'customer_id': row.customer_id,
@@ -508,26 +516,39 @@ def _parse_sort(raw, allowed):
     return value
 
 
-def _assets_aggregates(breakdown_rows):
-    """`(total, case_totals, stage_totals)` from the per (case, stage) rows."""
-    per_case = {}
-    per_stage = {}
+def _assets_aggregates(breakdown_rows, flag_rows):
+    """`(total, case_totals, flag_totals)` from the per-case and per-flag
+    rows. `flag_totals` has one `flag_id: None` entry for the assets
+    without any flag; an asset carrying several flags counts under each."""
+    case_totals = []
     total = 0
+    unflagged = 0
     for row in breakdown_rows:
         assets = int(row.assets or 0)
         total += assets
-        entry = per_case.setdefault(row.case_id, {'case_id': row.case_id, 'assets': 0, 'done': 0,
-                                                  'vuln_open': 0, 'vuln_exploited_open': 0})
-        entry['assets'] += assets
-        if row.stage_kind == 'done':
-            entry['done'] += assets
-        entry['vuln_open'] += int(row.vuln_open or 0)
-        entry['vuln_exploited_open'] += int(row.vuln_exploited_open or 0)
-        per_stage[row.stage_id] = per_stage.get(row.stage_id, 0) + assets
-    case_totals = sorted(per_case.values(), key=lambda entry: entry['case_id'])
-    stage_totals = [{'stage_id': stage_id, 'assets': count} for stage_id, count in per_stage.items()]
-    stage_totals.sort(key=lambda entry: (entry['stage_id'] is not None, entry['stage_id'] or 0))
-    return total, case_totals, stage_totals
+        unflagged += int(row.unflagged or 0)
+        case_totals.append({'case_id': row.case_id, 'assets': assets, 'done': int(row.done or 0),
+                            'vuln_open': int(row.vuln_open or 0),
+                            'vuln_exploited_open': int(row.vuln_exploited_open or 0)})
+    case_totals.sort(key=lambda entry: entry['case_id'])
+    flag_totals = [{'flag_id': row.flag_id, 'assets': int(row.assets or 0)} for row in flag_rows]
+    flag_totals.sort(key=lambda entry: entry['flag_id'])
+    if unflagged:
+        flag_totals.insert(0, {'flag_id': None, 'assets': unflagged})
+    return total, case_totals, flag_totals
+
+
+def _asset_flags(asset_ids):
+    """{asset_id: [flag entries]} for the scope listing. One query."""
+    flags = {}
+    for row in war_room_scope_db_asset_flags(asset_ids):
+        flags.setdefault(row.asset_id, []).append({
+            'flag_id': row.flag_id,
+            'reason': row.reason,
+            'decision_id': row.decision_id,
+            'set_at': row.set_at.isoformat() if row.set_at else None,
+        })
+    return flags
 
 
 def _asset_sightings(readable_case_ids, rows):
@@ -556,12 +577,14 @@ def _without_vulnerabilities(result):
     return result
 
 
-def war_room_scope_list_assets(readable_case_ids, search=None, stage=None, case_id=None, compromised=None,
+def war_room_scope_list_assets(readable_case_ids, search=None, flag=None, case_id=None, compromised=None,
                                vulnerable=None, vulnerability=None, page=None, per_page=None, sort=None,
-                               include_vulnerabilities=True):
+                               include_vulnerabilities=True, without_flag=None):
     """Assets of the readable attached cases.
 
-    Query-string inputs are passed raw: `stage` is an int or `'none'`,
+    Query-string inputs are passed raw: `flag` is a flag id (assets
+    carrying it) or `'none'` (assets without any flag), `without_flag` a
+    flag id (assets not carrying it),
     `case_id` an int, `compromised` `'1'`/`'true'`, `vulnerable`
     `'open'`/`'exploited'`/`'none'`, `vulnerability` an identifier
     (`CVE-2024-3400`, an alias, an `IRIS-VULN-…` entry).
@@ -569,7 +592,7 @@ def war_room_scope_list_assets(readable_case_ids, search=None, stage=None, case_
     Without `page`, at most WAR_ROOM_SCOPE_LIST_LIMIT rows are returned
     (`truncated` tells when more exist). With `page` (1-based) and
     `per_page`, one page is returned along with `total`, the per-case and
-    per-stage totals over every matching asset, and on each asset the
+    per-flag totals over every matching asset, and on each asset the
     other readable cases holding the same asset (`sighting_case_ids`,
     capped, and `sighting_count`).
 
@@ -581,22 +604,24 @@ def war_room_scope_list_assets(readable_case_ids, search=None, stage=None, case_
         if (vulnerable or '') != '' or (vulnerability or '') != '':
             raise BusinessProcessingError('Filtering on vulnerabilities needs the vulnerabilities_read permission')
         return _without_vulnerabilities(_list_assets(
-            readable_case_ids, search, stage, case_id, compromised, None, None, page, per_page, sort, False))
-    return _list_assets(readable_case_ids, search, stage, case_id, compromised, vulnerable, vulnerability,
-                        page, per_page, sort, True)
+            readable_case_ids, search, flag, without_flag, case_id, compromised, None, None, page, per_page, sort,
+            False))
+    return _list_assets(readable_case_ids, search, flag, without_flag, case_id, compromised, vulnerable,
+                        vulnerability, page, per_page, sort, True)
 
 
-def _list_assets(readable_case_ids, search, stage, case_id, compromised, vulnerable, vulnerability,
+def _list_assets(readable_case_ids, search, flag, without_flag, case_id, compromised, vulnerable, vulnerability,
                  page, per_page, sort, with_tags):
     search = _parse_search(search)
     case_filter = _parse_optional_int_arg(case_id, 'case_id')
-    stage_none = False
-    stage_id = None
-    if stage is not None and stage != '':
-        if isinstance(stage, str) and stage.lower() == 'none':
-            stage_none = True
+    flag_none = False
+    flag_id = None
+    if flag is not None and flag != '':
+        if isinstance(flag, str) and flag.lower() == 'none':
+            flag_none = True
         else:
-            stage_id = _parse_optional_int_arg(stage, 'stage_id')
+            flag_id = _parse_optional_int_arg(flag, 'flag_id')
+    without_flag_id = _parse_optional_int_arg(without_flag, 'without_flag_id')
     only_compromised = str(compromised).lower() in ('1', 'true') if compromised is not None else False
     vulnerable_filter = _parse_vulnerable(vulnerable)
     vulnerability_filter = _parse_vulnerability(vulnerability)
@@ -604,16 +629,18 @@ def _list_assets(readable_case_ids, search, stage, case_id, compromised, vulnera
     sort = _parse_sort(sort, _ASSET_SORTS)
 
     case_ids = _restrict_case_ids(readable_case_ids, case_filter)
-    filters = {'search': search, 'stage_id': stage_id, 'stage_none': stage_none, 'compromised': only_compromised,
-               'vulnerable': vulnerable_filter, 'vulnerability': vulnerability_filter}
+    filters = {'search': search, 'flag_id': flag_id, 'flag_none': flag_none, 'without_flag_id': without_flag_id,
+               'compromised': only_compromised, 'vulnerable': vulnerable_filter,
+               'vulnerability': vulnerability_filter}
 
     if pagination is None:
         rows = war_room_scope_db_assets(case_ids, limit=WAR_ROOM_SCOPE_LIST_LIMIT, **filters)
         truncated = len(rows) > WAR_ROOM_SCOPE_LIST_LIMIT
         rows = rows[:WAR_ROOM_SCOPE_LIST_LIMIT]
         tags = _vulnerability_tags([row.asset_id for row in rows]) if with_tags else {}
+        flags = _asset_flags([row.asset_id for row in rows])
         return {
-            'data': [_serialize_scope_asset(row, tags.get(row.asset_id)) for row in rows],
+            'data': [_serialize_scope_asset(row, tags.get(row.asset_id), flags.get(row.asset_id)) for row in rows],
             'truncated': truncated,
             'limit': WAR_ROOM_SCOPE_LIST_LIMIT,
             'cases': _cases_info(list(readable_case_ids)),
@@ -622,12 +649,14 @@ def _list_assets(readable_case_ids, search, stage, case_id, compromised, vulnera
     page, per_page = pagination
     rows = war_room_scope_db_assets(case_ids, limit=per_page, offset=(page - 1) * per_page, sort=sort, **filters)
     rows = rows[:per_page]
-    total, case_totals, stage_totals = _assets_aggregates(war_room_scope_db_assets_breakdown(case_ids, **filters))
+    total, case_totals, flag_totals = _assets_aggregates(war_room_scope_db_assets_breakdown(case_ids, **filters),
+                                                         war_room_scope_db_flag_totals(case_ids, **filters))
     tags = _vulnerability_tags([row.asset_id for row in rows]) if with_tags else {}
+    flags = _asset_flags([row.asset_id for row in rows])
     sightings = _asset_sightings(list(readable_case_ids), rows)
     data = []
     for row in rows:
-        item = _serialize_scope_asset(row, tags.get(row.asset_id))
+        item = _serialize_scope_asset(row, tags.get(row.asset_id), flags.get(row.asset_id))
         others = [cid for cid in sightings.get((row.asset_type_id, (row.asset_name or '').lower()), ())
                   if cid != row.case_id]
         item['sighting_count'] = len(others)
@@ -643,7 +672,7 @@ def _list_assets(readable_case_ids, search, stage, case_id, compromised, vulnera
         'per_page': per_page,
         'sort': sort,
         'case_totals': case_totals,
-        'stage_totals': stage_totals,
+        'flag_totals': flag_totals,
     }
 
 
@@ -758,21 +787,23 @@ def _create_ioc_row(case_id, clean):
         return {'status': 'error', 'message': _UNEXPECTED_ERROR_MESSAGE}
 
 
-def _apply_stage_after_create(war_room_id, user_id, asset, stage_id, stage_reason):
+def _apply_flags_after_create(war_room_id, user_id, asset, flag_ids, flag_reason):
     """Returns None on success, an error message otherwise. Never raises."""
-    try:
-        asset_stages_set_for_asset(asset, stage_id, stage_reason, None, user_id, war_room_id=war_room_id)
-        return None
-    except BusinessProcessingError as e:
-        war_room_scope_db_rollback()
-        return f'Created, but the stage was not set: {e.get_message()}'
-    except Exception:
-        _unexpected_error(f'setting the stage of asset {asset.asset_id}')
-        return 'Created, but the stage was not set'
+    asset_id = asset.asset_id
+    for flag_id in flag_ids:
+        try:
+            asset = asset_flags_set_for_asset(asset, flag_id, flag_reason, None, user_id, war_room_id=war_room_id)
+        except BusinessProcessingError as e:
+            war_room_scope_db_rollback()
+            return f'Created, but the flags were not all set: {e.get_message()}'
+        except Exception:
+            _unexpected_error(f'setting the flags of asset {asset_id}')
+            return 'Created, but the flags were not all set'
+    return None
 
 
 def _create_object_in_cases(war_room_id, user, object_type, clean, target_case_ids, writable_case_ids,
-                            stage_id=None, stage_reason=None):
+                            flag_ids=None, flag_reason=None):
     writable = set(writable_case_ids)
     id_key = 'asset_id' if object_type == 'asset' else 'ioc_id'
     results = []
@@ -792,8 +823,8 @@ def _create_object_in_cases(war_room_id, user, object_type, clean, target_case_i
             row['message'] = outcome['message']
         if outcome['status'] == 'created':
             created += 1
-            if object_type == 'asset' and stage_id is not None:
-                message = _apply_stage_after_create(war_room_id, user.id, outcome['asset'], stage_id, stage_reason)
+            if object_type == 'asset' and flag_ids:
+                message = _apply_flags_after_create(war_room_id, user.id, outcome['asset'], flag_ids, flag_reason)
                 if message:
                     row['message'] = message
         results.append(row)
@@ -810,13 +841,13 @@ def _create_object_in_cases(war_room_id, user, object_type, clean, target_case_i
 
 
 def war_room_scope_create_asset(war_room_id, user, asset_payload, case_ids, writable_case_ids,
-                                stage_id=None, stage_reason=None):
+                                flag_ids=None, flag_reason=None):
     clean = _validate_asset_payload(asset_payload)
     target_case_ids = _validate_id_list(case_ids, 'case_ids', WAR_ROOM_SCOPE_MAX_TARGETS)
-    stage_id = _validate_stage_id(stage_id)
-    stage_reason = _validate_text(stage_reason, 'stage_reason', _MAX_REASON)
+    flag_ids = _validate_flag_ids(flag_ids)
+    flag_reason = _validate_text(flag_reason, 'flag_reason', _MAX_REASON)
     return _create_object_in_cases(war_room_id, user, 'asset', clean, target_case_ids, writable_case_ids,
-                                   stage_id=stage_id, stage_reason=stage_reason)
+                                   flag_ids=flag_ids, flag_reason=flag_reason)
 
 
 def war_room_scope_create_ioc(war_room_id, user, ioc_payload, case_ids, writable_case_ids):
@@ -830,7 +861,7 @@ def war_room_scope_create_ioc(war_room_id, user, ioc_payload, case_ids, writable
 # ---------------------------------------------------------------------------
 
 def _asset_copy_payload(asset):
-    """Fields copied by a push. Never the stage nor custom attributes."""
+    """Fields copied by a push. Never the flags nor custom attributes."""
     clean = {'asset_name': asset.asset_name, 'asset_type_id': asset.asset_type_id}
     for field in ('asset_description', 'asset_ip', 'asset_domain', 'asset_tags',
                   'asset_compromise_status_id', 'analysis_status_id'):
@@ -916,22 +947,23 @@ def war_room_scope_push_iocs(war_room_id, user, ioc_ids, case_ids, readable_case
 
 
 # ---------------------------------------------------------------------------
-# Bulk stage
+# Bulk flags
 # ---------------------------------------------------------------------------
 
-def _stage_unchanged(asset, stage_id, reason, decision_id):
-    current_reason = asset.stage_reason.strip() if isinstance(asset.stage_reason, str) else None
-    return (asset.stage_id == stage_id
-            and (current_reason or None) == (reason or None)
-            and asset.stage_decision_id == decision_id)
+WAR_ROOM_SCOPE_FLAG_ACTIONS = ('set', 'clear')
 
 
-def war_room_scope_bulk_stage(war_room_id, user_id, asset_ids, stage_id, reason, decision_id,
-                              readable_case_ids, writable_case_ids):
-    asset_ids = _validate_id_list(asset_ids, 'asset_ids', WAR_ROOM_SCOPE_MAX_BULK_STAGE)
-    stage_id = _validate_stage_id(stage_id)
+def war_room_scope_bulk_flag(war_room_id, user_id, asset_ids, flag_id, action, reason, decision_id,
+                             readable_case_ids, writable_case_ids):
+    """Set (`action='set'`) or remove (`'clear'`) one flag on many assets."""
+    asset_ids = _validate_id_list(asset_ids, 'asset_ids', WAR_ROOM_SCOPE_MAX_BULK_FLAG)
+    flag_id = _validate_flag_id(flag_id)
+    if action not in WAR_ROOM_SCOPE_FLAG_ACTIONS:
+        raise BusinessProcessingError(f'action must be one of: {", ".join(WAR_ROOM_SCOPE_FLAG_ACTIONS)}')
     reason = _validate_text(reason, 'reason', _MAX_REASON)
     decision_id = _validate_int_id(decision_id, 'decision_id', allow_none=True)
+    if action == 'clear':
+        decision_id = None
     if decision_id is not None and not war_room_scope_db_decision_in_room(war_room_id, decision_id):
         raise BusinessProcessingError('Decision not found in this war room')
 
@@ -954,10 +986,13 @@ def war_room_scope_bulk_stage(war_room_id, user_id, asset_ids, stage_id, reason,
                             'message': _DENIED_CASE_MESSAGE})
             continue
         try:
-            if _stage_unchanged(asset, stage_id, reason, decision_id):
+            if asset_flags_is_unchanged(asset, flag_id, action, reason, decision_id):
                 results.append({'asset_id': asset_id, 'case_id': case_id, 'status': 'unchanged'})
                 continue
-            asset_stages_set_for_asset(asset, stage_id, reason, decision_id, user_id, war_room_id=war_room_id)
+            if action == 'set':
+                asset_flags_set_for_asset(asset, flag_id, reason, decision_id, user_id, war_room_id=war_room_id)
+            else:
+                asset_flags_clear_for_asset(asset, flag_id, reason, user_id, war_room_id=war_room_id)
             updated += 1
             results.append({'asset_id': asset_id, 'case_id': case_id, 'status': 'updated'})
         except BusinessProcessingError as e:
@@ -965,14 +1000,15 @@ def war_room_scope_bulk_stage(war_room_id, user_id, asset_ids, stage_id, reason,
             results.append({'asset_id': asset_id, 'case_id': case_id, 'status': 'error',
                             'message': e.get_message()})
         except Exception:
-            _unexpected_error(f'setting the stage of asset {asset_id}')
+            _unexpected_error(f'changing the flags of asset {asset_id}')
             results.append({'asset_id': asset_id, 'case_id': case_id, 'status': 'error',
-                            'message': 'Unexpected error, the stage was not changed'})
+                            'message': 'Unexpected error, the flags were not changed'})
 
     if updated:
-        track_activity(f'changed the stage of {updated} asset(s) from the war room scope', war_room_id=war_room_id)
-        call_modules_hook('on_postload_war_room_scope_stage_update', {
-            'war_room_id': war_room_id, 'stage_id': stage_id, 'reason': reason, 'decision_id': decision_id,
+        track_activity(f'changed the flags of {updated} asset(s) from the war room scope', war_room_id=war_room_id)
+        call_modules_hook('on_postload_war_room_scope_flag_update', {
+            'war_room_id': war_room_id, 'flag_id': flag_id, 'action': action, 'reason': reason,
+            'decision_id': decision_id,
             'asset_ids': [row['asset_id'] for row in results if row['status'] == 'updated'],
         })
 

@@ -30,14 +30,22 @@ _BIZ = 'app.business.war_room_board'
 _NOW = datetime.datetime(2026, 10, 6, 12, 0)
 
 
-def _stage(stage_id, kind, sort_order, name=None):
-    return SimpleNamespace(id=stage_id, name=name or f'S{stage_id}', description=None, color=None,
+def _flag(flag_id, kind, sort_order, name=None):
+    return SimpleNamespace(id=flag_id, name=name or f'F{flag_id}', description=None, color='slate',
                            icon=None, kind=kind, sort_order=sort_order, requires_reason=False,
-                           requires_decision=kind == 'exception', is_optional=False)
+                           requires_decision=kind == 'exception')
 
 
-def _count(case_id, stage_id, total, compromised=0):
-    return SimpleNamespace(case_id=case_id, stage_id=stage_id, total=total, compromised=compromised)
+def _assets(case_id, total, compromised=0, flagged=0):
+    return SimpleNamespace(case_id=case_id, total=total, compromised=compromised, flagged=flagged)
+
+
+def _per_flag(case_id, flag_id, total):
+    return SimpleNamespace(case_id=case_id, flag_id=flag_id, total=total)
+
+
+def _per_kind(case_id, kind, total):
+    return SimpleNamespace(case_id=case_id, kind=kind, total=total)
 
 
 def _decision_row(decision_id, number, status='proposed', target_at=None, pending=0):
@@ -51,30 +59,28 @@ def _case_row(case_id, name):
                            severity_name='High', tasks_open=2)
 
 
-_STAGES = [_stage(1, 'progress', 10, 'Identified'), _stage(2, 'progress', 20, 'Isolated'),
-           _stage(3, 'done', 30, 'Rebuilt'), _stage(4, 'exception', 40, 'Accepted risk')]
+_FLAGS = [_flag(1, 'status', 0, 'Isolated'), _flag(2, 'status', 1, 'Patched'),
+          _flag(3, 'done', 2, 'Restored'), _flag(4, 'exception', 3, 'Accepted risk')]
 
 
 class TestAggregateCounts(TestCase):
 
-    def test_folds_rows_per_case_and_kind(self):
-        kinds = {s.id: s.kind for s in _STAGES}
-        out = board._aggregate_counts([
-            _count(10, None, 3, 1), _count(10, 1, 2, 2), _count(10, 3, 4), _count(20, 4, 1),
-        ], kinds)
+    def test_folds_rows_per_case(self):
+        out = board._aggregate_counts(
+            [_assets(10, 9, compromised=3, flagged=6), _assets(20, 1, flagged=1)],
+            [_per_flag(10, 1, 4), _per_flag(10, 3, 4), _per_flag(20, 4, 1)],
+            [_per_kind(10, 'status', 4), _per_kind(10, 'done', 4), _per_kind(20, 'exception', 1)],
+        )
         self.assertEqual(out[10]['assets_total'], 9)
         self.assertEqual(out[10]['assets_compromised'], 3)
-        self.assertEqual(out[10]['by_stage'], {'none': 3, '1': 2, '3': 4})
-        self.assertEqual(out[10]['by_kind'], {'none': 3, 'progress': 2, 'done': 4, 'exception': 0})
-        self.assertEqual(out[20]['by_kind']['exception'], 1)
+        # An asset carrying several flags counts under each of them.
+        self.assertEqual(out[10]['by_flag'], {'none': 3, '1': 4, '3': 4})
+        self.assertEqual(out[10]['by_kind'], {'none': 3, 'status': 4, 'done': 4, 'exception': 0})
+        self.assertEqual(out[20]['by_kind'], {'none': 0, 'status': 0, 'done': 0, 'exception': 1})
 
-    def test_unknown_stage_counts_as_progress(self):
-        out = board._aggregate_counts([_count(10, 99, 1)], {})
-        self.assertEqual(out[10]['by_kind']['progress'], 1)
-
-    def test_first_progress_stage(self):
-        self.assertEqual(board._first_progress_stage_id(_STAGES), 1)
-        self.assertIsNone(board._first_progress_stage_id([_stage(3, 'done', 1)]))
+    def test_unknown_kind_is_ignored(self):
+        out = board._aggregate_counts([_assets(10, 1, flagged=1)], [], [_per_kind(10, 'progress', 1)])
+        self.assertNotIn('progress', out[10]['by_kind'])
 
 
 class TestAttention(TestCase):
@@ -87,17 +93,19 @@ class TestAttention(TestCase):
             _decision_row(4, 4, status='approved', pending=1),
         ]
         compromised = [SimpleNamespace(asset_id=100, asset_name='DC01', case_id=10)]
-        exceptions = [SimpleNamespace(asset_id=200, asset_name='OT-PLC', case_id=10, stage_name='Accepted risk')]
+        exceptions = [SimpleNamespace(asset_id=200, asset_name='OT-PLC', case_id=10, flag_name='Accepted risk')]
         items = board.war_room_board_attention(compromised, exceptions, decisions, _NOW)
         self.assertEqual([i['type'] for i in items], [
-            'decision_overdue', 'compromised_unstaged',
+            'decision_overdue', 'compromised_unflagged',
             'decision_due_soon', 'exception_without_decision',
             'decision_pending_vote', 'decision_pending_implementation',
         ])
         self.assertEqual([i['severity'] for i in items], ['high', 'high', 'medium', 'medium', 'low', 'low'])
         self.assertEqual(items[0]['decision_id'], 1)
         self.assertEqual(items[1]['asset_id'], 100)
+        self.assertEqual(items[1]['label'], 'DC01 is compromised and has no status flag')
         self.assertEqual(items[2]['decision_id'], 2)
+        self.assertEqual(items[3]['label'], 'OT-PLC is flagged Accepted risk without a backing decision')
         self.assertEqual(items[4]['decision_id'], 3)
         self.assertIn('D-3', items[4]['label'])
         self.assertEqual(items[5]['decision_id'], 4)
@@ -132,8 +140,8 @@ class TestAttention(TestCase):
 
 class TestBuild(TestCase):
 
-    def _build(self, attached, accessible, count_rows, case_rows, decision_rows=(), compromised=(),
-               exceptions=(), vulnerabilities=None, include_vulnerabilities=True):
+    def _build(self, attached, accessible, asset_rows, case_rows, decision_rows=(), compromised=(),
+               exceptions=(), vulnerabilities=None, include_vulnerabilities=True, flag_rows=(), kind_rows=()):
         vulnerabilities = vulnerabilities or {'exploited_open': [], 'overdue': []}
         calls = {}
 
@@ -141,12 +149,14 @@ class TestBuild(TestCase):
             calls['case_rows'] = list(case_ids)
             return [r for r in case_rows if r.case_id in case_ids]
 
-        def _counts(case_ids):
-            calls['counts'] = list(case_ids)
-            return [r for r in count_rows if r.case_id in case_ids]
+        def _filtered(name, rows):
+            def _query(case_ids):
+                calls[name] = list(case_ids)
+                return [r for r in rows if r.case_id in case_ids]
+            return _query
 
-        def _compromised(case_ids, first_stage, limit):
-            calls['compromised'] = (list(case_ids), first_stage)
+        def _compromised(case_ids, limit):
+            calls['compromised'] = list(case_ids)
             return list(compromised)
 
         def _exceptions(case_ids, limit):
@@ -162,11 +172,13 @@ class TestBuild(TestCase):
             return vulnerabilities
 
         with patch(f'{_BIZ}.war_room_board_db_attached_case_ids', return_value=list(attached)), \
-                patch(f'{_BIZ}.war_room_board_db_stages', return_value=_STAGES), \
+                patch(f'{_BIZ}.war_room_board_db_flags', return_value=_FLAGS), \
                 patch(f'{_BIZ}.war_room_board_db_case_rows', side_effect=_case_rows), \
-                patch(f'{_BIZ}.war_room_board_db_stage_counts', side_effect=_counts), \
+                patch(f'{_BIZ}.war_room_board_db_asset_counts', side_effect=_filtered('counts', asset_rows)), \
+                patch(f'{_BIZ}.war_room_board_db_flag_counts', side_effect=_filtered('flag_counts', flag_rows)), \
+                patch(f'{_BIZ}.war_room_board_db_kind_counts', side_effect=_filtered('kind_counts', kind_rows)), \
                 patch(f'{_BIZ}.war_room_board_db_open_decisions', return_value=list(decision_rows)), \
-                patch(f'{_BIZ}.war_room_board_db_compromised_unstaged', side_effect=_compromised), \
+                patch(f'{_BIZ}.war_room_board_db_compromised_unflagged', side_effect=_compromised), \
                 patch(f'{_BIZ}.war_room_board_db_exceptions_without_decision', side_effect=_exceptions), \
                 patch(f'{_BIZ}.war_room_board_db_open_war_room_tasks_count', return_value=4), \
                 patch(f'{_BIZ}.vulnerability_findings_summary', side_effect=_vuln_summary), \
@@ -178,8 +190,10 @@ class TestBuild(TestCase):
         out, calls = self._build(
             attached=[10, 20],
             accessible=[10],
-            count_rows=[_count(10, None, 2, 1), _count(10, 2, 3, 1), _count(10, 3, 1), _count(10, 4, 1),
-                        _count(20, None, 50, 50)],
+            asset_rows=[_assets(10, 7, compromised=2, flagged=5), _assets(20, 50, compromised=50)],
+            flag_rows=[_per_flag(10, 2, 3), _per_flag(10, 3, 1), _per_flag(10, 4, 1), _per_flag(20, 1, 9)],
+            kind_rows=[_per_kind(10, 'status', 3), _per_kind(10, 'done', 1), _per_kind(10, 'exception', 1),
+                       _per_kind(20, 'done', 9)],
             case_rows=[_case_row(10, 'Visible'), _case_row(20, 'Secret')],
             decision_rows=[_decision_row(1, 1, target_at=_NOW - datetime.timedelta(hours=1)),
                            _decision_row(2, 2, target_at=_NOW + datetime.timedelta(hours=1)),
@@ -187,23 +201,26 @@ class TestBuild(TestCase):
         )
         self.assertEqual(calls['case_rows'], [10])
         self.assertEqual(calls['counts'], [10])
-        self.assertEqual(calls['compromised'], ([10], 1))
+        self.assertEqual(calls['flag_counts'], [10])
+        self.assertEqual(calls['kind_counts'], [10])
+        self.assertEqual(calls['compromised'], [10])
         self.assertEqual(calls['exceptions'], [10])
         k = out['kpis']
         self.assertEqual(k['cases'], 2)
         self.assertEqual(k['cases_accessible'], 1)
         self.assertEqual(k['assets'], 7)
         self.assertEqual(k['compromised'], 2)
-        self.assertEqual(k['staged'], 5)
+        self.assertEqual(k['flagged'], 5)
         self.assertEqual(k['done'], 1)
         self.assertEqual(k['exceptions'], 1)
-        self.assertEqual(k['unstaged'], 2)
+        self.assertEqual(k['unflagged'], 2)
         self.assertEqual(k['decisions_open'], 3)
         self.assertEqual(k['decisions_overdue'], 1)
         self.assertEqual(k['decisions_due_24h'], 1)
         self.assertEqual(k['tasks_open'], 4)
         self.assertEqual(out['generated_at'], _NOW.isoformat())
-        self.assertEqual(len(out['stages']), 4)
+        self.assertEqual([f['name'] for f in out['flags']], ['Isolated', 'Patched', 'Restored', 'Accepted risk'])
+        self.assertEqual(out['cases'][0]['by_flag'], {'none': 2, '2': 3, '3': 1, '4': 1})
         self.assertEqual([d['ref'] for d in out['decisions']], ['D-1', 'D-2', 'D-3'])
         self.assertEqual([d['overdue'] for d in out['decisions']], [True, False, False])
         self.assertEqual([d['due_soon'] for d in out['decisions']], [False, True, False])
@@ -211,7 +228,7 @@ class TestBuild(TestCase):
         self.assertEqual(out['decisions'][0]['target_at'], (_NOW - datetime.timedelta(hours=1)).isoformat())
 
     def test_inaccessible_case_is_reduced_to_its_id(self):
-        out, _ = self._build(attached=[10, 20], accessible=[10], count_rows=[],
+        out, _ = self._build(attached=[10, 20], accessible=[10], asset_rows=[],
                              case_rows=[_case_row(10, 'Visible'), _case_row(20, 'Secret')])
         self.assertEqual(out['cases'][1], {'case_id': 20, 'accessible': False})
         self.assertEqual(out['cases'][0]['case_name'], 'Visible')
@@ -219,18 +236,19 @@ class TestBuild(TestCase):
         self.assertNotIn('Secret', repr(out))
 
     def test_accessible_ids_not_attached_are_ignored(self):
-        _, calls = self._build(attached=[10], accessible=[10, 99], count_rows=[],
+        _, calls = self._build(attached=[10], accessible=[10, 99], asset_rows=[],
                                case_rows=[_case_row(10, 'Visible')])
         self.assertEqual(calls['case_rows'], [10])
 
     def test_case_without_assets_has_zero_counts(self):
-        out, _ = self._build(attached=[10], accessible=[10], count_rows=[], case_rows=[_case_row(10, 'V')])
+        out, _ = self._build(attached=[10], accessible=[10], asset_rows=[], case_rows=[_case_row(10, 'V')])
         self.assertEqual(out['cases'][0]['assets_total'], 0)
-        self.assertEqual(out['cases'][0]['by_kind'], {'none': 0, 'progress': 0, 'done': 0, 'exception': 0})
+        self.assertEqual(out['cases'][0]['by_flag'], {})
+        self.assertEqual(out['cases'][0]['by_kind'], {'none': 0, 'status': 0, 'done': 0, 'exception': 0})
         self.assertEqual(out['cases'][0]['tasks_open'], 2)
 
     def test_no_access_at_all(self):
-        out, calls = self._build(attached=[10], accessible=[], count_rows=[_count(10, None, 5)],
+        out, calls = self._build(attached=[10], accessible=[], asset_rows=[_assets(10, 5)],
                                  case_rows=[_case_row(10, 'Secret')])
         self.assertEqual(calls['case_rows'], [])
         self.assertEqual(out['kpis']['assets'], 0)
@@ -239,7 +257,7 @@ class TestBuild(TestCase):
     def test_vulnerabilities_omitted_without_permission(self):
         exploited = {'finding_id': 5, 'asset_id': 8, 'asset_name': 'srv01', 'case_id': 10,
                      'identifier': 'CVE-2024-3400', 'severity': 'critical'}
-        out, calls = self._build(attached=[10], accessible=[10], count_rows=[], case_rows=[_case_row(10, 'V')],
+        out, calls = self._build(attached=[10], accessible=[10], asset_rows=[], case_rows=[_case_row(10, 'V')],
                                  vulnerabilities={'exploited_open': [exploited], 'overdue': []},
                                  include_vulnerabilities=False)
         self.assertNotIn('vuln_summary', calls)
@@ -253,7 +271,7 @@ class TestBuild(TestCase):
                      'identifier': 'CVE-2024-3400', 'severity': 'critical'}
         overdue = {'finding_id': 6, 'asset_id': 9, 'asset_name': 'srv02', 'case_id': 10,
                    'identifier': 'CVE-2023-4966', 'due_date': '2026-10-01'}
-        out, calls = self._build(attached=[10, 20], accessible=[10], count_rows=[],
+        out, calls = self._build(attached=[10, 20], accessible=[10], asset_rows=[],
                                  case_rows=[_case_row(10, 'Visible'), _case_row(20, 'Secret')],
                                  vulnerabilities={'exploited_open': [exploited], 'overdue': [overdue]})
         self.assertEqual(calls['vuln_summary'], [10])

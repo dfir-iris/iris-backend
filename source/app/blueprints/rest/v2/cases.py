@@ -376,10 +376,12 @@ class CasesOperations:
             # The v2 CaseSchema uses `load_instance=True`, so schema.load
             # mutates `case` in place: after the call, `case.state_id` is
             # already the new value. Snapshot the pre-mutation state/
-            # reviewer here so cases_update can detect a real transition
-            # and run the close_date + alert-cascade side effects.
+            # reviewer/owner here so cases_update can detect a real
+            # transition and run the close_date + alert-cascade side
+            # effects and the notifications.
             previous_case_state = case.state_id
             previous_reviewer_id = case.reviewer_id
+            previous_owner_id = case.owner_id
 
             updated_case = schema.load(
                 request_data,
@@ -397,6 +399,7 @@ class CasesOperations:
                 tags,
                 previous_case_state=previous_case_state,
                 previous_reviewer_id=previous_reviewer_id,
+                previous_owner_id=previous_owner_id,
             )
             result = schema.dump(case)
             return response_api_success(result)

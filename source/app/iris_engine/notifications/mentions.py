@@ -228,3 +228,41 @@ def resolve_mentions_to_user_ids(content: Optional[str],
         from app.business.war_room_teams import war_room_team_member_user_ids
         user_ids = user_ids | war_room_team_member_user_ids(war_room_id, team_ids)
     return user_ids
+
+
+def _mention_tokens(content: Optional[str]) -> frozenset:
+    """The raw mentions written in `content`, unresolved — no DB access.
+
+    Mirrors what the resolvers above read: user and team span ids, plus
+    the plaintext `@handle` tokens when there is no user span."""
+    if not content:
+        return frozenset()
+    tokens = {('user', m.group('id')) for m in _MENTION_SPAN_RE.finditer(content)}
+    tokens.update(('team', m.group('id')) for m in _TEAM_MENTION_SPAN_RE.finditer(content))
+    if not _ANY_USER_MENTION_SPAN_RE.search(content):
+        tokens.update(('handle', m.group('handle').lower())
+                      for m in _LEGACY_MENTION_RE.finditer(content))
+    return frozenset(tokens)
+
+
+def mentions_added_user_ids(previous_content: Optional[str],
+                            content: Optional[str],
+                            war_room_id: Optional[int] = None) -> Set[int]:
+    """User IDs mentioned in `content` but not in `previous_content`.
+
+    What a save notifies: someone already mentioned before the edit was
+    told then, and must not be pinged again by every later save.
+
+    `war_room_id` resolves team mentions and `@team-name` tokens through
+    that room (see `resolve_mentions_to_user_ids`); without it only user
+    mentions count (see `extract_mentioned_user_ids`).
+
+    Saves rarely add a mention, so the raw tokens are compared first: when
+    the edit wrote no new one, nothing is resolved and no query runs.
+    """
+    if _mention_tokens(content) <= _mention_tokens(previous_content):
+        return set()
+    if war_room_id is None:
+        return extract_mentioned_user_ids(content) - extract_mentioned_user_ids(previous_content)
+    return (resolve_mentions_to_user_ids(content, war_room_id)
+            - resolve_mentions_to_user_ids(previous_content, war_room_id))

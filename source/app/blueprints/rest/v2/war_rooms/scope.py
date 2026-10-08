@@ -17,7 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """War-room scope: assets / IOCs of the attached cases, push to cases,
-bulk stage, staging area and IOC export.
+bulk flags, staging area and IOC export.
 
 Authorization lives here: every route checks war-room access first, then
 computes the attached cases the caller can read (`read_only|full_access`)
@@ -48,7 +48,7 @@ from app.blueprints.rest.v2.war_rooms.access import require_war_room_read
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_write
 from app.business.war_room_scope import war_room_scope_attached_case_ids
 from app.business.war_room_vulnerabilities import war_room_vulnerabilities_matrix
-from app.business.war_room_scope import war_room_scope_bulk_stage
+from app.business.war_room_scope import war_room_scope_bulk_flag
 from app.business.war_room_scope import war_room_scope_create_asset
 from app.business.war_room_scope import war_room_scope_create_ioc
 from app.business.war_room_scope import war_room_scope_export_iocs
@@ -103,7 +103,8 @@ def _json_body():
 @ac_api_requires()
 @api_doc(tags=['WarRoomScope'], summary='List the assets of the attached cases the caller can read',
          query_params=[('q', 'string', 'Substring of the name, IP, domain, description or tags'),
-                       ('stage_id', 'string', 'A stage id, or none for unstaged assets'),
+                       ('flag_id', 'string', 'Only the assets carrying this flag, or none for unflagged assets'),
+                       ('without_flag_id', 'integer', 'Only the assets not carrying this flag'),
                        ('case_id', 'integer', 'Only the assets of this attached case'),
                        ('compromised', 'boolean', 'Only compromised assets'),
                        ('vulnerable', 'string',
@@ -112,7 +113,7 @@ def _json_body():
                         'Only the assets with a finding on this vulnerability identifier or alias'),
                        ('page', 'integer',
                         'Page number (1-based). When set, the response also carries total, page, per_page, '
-                        'case_totals, stage_totals and per-asset sightings; without it, the list is capped'),
+                        'case_totals, flag_totals and per-asset sightings; without it, the list is capped'),
                        ('per_page', 'integer', 'Page size (default 100, max 500), with page'),
                        ('sort', 'string', 'name (default) or case, with page')])
 def list_scope_assets(war_room_id):
@@ -123,7 +124,8 @@ def list_scope_assets(war_room_id):
         result = war_room_scope_list_assets(
             _readable_case_ids(war_room_id),
             search=request.args.get('q'),
-            stage=request.args.get('stage_id'),
+            flag=request.args.get('flag_id'),
+            without_flag=request.args.get('without_flag_id'),
             case_id=request.args.get('case_id'),
             compromised=request.args.get('compromised'),
             vulnerable=request.args.get('vulnerable'),
@@ -232,7 +234,7 @@ def create_scope_asset(war_room_id):
     try:
         result = war_room_scope_create_asset(
             war_room_id, iris_current_user, raw.get('asset'), raw.get('case_ids'), writable,
-            stage_id=raw.get('stage_id'), stage_reason=raw.get('stage_reason'),
+            flag_ids=raw.get('flag_ids'), flag_reason=raw.get('flag_reason'),
         )
     except BusinessProcessingError as e:
         return response_api_error(e.get_message())
@@ -298,23 +300,21 @@ def push_scope_iocs(war_room_id):
     return response_api_success(result)
 
 
-@war_rooms_scope_blueprint.post('/assets/stage')
+@war_rooms_scope_blueprint.post('/assets/flags')
 @ac_api_requires()
-@api_doc(tags=['WarRoomScope'], summary='Set the stage of several assets of the attached cases')
-def bulk_stage_scope_assets(war_room_id):
+@api_doc(tags=['WarRoomScope'], summary='Set or remove a status flag on several assets of the attached cases')
+def bulk_flag_scope_assets(war_room_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
         return err
     raw = _json_body()
     if raw is None:
         return response_api_error('Invalid request')
-    if 'stage_id' not in raw:
-        return response_api_error('stage_id is required (use null to clear the stage)')
     readable = _readable_case_ids(war_room_id)
     writable = _writable_case_ids(readable)
     try:
-        result = war_room_scope_bulk_stage(
-            war_room_id, iris_current_user.id, raw.get('asset_ids'), raw.get('stage_id'),
+        result = war_room_scope_bulk_flag(
+            war_room_id, iris_current_user.id, raw.get('asset_ids'), raw.get('flag_id'), raw.get('action', 'set'),
             raw.get('reason'), raw.get('decision_id'), readable, writable,
         )
     except BusinessProcessingError as e:

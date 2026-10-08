@@ -17,7 +17,8 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """Argument parsing and name resolution for the war-room scope chat
-commands (`/asset`, `/ioc`, `/stage`, `/push`, `/share-note`).
+commands (`/asset`, `/ioc`, `/flag`, `/unflag`, `/push`,
+`/share-note`).
 
 Everything here is authorization-free: the blueprint computes the
 readable / writable attached cases and passes them in, exactly like the
@@ -41,7 +42,7 @@ Argument grammar (shared by every command):
 
 import re
 
-from app.business.asset_stages import asset_stages_list
+from app.business.asset_flags import asset_flags_list
 from app.business.war_room_decisions import war_room_decisions_list
 from app.business.war_room_notes import war_room_note_list
 from app.business.war_rooms import war_room_members_list
@@ -59,7 +60,6 @@ _CASE_HASH_RE = re.compile(r'^#(?:case-?)?(?P<case_id>\d+)$', re.IGNORECASE)
 _DECISION_REF_RE = re.compile(r'^D-?(?P<number>\d+)$', re.IGNORECASE)
 
 _OPTION_KEYS = ('type', 'reason', 'note')
-_CLEAR_STAGE_WORDS = ('none', 'clear', 'unstaged')
 _DEFAULT_ASSET_TYPES = ('unspecified', 'other', 'windows - computer')
 _ACCOUNT_ASSET_TYPE = 'account'
 _MARKUP_KINDS = {'asset': 'asset', 'ioc': 'ioc'}
@@ -251,8 +251,8 @@ def war_room_chat_commands_ioc_types():
     return list(get_ioc_types_list())
 
 
-def war_room_chat_commands_stages():
-    return asset_stages_list()
+def war_room_chat_commands_flags():
+    return asset_flags_list()
 
 
 def war_room_chat_commands_pick_asset_type(name, asset_types, requested=None):
@@ -301,32 +301,29 @@ def war_room_chat_commands_pick_ioc_type(value, ioc_types, requested=None):
     return picked
 
 
-def war_room_chat_commands_match_stage(words, stages):
-    """Match the leading words against the stage names.
+def war_room_chat_commands_match_flag(words, flags):
+    """Match the leading words against the flag names.
 
-    Returns `(stage or None, cleared, remaining words)`. The longest
-    stage name that is a case-insensitive word prefix wins, so
-    `Under investigation` beats `Under`. `none` / `clear` / `unstaged`
-    clears the stage.
+    Returns `(flag, remaining words)`. The longest flag name that is a
+    case-insensitive word prefix wins, so `Can't be patched` beats a
+    `Can't` flag; a quoted name (`"Can't be patched"`) matches too.
     """
+    names = ', '.join(flag['name'] for flag in flags) or 'none defined'
+    words = ' '.join(words).split()
     if not words:
-        names = ', '.join(stage['name'] for stage in stages) or 'none defined'
-        raise BusinessProcessingError(f'Missing stage. Stages: {names}')
-    if words[0].lower() in _CLEAR_STAGE_WORDS:
-        return None, True, list(words[1:])
+        raise BusinessProcessingError(f'Missing flag. Flags: {names}')
     lowered = [word.lower() for word in words]
     best = None
     best_len = 0
-    for stage in stages:
-        stage_words = str(stage.get('name') or '').lower().split()
-        size = len(stage_words)
-        if size and size > best_len and lowered[:size] == stage_words:
-            best = stage
+    for flag in flags:
+        flag_words = str(flag.get('name') or '').lower().split()
+        size = len(flag_words)
+        if size and size > best_len and lowered[:size] == flag_words:
+            best = flag
             best_len = size
     if best is None:
-        names = ', '.join(stage['name'] for stage in stages) or 'none defined'
-        raise BusinessProcessingError(f'Unknown stage "{words[0]}". Stages: {names}')
-    return best, False, list(words[best_len:])
+        raise BusinessProcessingError(f'Unknown flag "{words[0]}". Flags: {names}')
+    return best, words[best_len:]
 
 
 def war_room_chat_commands_decision_id(war_room_id, number):

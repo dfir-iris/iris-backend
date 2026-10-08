@@ -400,23 +400,23 @@ class TestInspectLookups(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Optional lookups (asset stages)
+# Optional lookups (asset flags)
 # ---------------------------------------------------------------------------
 
 class TestOptionalLookups(TestCase):
 
     @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={})
-    def test_unknown_stage_will_be_dropped(self, _mock):
-        report = inspect_lookups({'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Nuked'}]})
-        entry = report['asset_stage'][0]
+    def test_unknown_flag_will_be_dropped(self, _mock):
+        report = inspect_lookups({'asset_flag': [{'ref': 'asset_flag:1', 'name': 'Nuked'}]})
+        entry = report['asset_flag'][0]
         self.assertFalse(entry['will_create'])
         self.assertFalse(entry['requires_decision'])
         self.assertTrue(entry['will_drop'])
 
     @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={'Isolated': 2})
-    def test_known_stage_is_matched(self, _mock):
-        report = inspect_lookups({'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Isolated'}]})
-        entry = report['asset_stage'][0]
+    def test_known_flag_is_matched(self, _mock):
+        report = inspect_lookups({'asset_flag': [{'ref': 'asset_flag:1', 'name': 'Isolated'}]})
+        entry = report['asset_flag'][0]
         self.assertEqual(2, entry['matched_id'])
         self.assertFalse(entry['will_drop'])
 
@@ -427,20 +427,20 @@ class TestOptionalLookups(TestCase):
 
     @patch('app.business.case_transfer.resolvers.create_lookup_row')
     @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={'Isolated': 2})
-    def test_resolve_maps_known_and_drops_unknown_stages(self, _find, create):
-        lookups = {'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Isolated'},
-                                   {'ref': 'asset_stage:2', 'name': 'Nuked'}]}
+    def test_resolve_maps_known_and_drops_unknown_flags(self, _find, create):
+        lookups = {'asset_flag': [{'ref': 'asset_flag:1', 'name': 'Isolated'},
+                                   {'ref': 'asset_flag:2', 'name': 'Nuked'}]}
         ref_map, created = resolve_lookups(lookups, {})
-        self.assertEqual({'asset_stage:1': 2, 'asset_stage:2': None}, ref_map)
+        self.assertEqual({'asset_flag:1': 2, 'asset_flag:2': None}, ref_map)
         self.assertEqual([], created)
         create.assert_not_called()
 
     @patch('app.business.case_transfer.resolvers.create_lookup_row')
     @patch('app.business.case_transfer.resolvers.find_lookup_ids_by_name', return_value={})
-    def test_create_decision_for_a_stage_is_refused(self, _find, create):
-        lookups = {'asset_stage': [{'ref': 'asset_stage:1', 'name': 'Nuked'}]}
+    def test_create_decision_for_a_flag_is_refused(self, _find, create):
+        lookups = {'asset_flag': [{'ref': 'asset_flag:1', 'name': 'Nuked'}]}
         with self.assertRaises(BusinessProcessingError):
-            resolve_lookups(lookups, {'asset_stage:1': {'action': 'create'}})
+            resolve_lookups(lookups, {'asset_flag:1': {'action': 'create'}})
         create.assert_not_called()
 
 

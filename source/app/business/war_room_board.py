@@ -7,7 +7,7 @@
 #  License as published by the Free Software Foundation; either
 #  version 3 of the License, or (at your option) any later version.
 
-"""War-room board: cross-case stage / decision overview.
+"""War-room board: cross-case asset status / decision overview.
 
 The blueprint decides which attached cases the caller can read and
 passes them in; cases outside that set only contribute to the
@@ -17,9 +17,10 @@ about them (name, customer, asset counts) is ever loaded.
 KPI definitions (over the accessible cases):
   * assets       — every case asset
   * compromised  — `asset_compromise_status_id == compromised`
-  * staged       — assets with any stage
-  * done / exceptions — assets whose stage kind is `done` / `exception`
-  * unstaged     — assets with no stage
+  * flagged      — assets carrying at least one status flag
+  * done / exceptions — assets carrying at least one flag of kind
+                   `done` / `exception`
+  * unflagged    — assets with no flag
   * decisions_*  — open = proposed/approved and not implemented
   * tasks_open   — open war-room tasks (per-case open case tasks are in
                    each case entry)
@@ -32,14 +33,17 @@ import datetime
 
 from app.business.vulnerability_findings import vulnerability_findings_attention
 from app.business.vulnerability_findings import vulnerability_findings_summary
+from app.business.asset_flags import asset_flags_serialize
+from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_asset_counts
 from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_attached_case_ids
 from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_case_rows
-from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_compromised_unstaged
+from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_compromised_unflagged
 from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_exceptions_without_decision
+from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_flag_counts
+from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_flags
+from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_kind_counts
 from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_open_decisions
 from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_open_war_room_tasks_count
-from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_stage_counts
-from app.datamgmt.war_rooms.war_room_board_db import war_room_board_db_stages
 
 
 ATTENTION_LIMIT = 100
@@ -55,46 +59,29 @@ def war_room_board_attached_case_ids(war_room_id):
     return war_room_board_db_attached_case_ids(war_room_id)
 
 
-def _serialize_stage(stage):
-    return {
-        'id': stage.id,
-        'name': stage.name,
-        'description': stage.description,
-        'color': stage.color,
-        'icon': stage.icon,
-        'kind': stage.kind,
-        'sort_order': stage.sort_order,
-        'requires_reason': bool(stage.requires_reason),
-        'requires_decision': bool(stage.requires_decision),
-        'is_optional': bool(stage.is_optional),
-    }
+def _aggregate_counts(asset_rows, flag_rows, kind_rows):
+    """Fold the per-case asset, per-(case, flag) and per-(case, kind) rows
+    into per-case `by_flag` / `by_kind` maps and asset totals.
 
-
-def _first_progress_stage_id(stages):
-    progress = [s for s in stages if s.kind == 'progress']
-    if not progress:
-        return None
-    return min(progress, key=lambda s: (s.sort_order, s.id)).id
-
-
-def _aggregate_counts(count_rows, stage_kinds):
-    """Fold `(case_id, stage_id, total, compromised)` rows into per-case
-    `by_stage` / `by_kind` maps and asset totals."""
+    An asset carrying several flags counts under each of them, so
+    `by_flag` and `by_kind` do not add up to the asset total; `none` is
+    the number of assets without any flag."""
     per_case = {}
-    for row in count_rows:
-        entry = per_case.setdefault(row.case_id, {
-            'assets_total': 0,
-            'assets_compromised': 0,
-            'by_stage': {},
-            'by_kind': {'none': 0, 'progress': 0, 'done': 0, 'exception': 0},
-        })
+    for row in asset_rows:
+        entry = per_case.setdefault(row.case_id, _empty_counts())
         total = int(row.total or 0)
-        entry['assets_total'] += total
-        entry['assets_compromised'] += int(row.compromised or 0)
-        key = 'none' if row.stage_id is None else str(row.stage_id)
-        entry['by_stage'][key] = entry['by_stage'].get(key, 0) + total
-        kind = 'none' if row.stage_id is None else stage_kinds.get(row.stage_id, 'progress')
-        entry['by_kind'][kind] += total
+        unflagged = total - int(row.flagged or 0)
+        entry['assets_total'] = total
+        entry['assets_compromised'] = int(row.compromised or 0)
+        entry['by_flag']['none'] = unflagged
+        entry['by_kind']['none'] = unflagged
+    for row in flag_rows:
+        entry = per_case.setdefault(row.case_id, _empty_counts())
+        entry['by_flag'][str(row.flag_id)] = int(row.total or 0)
+    for row in kind_rows:
+        entry = per_case.setdefault(row.case_id, _empty_counts())
+        if row.kind in entry['by_kind']:
+            entry['by_kind'][row.kind] = int(row.total or 0)
     return per_case
 
 
@@ -102,8 +89,8 @@ def _empty_counts():
     return {
         'assets_total': 0,
         'assets_compromised': 0,
-        'by_stage': {},
-        'by_kind': {'none': 0, 'progress': 0, 'done': 0, 'exception': 0},
+        'by_flag': {},
+        'by_kind': {'none': 0, 'status': 0, 'done': 0, 'exception': 0},
     }
 
 
@@ -148,7 +135,7 @@ def war_room_board_attention(compromised_rows, exception_rows, decision_rows, no
     """Build the "needs attention" list, most severe first, capped.
 
     Every open decision appears exactly once; assets that are compromised
-    and not contained, or in an exception stage without a backing
+    and carry no flag, or carry an exception flag without a backing
     decision, appear too, as do vulnerability findings exploited and not
     fixed, or past their due date (`vulnerabilities` is the output of
     `vulnerability_findings_attention`)."""
@@ -158,14 +145,14 @@ def war_room_board_attention(compromised_rows, exception_rows, decision_rows, no
         items.append({'type': kind, 'severity': severity, 'label': label, 'decision_id': row.decision_id})
     for row in compromised_rows:
         items.append({
-            'type': 'compromised_unstaged', 'severity': 'high',
-            'label': f'{row.asset_name} is compromised and not contained',
+            'type': 'compromised_unflagged', 'severity': 'high',
+            'label': f'{row.asset_name} is compromised and has no status flag',
             'case_id': row.case_id, 'asset_id': row.asset_id,
         })
     for row in exception_rows:
         items.append({
             'type': 'exception_without_decision', 'severity': 'medium',
-            'label': f'{row.asset_name} is {row.stage_name} without a backing decision',
+            'label': f'{row.asset_name} is flagged {row.flag_name} without a backing decision',
             'case_id': row.case_id, 'asset_id': row.asset_id,
         })
     items.extend(_vulnerability_attention(vulnerabilities or {}))
@@ -212,10 +199,11 @@ def war_room_board_build(war_room_id, accessible_case_ids, now=None, include_vul
     allowed = set(accessible_case_ids or ())
     accessible = [c for c in attached if c in allowed]
 
-    stages = war_room_board_db_stages()
-    stage_kinds = {s.id: s.kind for s in stages}
+    flags = war_room_board_db_flags()
     case_rows = {r.case_id: r for r in war_room_board_db_case_rows(accessible)}
-    per_case = _aggregate_counts(war_room_board_db_stage_counts(accessible), stage_kinds)
+    per_case = _aggregate_counts(war_room_board_db_asset_counts(accessible),
+                                 war_room_board_db_flag_counts(accessible),
+                                 war_room_board_db_kind_counts(accessible))
     decision_rows = war_room_board_db_open_decisions(war_room_id)
 
     cases = []
@@ -243,7 +231,7 @@ def war_room_board_build(war_room_id, accessible_case_ids, now=None, include_vul
             'severity_name': row.severity_name,
             'assets_total': counts['assets_total'],
             'assets_compromised': counts['assets_compromised'],
-            'by_stage': counts['by_stage'],
+            'by_flag': counts['by_flag'],
             'by_kind': counts['by_kind'],
             'tasks_open': int(row.tasks_open or 0),
         })
@@ -255,10 +243,10 @@ def war_room_board_build(war_room_id, accessible_case_ids, now=None, include_vul
         'cases_accessible': len([c for c in cases if c['accessible']]),
         'assets': totals['assets_total'],
         'compromised': totals['assets_compromised'],
-        'staged': by_kind['progress'] + by_kind['done'] + by_kind['exception'],
+        'flagged': totals['assets_total'] - by_kind['none'],
         'done': by_kind['done'],
         'exceptions': by_kind['exception'],
-        'unstaged': by_kind['none'],
+        'unflagged': by_kind['none'],
         'decisions_open': decisions_open,
         'decisions_overdue': decisions_overdue,
         'decisions_due_24h': decisions_due_24h,
@@ -278,8 +266,7 @@ def war_room_board_build(war_room_id, accessible_case_ids, now=None, include_vul
         })
         vulnerability_attention = vulnerability_findings_attention(accessible_with_rows, ATTENTION_LIMIT)
     attention = war_room_board_attention(
-        war_room_board_db_compromised_unstaged(
-            accessible_with_rows, _first_progress_stage_id(stages), ATTENTION_LIMIT),
+        war_room_board_db_compromised_unflagged(accessible_with_rows, ATTENTION_LIMIT),
         war_room_board_db_exceptions_without_decision(accessible_with_rows, ATTENTION_LIMIT),
         decision_rows,
         now,
@@ -289,7 +276,7 @@ def war_room_board_build(war_room_id, accessible_case_ids, now=None, include_vul
     return {
         'generated_at': now.isoformat(),
         'kpis': kpis,
-        'stages': [_serialize_stage(s) for s in stages],
+        'flags': [asset_flags_serialize(f) for f in flags],
         'cases': cases,
         'attention': attention,
         'decisions': [_serialize_decision(r, now) for r in decision_rows],

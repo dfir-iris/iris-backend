@@ -17,6 +17,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from sqlalchemy import and_
+from sqlalchemy import inspect
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
@@ -48,6 +49,18 @@ def get_note(note_id):
     )).first()
 
     return note
+
+
+def get_note_persisted_content(note: Notes):
+    """The content `note` has in the database, before the pending changes.
+
+    Read from the instance's attribute history, so no query. Only holds
+    until the session flushes: past that point the pending content is the
+    persisted one."""
+    history = inspect(note).attrs.note_content.history
+    if history.deleted:
+        return history.deleted[0]
+    return note.note_content
 
 
 def get_directory(directory_id):

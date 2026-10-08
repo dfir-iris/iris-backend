@@ -87,22 +87,16 @@ class CaseAssets(db.Model):
     custom_attributes = Column(JSON)
     asset_enrichment = Column(JSONB)
     modification_history = Column(JSON)
-    # Containment / recovery stage (org-wide taxonomy, `AssetStage`).
-    # Only writable through the dedicated stage endpoint so every change
-    # lands in `CaseAssetStageHistory`.
-    stage_id = Column(Integer, ForeignKey('asset_stage.id'), nullable=True, index=True)
-    stage_reason = Column(Text, nullable=True)
-    stage_decision_id = Column(BigInteger,
-                               ForeignKey('war_room_decision.decision_id', ondelete='SET NULL'),
-                               nullable=True)
-    stage_updated_at = Column(DateTime, nullable=True)
-    stage_updated_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
 
     case = relationship('Cases')
     user = relationship('User', foreign_keys=[user_id])
     asset_type = relationship('AssetsType')
     analysis_status = relationship('AnalysisStatus')
-    stage = relationship('AssetStage')
+    # Status flags (org-wide taxonomy, `AssetFlag`). Only writable through
+    # the dedicated flag endpoints so every change lands in
+    # `CaseAssetFlagHistory` and on the case "Asset status" timeline.
+    flags = relationship('CaseAssetFlag', back_populates='asset', cascade='all, delete-orphan',
+                         passive_deletes=True, lazy='selectin')
 
     alerts = relationship('Alert', secondary=alert_assets_association, back_populates='assets')
     iocs = relationship('IocAssetLink', back_populates='asset')
@@ -115,28 +109,28 @@ class AnalysisStatus(db.Model):
     name = Column(Text)
 
 
-ASSET_STAGE_KINDS = ('progress', 'done', 'exception')
+ASSET_FLAG_KINDS = ('status', 'done', 'exception')
 
-ASSET_STAGE_COLORS = (
+ASSET_FLAG_COLORS = (
     'slate', 'gray', 'red', 'orange', 'amber', 'yellow', 'lime', 'green',
     'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple',
     'fuchsia', 'pink', 'rose',
 )
 
 
-class AssetStage(db.Model):
-    """Org-wide taxonomy of asset stages (Identified → Restored, …).
+class AssetFlag(db.Model):
+    """Org-wide taxonomy of asset status flags (Isolated, Patched, …).
 
-    Generic on purpose: the same list drives a vulnerability campaign
-    (Patched / Unpatched) or a mass compromise (Isolated / Restored).
-    `kind` tells the UI and the war-room board how to aggregate a stage:
-    `progress` = still being worked, `done` = terminal success,
-    `exception` = accepted deviation that should be backed by a reason
-    (and optionally a war-room decision).
+    Flags are facts about an asset, in no particular order: an asset
+    carries any combination of them. `kind` tells the UI and the
+    war-room board how to aggregate a flag: `status` = a plain fact,
+    `done` = the asset is back to normal, `exception` = accepted
+    deviation that should be backed by a reason (and optionally a
+    war-room decision).
     """
-    __tablename__ = 'asset_stage'
+    __tablename__ = 'asset_flag'
     __table_args__ = (
-        CheckConstraint("kind IN ('progress', 'done', 'exception')", name='ck_asset_stage_kind'),
+        CheckConstraint("kind IN ('status', 'done', 'exception')", name='ck_asset_flag_kind'),
     )
 
     id = Column(Integer, primary_key=True)
@@ -144,37 +138,60 @@ class AssetStage(db.Model):
     description = Column(Text, nullable=True)
     color = Column(String(16), nullable=False, server_default=text("'slate'"))
     icon = Column(String(64), nullable=True)
-    kind = Column(String(16), nullable=False, server_default=text("'progress'"))
+    kind = Column(String(16), nullable=False, server_default=text("'status'"))
     sort_order = Column(Integer, nullable=False, server_default=text('0'))
     requires_reason = Column(Boolean, nullable=False, default=False, server_default=text('false'))
     requires_decision = Column(Boolean, nullable=False, default=False, server_default=text('false'))
-    # A progress stage an asset may skip on its way to done.
-    is_optional = Column(Boolean, nullable=False, default=False, server_default=text('false'))
     created_at = Column(DateTime, nullable=False, server_default=text('now()'))
 
 
-class CaseAssetStageHistory(db.Model):
-    """Append-only log of stage transitions of a case asset.
+class CaseAssetFlag(db.Model):
+    """A flag currently set on a case asset.
 
-    Stage names are denormalised so the history stays readable after an
-    administrator renames or deletes a stage.
+    `event_id` is the "Asset status" timeline event written when the flag
+    was set; it is updated along with the flag while it still exists.
     """
-    __tablename__ = 'case_asset_stage_history'
+    __tablename__ = 'case_asset_flag'
+
+    asset_id = Column(BigInteger, ForeignKey('case_assets.asset_id', ondelete='CASCADE'), primary_key=True)
+    flag_id = Column(Integer, ForeignKey('asset_flag.id'), primary_key=True, index=True)
+    case_id = Column(BigInteger, ForeignKey('cases.case_id', ondelete='CASCADE'), nullable=False, index=True)
+    reason = Column(Text, nullable=True)
+    decision_id = Column(BigInteger, ForeignKey('war_room_decision.decision_id', ondelete='SET NULL'),
+                         nullable=True)
+    event_id = Column(BigInteger, ForeignKey('cases_events.event_id', ondelete='SET NULL'), nullable=True)
+    set_at = Column(DateTime, nullable=False, server_default=text('now()'))
+    set_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    asset = relationship('CaseAssets', back_populates='flags')
+    flag = relationship('AssetFlag', lazy='selectin')
+
+
+class CaseAssetFlagHistory(db.Model):
+    """Append-only log of the flag changes of a case asset.
+
+    Flag names are denormalised so the history stays readable after an
+    administrator renames or deletes a flag.
+    """
+    __tablename__ = 'case_asset_flag_history'
+    __table_args__ = (
+        CheckConstraint("action IN ('set', 'updated', 'cleared')", name='ck_case_asset_flag_history_action'),
+    )
 
     id = Column(BigInteger, primary_key=True)
     asset_id = Column(BigInteger, ForeignKey('case_assets.asset_id', ondelete='CASCADE'),
                       nullable=False, index=True)
     case_id = Column(BigInteger, ForeignKey('cases.case_id', ondelete='CASCADE'),
                      nullable=False, index=True)
-    from_stage_id = Column(Integer, ForeignKey('asset_stage.id', ondelete='SET NULL'), nullable=True)
-    from_stage_name = Column(String(64), nullable=True)
-    to_stage_id = Column(Integer, ForeignKey('asset_stage.id', ondelete='SET NULL'), nullable=True)
-    to_stage_name = Column(String(64), nullable=True)
+    flag_id = Column(Integer, ForeignKey('asset_flag.id', ondelete='SET NULL'), nullable=True)
+    flag_name = Column(String(64), nullable=True)
+    action = Column(String(16), nullable=False)
     reason = Column(Text, nullable=True)
     decision_id = Column(BigInteger, ForeignKey('war_room_decision.decision_id', ondelete='SET NULL'),
                          nullable=True)
     war_room_id = Column(BigInteger, ForeignKey('war_room.war_room_id', ondelete='SET NULL'),
                          nullable=True)
+    event_id = Column(BigInteger, ForeignKey('cases_events.event_id', ondelete='SET NULL'), nullable=True)
     changed_by_id = Column(BigInteger, ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     changed_at = Column(DateTime, nullable=False, server_default=text('now()'), index=True)
 

@@ -30,7 +30,7 @@ from app.business.war_room_chat_commands import war_room_chat_commands_lead_ids
 from app.business.war_room_chat_commands import war_room_chat_commands_match_assets
 from app.business.war_room_chat_commands import war_room_chat_commands_match_iocs
 from app.business.war_room_chat_commands import war_room_chat_commands_match_note
-from app.business.war_room_chat_commands import war_room_chat_commands_match_stage
+from app.business.war_room_chat_commands import war_room_chat_commands_match_flag
 from app.business.war_room_chat_commands import war_room_chat_commands_match_staged
 from app.business.war_room_chat_commands import war_room_chat_commands_notify_approvers
 from app.business.war_room_chat_commands import war_room_chat_commands_one_source_per_type
@@ -190,26 +190,27 @@ class TestPickTypes(TestCase):
             war_room_chat_commands_pick_ioc_type('free text', types)
 
 
-class TestMatchStage(TestCase):
+class TestMatchFlag(TestCase):
 
-    _STAGES = [{'id': 1, 'name': 'Under'}, {'id': 2, 'name': 'Under investigation'},
-               {'id': 3, 'name': 'Contained'}]
+    _FLAGS = [{'id': 1, 'name': "Can't"}, {'id': 2, 'name': "Can't be patched"},
+              {'id': 3, 'name': 'Isolated'}]
 
     def test_longest_prefix_wins(self):
-        stage, cleared, rest = war_room_chat_commands_match_stage(
-            ['under', 'Investigation', 'beacon', 'seen'], self._STAGES)
-        self.assertEqual(2, stage['id'])
-        self.assertFalse(cleared)
-        self.assertEqual(['beacon', 'seen'], rest)
+        flag, rest = war_room_chat_commands_match_flag(["can't", 'Be', 'patched', 'legacy', 'OS'], self._FLAGS)
+        self.assertEqual(2, flag['id'])
+        self.assertEqual(['legacy', 'OS'], rest)
 
-    def test_clear(self):
-        self.assertEqual((None, True, ['why']), war_room_chat_commands_match_stage(['none', 'why'], self._STAGES))
+    def test_quoted_name_is_split_again(self):
+        flag, rest = war_room_chat_commands_match_flag(["Can't be patched", 'why'], self._FLAGS)
+        self.assertEqual((2, ['why']), (flag['id'], rest))
 
     def test_unknown_and_missing(self):
-        with self.assertRaisesRegex(BusinessProcessingError, 'Unknown stage "Eradicated". Stages: Under'):
-            war_room_chat_commands_match_stage(['Eradicated'], self._STAGES)
-        with self.assertRaisesRegex(BusinessProcessingError, 'Missing stage'):
-            war_room_chat_commands_match_stage([], self._STAGES)
+        with self.assertRaisesRegex(BusinessProcessingError, 'Unknown flag "Eradicated". Flags: Can\'t'):
+            war_room_chat_commands_match_flag(['Eradicated'], self._FLAGS)
+        with self.assertRaisesRegex(BusinessProcessingError, 'Missing flag'):
+            war_room_chat_commands_match_flag([], self._FLAGS)
+        with self.assertRaisesRegex(BusinessProcessingError, 'Flags: none defined'):
+            war_room_chat_commands_match_flag(['x'], [])
 
 
 class TestMatching(TestCase):

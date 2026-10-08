@@ -417,14 +417,15 @@ def _delete_assets(case_identifier):
     AssetComments.query.filter(AssetComments.comment_id.in_(com_ids)).delete()
     Comments.query.filter(Comments.comment_id.in_(com_ids)).delete()
 
-    CaseAssetsAlias = aliased(CaseAssets)
-
-    # Query for CaseAssets that are not referenced in alerts and match the case_id
+    # Query for CaseAssets that are not referenced in alerts and match the case_id.
+    # The subquery must correlate to the outer `case_assets` row: against an
+    # alias it was true as soon as any alert anywhere had an asset, so no
+    # asset was ever deleted and they all ended up orphaned (case_id NULL).
     assets_to_delete = db.session.query(CaseAssets).filter(
         and_(
             CaseAssets.case_id == case_identifier,
             ~db.session.query(alert_assets_association).filter(
-                alert_assets_association.c.asset_id == CaseAssetsAlias.asset_id
+                alert_assets_association.c.asset_id == CaseAssets.asset_id
             ).exists()
         )
     )
@@ -497,9 +498,10 @@ def delete_case(case_id):
 
     DataStorePath.query.filter(DataStorePath.path_case_id == case_id).delete()
 
-    da = CaseAssets.query.with_entities(CaseAssets.asset_id).filter(CaseAssets.case_id == case_id).all()
-    for asset in da:
-        IocAssetLink.query.filter(asset.asset_id == asset.asset_id).delete()
+    # Filter on the column: `asset.asset_id == asset.asset_id` was a plain
+    # Python `True` and wiped the IOC links of every case.
+    case_asset_ids = CaseAssets.query.with_entities(CaseAssets.asset_id).filter(CaseAssets.case_id == case_id)
+    IocAssetLink.query.filter(IocAssetLink.asset_id.in_(case_asset_ids)).delete(synchronize_session=False)
 
     CaseEventsAssets.query.filter(CaseEventsAssets.case_id == case_id).delete()
     CaseEventsIoc.query.filter(CaseEventsIoc.case_id == case_id).delete()

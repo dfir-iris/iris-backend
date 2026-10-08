@@ -30,6 +30,7 @@ from app.logger import logger
 from app.datamgmt.filtering import get_filtered_data
 from app.datamgmt.states import update_assets_state
 from app.models.models import CaseEventsAssets
+from app.models.alerts import AlertSimilarity
 from app.models.cases import Cases
 from app.models.cases import CaseStatus
 from app.models.comments import Comments
@@ -37,6 +38,7 @@ from app.models.comments import AssetComments
 from app.models.assets import CompromiseStatus
 from app.models.assets import AssetsType
 from app.models.assets import CaseAssets
+from app.models.assets import CaseAssetFlag
 from app.models.customers import Client
 from app.models.assets import AnalysisStatus
 from app.models.iocs import Ioc
@@ -51,7 +53,8 @@ relationship_model_map = {
     'user': User,
     'asset_type': AssetsType,
     'analysis_status': AnalysisStatus,
-    'iocs': Ioc
+    'iocs': Ioc,
+    'flags': CaseAssetFlag
 }
 
 
@@ -189,6 +192,15 @@ def delete_asset(asset: CaseAssets):
         Comments.comment_id.in_(com_ids)
     ).delete()
 
+    # An asset merged in from an alert can still back the alert similarity
+    # cache, whose FK has no ON DELETE.
+    AlertSimilarity.query.filter(
+        AlertSimilarity.matching_asset_id == asset.asset_id
+    ).delete()
+
+    # Stage history, vulnerability findings (and their history / evidence
+    # links), war-room decision and timeline links go with the asset
+    # through ON DELETE CASCADE.
     db.session.delete(asset)
 
     update_assets_state(asset.case_id)

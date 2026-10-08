@@ -197,31 +197,43 @@ class TestEntityRegistry(TestCase):
         self.assertEqual('user', USER_REF_PREFIX)
 
 
-class TestAssetStageTransfer(TestCase):
+class TestAssetFlagTransfer(TestCase):
 
     def test_optional_defaults_to_false(self):
         self.assertFalse(LookupSpec('k', object, 'id', 'name').optional)
 
-    def test_asset_stage_lookup_is_optional_and_never_created(self):
-        spec = LOOKUPS['asset_stage']
+    def test_asset_flag_lookup_is_optional_and_never_created(self):
+        spec = LOOKUPS['asset_flag']
         self.assertEqual('name', spec.name_column)
         self.assertFalse(spec.creatable)
         self.assertTrue(spec.optional)
 
-    def test_asset_stage_travels_by_name_with_its_reason(self):
-        spec = ENTITIES_BY_KEY['asset']
-        self.assertEqual('asset_stage', spec.lookup_refs['stage_id'])
-        self.assertIn('stage_reason', spec.fields)
+    def test_asset_flags_travel_by_name_with_their_reason_and_event(self):
+        spec = ENTITIES_BY_KEY['asset_flag']
+        self.assertEqual('case_asset_flag', spec.model.__tablename__)
+        self.assertEqual({'flag_id': 'asset_flag'}, spec.lookup_refs)
+        self.assertEqual({'asset_id': 'asset', 'event_id': 'event'}, spec.entity_refs)
+        self.assertEqual(('flag_id',), spec.required_refs)
+        self.assertIn('reason', spec.fields)
+        self.assertIn('set_by_id', spec.user_refs)
 
-    def test_instance_bound_stage_columns_are_not_transferred(self):
+    def test_flags_come_after_their_asset_and_event(self):
+        keys = [spec.key for spec in ENTITIES]
+        self.assertLess(keys.index('asset'), keys.index('asset_flag'))
+        self.assertLess(keys.index('event'), keys.index('asset_flag'))
+
+    def test_decision_link_is_not_transferred(self):
+        spec = ENTITIES_BY_KEY['asset_flag']
+        exported = set(spec.fields) | set(spec.user_refs) | set(spec.entity_refs) | set(spec.lookup_refs)
+        self.assertNotIn('decision_id', exported)
+
+    def test_asset_has_no_stage_columns_left(self):
         spec = ENTITIES_BY_KEY['asset']
         exported = set(spec.fields) | set(spec.user_refs) | set(spec.entity_refs) | set(spec.lookup_refs)
-        for column in ('stage_decision_id', 'stage_updated_by_id', 'stage_updated_at'):
-            with self.subTest(column=column):
-                self.assertNotIn(column, exported)
+        self.assertFalse({column for column in exported if column.startswith('stage_')})
 
-    def test_stage_history_is_not_an_entity(self):
-        self.assertNotIn('case_asset_stage_history',
+    def test_flag_history_is_not_an_entity(self):
+        self.assertNotIn('case_asset_flag_history',
                          {spec.model.__tablename__ for spec in ENTITIES})
 
     def test_mirror_columns_are_never_transferred(self):

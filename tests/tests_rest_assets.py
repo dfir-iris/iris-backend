@@ -185,6 +185,19 @@ class TestsRestAssets(TestCase):
         response = self._subject.delete(f'/api/v2/cases/{case_identifier}/assets/{asset_identifier}')
         self.assertEqual(204, response.status_code)
 
+    def test_delete_case_should_keep_the_ioc_links_of_other_cases(self):
+        case_identifier = self._subject.create_dummy_case()
+        body = {'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': '8.8.8.8', 'ioc_description': 'rewrw', 'ioc_tags': ''}
+        ioc_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/iocs', body).json()['ioc_id']
+        body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test', 'ioc_links': [ioc_identifier]}
+        asset_identifier = self._subject.create(f'/api/v2/cases/{case_identifier}/assets', body).json()['asset_id']
+        other_case_identifier = self._subject.create_dummy_case()
+        self._subject.create(f'/api/v2/cases/{other_case_identifier}/assets',
+                             {'asset_type_id': 1, 'asset_name': 'other_laptop'})
+        self._subject.delete(f'/api/v2/cases/{other_case_identifier}')
+        response = self._subject.get(f'/api/v2/cases/{case_identifier}/assets/{asset_identifier}').json()
+        self.assertEqual([ioc_identifier], [ioc['ioc_id'] for ioc in response['iocs']])
+
     def test_delete_asset_should_not_fail_when_it_has_associated_comments(self):
         case_identifier = self._subject.create_dummy_case()
         body = {'asset_type_id': 1, 'asset_name': 'admin_laptop_test'}

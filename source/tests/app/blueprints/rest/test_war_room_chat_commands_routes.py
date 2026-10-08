@@ -16,7 +16,7 @@
 #  along with this program; if not, write to the Free Software Foundation,
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""War-room chat slash commands: scope commands (/asset, /ioc, /stage,
+"""War-room chat slash commands: scope commands (/asset, /ioc, /flag, /unflag,
 /push, /share-note) and the reworked /decision, /pin and /sitrep.
 
 No database: the access helpers and the business functions are patched,
@@ -39,7 +39,7 @@ _CHAT = 'app.blueprints.rest.v2.war_rooms.chat'
 _USER = SimpleNamespace(id=7)
 _ASSET_TYPES = [(1, 'Account'), (3, 'Windows - Computer')]
 _IOC_TYPES = [{'type_id': 20, 'type_name': 'ip-dst'}, {'type_id': 21, 'type_name': 'domain'}]
-_STAGES = [{'id': 4, 'name': 'Contained'}, {'id': 5, 'name': 'Under investigation'}]
+_FLAGS = [{'id': 4, 'name': 'Isolated'}, {'id': 5, 'name': "Can't be patched"}]
 
 
 class _ScopeCommandTest(TestCase):
@@ -64,8 +64,8 @@ class _ScopeCommandTest(TestCase):
         _patch('_writable_case_ids', side_effect=lambda readable: [c for c in readable if c in self.writable])
         _patch('war_room_chat_commands_asset_types', return_value=_ASSET_TYPES)
         _patch('war_room_chat_commands_ioc_types', return_value=_IOC_TYPES)
-        _patch('war_room_chat_commands_stages', return_value=_STAGES)
-        for name in ('war_room_scope_create_asset', 'war_room_scope_create_ioc', 'war_room_scope_bulk_stage',
+        _patch('war_room_chat_commands_flags', return_value=_FLAGS)
+        for name in ('war_room_scope_create_asset', 'war_room_scope_create_ioc', 'war_room_scope_bulk_flag',
                      'war_room_scope_push_assets', 'war_room_scope_push_iocs', 'war_room_scope_staged_push',
                      'war_room_scope_staged_create', 'war_room_scope_list_assets', 'war_room_scope_list_iocs',
                      'war_room_scope_staged_list', 'war_room_chat_commands_decision_id'):
@@ -147,7 +147,7 @@ class TestIocCommand(_ScopeCommandTest):
             chat_commands.chat_commands_resolve(10, 'ioc', 'bob@evil.example all')
 
 
-class TestStageCommand(_ScopeCommandTest):
+class TestFlagCommand(_ScopeCommandTest):
 
     def _assets(self, *rows):
         self.mocks['war_room_scope_list_assets'].return_value = {'data': [
@@ -158,42 +158,47 @@ class TestStageCommand(_ScopeCommandTest):
     def test_every_case_reason_and_decision(self):
         self._assets((11, 'WS-042', 1), (12, 'ws-042', 3), (13, 'WS-0420', 2))
         self.mocks['war_room_chat_commands_decision_id'].return_value = 99
-        self.mocks['war_room_scope_bulk_stage'].return_value = {'results': [
+        self.mocks['war_room_scope_bulk_flag'].return_value = {'results': [
             {'asset_id': 11, 'case_id': 1, 'status': 'updated'},
             {'asset_id': 12, 'case_id': 3, 'status': 'denied'}]}
-        row = chat_commands.chat_commands_resolve(10, 'stage', 'WS-042 under investigation beacon seen D-2')
+        row = chat_commands.chat_commands_resolve(10, 'flag', "WS-042 can't be patched vendor EOL D-2")
         self.mocks['war_room_scope_list_assets'].assert_called_once_with([1, 2, 3], search='WS-042')
         self.mocks['war_room_chat_commands_decision_id'].assert_called_once_with(10, 2)
-        self.mocks['war_room_scope_bulk_stage'].assert_called_once_with(
-            10, 7, [11, 12], 5, 'beacon seen', 99, [1, 2, 3], [1, 2])
+        self.mocks['war_room_scope_bulk_flag'].assert_called_once_with(
+            10, 7, [11, 12], 5, 'set', 'vendor EOL', 99, [1, 2, 3], [1, 2])
         self.assertEqual('system', row[0])
-        self.assertEqual('Stage of asset "WS-042" set to Under investigation in 1 case; denied on 1 case (D-2)', row[1])
+        self.assertEqual('Flag Can\'t be patched on asset "WS-042" set in 1 case; denied on 1 case (D-2)', row[1])
 
-    def test_clear_restricted_by_markup(self):
+    def test_unflag_restricted_by_markup(self):
         self._assets((11, 'WS-042', 2))
-        self.mocks['war_room_scope_bulk_stage'].return_value = {'results': [
+        self.mocks['war_room_scope_bulk_flag'].return_value = {'results': [
             {'asset_id': 11, 'case_id': 2, 'status': 'updated'}]}
-        row = chat_commands.chat_commands_resolve(10, 'stage', '[Asset "WS-042"](/case/2/assets) none')
+        row = chat_commands.chat_commands_resolve(10, 'unflag', '[Asset "WS-042"](/case/2/assets) isolated')
         self.mocks['war_room_scope_list_assets'].assert_called_once_with([2], search='WS-042')
-        self.assertIsNone(self.mocks['war_room_scope_bulk_stage'].call_args.args[3])
+        self.mocks['war_room_scope_bulk_flag'].assert_called_once_with(
+            10, 7, [11], 4, 'clear', None, None, [1, 2, 3], [1, 2])
         self.assertEqual(('case', 2, 2), row[2:])
-        self.assertIn('cleared in 1 case', row[1])
+        self.assertIn('removed in 1 case', row[1])
 
     def test_errors(self):
         with self.assertRaisesRegex(BusinessProcessingError, 'No asset named "WS-9"'):
-            chat_commands.chat_commands_resolve(10, 'stage', 'WS-9 Contained')
-        with self.assertRaisesRegex(BusinessProcessingError, 'Unknown stage "Gone"'):
-            chat_commands.chat_commands_resolve(10, 'stage', 'WS-9 Gone')
+            chat_commands.chat_commands_resolve(10, 'flag', 'WS-9 Isolated')
+        with self.assertRaisesRegex(BusinessProcessingError, 'Unknown flag "Gone"'):
+            chat_commands.chat_commands_resolve(10, 'flag', 'WS-9 Gone')
+        with self.assertRaisesRegex(BusinessProcessingError, 'Missing flag'):
+            chat_commands.chat_commands_resolve(10, 'flag', 'WS-9')
         with self.assertRaisesRegex(BusinessProcessingError, 'already applies to every attached case'):
-            chat_commands.chat_commands_resolve(10, 'stage', 'WS-9 Contained all')
-        self.mocks['war_room_scope_bulk_stage'].assert_not_called()
+            chat_commands.chat_commands_resolve(10, 'flag', 'WS-9 Isolated all')
+        with self.assertRaisesRegex(BusinessProcessingError, '/unflag does not take a decision'):
+            chat_commands.chat_commands_resolve(10, 'unflag', 'WS-9 Isolated D-2')
+        self.mocks['war_room_scope_bulk_flag'].assert_not_called()
 
     def test_nothing_changed_is_an_error(self):
         self._assets((11, 'WS-042', 3))
-        self.mocks['war_room_scope_bulk_stage'].return_value = {'results': [
+        self.mocks['war_room_scope_bulk_flag'].return_value = {'results': [
             {'asset_id': 11, 'case_id': 3, 'status': 'denied'}]}
         with self.assertRaisesRegex(BusinessProcessingError, 'denied on 1 case'):
-            chat_commands.chat_commands_resolve(10, 'stage', 'WS-042 Contained')
+            chat_commands.chat_commands_resolve(10, 'flag', 'WS-042 Isolated')
 
 
 class TestPushCommand(_ScopeCommandTest):
@@ -415,5 +420,5 @@ class TestReworkedSlashCommands(TestCase):
 
     def test_help_lists_the_new_commands(self):
         body = chat._resolve_slash(10, 'help', '')[1]
-        for cmd in ('/asset', '/ioc', '/stage', '/push', '/share-note'):
+        for cmd in ('/asset', '/ioc', '/flag', '/unflag', '/push', '/share-note'):
             self.assertIn(cmd, body)

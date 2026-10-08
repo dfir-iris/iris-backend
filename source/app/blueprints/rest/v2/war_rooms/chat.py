@@ -478,7 +478,7 @@ def _resolve_slash(war_room_id, cmd, rest, topic_id=None):
         body = (
             'Commands: /note /pin /decision /attach /detach /task /assign '
             '/sitrep /summary /state /priority /thread /topic '
-            '/asset /ioc /stage /push /share-note /vuln'
+            '/asset /ioc /flag /unflag /push /share-note /vuln'
         )
         return ('system', body, None, None, None)
 

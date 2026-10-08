@@ -690,8 +690,8 @@ def create_safe_hooks():
                 hook_description='Triggered on war room team member removal, after commit in DB')
 
     # --- War Room scope
-    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_scope_stage_update',
-                hook_description='Triggered on asset stage change from the war room scope, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_war_room_scope_flag_update',
+                hook_description='Triggered on asset flag change from the war room scope, after commit in DB')
     create_safe(db.session, IrisHook, hook_name='on_postload_war_room_staged_object_create',
                 hook_description='Triggered on war room staged object creation, after commit in DB')
     create_safe(db.session, IrisHook, hook_name='on_postload_war_room_staged_object_update',

@@ -69,7 +69,8 @@ class _SchemaIsolationTestCase(TestCase):
             case_id=_CASE_IDENTIFIER,
             client_id=_CUSTOMER_IDENTIFIER,
             state_id=1,
-            reviewer_id=None
+            reviewer_id=None,
+            owner_id=None
         )
 
         self.schemas = [MagicMock(name='schema-0'), MagicMock(name='schema-1')]

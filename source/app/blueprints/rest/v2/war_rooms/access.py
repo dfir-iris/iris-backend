@@ -67,8 +67,8 @@ def war_room_redact_decisions(entries):
     return entries
 
 
-def war_room_redact_stage_history(entries):
-    """Blank the war room (and its decision) an asset stage-history entry
+def war_room_redact_flag_history(entries):
+    """Blank the war room (and its decision) an asset flag-history entry
     points to unless the caller can read that war room: the history is
     readable through the case, the room only through its own ACL."""
     readable = {}

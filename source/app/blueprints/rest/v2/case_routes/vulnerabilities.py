@@ -42,7 +42,7 @@ from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.blueprints.rest.v2.war_rooms.access import require_war_room_read
 from app.blueprints.rest.v2.war_rooms.access import war_room_redact_decisions
-from app.business.asset_stages import asset_stages_decision_war_room_id
+from app.business.asset_flags import asset_flags_decision_war_room_id
 from app.business.cases import cases_exists
 from app.business.vulnerability_findings import vulnerability_findings_case_create
 from app.business.vulnerability_findings import vulnerability_findings_case_delete
@@ -87,7 +87,7 @@ def _check_decision_readable(body):
     decision_id = body.get('decision_id')
     if decision_id is None:
         return
-    war_room_id = asset_stages_decision_war_room_id(decision_id)
+    war_room_id = asset_flags_decision_war_room_id(decision_id)
     if war_room_id is None or require_war_room_read(war_room_id) is not None:
         raise BusinessProcessingError(_UNKNOWN_DECISION)
 

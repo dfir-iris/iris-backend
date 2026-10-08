@@ -18,8 +18,9 @@ from sqlalchemy import case as sa_case
 from sqlalchemy import func
 
 from app.db import db
-from app.models.assets import AssetStage
-from app.models.assets import CaseAssetStageHistory
+from app.models.assets import AssetFlag
+from app.models.assets import CaseAssetFlag
+from app.models.assets import CaseAssetFlagHistory
 from app.models.assets import CaseAssets
 from app.models.authorization import User
 from app.models.cases import Cases
@@ -55,33 +56,43 @@ def sitreps_db_last_published_at(war_room_id):
     )
 
 
-def sitreps_db_stage_transitions(case_ids, since, limit):
+def sitreps_db_flag_changes(case_ids, since, limit):
     if not case_ids:
         return []
     query = (
         db.session.query(
-            CaseAssetStageHistory.case_id,
-            CaseAssetStageHistory.asset_id,
+            CaseAssetFlagHistory.case_id,
+            CaseAssetFlagHistory.asset_id,
             CaseAssets.asset_name,
             Cases.name.label('case_name'),
-            CaseAssetStageHistory.from_stage_name,
-            CaseAssetStageHistory.to_stage_name,
-            CaseAssetStageHistory.reason,
-            CaseAssetStageHistory.changed_at,
+            CaseAssetFlagHistory.flag_name,
+            CaseAssetFlagHistory.action,
+            CaseAssetFlagHistory.reason,
+            CaseAssetFlagHistory.changed_at,
             User.name.label('changed_by_name'),
         )
-        .join(CaseAssets, CaseAssets.asset_id == CaseAssetStageHistory.asset_id)
-        .join(Cases, Cases.case_id == CaseAssetStageHistory.case_id)
-        .outerjoin(User, User.id == CaseAssetStageHistory.changed_by_id)
-        .filter(CaseAssetStageHistory.case_id.in_(list(case_ids)))
+        .join(CaseAssets, CaseAssets.asset_id == CaseAssetFlagHistory.asset_id)
+        .join(Cases, Cases.case_id == CaseAssetFlagHistory.case_id)
+        .outerjoin(User, User.id == CaseAssetFlagHistory.changed_by_id)
+        .filter(CaseAssetFlagHistory.case_id.in_(list(case_ids)))
     )
     if since is not None:
-        query = query.filter(CaseAssetStageHistory.changed_at > since)
+        query = query.filter(CaseAssetFlagHistory.changed_at > since)
     return (
         query
-        .order_by(CaseAssetStageHistory.changed_at.desc(), CaseAssetStageHistory.id.desc())
+        .order_by(CaseAssetFlagHistory.changed_at.desc(), CaseAssetFlagHistory.id.desc())
         .limit(limit)
         .all()
+    )
+
+
+def _has_flag_kind(kind):
+    """EXISTS: the asset carries at least one flag of `kind`."""
+    return (
+        db.session.query(CaseAssetFlag.asset_id)
+        .join(AssetFlag, AssetFlag.id == CaseAssetFlag.flag_id)
+        .filter(CaseAssetFlag.asset_id == CaseAssets.asset_id, AssetFlag.kind == kind)
+        .exists()
     )
 
 
@@ -128,10 +139,9 @@ def sitreps_db_case_rows(war_room_id, case_ids):
         db.session.query(
             CaseAssets.case_id.label('case_id'),
             func.count(CaseAssets.asset_id).label('assets_total'),
-            func.sum(sa_case((AssetStage.kind == 'done', 1), else_=0)).label('assets_done'),
-            func.sum(sa_case((AssetStage.kind == 'exception', 1), else_=0)).label('assets_exception'),
+            func.sum(sa_case((_has_flag_kind('done'), 1), else_=0)).label('assets_done'),
+            func.sum(sa_case((_has_flag_kind('exception'), 1), else_=0)).label('assets_exception'),
         )
-        .outerjoin(AssetStage, AssetStage.id == CaseAssets.stage_id)
         .filter(CaseAssets.case_id.in_(list(case_ids)))
         .group_by(CaseAssets.case_id)
         .subquery()
@@ -173,8 +183,9 @@ def sitreps_db_case_rows(war_room_id, case_ids):
 
 
 def sitreps_db_exception_assets(case_ids, limit, war_room_id=None):
-    """Assets in an exception stage. The linked decision ref is only
-    resolved for decisions of `war_room_id` (never another room's)."""
+    """Exception flags set on assets, one row per (asset, flag). The
+    linked decision ref is only resolved for decisions of `war_room_id`
+    (never another room's)."""
     if not case_ids:
         return []
     return (
@@ -183,18 +194,19 @@ def sitreps_db_exception_assets(case_ids, limit, war_room_id=None):
             CaseAssets.asset_name,
             CaseAssets.case_id,
             Cases.name.label('case_name'),
-            AssetStage.name.label('stage_name'),
-            CaseAssets.stage_reason,
+            AssetFlag.name.label('flag_name'),
+            CaseAssetFlag.reason,
             WarRoomDecision.number.label('decision_number'),
         )
-        .join(AssetStage, AssetStage.id == CaseAssets.stage_id)
+        .join(CaseAssetFlag, CaseAssetFlag.asset_id == CaseAssets.asset_id)
+        .join(AssetFlag, AssetFlag.id == CaseAssetFlag.flag_id)
         .join(Cases, Cases.case_id == CaseAssets.case_id)
         .outerjoin(WarRoomDecision,
-                   (WarRoomDecision.decision_id == CaseAssets.stage_decision_id)
+                   (WarRoomDecision.decision_id == CaseAssetFlag.decision_id)
                    & (WarRoomDecision.war_room_id == war_room_id))
         .filter(CaseAssets.case_id.in_(list(case_ids)),
-                AssetStage.kind == 'exception')
-        .order_by(Cases.case_id.asc(), CaseAssets.asset_name.asc())
+                AssetFlag.kind == 'exception')
+        .order_by(Cases.case_id.asc(), CaseAssets.asset_name.asc(), AssetFlag.sort_order.asc())
         .limit(limit)
         .all()
     )

@@ -4,11 +4,9 @@
 
 """Unit tests for pure helpers in business/case_transfer/importer.py."""
 
-from types import SimpleNamespace
 from unittest import TestCase
 
 from app.business.case_transfer.importer import _case_name
-from app.business.case_transfer.importer import _drop_orphan_stage_reasons
 
 
 class TestCaseName(TestCase):
@@ -49,13 +47,3 @@ class TestCaseName(TestCase):
     def test_result_starts_with_hash_and_id(self):
         result = _case_name('Phishing', 8)
         self.assertTrue(result.startswith('#8 - '))
-
-
-class TestDropOrphanStageReasons(TestCase):
-
-    def test_reason_without_stage_is_dropped(self):
-        orphan = SimpleNamespace(stage_id=None, stage_reason='legacy OS')
-        kept = SimpleNamespace(stage_id=3, stage_reason='vendor EOL')
-        _drop_orphan_stage_reasons([(orphan, {}), (kept, {})])
-        self.assertIsNone(orphan.stage_reason)
-        self.assertEqual('vendor EOL', kept.stage_reason)

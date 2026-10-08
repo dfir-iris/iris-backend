@@ -386,7 +386,7 @@ def inspect_lookups(lookups):
                 # workflows cannot act on, so the operator has to choose.
                 'requires_decision': matched_id is None and not spec.creatable and not spec.optional,
                 # Optional reference data the target does not have is simply
-                # left out (e.g. an asset stage unknown to this instance).
+                # left out (e.g. an asset flag unknown to this instance).
                 'will_drop': matched_id is None and not spec.creatable and spec.optional,
             })
 

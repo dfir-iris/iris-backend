@@ -265,3 +265,28 @@ class TestsRestProfile(TestCase):
 
         response = user.update('/api/v2/me/preferences', {'time_format': '13h'})
         self.assertEqual(400, response.status_code)
+
+    def test_get_context_should_default_war_room_tab_order_to_empty(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual([], response['preferences']['war_room_tab_order'])
+
+    def test_update_preferences_should_modify_war_room_tab_order(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me/preferences', {'war_room_tab_order': ['chat', 'board']}).json()
+        self.assertEqual(['chat', 'board'], response['war_room_tab_order'])
+
+    def test_get_context_should_expose_war_room_tab_order_after_update(self):
+        user = self._subject.create_dummy_user()
+        user.update('/api/v2/me/preferences', {'war_room_tab_order': ['scope', 'chat']})
+
+        response = user.get('/api/v2/me/context').json()
+        self.assertEqual(['scope', 'chat'], response['preferences']['war_room_tab_order'])
+
+    def test_update_preferences_should_return_400_when_war_room_tab_order_has_duplicates(self):
+        user = self._subject.create_dummy_user()
+
+        response = user.update('/api/v2/me/preferences', {'war_room_tab_order': ['chat', 'chat']})
+        self.assertEqual(400, response.status_code)

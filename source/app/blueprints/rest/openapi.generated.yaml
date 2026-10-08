@@ -2492,18 +2492,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/cases/{case_identifier}/assets/{identifier}/links:
+  /api/v2/cases/{case_identifier}/assets/{identifier}/flag-history:
     get:
-      operationId: get_asset_other_case_links_get
-      summary: List other cases sharing this asset
+      operationId: get_asset_flag_history_get
+      summary: List the flag changes of a case asset, newest first
       tags:
       - CaseAssets
       security:
       - ApiKey: []
-      description: "\"Same asset\" matches the legacy v2.4.x heuristic: same name + same type\non a case\
-        \ belonging to the same customer that the current user has at\nleast read access to. The customer-scoping\
-        \ is important \u2014 it stops a\ngeneric name like `localhost` from lighting up across every\
-        \ tenant on\nthe instance."
       parameters:
       - name: case_identifier
         in: path
@@ -2524,10 +2520,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/cases/{case_identifier}/assets/{identifier}/stage:
-    put:
-      operationId: set_asset_stage_put
-      summary: Set the stage of a case asset
+  /api/v2/cases/{case_identifier}/assets/{identifier}/flags/{flag_id}:
+    delete:
+      operationId: clear_asset_flag_delete
+      summary: Remove a status flag from a case asset
       tags:
       - CaseAssets
       security:
@@ -2539,6 +2535,11 @@ paths:
         schema:
           type: integer
       - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: flag_id
         in: path
         required: true
         schema:
@@ -2556,14 +2557,54 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/cases/{case_identifier}/assets/{identifier}/stage-history:
-    get:
-      operationId: get_asset_stage_history_get
-      summary: List the stage changes of a case asset, newest first
+    put:
+      operationId: set_asset_flag_put
+      summary: Set a status flag on a case asset, or update its reason / decision
       tags:
       - CaseAssets
       security:
       - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: flag_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseAssets'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/assets/{identifier}/links:
+    get:
+      operationId: get_asset_other_case_links_get
+      summary: List other cases sharing this asset
+      tags:
+      - CaseAssets
+      security:
+      - ApiKey: []
+      description: "\"Same asset\" matches the legacy v2.4.x heuristic: same name + same type\non a case\
+        \ belonging to the same customer that the current user has at\nleast read access to. The customer-scoping\
+        \ is important \u2014 it stops a\ngeneric name like `localhost` from lighting up across every\
+        \ tenant on\nthe instance."
       parameters:
       - name: case_identifier
         in: path
@@ -6877,12 +6918,12 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v2/manage/asset-stages:
+  /api/v2/manage/asset-flags:
     get:
-      operationId: list_asset_stages_route_get
-      summary: List asset stages, ordered, with their usage count
+      operationId: list_asset_flags_route_get
+      summary: List asset flags, ordered, with their usage count
       tags:
-      - ManageAssetStages
+      - ManageAssetFlags
       security:
       - ApiKey: []
       responses:
@@ -6893,10 +6934,10 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
     post:
-      operationId: create_asset_stage_route_post
-      summary: Create an asset stage
+      operationId: create_asset_flag_route_post
+      summary: Create an asset flag
       tags:
-      - ManageAssetStages
+      - ManageAssetFlags
       security:
       - ApiKey: []
       responses:
@@ -6906,12 +6947,12 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v2/manage/asset-stages/{identifier}:
+  /api/v2/manage/asset-flags/{identifier}:
     delete:
-      operationId: delete_asset_stage_route_delete
-      summary: Delete an asset stage that is not in use
+      operationId: delete_asset_flag_route_delete
+      summary: Delete an asset flag that is not set on any asset
       tags:
-      - ManageAssetStages
+      - ManageAssetFlags
       security:
       - ApiKey: []
       parameters:
@@ -6930,10 +6971,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     put:
-      operationId: update_asset_stage_route_put
-      summary: Update an asset stage (fields left out keep their value)
+      operationId: update_asset_flag_route_put
+      summary: Update an asset flag (fields left out keep their value)
       tags:
-      - ManageAssetStages
+      - ManageAssetFlags
       security:
       - ApiKey: []
       parameters:
@@ -6951,12 +6992,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/manage/asset-stages/presets/{preset}:
+  /api/v2/manage/asset-flags/presets/{preset}:
     post:
-      operationId: apply_asset_stages_preset_route_post
-      summary: Replace the asset stages with a preset (only when no stage is in use)
+      operationId: apply_asset_flags_preset_route_post
+      summary: Replace the asset flags with a preset (only when no flag is set on an asset)
       tags:
-      - ManageAssetStages
+      - ManageAssetFlags
       security:
       - ApiKey: []
       parameters:
@@ -6974,12 +7015,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/manage/asset-stages/reorder:
+  /api/v2/manage/asset-flags/reorder:
     post:
-      operationId: reorder_asset_stages_route_post
-      summary: Reorder the asset stages (ids must list every stage once)
+      operationId: reorder_asset_flags_route_post
+      summary: Reorder the asset flags (ids must list every flag once)
       tags:
-      - ManageAssetStages
+      - ManageAssetFlags
       security:
       - ApiKey: []
       responses:
@@ -12740,7 +12781,7 @@ paths:
   /api/v2/war-rooms/{war_room_id}/board:
     get:
       operationId: get_board_get
-      summary: Get the war room board (stages, decisions, attention list)
+      summary: Get the war room board (asset flags, decisions, attention list)
       tags:
       - WarRoomBoard
       security:
@@ -14475,12 +14516,18 @@ paths:
         schema:
           type: string
         description: Substring of the name, IP, domain, description or tags
-      - name: stage_id
+      - name: flag_id
         in: query
         required: false
         schema:
           type: string
-        description: A stage id, or none for unstaged assets
+        description: Only the assets carrying this flag, or none for unflagged assets
+      - name: without_flag_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Only the assets not carrying this flag
       - name: case_id
         in: query
         required: false
@@ -14511,7 +14558,7 @@ paths:
         schema:
           type: integer
         description: Page number (1-based). When set, the response also carries total, page, per_page,
-          case_totals, stage_totals and per-asset sightings; without it, the list is capped
+          case_totals, flag_totals and per-asset sightings; without it, the list is capped
       - name: per_page
         in: query
         required: false
@@ -14555,10 +14602,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/war-rooms/{war_room_id}/scope/assets/push:
+  /api/v2/war-rooms/{war_room_id}/scope/assets/flags:
     post:
-      operationId: push_scope_assets_post
-      summary: Copy assets of attached cases into other attached cases
+      operationId: bulk_flag_scope_assets_post
+      summary: Set or remove a status flag on several assets of the attached cases
       tags:
       - WarRoomScope
       security:
@@ -14578,10 +14625,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v2/war-rooms/{war_room_id}/scope/assets/stage:
+  /api/v2/war-rooms/{war_room_id}/scope/assets/push:
     post:
-      operationId: bulk_stage_scope_assets_post
-      summary: Set the stage of several assets of the attached cases
+      operationId: push_scope_assets_post
+      summary: Copy assets of attached cases into other attached cases
       tags:
       - WarRoomScope
       security:
@@ -19770,7 +19817,7 @@ components:
           - string
           - 'null'
       description: Schema for serializing and deserializing AnalysisStatus objects.
-    AssetStage:
+    AssetFlag:
       type: object
       properties:
         id:
@@ -19795,12 +19842,10 @@ components:
           type: boolean
         requires_decision:
           type: boolean
-        is_optional:
-          type: boolean
         created_at:
           type: string
           format: date-time
-      description: Dump-only schema of an asset stage (taxonomy entry).
+      description: Dump-only schema of an asset flag (taxonomy entry).
     AssetType:
       type: object
       properties:
@@ -20056,6 +20101,42 @@ components:
       - case_name
       - case_soc_id
       description: Schema for serializing and deserializing Case objects.
+    CaseAssetFlag:
+      type: object
+      properties:
+        flag:
+          $ref: '#/components/schemas/AssetFlag'
+        asset_id:
+          type: integer
+          format: int64
+        flag_id:
+          type: integer
+        case_id:
+          type: integer
+          format: int64
+        reason:
+          type:
+          - string
+          - 'null'
+        decision_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        event_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+        set_at:
+          type: string
+          format: date-time
+        set_by_id:
+          type:
+          - integer
+          - 'null'
+          format: int64
+      description: Dump-only schema of a flag set on a case asset.
     CaseAssets:
       type: object
       properties:
@@ -20087,31 +20168,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/IocSchemaForAPIV2'
-        stage_id:
-          type:
-          - integer
-          - 'null'
-        stage_reason:
-          type:
-          - string
-          - 'null'
-        stage_decision_id:
-          type:
-          - integer
-          - 'null'
-          format: int64
-        stage_updated_at:
-          type:
-          - string
-          - 'null'
-          format: date-time
-        stage_updated_by_id:
-          type:
-          - integer
-          - 'null'
-          format: int64
-        stage:
-          $ref: '#/components/schemas/AssetStage'
+        flags:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseAssetFlag'
         asset_id:
           type: integer
           format: int64
