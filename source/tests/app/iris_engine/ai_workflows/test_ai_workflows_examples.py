@@ -96,7 +96,8 @@ class TestsExampleDocuments(TestCase):
         self.assertEqual({'virustotal_ioc_enrichment.workflow.json', 'virustotal_lookup.block.json',
                           'detection_rule_feedback.workflow.json', 'ioc_estate_hunt.workflow.json',
                           'alert_triage.workflow.json', 'alert_sla_watchdog.workflow.json',
-                          'shift_handover.workflow.json', 'case_kickoff.workflow.json'},
+                          'shift_handover.workflow.json', 'case_kickoff.workflow.json',
+                          'case_closure_documentation_review.workflow.json'},
                          {e['file'] for e in ai_workflows_guide_examples()})
 
     @patch('app.iris_engine.ai_workflows.graph.ai_workflows_db_postload_hooks', return_value=_HOOKS)

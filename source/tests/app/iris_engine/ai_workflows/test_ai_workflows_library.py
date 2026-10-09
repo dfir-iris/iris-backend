@@ -34,8 +34,8 @@ _CATALOGUE = {'node_types': [], 'trigger_types': [], 'hooks': [], 'entity_types'
 class TestsAiWorkflowsLibraryEntries(TestCase):
 
     def test_every_shipped_workflow_should_be_listed(self):
-        self.assertEqual(['detection_rule_feedback', 'virustotal_ioc_enrichment', 'ioc_estate_hunt', 'case_kickoff',
-                          'alert_sla_watchdog', 'shift_handover', 'alert_triage'],
+        self.assertEqual(['detection_rule_feedback', 'virustotal_ioc_enrichment', 'ioc_estate_hunt',
+                          'case_closure_documentation_review', 'case_kickoff', 'alert_sla_watchdog', 'shift_handover', 'alert_triage'],
                          [e['id'] for e in ai_workflows_library_entries()])
 
     def test_blocks_should_not_be_listed(self):
