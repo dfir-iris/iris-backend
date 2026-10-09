@@ -341,6 +341,7 @@ def _check_ai_agent(check, allowlist):
         check.add('output_schema', 'Must be a JSON schema of type object')
     check.integer('max_turns', 1, 20)
     check.integer('max_tool_calls', 0, 50)
+    check.integer('timeout_minutes', 1, 60)
 
 
 def _check_condition(check):

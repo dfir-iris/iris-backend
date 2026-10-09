@@ -21,11 +21,15 @@ run's scope: the policy model and limits, read-tool approval, proposed
 actions, the suggestion limit, untrusted-input fences, prompt caps, the
 heartbeat and the deadline. Runs on the in-memory engine harness."""
 
+import itertools
 from types import SimpleNamespace
+from unittest import TestCase
 from unittest.mock import patch
 
+from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate
 from app.iris_engine.ai_workflows.suggestions import AiWorkflowSuggestionLimitError
 from app.iris_engine.llm.providers.base import MessageEnd
+from app.iris_engine.llm.providers.base import TextDelta
 from app.iris_engine.llm.providers.base import ToolUseEnd
 from app.models.ai_workflows import EXEC_DENIED
 from tests.app.iris_engine.ai_workflows.harness import EngineTestCase
@@ -42,6 +46,10 @@ _WRITE_TOOL = 'iris_case_notes_create'
 
 def _agent(prompt='Triage', tools=None, **config):
     return {'id': 'ai', 'type': 'ai_agent', 'config': {'prompt': prompt, 'tools': tools or [], **config}}
+
+
+def _slow_turn():
+    return [TextDelta('a'), TextDelta('b'), TextDelta('c'), MessageEnd('end_turn', 10, 10)]
 
 
 def _tool_results(provider, call_index):
@@ -195,11 +203,54 @@ class TestsAgentLiveness(_AgentTestCase):
         self.assertEqual([], provider.calls)
         self.assertNotEqual('succeeded', run.status)
 
+    @staticmethod
+    def _clock(*values):
+        """`time` of the agent: `values`, then the last one forever."""
+        ticks = itertools.chain(values, itertools.repeat(values[-1]))
+        return SimpleNamespace(monotonic=lambda: next(ticks))
+
     def test_deadline_should_stop_the_agent(self):
         provider = self.use_policy(text_turn('ok'))
-        with patch(f'{_AGENT}._DEADLINE_SECONDS', -1):
+        with patch(f'{_AGENT}.time', self._clock(0, 601)):
             run = self.run_agent(_agent())
         self.assertEqual([], provider.calls)
+        self.assertNotEqual('succeeded', run.status)
+        self.assertIn('more than 10 minutes', run.error)
+        self.assertNotIn('LLM provider error', run.error)
+
+    def test_timeout_should_be_set_on_the_node(self):
+        self.use_policy(text_turn('ok'))
+        with patch(f'{_AGENT}.time', self._clock(0, 1500)):
+            run = self.run_agent(_agent(timeout_minutes=30))
+        self.assertEqual('succeeded', run.status, run.error)
+
+    def test_timeout_should_be_bounded(self):
+        provider = self.use_policy(text_turn('ok'))
+        with patch(f'{_AGENT}.time', self._clock(0, 3601)):
+            run = self.run_agent(_agent(timeout_minutes=500))
+        self.assertEqual([], provider.calls)
+        self.assertIn('more than 60 minutes', run.error)
+
+    def test_long_provider_call_should_heartbeat(self):
+        self.use_policy(_slow_turn())
+        with patch(f'{_AGENT}.time', SimpleNamespace(monotonic=itertools.count(0, 61).__next__)):
+            run = self.run_agent(_agent(timeout_minutes=60))
+        self.assertEqual('succeeded', run.status, run.error)
+        self.assertGreaterEqual(len(self.heartbeats), 3)
+
+    def test_run_cancelled_during_a_provider_call_should_stop_it(self):
+        provider = self.use_policy(_slow_turn())
+        beats = self.heartbeats
+
+        def _heartbeat(run_id, _now):
+            beats.append(run_id)
+            return len(beats) < 2
+
+        with patch(f'{_AGENT}.ai_workflows_db_heartbeat_run', _heartbeat), \
+                patch(f'{_AGENT}.ai_workflows_db_run_status_fresh', lambda _run_id: 'cancelled'), \
+                patch(f'{_AGENT}.time', SimpleNamespace(monotonic=itertools.count(0, 61).__next__)):
+            run = self.run_agent(_agent(timeout_minutes=60))
+        self.assertEqual(1, len(provider.calls))
         self.assertNotEqual('succeeded', run.status)
 
     def test_unreachable_database_should_not_stop_the_agent(self):
@@ -207,3 +258,17 @@ class TestsAgentLiveness(_AgentTestCase):
         with patch(f'{_AGENT}.ai_workflows_db_heartbeat_run', side_effect=RuntimeError('db down')):
             run = self.run_agent(_agent())
         self.assertEqual('succeeded', run.status)
+
+
+class TestsAgentTimeoutValidation(TestCase):
+
+    def _errors(self, **config):
+        graph = {'nodes': [{'id': 'trigger', 'type': 'trigger', 'config': {}},
+                           {'id': 'ai', 'type': 'ai_agent', 'config': {'prompt': 'Triage', **config}}],
+                 'edges': [{'id': 'e', 'source': 'trigger', 'target': 'ai', 'source_port': 'out'}]}
+        return [e['field'] for e in ai_workflows_graph_validate(graph, 'manual', {}, [])]
+
+    def test_timeout_should_be_between_1_and_60_minutes(self):
+        self.assertEqual([], self._errors(timeout_minutes=30))
+        self.assertEqual(['timeout_minutes'], self._errors(timeout_minutes=0))
+        self.assertEqual(['timeout_minutes'], self._errors(timeout_minutes=61))

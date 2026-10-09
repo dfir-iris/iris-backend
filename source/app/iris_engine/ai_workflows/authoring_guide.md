@@ -163,6 +163,7 @@ The config fields are listed with their defaults in the catalogue. Highlights:
     - `tools`: tool names the agent may call
     - `output_schema`: a JSON schema of type object; when set, the agent must answer in that shape
     - `max_turns` and `max_tool_calls`
+    - `timeout_minutes`: 1 to 60, 10 by default; past it the node fails (its `error` port)
     - `model`
     - `include_entity`
   - Output: `text`; `output` (the structured answer); `suggestion_ids` and `tool_calls`.

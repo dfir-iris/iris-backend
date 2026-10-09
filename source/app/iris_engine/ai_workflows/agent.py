@@ -29,7 +29,7 @@ The model is untrusted: every identifier it passes must stay inside the
 run's scope (its entity, the customers of the run), the policy of those
 customers decides the model and the limits, data reaches it fenced as
 untrusted input, and the loop heartbeats the run, stops when the run is
-no longer active and gives up after `_DEADLINE_SECONDS`.
+no longer active and gives up after the node's `timeout_minutes`.
 """
 
 import json
@@ -96,7 +96,11 @@ TOOL_PROPOSE_SUGGESTION = 'propose_suggestion'
 _MAX_TURNS_LIMIT = 20
 _MAX_TOOL_CALLS_LIMIT = 50
 _MAX_TOOL_RESULT_CHARS = 30_000
-_DEADLINE_SECONDS = 600
+_DEFAULT_TIMEOUT_MINUTES = 10
+_MAX_TIMEOUT_MINUTES = 60
+# A long provider exchange still heartbeats the run, well within the
+# recovery delay of the tick
+_STREAM_HEARTBEAT_SECONDS = 60
 _MAX_PROMPT_CHARS = 60_000
 _PROMPT_TRUNCATED = f'\n… [truncated: the input was longer than {_MAX_PROMPT_CHARS} characters]'
 # Bounds of the entity snapshot shown to the model
@@ -596,6 +600,8 @@ class _Agent:
         self.max_turns = _clamp(self.config.get('max_turns'), 6, 1, _MAX_TURNS_LIMIT)
         self.max_tool_calls = _clamp(self.config.get('max_tool_calls'), 10, 0, _MAX_TOOL_CALLS_LIMIT)
         self.max_tool_calls_per_turn = None
+        self.timeout_minutes = _clamp(self.config.get('timeout_minutes'), _DEFAULT_TIMEOUT_MINUTES, 1,
+                                      _MAX_TIMEOUT_MINUTES)
         self.auto_read = True
         self.tool_names = [name for name in self.config.get('tools') or []
                            if isinstance(name, str) and ai_workflows_tools_classification(name)]
@@ -681,9 +687,13 @@ class _Agent:
 
     # ---- liveness ------------------------------------------------------------
 
+    def _timeout_message(self) -> str:
+        unit = 'minute' if self.timeout_minutes == 1 else 'minutes'
+        return f'the agent ran for more than {self.timeout_minutes} {unit} (the timeout of the node)'
+
     def _check_deadline(self):
         if self.deadline is not None and time.monotonic() > self.deadline:
-            raise AiWorkflowAgentError(f'The agent ran for more than {_DEADLINE_SECONDS // 60} minutes')
+            raise AiWorkflowAgentError(f'Timeout: {self._timeout_message()}')
 
     def _alive(self) -> bool:
         """Heartbeat the run; False once it is no longer active (cancelled,
@@ -730,6 +740,8 @@ class _Agent:
         error = None
         prompt_tokens = 0
         completion_tokens = 0
+        stopped = None
+        last_beat = time.monotonic()
         try:
             for event in self.provider.stream_completion(model=self.model, system=system, messages=messages,
                                                          tools=tools):
@@ -746,9 +758,15 @@ class _Agent:
                 elif isinstance(event, Error):
                     error = event.message or 'Provider error'
                     break
-                if self.deadline is not None and time.monotonic() > self.deadline:
-                    error = f'the agent ran for more than {_DEADLINE_SECONDS // 60} minutes'
+                now = time.monotonic()
+                if self.deadline is not None and now > self.deadline:
+                    stopped = f'Timeout: {self._timeout_message()}'
                     break
+                if now - last_beat >= _STREAM_HEARTBEAT_SECONDS:
+                    last_beat = now
+                    if not self._alive():
+                        stopped = 'The run is no longer active'
+                        break
         except Exception as e:
             error = self.ctx.mask(str(e) or e.__class__.__name__)
             # No traceback: the provider's message may echo the prompt
@@ -756,7 +774,7 @@ class _Agent:
 
         row.prompt_tokens = prompt_tokens
         row.completion_tokens = completion_tokens
-        row.error = self.ctx.mask(error) if error else None
+        row.error = self.ctx.mask(error) if error else stopped
         row.response_snapshot = self.ctx.mask(ai_workflows_tools_json_safe({
             'text': ''.join(text),
             'tool_uses': tool_uses,
@@ -766,6 +784,8 @@ class _Agent:
         ai_workflows_db_commit()
         if error:
             raise AiWorkflowAgentError(f'LLM provider error: {self.ctx.mask(error)}')
+        if stopped:
+            raise AiWorkflowAgentError(stopped)
         return ''.join(text), tool_uses, stop_reason
 
     # ---- tools ---------------------------------------------------------------
@@ -895,7 +915,7 @@ class _Agent:
     # ---- loop ----------------------------------------------------------------
 
     def execute(self) -> dict:
-        self.deadline = time.monotonic() + _DEADLINE_SECONDS
+        self.deadline = time.monotonic() + self.timeout_minutes * 60
         self._setup()
         system = self._system()
         tools = _tools(self.run, self.tool_names, self.output_schema)

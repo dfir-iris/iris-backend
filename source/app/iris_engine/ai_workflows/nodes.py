@@ -207,7 +207,7 @@ _CATALOGUE = (
                'writes run only when allowlisted on the workflow, otherwise they become suggestions.', 'ai',
                (PORT_OUT, PORT_ERROR),
                {'prompt': '', 'tools': [], 'output_schema': None, 'max_turns': 6, 'max_tool_calls': 10,
-                'model': '', 'include_entity': True}),
+                'timeout_minutes': 10, 'model': '', 'include_entity': True}),
     _node_spec(NODE_CONDITION, 'Condition', 'Branches on an expression or on rules over the run context.',
                'logic', (PORT_TRUE, PORT_FALSE),
                {'mode': 'rules', 'expression': '', 'logic': 'and', 'rules': []}),
