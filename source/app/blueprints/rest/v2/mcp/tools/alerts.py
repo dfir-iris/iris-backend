@@ -97,6 +97,33 @@ _alert_summary_schema = AlertSchema(only=_ALERT_SUMMARY_FIELDS)
 # `iris_alerts_get`.
 _ALERT_LIST_PREVIEWS = {'alert_description': 300}
 
+# What `fields` may narrow a page to: the summary plus the lifecycle
+# timestamps. Meant for callers that page through many alerts to count
+# them (a weekly false-positive review), where a few fields per row let
+# a full page of 100 fit the response budget.
+_ALERT_SELECTABLE_FIELDS = _ALERT_SUMMARY_FIELDS + ('date_update', 'resolved_at')
+_ALERT_FIELDS_SCHEMAS: dict[tuple, AlertSchema] = {}
+
+
+def _alert_fields_schema(fields) -> AlertSchema | None:
+    """The projection on `fields` (a list or a comma-separated string),
+    or None when no field is asked for."""
+    if isinstance(fields, str):
+        fields = fields.split(',')
+    if not isinstance(fields, list):
+        raise MCPError(protocol.INVALID_PARAMS, '`fields` must be a list of field names.')
+    names = {str(f).strip() for f in fields if str(f).strip()}
+    if not names:
+        return None
+    unknown = sorted(names - set(_ALERT_SELECTABLE_FIELDS))
+    if unknown:
+        raise MCPError(protocol.INVALID_PARAMS,
+                       f'Unknown field(s) {", ".join(unknown)}; choose from {", ".join(_ALERT_SELECTABLE_FIELDS)}.')
+    key = tuple(sorted(names | {'alert_id'}))
+    if key not in _ALERT_FIELDS_SCHEMAS:
+        _ALERT_FIELDS_SCHEMAS[key] = AlertSchema(only=key)
+    return _ALERT_FIELDS_SCHEMAS[key]
+
 
 # Fields the LLM is allowed to update via iris_alerts_update. Kept in
 # lock-step with the REST endpoint's _ALERT_READONLY_UPDATE_FIELDS
@@ -192,6 +219,16 @@ def _get_alert(alert_id: int):
             'end_date': {'type': 'string'},
             'source_start_date': {'type': 'string'},
             'source_end_date': {'type': 'string'},
+            'fields': {
+                'type': 'array',
+                'items': {'type': 'string', 'enum': list(_ALERT_SELECTABLE_FIELDS)},
+                'description': (
+                    'Return only these fields of each alert (plus `alert_id`), '
+                    'instead of the `view`. For counting over many alerts: a '
+                    'few fields per row fit a page of 100. `resolved_at` and '
+                    '`date_update` are only available here.'
+                ),
+            },
         },
     },
     permissions=(Permissions.alerts_read,),
@@ -203,6 +240,7 @@ def iris_alerts_list(args: dict) -> dict:
     if per_page > MAX_PER_PAGE:
         per_page = MAX_PER_PAGE
     sort = args.get('sort') or 'desc'
+    fields_schema = _alert_fields_schema(args.get('fields') or [])
 
     try:
         result = alerts_search(
@@ -243,7 +281,7 @@ def iris_alerts_list(args: dict) -> dict:
             protocol.INVALID_PARAMS, f'{exc.get_message()}{where}'
         ) from exc
 
-    schema = schema_for_view(args, _alert_summary_schema, _alert_schema)
+    schema = fields_schema or schema_for_view(args, _alert_summary_schema, _alert_schema)
     rows = schema.dump(result.items, many=True)
     for field, limit in _ALERT_LIST_PREVIEWS.items():
         clip_text_field(rows, field, limit)

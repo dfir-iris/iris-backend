@@ -14,6 +14,7 @@ Dumping needs no DB: Marshmallow reads plain attributes.
 """
 
 import json
+from datetime import datetime
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -23,14 +24,17 @@ from app.blueprints.rest.v2.mcp.result_budget import (
 )
 from app.blueprints.rest.v2.mcp.tools._common import (
     DEFAULT_PER_PAGE,
+    MAX_PER_PAGE,
     VIEW_FULL,
     VIEW_SUMMARY,
     clip_text_field,
     requested_view,
     schema_for_view,
 )
+from app.blueprints.rest.v2.mcp.dispatch import MCPError
 from app.blueprints.rest.v2.mcp.tools.alerts import (
     _ALERT_LIST_PREVIEWS,
+    _alert_fields_schema,
     _alert_schema,
     _alert_summary_schema,
 )
@@ -252,6 +256,51 @@ class TestDefaultPageFitsTheResponseBudget(TestCase):
             f'serialises to {len(json.dumps(page, default=str))} bytes, over '
             f'the {MAX_RESULT_BYTES}-byte budget',
         )
+
+
+class TestAlertFieldsSelection(TestCase):
+    """`fields` narrows an alert list to the fields a caller counts on."""
+
+    _FIELDS = ['alert_title', 'alert_source', 'alert_creation_time', 'resolved_at',
+               'resolution_status.resolution_status_name']
+
+    def _resolved_alert(self):
+        alert = _busy_alert()
+        alert.alert_title = f"Suspicious PowerShell download cradle on host {'x' * 60}"
+        alert.alert_creation_time = datetime(2026, 10, 1, 9, 0)
+        alert.resolved_at = datetime(2026, 10, 1, 11, 30)
+        return alert
+
+    def test_fields_should_narrow_the_dump_and_keep_the_id(self):
+        dumped = _alert_fields_schema(self._FIELDS).dump(self._resolved_alert())
+        self.assertEqual({'alert_id', 'alert_title', 'alert_source', 'alert_creation_time', 'resolved_at',
+                          'resolution_status'}, set(dumped))
+        self.assertEqual({'resolution_status_name': 'True positive'}, dumped['resolution_status'])
+        self.assertEqual('2026-10-01T11:30:00', dumped['resolved_at'])
+
+    def test_comma_separated_fields_should_be_accepted(self):
+        dumped = _alert_fields_schema('alert_title, resolved_at').dump(self._resolved_alert())
+        self.assertEqual({'alert_id', 'alert_title', 'resolved_at'}, set(dumped))
+
+    def test_no_field_should_keep_the_view(self):
+        self.assertIsNone(_alert_fields_schema([]))
+        self.assertIsNone(_alert_fields_schema(' , '))
+
+    def test_unknown_fields_should_be_refused(self):
+        for fields in (['alert_context'], ['alert_title', 'owner.email'], 42):
+            with self.assertRaises(MCPError):
+                _alert_fields_schema(fields)
+
+    def test_same_fields_should_reuse_the_schema(self):
+        self.assertIs(_alert_fields_schema(['resolved_at', 'alert_title']),
+                      _alert_fields_schema(['alert_title', 'resolved_at']))
+
+    def test_largest_page_of_narrowed_alerts_should_fit_the_budget(self):
+        rows = _alert_fields_schema(self._FIELDS).dump([self._resolved_alert() for _ in range(MAX_PER_PAGE)],
+                                                       many=True)
+        page = {'total': 5000, 'data': rows, 'last_page': 50, 'current_page': 1, 'next_page': 2}
+        _, report = apply_result_budget(page)
+        self.assertIsNone(report, f'{len(json.dumps(page, default=str))} bytes')
 
 
 class TestViewSelection(TestCase):

@@ -17515,6 +17515,13 @@ paths:
                   type: string
                 source_end_date:
                   type: string
+                fields:
+                  type: array
+                  items:
+                    type: string
+                  description: 'Return only these fields of each alert (plus `alert_id`), instead of the
+                    `view`. For counting over many alerts: a few fields per row fit a page of 100. `resolved_at`
+                    and `date_update` are only available here.'
       responses:
         '200':
           description: "Tool result \u2014 JSON-RPC content wrapper."
