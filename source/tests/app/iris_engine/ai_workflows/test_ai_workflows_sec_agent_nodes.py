@@ -146,6 +146,22 @@ class TestsHttpErrors(_HttpTestCase):
         self.assertNotIn(SECRET_VALUE, self.persisted(run))
 
 
+class TestsHttpResponse(_HttpTestCase):
+
+    def test_large_json_answer_should_be_read_whole_and_parsed(self):
+        self.response = dict(self.response, response_body=json.dumps({'data': {'pad': 'x' * 40000, 'id': '1.1.1.1'}}))
+        run = self.run_nodes(_http(url='https://api.example.org/', response_format='json'))
+        self.assertGreater(self.sent[0][1]['max_response_chars'], 40000)
+        self.assertEqual('1.1.1.1', self.http_step(run).output['body']['data']['id'])
+
+    def test_large_text_answer_should_be_cut(self):
+        self.response = dict(self.response, response_body='x' * 100000)
+        run = self.run_nodes(_http(url='https://api.example.org/', response_format='text'))
+        body = self.http_step(run).output['body']
+        self.assertLess(len(body), 70000)
+        self.assertIn('truncated', body)
+
+
 class TestsNotifyAudience(EngineTestCase):
 
     def test_users_audience_without_entity_should_skip_inactive_and_unknown_users(self):

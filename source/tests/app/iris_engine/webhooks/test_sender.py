@@ -176,6 +176,11 @@ class TestWebhooksSend(TestCase):
         self.assertLess(len(result['response_body']), 20000)
         self.assertIn('truncated', result['response_body'])
 
+    def test_caller_should_be_able_to_keep_a_longer_response(self):
+        self.send.return_value = _response(200, text='x' * 50000)
+        result = webhooks_send(_request(), max_response_chars=100000)
+        self.assertEqual('x' * 50000, result['response_body'])
+
 
 class TestWebhooksProxy(TestCase):
 

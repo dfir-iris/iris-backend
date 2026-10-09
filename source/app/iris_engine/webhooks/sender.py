@@ -210,9 +210,9 @@ def _host_header(url):
     return f'{host}:{parts.port}' if parts.port else host
 
 
-def _read_body(response, deadline):
+def _read_body(response, deadline, max_chars):
     """Body text, at most `_MAX_RESPONSE_BYTES` read from the wire and
-    `_MAX_RESPONSE_CHARS` kept."""
+    `max_chars` kept."""
     chunks = []
     size = 0
     clipped = False
@@ -237,8 +237,8 @@ def _read_body(response, deadline):
     except LookupError:
         text = b''.join(chunks).decode('utf-8', errors='replace')
     if clipped:
-        return f'{text[:_MAX_RESPONSE_CHARS]}\n… [truncated, more than {_MAX_RESPONSE_BYTES} bytes]'
-    return _truncate(text, _MAX_RESPONSE_CHARS)
+        return f'{text[:max_chars]}\n… [truncated, more than {_MAX_RESPONSE_BYTES} bytes]'
+    return _truncate(text, max_chars)
 
 
 def _is_certificate_error(error):
@@ -268,7 +268,7 @@ def _result(**fields):
 
 
 def webhooks_send(request, verify_tls=True, timeout=10, follow_redirects=False, proxies=None,
-                  use_proxy=True, allow_private=None, deadline=None) -> dict:
+                  use_proxy=True, allow_private=None, deadline=None, max_response_chars=None) -> dict:
     """Send `request` (from `webhooks_render_request`).
 
     `proxies` are the server settings proxies; the standard `HTTP(S)_PROXY`
@@ -277,6 +277,8 @@ def webhooks_send(request, verify_tls=True, timeout=10, follow_redirects=False, 
     private-egress setting (AI workflows pass their own); None keeps it.
     `deadline` bounds the whole exchange in seconds, redirects and body
     included (default: the larger of 30s and `timeout`).
+    `max_response_chars` is how much of the response body is kept
+    (default 16 KiB, enough for a delivery log; at most what is read).
     """
     method = request['method']
     url = request['url']
@@ -344,7 +346,7 @@ def webhooks_send(request, verify_tls=True, timeout=10, follow_redirects=False, 
                 continue
 
             status = response.status_code
-            text = _read_body(response, ends_at)
+            text = _read_body(response, ends_at, max_response_chars or _MAX_RESPONSE_CHARS)
             return _result(
                 success=200 <= status < 300,
                 retryable=status in _RETRYABLE_STATUSES,

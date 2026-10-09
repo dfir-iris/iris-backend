@@ -100,6 +100,22 @@ class TestsStepping(EngineTestCase):
         self.assertFalse(run.is_executing)
         self.assertEqual([run], self.published)
 
+    def test_progress_should_be_pushed_live(self):
+        graph = chain({'id': 'vars', 'type': 'set_variables', 'config': {'variables': []}})
+        run = self.run_to_rest(workflow(graph))
+        steps = [(e['step']['node_id'], e['step']['status']) for e in self.live if e['step']]
+        self.assertEqual([('trigger', 'running'), ('trigger', 'succeeded'), ('vars', 'running'),
+                          ('vars', 'succeeded')], steps)
+        self.assertEqual('running', self.live[0]['status'])
+        self.assertIsNone(self.live[0]['step'])
+        self.assertEqual('succeeded', self.live[-1]['status'])
+        self.assertEqual({str(run.uuid)}, {e['run_uuid'] for e in self.live})
+
+    def test_cancel_should_be_pushed_live(self):
+        run = self.start(workflow(chain({'id': 'vars', 'type': 'set_variables', 'config': {'variables': []}})))
+        ai_workflows_engine_cancel_run(run, OWNER_ID)
+        self.assertEqual('cancelled', self.live[-1]['status'])
+
     def test_condition_should_follow_the_matching_port(self):
         graph = {
             'nodes': [

@@ -23,7 +23,10 @@ from flask_socketio import leave_room
 from app import socket_io
 from app.blueprints.access_controls import is_user_authenticated
 from app.blueprints.iris_user import iris_current_user
+from app.business.ai_workflows import ai_workflows_live_room
 from app.business.auth import validate_auth_token
+from app.iris_engine.ai_workflows.live import ai_workflows_live_run_room
+from app.iris_engine.ai_workflows.live import ai_workflows_live_workflow_room
 
 
 logger = logging.getLogger(__name__)
@@ -128,6 +131,48 @@ def on_leave(_data=None):
     if not user_id:
         return
     leave_room(f'user-{user_id}')
+
+
+def _live_room(data):
+    """Room of the run / workflow named in `data` the current user may
+    watch, or None. The access check is the REST one."""
+    user_id = _current_user_id()
+    if not user_id or not isinstance(data, dict):
+        return None
+    run_uuid = data.get('run_uuid')
+    workflow_id = data.get('workflow_id')
+    if not isinstance(run_uuid, (str, type(None))) or isinstance(workflow_id, bool) \
+            or not isinstance(workflow_id, (int, type(None))):
+        return None
+    try:
+        return ai_workflows_live_room(user_id, run_uuid=run_uuid, workflow_id=workflow_id)
+    except Exception:
+        return None
+
+
+@socket_io.on('ai_workflow_watch', namespace=NAMESPACE)
+def on_ai_workflow_watch(data=None):
+    """Follow the live progress of an AI workflow run (`{run_uuid}`) or
+    of every run of a workflow (`{workflow_id}`): `ai_workflow_run`
+    events. The ack tells whether the room was joined."""
+    room = _live_room(data)
+    if room is None:
+        return {'ok': False}
+    join_room(room)
+    return {'ok': True}
+
+
+@socket_io.on('ai_workflow_unwatch', namespace=NAMESPACE)
+def on_ai_workflow_unwatch(data=None):
+    """Leaving needs no access check (nor still having access)."""
+    if not isinstance(data, dict):
+        return
+    run_uuid = data.get('run_uuid')
+    workflow_id = data.get('workflow_id')
+    if isinstance(run_uuid, str) and run_uuid:
+        leave_room(ai_workflows_live_run_room(run_uuid[:64]))
+    if isinstance(workflow_id, int) and not isinstance(workflow_id, bool):
+        leave_room(ai_workflows_live_workflow_room(workflow_id))
 
 
 def register_notification_socket_handlers():

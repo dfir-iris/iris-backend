@@ -103,6 +103,8 @@ from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_node
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_trigger_config
 from app.iris_engine.ai_workflows.keystore import ai_workflows_keystore_visible_entries
+from app.iris_engine.ai_workflows.live import ai_workflows_live_run_room
+from app.iris_engine.ai_workflows.live import ai_workflows_live_workflow_room
 from app.iris_engine.ai_workflows.nodes import NODE_TRIGGER
 from app.iris_engine.ai_workflows.nodes import ai_workflows_nodes_catalogue
 from app.iris_engine.ai_workflows.nodes import ai_workflows_nodes_is_waiting
@@ -134,6 +136,8 @@ from app.models.ai_workflows import SUGGESTION_KINDS
 from app.models.ai_workflows import TRIGGER_MANUAL
 from app.models.ai_workflows import TRIGGER_TYPES
 from app.models.ai_workflows import TRIGGER_WEBHOOK
+from app.models.authorization import Permissions
+from app.models.authorization import ac_has_permission_server_administrator
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 
@@ -1202,6 +1206,30 @@ def ai_workflows_list_inbound_events(user_id, is_admin, workflow_id=None, limit=
 # definition of the workflow, from that node, with the context it saw.
 
 _EVENT_STATUSES = (STEP_SUCCEEDED, STEP_FAILED, STEP_WAITING)
+
+
+def ai_workflows_live_room(user_id, run_uuid=None, workflow_id=None) -> str:
+    """The Socket.IO room pushing the live progress of a run (one the
+    user can see) or of every run of a workflow (one the user can edit).
+    Raises ObjectNotFoundError otherwise, as the REST views do."""
+    ai_workflows_require_enabled()
+    user = ai_workflows_db_get_user(user_id) if user_id else None
+    if user is None or not user.active:
+        raise ObjectNotFoundError()
+    permissions = ac_get_effective_permissions_of_user(user)
+    is_admin = ac_has_permission_server_administrator(permissions)
+    readable = Permissions.ai_workflows_read.value | Permissions.ai_workflows_write.value
+    if not is_admin and not permissions & readable:
+        raise AiWorkflowsForbiddenError()
+    if run_uuid:
+        return ai_workflows_live_run_room(_get_visible_run(str(run_uuid), user_id, is_admin).uuid)
+    if workflow_id is not None:
+        try:
+            workflow_id = int(workflow_id)
+        except (TypeError, ValueError):
+            raise ObjectNotFoundError()
+        return ai_workflows_live_workflow_room(_get_owned_workflow(workflow_id, user_id, is_admin).id)
+    raise BusinessProcessingError('A run or a workflow is required')
 
 
 def ai_workflows_node_stats(workflow_id, user_id, is_admin) -> dict:

@@ -141,7 +141,7 @@ The config fields are listed with their defaults in the catalogue. Highlights:
     - Auth: `auth_type` is `none`, `basic` or `bearer`, with `auth_username` and `auth_secret`.
     - Body: `body_mode` is `default` (a JSON summary of the run), `template` (use `body_template`) or `none`. Also `content_type`.
     - Transport: `timeout_seconds` (max 120), `verify_tls`, `use_proxy`, and `response_format` (`json` or `text`).
-  - **Output:** `status_code`, `headers` and `body`; the body is parsed when it is JSON.
+  - **Output:** `status_code`, `headers` and `body`; the body is parsed when it is JSON. Up to 1 MiB of the response is read; a body kept as text is cut to 64 KiB.
   - **Non-2xx responses** leave through `error`, with `output.error` set.
   - **Async mode** (`mode: "async"`) sends `callback.url` and `callback.token`. The run then waits up to `wait_timeout_minutes` for the remote system to call back.
   - **Redirects are not followed.** Private addresses are refused unless the instance allows them.

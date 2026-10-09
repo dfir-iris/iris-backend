@@ -53,6 +53,7 @@ from app.iris_engine.access_control.utils import ac_get_effective_permissions_of
 from app.iris_engine.ai_workflows.engine import ai_workflows_engine_lock_run_then_wait
 from app.iris_engine.ai_workflows.engine import ai_workflows_engine_resume_wait
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_scope_allows
+from app.iris_engine.ai_workflows.suggestions import SEVERITIES
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_emit
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_serialize
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_user_can_see
@@ -90,6 +91,9 @@ _PORT_TIMEOUT = 'timeout'
 _MAX_NOTE = 4000
 _MAX_TEXT_ANSWER = 20000
 _MAX_COUNT_IDS = 500
+_DEFAULT_LIST = 200
+_MAX_LIST = 500
+_NO_ENTITY = 'none'
 _FIELD_TYPES = ('text', 'textarea', 'number', 'boolean', 'select')
 
 # Argument names (at any depth of the tool arguments) that name an
@@ -333,9 +337,18 @@ def _publish_expired(expired):
 # ---- Read ------------------------------------------------------------------
 
 def ai_suggestions_list(user_id, entity_type=None, entity_id=None, status=None, run_uuid=None,
-                        scope_mask=None) -> list:
+                        scope_mask=None, workflow_id=None, severity=None, mine=False, limit=None) -> list:
+    """Newest first. `entity_type` `none`: the suggestions about no
+    entity. `mine`: only those addressed to the user — always the case
+    for a non-administrator, who also sees the ones addressed to no one
+    on an entity they can access."""
+    without_entity = entity_type == _NO_ENTITY
+    if without_entity:
+        entity_type = None
     if entity_type and entity_type not in ENTITY_TYPES:
         raise BusinessProcessingError('Invalid entity type', data={'entity_type': [f'Unknown {entity_type}']})
+    if severity and severity not in SEVERITIES:
+        raise BusinessProcessingError('Invalid severity filter', data={'severity': [f'Unknown severity {severity}']})
     if not status:
         statuses = [SUGGESTION_OPEN]
     elif status == 'all':
@@ -350,8 +363,14 @@ def ai_suggestions_list(user_id, entity_type=None, entity_id=None, status=None, 
         if run is None:
             return []
         run_id = run.id
+    limit = max(1, min(int(limit or _DEFAULT_LIST), _MAX_LIST))
+    is_admin = _is_admin(user_id)
+    audience = {}
+    if mine or not is_admin:
+        audience = {'audience_user_id': user_id, 'with_unaddressed': not mine}
     rows = ai_workflows_db_list_suggestions(entity_type=entity_type or None, entity_id=entity_id,
-                                            statuses=statuses, run_id=run_id)
+                                            statuses=statuses, run_id=run_id, limit=limit, workflow_id=workflow_id,
+                                            severity=severity or None, without_entity=without_entity, **audience)
     return [ai_workflows_suggestion_public(s, user_id) for s in rows if _visible(s, user_id, scope_mask)]
 
 

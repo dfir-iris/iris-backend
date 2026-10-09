@@ -87,9 +87,12 @@ ai_suggestions_blueprint = Blueprint('ai_suggestions_rest_v2', __name__, url_pre
 @ai_suggestions_blueprint.get('')
 @ac_api_requires()
 @api_doc(tags=['AiSuggestions'], summary='List the AI suggestions the user can see',
-         query_params=[('entity_type', 'string'), ('entity_id', 'integer'),
+         query_params=[('entity_type', 'string', "Entity type, 'none' for the suggestions about no entity"),
+                       ('entity_id', 'integer'),
                        ('status', 'string', "Suggestion status, 'open' by default, 'all' for every status"),
-                       ('run_uuid', 'string')])
+                       ('run_uuid', 'string'), ('workflow_id', 'integer'), ('severity', 'string'),
+                       ('mine', 'boolean', 'Only the suggestions addressed to the current user'),
+                       ('limit', 'integer', 'At most this many suggestions (200 by default, 500 at most)')])
 def list_ai_suggestions_route():
     def _operation():
         return ai_suggestions_list(
@@ -99,6 +102,10 @@ def list_ai_suggestions_route():
             status=request.args.get('status') or None,
             run_uuid=request.args.get('run_uuid') or None,
             scope_mask=_scope_mask(),
+            workflow_id=_int_arg('workflow_id'),
+            severity=request.args.get('severity') or None,
+            mine=request.args.get('mine', '').lower() in ('1', 'true', 'yes'),
+            limit=_int_arg('limit'),
         )
     return _handle(_operation)
 

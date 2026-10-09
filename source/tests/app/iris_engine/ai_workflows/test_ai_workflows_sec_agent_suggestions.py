@@ -28,6 +28,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from app.iris_engine.ai_workflows.suggestions import AiWorkflowSuggestionLimitError
+from app.iris_engine.ai_workflows.suggestions import _publish_created
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_create
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_neutralise_links
 from app.iris_engine.ai_workflows.tools import ai_workflows_tools_execute
@@ -40,7 +41,8 @@ _TITLES = {('case', 1): 'Phishing wave', ('alert', 2): 'Suspicious login', ('cas
 
 def _run(**fields):
     values = {'id': 5, 'uuid': 'r', 'run_as_user_id': 3, 'entity_type': 'case', 'entity_id': 1, 'sub_entity': None,
-              'workflow_id': 1, 'customer_id': 1, 'is_dry_run': True, 'definition_snapshot': {}}
+              'workflow_id': 1, 'customer_id': 1, 'is_dry_run': True, 'definition_snapshot': {},
+              'triggered_by_user_id': 9}
     values.update(fields)
     return SimpleNamespace(**values)
 
@@ -50,7 +52,9 @@ class TestsSuggestionCreation(TestCase):
     def setUp(self):
         self.count = 0
         self.added = []
+        self.published = []
         patches = {
+            f'{_SUGGESTIONS}._publish_created': lambda _run, suggestion: self.published.append(suggestion),
             f'{_SUGGESTIONS}.ai_workflows_db_add': self.added.append,
             f'{_SUGGESTIONS}.ai_workflows_db_commit': lambda: None,
             f'{_SUGGESTIONS}.ai_workflows_db_entity_owner_ids': lambda _type, _id: [],
@@ -102,6 +106,46 @@ class TestsSuggestionCreation(TestCase):
                                                      body='See ![img](http://evil.example/p.png)')
         self.assertEqual('Open case (https://evil.example/x)', suggestion.title)
         self.assertEqual('See img (http://evil.example/p.png)', suggestion.body)
+
+    def test_dry_run_suggestion_should_go_to_whoever_started_it(self):
+        suggestion = ai_workflows_suggestions_create(_run(), None, title='Would close')
+        self.assertEqual('dry_run', suggestion.status)
+        self.assertEqual([9], suggestion.audience_user_ids)
+        self.assertEqual([suggestion], self.published)
+
+    def test_suggestion_should_go_to_the_run_as_user(self):
+        suggestion = ai_workflows_suggestions_create(_run(is_dry_run=False), None, title='Close')
+        self.assertEqual('open', suggestion.status)
+        self.assertEqual([3], suggestion.audience_user_ids)
+        self.assertEqual([suggestion], self.published)
+
+
+class TestsSuggestionPublication(TestCase):
+
+    def _publish(self, status):
+        suggestion = SimpleNamespace(id=42, title='Close the alert', body=None, status=status,
+                                     audience_user_ids=[9], case_id=None)
+        with patch('app.iris_engine.notifications.service.notify_many') as notify, \
+                patch(f'{_SUGGESTIONS}.ai_workflows_suggestions_emit') as emit, \
+                patch(f'{_SUGGESTIONS}.ai_workflows_suggestions_serialize', return_value={}), \
+                patch(f'{_SUGGESTIONS}.ai_workflows_identity_chain', lambda _run: contextlib.nullcontext()), \
+                patch('app.iris_engine.module_handler.module_handler.call_modules_hook') as hook:
+            _publish_created(_run(), suggestion)
+        return notify, emit, hook
+
+    def test_notification_should_link_to_the_inbox(self):
+        notify, emit, hook = self._publish('open')
+        self.assertEqual([9], notify.call_args.args[0])
+        self.assertEqual('/suggestions?id=42', notify.call_args.kwargs['link'])
+        self.assertEqual('created', emit.call_args.args[1])
+        hook.assert_called_once()
+
+    def test_dry_run_should_be_notified_without_the_hook(self):
+        notify, emit, hook = self._publish('dry_run')
+        self.assertTrue(notify.call_args.args[2].startswith('AI suggestion (dry run): '))
+        self.assertEqual('/suggestions?id=42', notify.call_args.kwargs['link'])
+        emit.assert_called_once()
+        hook.assert_not_called()
 
 
 class TestsNeutraliseLinks(TestCase):

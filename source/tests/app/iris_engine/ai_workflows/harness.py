@@ -27,6 +27,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from app import app as _app
+from app.iris_engine.ai_workflows.live import ai_workflows_live_payload
 from app.iris_engine.llm.providers.base import MessageEnd
 from app.iris_engine.llm.providers.base import TextDelta
 from app.iris_engine.llm.providers.base import ToolUseEnd
@@ -218,6 +219,7 @@ class EngineTestCase(TestCase):
         self.published = []
         self.tool_results = {}
         self.executed = []
+        self.live = []
         user = SimpleNamespace(id=OWNER_ID, active=True, user='owner', name='Owner', email='o@example.org')
         store = self.store
 
@@ -249,6 +251,8 @@ class EngineTestCase(TestCase):
             f'{_ENGINE}.ai_workflows_suggestions_emit': lambda _suggestion, _action: None,
             f'{_ENGINE}._enqueue': lambda run_id, _countdown=None: self.enqueued.append(run_id),
             f'{_ENGINE}._publish_complete': self.published.append,
+            f'{_ENGINE}.ai_workflows_live_emit':
+                lambda run, step=None: self.live.append(ai_workflows_live_payload(run, step)),
             f'{_NODES}.ai_workflows_entities_snapshot': lambda _type, _id: {'id': _id, 'title': 'Phishing'},
             f'{_ENGINE}.ai_workflows_entities_snapshot': lambda _type, _id: {'id': _id, 'title': 'Phishing'},
             f'{_NODES}.ai_workflows_suggestions_create': store.create_suggestion,

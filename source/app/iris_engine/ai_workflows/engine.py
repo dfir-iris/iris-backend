@@ -80,6 +80,7 @@ from app.iris_engine.ai_workflows.identity import ai_workflows_identity
 from app.iris_engine.ai_workflows.identity import ai_workflows_identity_chain
 from app.iris_engine.ai_workflows.identity import ai_workflows_identity_check_user
 from app.iris_engine.ai_workflows.keystore import ai_workflows_keystore_resolver
+from app.iris_engine.ai_workflows.live import ai_workflows_live_emit
 from app.iris_engine.ai_workflows.nodes import NODE_PORTS
 from app.iris_engine.ai_workflows.nodes import PORT_ANSWERED
 from app.iris_engine.ai_workflows.nodes import PORT_ERROR
@@ -342,6 +343,7 @@ def ai_workflows_engine_insert_run(workflow, trigger_type, *, denial=None, trigg
         ai_workflows_db_add(run)
         ai_workflows_db_commit()
         logger.info(f'AI workflow #{workflow.id} run {run.uuid} refused: {denial}')
+        ai_workflows_live_emit(run)
         return run
     run = _new_run(workflow, trigger_type, dedup_key=dedup_key, **common)
     if entity_type and entity_id is not None:
@@ -357,6 +359,7 @@ def ai_workflows_engine_insert_run(workflow, trigger_type, *, denial=None, trigg
         run.tested_node_id = tested_node['id']
     ai_workflows_db_add(run)
     ai_workflows_db_commit()
+    ai_workflows_live_emit(run)
     if enqueue:
         _enqueue(run.id)
     return run
@@ -794,6 +797,7 @@ def _pop(run_id):
     )
     ai_workflows_db_add(step)
     ai_workflows_db_commit()
+    ai_workflows_live_emit(run, step)
     return step.id, node
 
 
@@ -825,6 +829,17 @@ def _settle_run(run_id):
         _publish_complete(run)
 
 
+def _live(run_id, step_id=None):
+    """Push the run (and step `step_id`) as committed."""
+    try:
+        run = ai_workflows_db_get_run(run_id)
+        step = ai_workflows_db_get_step(step_id) if step_id is not None else None
+    except Exception:
+        logger.exception(f'AI workflow run #{run_id}: live state not read')
+        return
+    ai_workflows_live_emit(run, step)
+
+
 def ai_workflows_engine_step(run_id):
     """Worker entry point: execute the pending nodes of a run."""
     run = ai_workflows_db_get_run(run_id, lock=True)
@@ -847,6 +862,7 @@ def ai_workflows_engine_step(run_id):
                 break
             step_id = popped[0]
             keep_going = _execute_node(run_id, *popped)
+            _live(run_id, step_id)
             step_id = None
             if not keep_going:
                 break
@@ -859,6 +875,7 @@ def ai_workflows_engine_step(run_id):
             ai_workflows_db_rollback()
     finally:
         _settle_run(run_id)
+        _live(run_id)
 
 
 def ai_workflows_engine_recover_stale(run, before=None):
@@ -885,6 +902,7 @@ def ai_workflows_engine_recover_stale(run, before=None):
     run.executing_since = None
     ai_workflows_db_commit()
     _emit_all(expired)
+    ai_workflows_live_emit(run, lost[0] if lost else None)
     if lost:
         _publish_complete(run)
     elif run.status == RUN_RUNNING:
@@ -1002,6 +1020,7 @@ def ai_workflows_engine_resume_wait(wait, payload, *, resolved_by_id=None, sourc
         finished = True
     ai_workflows_db_commit()
     _emit_all(expired)
+    ai_workflows_live_emit(run, step)
     if finished:
         _publish_complete(run)
     elif run.status == RUN_RUNNING and not run.is_executing:
@@ -1031,5 +1050,6 @@ def ai_workflows_engine_cancel_run(run, user_id, reason=None) -> AiWorkflowRun:
     expired = _close_waits(run, user_id)
     ai_workflows_db_commit()
     _emit_all(expired)
+    ai_workflows_live_emit(run)
     _publish_complete(run)
     return run

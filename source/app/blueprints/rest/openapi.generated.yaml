@@ -47,6 +47,7 @@ paths:
         required: false
         schema:
           type: string
+        description: Entity type, 'none' for the suggestions about no entity
       - name: entity_id
         in: query
         required: false
@@ -63,6 +64,28 @@ paths:
         required: false
         schema:
           type: string
+      - name: workflow_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: severity
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: mine
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Only the suggestions addressed to the current user
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: At most this many suggestions (200 by default, 500 at most)
       responses:
         '200':
           description: Success

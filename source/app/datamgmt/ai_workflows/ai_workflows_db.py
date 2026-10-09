@@ -410,8 +410,25 @@ def ai_workflows_db_get_suggestion(suggestion_id, lock=False):
     return query.first()
 
 
-def ai_workflows_db_list_suggestions(entity_type=None, entity_id=None, statuses=None, run_id=None, limit=200):
+def ai_workflows_db_list_suggestions(entity_type=None, entity_id=None, statuses=None, run_id=None, limit=200,
+                                     workflow_id=None, severity=None, audience_user_id=None, with_unaddressed=False,
+                                     without_entity=False):
+    """Newest first. `audience_user_id`: only the suggestions addressed to
+    that user (plus, `with_unaddressed`, those addressed to no one)."""
     query = AiSuggestion.query
+    if workflow_id is not None:
+        query = query.filter(AiSuggestion.workflow_id == workflow_id)
+    if severity:
+        query = query.filter(AiSuggestion.severity == severity)
+    if without_entity:
+        query = query.filter(AiSuggestion.entity_type.is_(None))
+    if audience_user_id is not None:
+        addressed = AiSuggestion.audience_user_ids.contains([audience_user_id])
+        if with_unaddressed:
+            # SQL NULL or a JSON null, depending on how the row was written
+            addressed = or_(addressed, AiSuggestion.audience_user_ids.is_(None),
+                            func.jsonb_typeof(AiSuggestion.audience_user_ids) == 'null')
+        query = query.filter(addressed)
     if entity_type:
         query = query.filter(AiSuggestion.entity_type == entity_type)
     if entity_id is not None:

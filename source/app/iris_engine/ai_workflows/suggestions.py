@@ -84,6 +84,11 @@ def _entity_link(entity_type, entity_id):
     return template.format(id=entity_id) if template and entity_id is not None else None
 
 
+def ai_workflows_suggestions_inbox_link(suggestion_id) -> str:
+    """The suggestion in the suggestions inbox."""
+    return f'/suggestions?id={int(suggestion_id)}'
+
+
 class AiWorkflowSuggestionLimitError(Exception):
     pass
 
@@ -188,7 +193,10 @@ def _confidence(value):
 
 def _audience(run, entity_type, entity_id) -> list:
     snapshot = run.definition_snapshot or {}
-    if snapshot.get('suggestion_audience') == AUDIENCE_OWNER:
+    if run.is_dry_run:
+        # Only whoever started the dry run looks at what it would suggest
+        candidates = [run.triggered_by_user_id or snapshot.get('owner_id')]
+    elif snapshot.get('suggestion_audience') == AUDIENCE_OWNER:
         candidates = [snapshot.get('owner_id')]
     else:
         candidates = list(ai_workflows_db_entity_owner_ids(entity_type, entity_id)) if entity_type else []
@@ -266,7 +274,7 @@ def ai_workflows_suggestions_create(run, step, **fields) -> AiSuggestion:
                                     if _can_see_entities(user_id, suggestion)]
     ai_workflows_db_commit()
 
-    if status == SUGGESTION_OPEN:
+    if status in (SUGGESTION_OPEN, SUGGESTION_DRY_RUN):
         _publish_created(run, suggestion)
     return suggestion
 
@@ -275,19 +283,23 @@ def _publish_created(run, suggestion):
     from app.iris_engine.module_handler.module_handler import call_modules_hook
     from app.iris_engine.notifications.service import notify_many
 
+    dry_run = suggestion.status == SUGGESTION_DRY_RUN
+    prefix = 'AI suggestion (dry run)' if dry_run else 'AI suggestion'
     try:
         notify_many(
             suggestion.audience_user_ids or [],
             'ai_suggestion',
-            f'AI suggestion: {suggestion.title}'[:250],
+            f'{prefix}: {suggestion.title}'[:250],
             body=(suggestion.body or '')[:1000] or None,
-            link=_entity_link(suggestion.entity_type, suggestion.entity_id),
+            link=ai_workflows_suggestions_inbox_link(suggestion.id),
             source_type='ai_suggestion',
             source_id=suggestion.id,
         )
     except Exception:
         logger.exception(f'Could not notify the audience of AI suggestion #{suggestion.id}')
     ai_workflows_suggestions_emit(suggestion, 'created')
+    if dry_run:
+        return
     try:
         with ai_workflows_identity_chain(run):
             call_modules_hook('on_postload_ai_suggestion_create', data=ai_workflows_suggestions_serialize(suggestion),

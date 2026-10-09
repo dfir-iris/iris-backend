@@ -122,6 +122,10 @@ FORM_FIELD_TYPES = ('text', 'textarea', 'number', 'boolean', 'select', 'multisel
 _MAX_WAIT_MINUTES = 60 * 24 * 30
 _MAX_HTTP_TIMEOUT = 120
 _MAX_DRY_RUN_BODY = 10_000
+# The whole response is read (up to the sender's 1 MiB) so a large JSON
+# answer still parses; a body kept as text is cut to _MAX_TEXT_BODY
+_MAX_HTTP_RESPONSE_CHARS = 1024 * 1024
+_MAX_TEXT_BODY = 64 * 1024
 
 # Paths of this instance's own inbound endpoints: a request to them would
 # start (hooks) or resume (callbacks) runs, i.e. loop
@@ -303,13 +307,21 @@ def _condition(ctx, config):
     return NodeResult(output={'result': bool(result)}, port=PORT_TRUE if result else PORT_FALSE)
 
 
-def _parse_body(text, response_format):
-    if response_format == 'text' or text is None:
+def _text_body(text):
+    if len(text) <= _MAX_TEXT_BODY:
         return text
+    return f'{text[:_MAX_TEXT_BODY]}\n… [truncated, {len(text)} characters]'
+
+
+def _parse_body(text, response_format):
+    if text is None:
+        return text
+    if response_format == 'text':
+        return _text_body(text)
     try:
         return json.loads(text)
     except ValueError:
-        return text
+        return _text_body(text)
 
 
 def _http_config(config, template):
@@ -497,6 +509,7 @@ def _http_request(ctx, config):
             proxies=webhooks_db_proxies() if use_proxy else None,
             use_proxy=use_proxy,
             allow_private=bool(current_app.config.get('AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS', False)),
+            max_response_chars=_MAX_HTTP_RESPONSE_CHARS,
         )
         body = _parse_body(sent.get('response_body'), config.get('response_format') or 'json')
         # The remote system may echo the callback token back

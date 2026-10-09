@@ -31,6 +31,7 @@ from app.business.ai_suggestions import ai_suggestions_answer
 from app.business.ai_suggestions import ai_suggestions_counts
 from app.business.ai_suggestions import ai_suggestions_dismiss
 from app.business.ai_suggestions import ai_suggestions_get
+from app.business.ai_suggestions import ai_suggestions_list
 from app.business.ai_suggestions import ai_suggestions_validate_answer
 from app import app
 from app.iris_engine.ai_workflows.tools import CLASSIFICATION_READ
@@ -355,3 +356,42 @@ class TestsCounts(_SuggestionsTestCase):
     def test_counts_should_reject_bad_ids(self):
         with self.assertRaises(BusinessProcessingError):
             ai_suggestions_counts(_ANALYST, 'alert', ['x'])
+
+
+class TestsInboxList(_SuggestionsTestCase):
+
+    def _list(self, **kwargs):
+        with patch(f'{_BUSINESS}.ai_workflows_db_list_suggestions', return_value=[_suggestion()]) as listing:
+            listed = ai_suggestions_list(_ANALYST, **kwargs)
+        return listed, listing.call_args.kwargs
+
+    def test_analyst_should_only_get_what_is_addressed_to_them(self):
+        _listed, query = self._list()
+        self.assertEqual(_ANALYST, query['audience_user_id'])
+        self.assertTrue(query['with_unaddressed'])
+
+    def test_mine_should_exclude_unaddressed(self):
+        self.is_admin = True
+        _listed, query = self._list(mine=True)
+        self.assertEqual(_ANALYST, query['audience_user_id'])
+        self.assertFalse(query['with_unaddressed'])
+
+    def test_administrator_should_get_everything(self):
+        self.is_admin = True
+        _listed, query = self._list(status='all')
+        self.assertNotIn('audience_user_id', query)
+        self.assertIsNone(query['statuses'])
+
+    def test_filters_should_reach_the_query(self):
+        _listed, query = self._list(workflow_id=7, severity='high', entity_type='none', limit=10000,
+                                    status='dry_run')
+        self.assertEqual(7, query['workflow_id'])
+        self.assertEqual('high', query['severity'])
+        self.assertTrue(query['without_entity'])
+        self.assertIsNone(query['entity_type'])
+        self.assertEqual(500, query['limit'])
+        self.assertEqual(['dry_run'], query['statuses'])
+
+    def test_unknown_severity_should_be_refused(self):
+        with self.assertRaises(BusinessProcessingError):
+            ai_suggestions_list(_ANALYST, severity='urgent')
