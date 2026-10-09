@@ -62,6 +62,11 @@ from app.iris_engine.ai_workflows.context import ai_workflows_context_render
 from app.iris_engine.ai_workflows.context import ai_workflows_context_render_arguments
 from app.iris_engine.ai_workflows.context import ai_workflows_context_template
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_snapshot
+from app.iris_engine.ai_workflows.sandbox import DEFAULT_MAX_STEPS
+from app.iris_engine.ai_workflows.sandbox import DEFAULT_TIMEOUT_SECONDS
+from app.iris_engine.ai_workflows.sandbox import MAX_STEPS
+from app.iris_engine.ai_workflows.sandbox import MAX_TIMEOUT_SECONDS
+from app.iris_engine.ai_workflows.sandbox import ai_workflows_sandbox_execute
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_user_can_access
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_create
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_neutralise_links
@@ -99,6 +104,7 @@ NODE_ACTION = 'action'
 NODE_NOTIFY = 'notify'
 NODE_DELAY = 'delay'
 NODE_SET_VARIABLES = 'set_variables'
+NODE_PYTHON = 'python'
 NODE_STOP = 'stop'
 
 PORT_OUT = 'out'
@@ -229,6 +235,11 @@ _CATALOGUE = (
     _node_spec(NODE_DELAY, 'Delay', 'Waits before continuing.', 'flow', (PORT_OUT,), {'minutes': 5}),
     _node_spec(NODE_SET_VARIABLES, 'Set variables', 'Stores values under `vars` for later nodes.', 'flow',
                (PORT_OUT,), {'variables': []}),
+    _node_spec(NODE_PYTHON, 'Python transform', 'Transforms data with a short script in a restricted Python '
+               'subset (no imports, files, network or attributes). The value of `result` (or of a top-level '
+               '`return`) is the output.', 'flow', (PORT_OUT, PORT_ERROR),
+               {'code': 'result = {}', 'inputs': [], 'timeout_seconds': DEFAULT_TIMEOUT_SECONDS,
+                'max_steps': DEFAULT_MAX_STEPS}),
     _node_spec(NODE_STOP, 'Stop', 'Ends the run with a status.', 'flow', (),
                {'status': RUN_SUCCEEDED, 'reason': ''}),
 )
@@ -757,6 +768,40 @@ def _set_variables(ctx, config):
     return NodeResult(output=assigned, context_updates={'vars': variables})
 
 
+def _python(ctx, config):
+    if not current_app.config.get('AI_WORKFLOWS_PYTHON_ENABLED', True):
+        raise AiWorkflowNodeError('Python transforms are disabled on this instance (AI_WORKFLOWS_PYTHON_ENABLED)')
+    template = ctx.template_context()
+    inputs = {}
+    for index, item in enumerate(config.get('inputs') or []):
+        if isinstance(item, dict) and item.get('name'):
+            inputs[str(item['name'])] = ai_workflows_context_render_arguments(item.get('value'), template,
+                                                                                f'inputs.{index}')
+    # Plain data only: the keystore never reaches a script
+    variables = ctx.mask({
+        'inputs': inputs,
+        'trigger': template.get('trigger'),
+        'entity': template.get('entity'),
+        'nodes': template.get('nodes'),
+        'vars': template.get('vars'),
+        'run': template.get('run'),
+    })
+    outcome = ai_workflows_sandbox_execute(
+        config.get('code') or '', variables,
+        max_steps=_int(config.get('max_steps'), DEFAULT_MAX_STEPS, 1000, MAX_STEPS),
+        timeout_seconds=_int(config.get('timeout_seconds'), DEFAULT_TIMEOUT_SECONDS, 1, MAX_TIMEOUT_SECONDS),
+    )
+    logs = ctx.mask(outcome.get('logs') or [])
+    if not outcome.get('ok'):
+        line = outcome.get('line')
+        where = f' (line {line})' if line else ''
+        raise AiWorkflowNodeError(ctx.mask(f'Script {outcome.get("kind") or "error"}{where}: {outcome.get("error")}')
+                                  + (f' — logs: {" | ".join(logs)[:1000]}' if logs else ''))
+    return NodeResult(output={'result': ctx.mask(outcome.get('result')), 'logs': logs,
+                              'steps': outcome.get('steps')},
+                      input={'inputs': inputs})
+
+
 def _stop(ctx, config):
     status = RUN_FAILED if config.get('status') == RUN_FAILED else RUN_SUCCEEDED
     reason = ctx.mask(ctx.render(config.get('reason') or '', 'reason')).strip() or None
@@ -777,6 +822,7 @@ _EXECUTORS = {
     NODE_NOTIFY: _notify,
     NODE_DELAY: _delay,
     NODE_SET_VARIABLES: _set_variables,
+    NODE_PYTHON: _python,
     NODE_STOP: _stop,
 }
 

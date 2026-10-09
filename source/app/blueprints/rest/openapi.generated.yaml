@@ -286,6 +286,29 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/export:
+    get:
+      operationId: export_ai_workflow_route_get
+      summary: 'Export a workflow as a JSON document: detected secrets become keystore references'
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/ai-workflows/{identifier}/inbound-token:
     post:
       operationId: rotate_ai_workflow_inbound_token_route_post
@@ -296,6 +319,138 @@ paths:
       - ApiKey: []
       parameters:
       - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/node-stats:
+    get:
+      operationId: get_ai_workflow_node_stats_route_get
+      summary: Number of events each node of a workflow processed, by status
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/nodes/{node_id}/events:
+    get:
+      operationId: list_ai_workflow_node_events_route_get
+      summary: List the events a node of a workflow processed, newest first
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/nodes/{node_id}/events/{step_id}:
+    get:
+      operationId: get_ai_workflow_node_event_route_get
+      summary: Get an event a node processed, with the run context the node saw
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/nodes/{node_id}/events/{step_id}/replay:
+    post:
+      operationId: replay_ai_workflow_node_event_route_post
+      summary: Replay an event through the current workflow, from its node (acts as the workflow owner)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: step_id
         in: path
         required: true
         schema:
@@ -336,6 +491,30 @@ paths:
     post:
       operationId: rotate_ai_workflow_signing_secret_route_post
       summary: Create or rotate the webhook signing secret of a workflow (shown once)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/{identifier}/test-node:
+    post:
+      operationId: test_ai_workflow_node_route_post
+      summary: Execute one node definition on its own, on an earlier event or a supplied context (acts
+        as the workflow owner)
       tags:
       - AiWorkflows
       security:
@@ -406,6 +585,156 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/authoring-guide:
+    get:
+      operationId: get_ai_workflows_authoring_guide_route_get
+      summary: Markdown guide to write workflows and blocks as JSON (for people and LLMs), with the live
+        catalogue
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/blocks:
+    get:
+      operationId: list_ai_workflow_blocks_route_get
+      summary: List the saved blocks the user can insert (own and shared)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_ai_workflow_block_route_post
+      summary: Save a block of nodes for reuse
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/blocks/{block_id}:
+    delete:
+      operationId: delete_ai_workflow_block_route_delete
+      summary: Delete a saved block (owner or administrator)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: block_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_ai_workflow_block_route_get
+      summary: Get a saved block
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: block_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: put_ai_workflow_block_route_put
+      summary: Update a saved block (owner or administrator)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: block_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/blocks/{block_id}/export:
+    get:
+      operationId: export_ai_workflow_block_route_get
+      summary: Export a saved block as a JSON document (detected secrets become keystore references)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      parameters:
+      - name: block_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/blocks/import:
+    post:
+      operationId: import_ai_workflow_block_route_post
+      summary: Import a saved block from its JSON document
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/ai-workflows/callbacks/{wait_uuid}:
     post:
       operationId: ai_workflows_callback_route_post
@@ -468,6 +797,21 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/ai-workflows/import:
+    post:
+      operationId: import_ai_workflow_route_post
+      summary: Import a workflow from its JSON document (created inactive, owned by the importer)
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/ai-workflows/inbound-events:
     get:
       operationId: list_ai_workflow_inbound_events_route_get

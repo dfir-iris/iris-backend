@@ -34,6 +34,7 @@ from app.business.ai_workflows import ai_workflows_export_run
 from app.business.ai_workflows import ai_workflows_get_run
 from app.business.ai_workflows import ai_workflows_list_runs
 from app.business.ai_workflows import ai_workflows_run_manual
+from app.business.ai_workflows import ai_workflows_test_node
 from app.business.ai_workflows import ai_workflows_update
 from app.business.ai_workflows import ai_workflows_user_can_see_run
 from app.business.ai_workflows import ai_workflows_validate_definition
@@ -348,6 +349,75 @@ class TestsManualRun(_WorkflowsTestCase):
         with patch.dict(app.config, {'AI_WORKFLOWS_ENABLED': False}):
             with self.assertRaises(BusinessProcessingError):
                 ai_workflows_run_manual(3, {'entity_type': 'alert', 'entity_id': 4}, _OWNER, False)
+
+
+class TestsTestNode(_WorkflowsTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.workflow = self.workflows[3] = _stored_workflow(customer_scope=[1])
+        self.test_node = MagicMock(return_value=SimpleNamespace(uuid=uuid.uuid4()))
+        patchers = [
+            patch(f'{_BUSINESS}.ai_workflows_engine_test_node', self.test_node),
+            patch(f'{_BUSINESS}.ai_workflows_engine_test_context', side_effect=lambda *args: {'args': args}),
+            patch(f'{_BUSINESS}.ai_workflows_run_summary', side_effect=lambda r, *_args: {'uuid': str(r.uuid)}),
+        ]
+        for patcher in patchers:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    @staticmethod
+    def _node(**overrides):
+        node = {'id': 'py', 'type': 'python', 'label': 'Py', 'config': {'code': 'result = 1'}}
+        node.update(overrides)
+        return node
+
+    def test_node_should_run_as_the_owner_on_any_entity_type(self):
+        ai_workflows_test_node(3, {'node': self._node(extra='dropped'), 'entity_type': 'case', 'entity_id': 4,
+                                   'vars': {'a': 1}}, _OWNER, False)
+        args, kwargs = self.test_node.call_args
+        self.assertEqual({'id': 'py', 'type': 'python', 'label': 'Py', 'config': {'code': 'result = 1'}}, args[1])
+        self.assertEqual(('case', 4), (kwargs['entity_type'], kwargs['entity_id']))
+        self.assertEqual(_OWNER, kwargs['triggered_by_user_id'])
+        self.assertFalse(kwargs['dry_run'])
+        self.assertEqual({'a': 1}, args[2]['args'][5])
+
+    def test_invalid_node_should_be_rejected(self):
+        for node in ('x', self._node(type='unknown'), self._node(config={'code': ''})):
+            with self.assertRaises(BusinessProcessingError):
+                ai_workflows_test_node(3, {'node': node}, _OWNER, False)
+        self.test_node.assert_not_called()
+
+    def test_write_tool_outside_the_allowlist_should_be_rejected(self):
+        action = self._node(type='action', config={'tool': 'update_alert', 'arguments': {}})
+        with self.assertRaises(BusinessProcessingError):
+            ai_workflows_test_node(3, {'node': action}, _OWNER, False)
+        self.test_node.assert_not_called()
+
+    def test_trigger_and_waiting_nodes_should_be_rejected(self):
+        for node in (self._node(type='trigger', config={}), self._node(type='delay', config={'minutes': 5}),
+                     self._node(type='ask_analyst', config={'question': 'Why?'})):
+            with self.assertRaises(BusinessProcessingError):
+                ai_workflows_test_node(3, {'node': node}, _OWNER, False)
+        self.test_node.assert_not_called()
+
+    def test_workflow_of_someone_else_should_be_not_found(self):
+        with self.assertRaises(ObjectNotFoundError):
+            ai_workflows_test_node(3, {'node': self._node()}, _OTHER, False)
+
+    def test_entity_the_user_cannot_access_should_be_not_found(self):
+        self.can_access.return_value = False
+        with self.assertRaises(ObjectNotFoundError):
+            ai_workflows_test_node(3, {'node': self._node(), 'entity_type': 'alert', 'entity_id': 4}, _OWNER,
+                                   False)
+        self.test_node.assert_not_called()
+
+    def test_oversized_or_malformed_context_should_be_rejected(self):
+        for extra in ({'vars': ['x']}, {'nodes': {'a': 'x' * (300 * 1024)}}, {'dry_run': 'yes'},
+                      {'step_id': 'one'}):
+            with self.assertRaises(BusinessProcessingError):
+                ai_workflows_test_node(3, {'node': self._node(), **extra}, _OWNER, False)
+        self.test_node.assert_not_called()
 
 
 class TestsCatalogue(TestCase):

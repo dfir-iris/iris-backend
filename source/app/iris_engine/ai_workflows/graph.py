@@ -30,6 +30,7 @@ import re
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_postload_hooks
 from app.iris_engine.ai_workflows.context import RULE_OPERATORS
 from app.iris_engine.ai_workflows.context import AiWorkflowTemplateError
+from app.iris_engine.ai_workflows.context import ai_workflows_context_path_reference
 from app.iris_engine.ai_workflows.context import ai_workflows_context_url_origin
 from app.iris_engine.ai_workflows.cron import ai_workflows_cron_parse
 from app.iris_engine.ai_workflows.nodes import FORM_FIELD_TYPES
@@ -43,11 +44,15 @@ from app.iris_engine.ai_workflows.nodes import NODE_FIND_WAR_ROOM_TASKS
 from app.iris_engine.ai_workflows.nodes import NODE_HTTP_REQUEST
 from app.iris_engine.ai_workflows.nodes import NODE_NOTIFY
 from app.iris_engine.ai_workflows.nodes import NODE_PORTS
+from app.iris_engine.ai_workflows.nodes import NODE_PYTHON
 from app.iris_engine.ai_workflows.nodes import NODE_SET_VARIABLES
 from app.iris_engine.ai_workflows.nodes import NODE_STOP
 from app.iris_engine.ai_workflows.nodes import NODE_SUGGEST
 from app.iris_engine.ai_workflows.nodes import NODE_TRIGGER
 from app.iris_engine.ai_workflows.nodes import ai_workflows_nodes_is_waiting
+from app.iris_engine.ai_workflows.sandbox import MAX_STEPS
+from app.iris_engine.ai_workflows.sandbox import MAX_TIMEOUT_SECONDS
+from app.iris_engine.ai_workflows.sandbox import ai_workflows_sandbox_check
 from app.iris_engine.ai_workflows.suggestions import SEVERITIES
 from app.iris_engine.ai_workflows.tools import CLASSIFICATION_WRITE
 from app.iris_engine.ai_workflows.tools import ai_workflows_tools_classification
@@ -72,17 +77,23 @@ CRON_TARGETS = ('none', 'war_rooms', 'cases')
 HTTP_METHODS = ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')
 
 _MAX_NODES = 200
+_MAX_BLOCK_NODES = 50
 _MAX_EDGES = 1000
 _MAX_DEFINITION_BYTES = 1024 * 1024
 _MAX_CONFIG_STRING = 64 * 1024
 _MAX_PROMPT = 32 * 1024
 _MAX_LABEL = 255
+# Editor only: the sides of a node its connectors are drawn on
+_HANDLE_SIDES = ('left', 'top', 'right', 'bottom')
 _MAX_HOOKS = 200
 _PROMPT_FIELDS = ('prompt', 'system_prompt')
 _MAX_DEDUP_MINUTES = 7 * 24 * 60
 _MAX_CRON_TARGETS = 500
 _NODE_ID = re.compile(r'^[A-Za-z0-9_.:-]{1,64}$')
+# Names an object key of the editor (JavaScript) cannot hold safely
+_RESERVED_NODE_IDS = ('__proto__', 'constructor', 'prototype')
 _VARIABLE_NAME = re.compile(r'^[A-Za-z_][A-Za-z0-9_]{0,63}$')
+_CONTEXT_PATH = re.compile(r'^[A-Za-z0-9_\-]{1,128}(?:\.[A-Za-z0-9_\-]{1,128}){0,31}$')
 
 
 def _error(node_id, field, message) -> dict:
@@ -272,8 +283,13 @@ class _Checker:
             self.add(field, e.message)
 
     def templates_in(self, field, value):
-        """Every string inside a dict / list value."""
-        if isinstance(value, str):
+        """Every string inside a dict / list value; `{"$path": ...}`
+        references must be dotted paths."""
+        path = ai_workflows_context_path_reference(value)
+        if path is not None:
+            if not _CONTEXT_PATH.match(path):
+                self.add(field, 'A $path is a dotted path of the run context, e.g. nodes.vt.output.body')
+        elif isinstance(value, str):
             self.template(field, value)
         elif isinstance(value, dict):
             for key, item in value.items():
@@ -304,7 +320,8 @@ class _Checker:
         if classification is None:
             self.add(field, f'Unknown tool {name}' if name else 'Select a tool')
             return None
-        if must_run and classification == CLASSIFICATION_WRITE and name not in allowlist:
+        # No allowlist: a saved block, checked again once inserted in a workflow
+        if must_run and allowlist is not None and classification == CLASSIFICATION_WRITE and name not in allowlist:
             self.add(field, f'{name} is a write tool not in the workflow allowlist (use a Suggest node to '
                             'propose it instead)')
         return classification
@@ -465,6 +482,28 @@ def _check_set_variables(check):
         check.templates_in(f'variables.{index}.value', item.get('value'))
 
 
+def _check_python(check):
+    code = check.config.get('code')
+    if not isinstance(code, str) or not code.strip():
+        check.add('code', 'Required')
+    else:
+        for error in ai_workflows_sandbox_check(code)[:5]:
+            line = f'line {error["line"]}: ' if error.get('line') else ''
+            check.add('code', f'{line}{error["message"]}')
+    inputs = check.config.get('inputs') or []
+    if not isinstance(inputs, list):
+        check.add('inputs', 'Must be a list')
+    else:
+        for index, item in enumerate(inputs):
+            if not isinstance(item, dict) or not isinstance(item.get('name'), str) \
+                    or not _VARIABLE_NAME.match(item.get('name')) or item.get('name').startswith('_'):
+                check.add(f'inputs.{index}.name', 'Letters, digits and underscores, not starting with a digit or _')
+                continue
+            check.templates_in(f'inputs.{index}.value', item.get('value'))
+    check.integer('timeout_seconds', 1, MAX_TIMEOUT_SECONDS)
+    check.integer('max_steps', 1000, MAX_STEPS)
+
+
 def _size_errors(node_id, field, value, errors):
     """Strings over the config caps (prompts are capped tighter)."""
     if isinstance(value, str):
@@ -485,6 +524,12 @@ def _check_node(node, allowlist, errors):
     label = node.get('label')
     if label is not None and (not isinstance(label, str) or len(label) > _MAX_LABEL):
         errors.append(_error(node_id, 'label', f'A label is a string of at most {_MAX_LABEL} characters'))
+    handles = node.get('handles')
+    if handles is not None and (not isinstance(handles, dict)
+                                or set(handles) - {'input', 'output'}
+                                or any(side not in _HANDLE_SIDES for side in handles.values())):
+        errors.append(_error(node_id, 'handles', 'handles is {"input": side, "output": side}, a side being '
+                                                 f'one of {", ".join(_HANDLE_SIDES)}'))
     if not isinstance(config, dict):
         errors.append(_error(node_id, 'config', 'Must be an object'))
         return
@@ -518,6 +563,8 @@ def _check_node(node, allowlist, errors):
         check.integer('minutes', 0, 60 * 24 * 30)
     elif node_type == NODE_SET_VARIABLES:
         _check_set_variables(check)
+    elif node_type == NODE_PYTHON:
+        _check_python(check)
     elif node_type == NODE_STOP:
         check.one_of('status', (RUN_SUCCEEDED, RUN_FAILED), RUN_SUCCEEDED)
         check.template('reason')
@@ -525,8 +572,9 @@ def _check_node(node, allowlist, errors):
 
 # ---- Graph structure ------------------------------------------------------------
 
-def _structure_errors(nodes, edges) -> tuple:
-    """(errors, {node_id: node}, adjacency) of the graph shape."""
+def _structure_errors(nodes, edges, fragment=False) -> tuple:
+    """(errors, {node_id: node}, adjacency) of the graph shape. A
+    `fragment` (saved block) has no trigger and needs no reachability."""
     errors = []
     by_id = {}
     for index, node in enumerate(nodes):
@@ -537,6 +585,9 @@ def _structure_errors(nodes, edges) -> tuple:
         if not isinstance(node_id, str) or not _NODE_ID.match(node_id):
             errors.append(_error(None, f'nodes.{index}.id', 'Node ids are 1-64 letters, digits, _ . : -'))
             continue
+        if node_id in _RESERVED_NODE_IDS:
+            errors.append(_error(None, f'nodes.{index}.id', f'{node_id} is reserved, choose another node id'))
+            continue
         if node_id in by_id:
             errors.append(_error(node_id, 'id', f'Duplicate node id {node_id}'))
             continue
@@ -546,7 +597,9 @@ def _structure_errors(nodes, edges) -> tuple:
         by_id[node_id] = node
 
     triggers = [n for n in by_id.values() if n.get('type') == NODE_TRIGGER]
-    if len(triggers) != 1:
+    if fragment and triggers:
+        errors.append(_error(None, 'nodes', 'A block cannot hold a trigger node'))
+    elif not fragment and len(triggers) != 1:
         errors.append(_error(None, 'nodes', 'A workflow needs exactly one trigger node'))
 
     adjacency = {node_id: [] for node_id in by_id}
@@ -567,9 +620,15 @@ def _structure_errors(nodes, edges) -> tuple:
         if target.get('type') == NODE_TRIGGER:
             errors.append(_error(target['id'], f'edges.{index}', 'Nothing can lead back to the trigger'))
             continue
+        bad_side = next((key for key in ('source_side', 'target_side')
+                         if edge.get(key) is not None and edge.get(key) not in _HANDLE_SIDES), None)
+        if bad_side:
+            errors.append(_error(source['id'], f'edges.{index}.{bad_side}',
+                                 f'{bad_side} is one of {", ".join(_HANDLE_SIDES)}'))
+            continue
         adjacency[source['id']].append(target['id'])
 
-    if len(triggers) == 1:
+    if not fragment and len(triggers) == 1:
         reached = {triggers[0]['id']}
         queue = [triggers[0]['id']]
         while queue:
@@ -618,6 +677,55 @@ def _busy_cycle_nodes(by_id, adjacency) -> list:
             seen.add(node_id)
             stack.extend(t for t in adjacency[node_id] if t in remaining)
     return on_cycle
+
+
+def ai_workflows_graph_validate_fragment(fragment) -> list:
+    """Errors of a saved block `{nodes, edges}`: the checks of a workflow
+    graph but the trigger, reachability and the write allowlist (checked
+    once the block is inserted into a workflow)."""
+    if not isinstance(fragment, dict):
+        return [_error(None, 'definition', 'Must be an object')]
+    nodes = fragment.get('nodes')
+    edges = fragment.get('edges') if fragment.get('edges') is not None else []
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return [_error(None, 'definition', 'A block needs a list of nodes and a list of edges')]
+    if not nodes:
+        return [_error(None, 'nodes', 'A block needs at least one node')]
+    if len(nodes) > _MAX_BLOCK_NODES:
+        return [_error(None, 'nodes', f'A block has at most {_MAX_BLOCK_NODES} nodes')]
+    if len(edges) > _MAX_EDGES:
+        return [_error(None, 'edges', f'A block has at most {_MAX_EDGES} edges')]
+    try:
+        size = len(json.dumps(fragment, default=str).encode('utf-8'))
+    except (TypeError, ValueError, RecursionError):
+        return [_error(None, 'definition', 'The block is not serialisable')]
+    if size > _MAX_DEFINITION_BYTES:
+        return [_error(None, 'definition', f'The block is over {_MAX_DEFINITION_BYTES // 1024} KB')]
+    errors, by_id, adjacency = _structure_errors(nodes, edges, fragment=True)
+    for node_id in _busy_cycle_nodes(by_id, adjacency):
+        errors.append(_error(node_id, None, 'On a loop without a waiting node (async HTTP request, ask an '
+                                            'analyst or delay)'))
+    for node in by_id.values():
+        _check_node(node, None, errors)
+    return errors
+
+
+def ai_workflows_graph_validate_node(node, write_tool_allowlist) -> list:
+    """Errors of a single node tested on its own: the checks of a node
+    of a workflow whose write allowlist is `write_tool_allowlist`."""
+    if not isinstance(node, dict):
+        return [_error(None, 'node', 'Must be an object')]
+    try:
+        size = len(json.dumps(node, default=str).encode('utf-8'))
+    except (TypeError, ValueError, RecursionError):
+        return [_error(None, 'node', 'The node is not serialisable')]
+    if size > _MAX_DEFINITION_BYTES:
+        return [_error(None, 'node', f'The node is over {_MAX_DEFINITION_BYTES // 1024} KB')]
+    errors, by_id, _adjacency = _structure_errors([node], [], fragment=True)
+    allowlist = set(n for n in write_tool_allowlist or [] if isinstance(n, str))
+    for checked in by_id.values():
+        _check_node(checked, allowlist, errors)
+    return errors
 
 
 def ai_workflows_graph_validate(graph, trigger_type, trigger_config, write_tool_allowlist) -> list:

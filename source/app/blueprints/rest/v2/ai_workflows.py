@@ -42,19 +42,34 @@ from app.blueprints.rest.endpoints import response_api_deleted
 from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
+from app.business.ai_workflow_blocks import ai_workflow_blocks_create
+from app.business.ai_workflow_blocks import ai_workflow_blocks_delete
+from app.business.ai_workflow_blocks import ai_workflow_blocks_export
+from app.business.ai_workflow_blocks import ai_workflow_blocks_get
+from app.business.ai_workflow_blocks import ai_workflow_blocks_import
+from app.business.ai_workflow_blocks import ai_workflow_blocks_list
+from app.business.ai_workflow_blocks import ai_workflow_blocks_update
 from app.business.ai_workflows import AiWorkflowsForbiddenError
+from app.business.ai_workflows import ai_workflows_authoring_guide
 from app.business.ai_workflows import ai_workflows_cancel
 from app.business.ai_workflows import ai_workflows_catalogue
 from app.business.ai_workflows import ai_workflows_create
 from app.business.ai_workflows import ai_workflows_delete
+from app.business.ai_workflows import ai_workflows_export
 from app.business.ai_workflows import ai_workflows_export_run
 from app.business.ai_workflows import ai_workflows_get
 from app.business.ai_workflows import ai_workflows_get_run
 from app.business.ai_workflows import ai_workflows_get_version
+from app.business.ai_workflows import ai_workflows_import
 from app.business.ai_workflows import ai_workflows_list
 from app.business.ai_workflows import ai_workflows_list_inbound_events
 from app.business.ai_workflows import ai_workflows_list_runs
 from app.business.ai_workflows import ai_workflows_list_versions
+from app.business.ai_workflows import ai_workflows_node_event
+from app.business.ai_workflows import ai_workflows_node_events
+from app.business.ai_workflows import ai_workflows_node_stats
+from app.business.ai_workflows import ai_workflows_replay_event
+from app.business.ai_workflows import ai_workflows_test_node
 from app.business.ai_workflows import ai_workflows_rerun
 from app.business.ai_workflows import ai_workflows_rotate_inbound_token
 from app.business.ai_workflows import ai_workflows_rotate_signing_secret
@@ -70,11 +85,6 @@ _READ = (Permissions.ai_workflows_read, Permissions.ai_workflows_write)
 _WRITE = (Permissions.ai_workflows_write,)
 # Workflow definitions (graph included) are small; refuse more early
 _MAX_DEFINITION_BYTES = 2 * 1024 * 1024
-
-
-def _body():
-    body = request.get_json(silent=True)
-    return body if isinstance(body, dict) else {}
 
 
 def _definition_body():
@@ -215,6 +225,93 @@ def list_ai_workflow_inbound_events_route():
     return _handle(_operation)
 
 
+@ai_workflows_blueprint.get('/authoring-guide')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'],
+         summary='Markdown guide to write workflows and blocks as JSON (for people and LLMs), with the live catalogue')
+def get_ai_workflows_authoring_guide_route():
+    return _handle(lambda: ai_workflows_authoring_guide(iris_current_user.id))
+
+
+@ai_workflows_blueprint.post('/import')
+@ac_api_requires(*_WRITE)
+@api_doc(response_shape='created', tags=['AiWorkflows'],
+         summary='Import a workflow from its JSON document (created inactive, owned by the importer)')
+def import_ai_workflow_route():
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
+    return _handle(lambda: ai_workflows_import(body, iris_current_user.id, _is_admin()), created=True)
+
+
+# ---- Saved blocks ------------------------------------------------------------
+
+@ai_workflows_blueprint.get('/blocks')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'], summary='List the saved blocks the user can insert (own and shared)')
+def list_ai_workflow_blocks_route():
+    return _handle(lambda: ai_workflow_blocks_list(iris_current_user.id, _is_admin()))
+
+
+@ai_workflows_blueprint.post('/blocks')
+@ac_api_requires(*_WRITE)
+@api_doc(response_shape='created', tags=['AiWorkflows'], summary='Save a block of nodes for reuse')
+def create_ai_workflow_block_route():
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
+    return _handle(lambda: ai_workflow_blocks_create(body, iris_current_user.id, _is_admin()), created=True)
+
+
+@ai_workflows_blueprint.post('/blocks/import')
+@ac_api_requires(*_WRITE)
+@api_doc(response_shape='created', tags=['AiWorkflows'], summary='Import a saved block from its JSON document')
+def import_ai_workflow_block_route():
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
+    return _handle(lambda: ai_workflow_blocks_import(body, iris_current_user.id, _is_admin()), created=True)
+
+
+@ai_workflows_blueprint.get('/blocks/<int:block_id>')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'], summary='Get a saved block')
+def get_ai_workflow_block_route(block_id):
+    return _handle(lambda: ai_workflow_blocks_get(block_id, iris_current_user.id, _is_admin()))
+
+
+@ai_workflows_blueprint.put('/blocks/<int:block_id>')
+@ac_api_requires(*_WRITE)
+@api_doc(tags=['AiWorkflows'], summary='Update a saved block (owner or administrator)')
+def put_ai_workflow_block_route(block_id):
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
+    return _handle(lambda: ai_workflow_blocks_update(block_id, body, iris_current_user.id, _is_admin()))
+
+
+@ai_workflows_blueprint.delete('/blocks/<int:block_id>')
+@ac_api_requires(*_WRITE)
+@api_doc(response_shape='deleted', tags=['AiWorkflows'], summary='Delete a saved block (owner or administrator)')
+def delete_ai_workflow_block_route(block_id):
+    try:
+        ai_workflow_blocks_delete(block_id, iris_current_user.id, _is_admin())
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except AiWorkflowsForbiddenError as e:
+        return response_api_error(e.get_message(), data=e.get_data(), status=403)
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+    return response_api_deleted()
+
+
+@ai_workflows_blueprint.get('/blocks/<int:block_id>/export')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'], summary='Export a saved block as a JSON document (detected secrets become keystore references)')
+def export_ai_workflow_block_route(block_id):
+    return _handle(lambda: ai_workflow_blocks_export(block_id, iris_current_user.id, _is_admin()))
+
+
 # ---- Workflows -------------------------------------------------------------
 
 @ai_workflows_blueprint.get('')
@@ -266,6 +363,70 @@ def delete_ai_workflow_route(identifier):
     return response_api_deleted()
 
 
+@ai_workflows_blueprint.get('/<int:identifier>/export')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'],
+         summary='Export a workflow as a JSON document: detected secrets become keystore references')
+def export_ai_workflow_route(identifier):
+    return _handle(lambda: ai_workflows_export(identifier, iris_current_user.id, _is_admin()))
+
+
+@ai_workflows_blueprint.get('/<int:identifier>/node-stats')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'], summary='Number of events each node of a workflow processed, by status')
+def get_ai_workflow_node_stats_route(identifier):
+    return _handle(lambda: ai_workflows_node_stats(identifier, iris_current_user.id, _is_admin()))
+
+
+@ai_workflows_blueprint.get('/<int:identifier>/nodes/<node_id>/events')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'], summary='List the events a node of a workflow processed, newest first',
+         query_params=[('status', 'string'), ('page', 'integer'), ('per_page', 'integer')])
+def list_ai_workflow_node_events_route(identifier, node_id):
+    def _operation():
+        return ai_workflows_node_events(
+            identifier, node_id, iris_current_user.id, _is_admin(),
+            status=request.args.get('status') or None,
+            page=_int_arg('page', 1),
+            per_page=_int_arg('per_page', 25),
+            scope_mask=_scope_mask(),
+        )
+    return _handle(_operation)
+
+
+@ai_workflows_blueprint.get('/<int:identifier>/nodes/<node_id>/events/<int:step_id>')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'], summary='Get an event a node processed, with the run context the node saw')
+def get_ai_workflow_node_event_route(identifier, node_id, step_id):
+    return _handle(lambda: ai_workflows_node_event(identifier, node_id, step_id, iris_current_user.id, _is_admin(),
+                                                   _scope_mask()))
+
+
+@ai_workflows_blueprint.post('/<int:identifier>/nodes/<node_id>/events/<int:step_id>/replay')
+@ac_api_requires(*_WRITE)
+@api_doc(response_shape='created', tags=['AiWorkflows'],
+         summary='Replay an event through the current workflow, from its node (acts as the workflow owner)')
+def replay_ai_workflow_node_event_route(identifier, node_id, step_id):
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
+    return _handle(lambda: ai_workflows_replay_event(identifier, node_id, step_id, body, iris_current_user.id,
+                                                     _is_admin(), _scope_mask()), created=True)
+
+
+@ai_workflows_blueprint.post('/<int:identifier>/test-node')
+@ac_api_requires(*_WRITE)
+@api_doc(response_shape='created', tags=['AiWorkflows'],
+         summary='Execute one node definition on its own, on an earlier event or a supplied context (acts as the '
+                 'workflow owner)')
+def test_ai_workflow_node_route(identifier):
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
+    return _handle(lambda: ai_workflows_test_node(identifier, body, iris_current_user.id, _is_admin(),
+                                                  _scope_mask()), created=True)
+
+
 @ai_workflows_blueprint.get('/<int:identifier>/versions')
 @ac_api_requires(*_READ)
 @api_doc(tags=['AiWorkflows'], summary='List the versions of an AI workflow')
@@ -285,7 +446,9 @@ def get_ai_workflow_version_route(identifier, version):
 @api_doc(response_shape='created', tags=['AiWorkflows'],
          summary='Run an AI workflow manually; the run acts as the workflow owner')
 def run_ai_workflow_route(identifier):
-    body = _body()
+    body, refused = _definition_body()
+    if refused is not None:
+        return refused
     return _handle(lambda: ai_workflows_run_manual(identifier, body, iris_current_user.id, _is_admin(),
                                                    _scope_mask()),
                    created=True)

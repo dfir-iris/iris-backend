@@ -1,0 +1,118 @@
+{
+  "format": "iris-ai-workflow-block",
+  "format_version": 1,
+  "block": {
+    "name": "VirusTotal hash lookup",
+    "description": "Looks an MD5 / SHA-1 / SHA-256 hash up on VirusTotal. Set the \"hash\" input of the first node, then read nodes.vt_verdict.output.result (found, verdict, malicious, engines, link). A hash unknown to VirusTotal gives verdict \"unknown\". Needs the keystore entry VIRUSTOTAL_API_KEY.",
+    "category": "Threat intel",
+    "nodes": [
+      {
+        "id": "vt_hash",
+        "type": "python",
+        "label": "Hash to look up",
+        "config": {
+          "code": "# The hash to look up: set the `hash` input to where it comes from\nvalue = str(inputs['hash'] or '').strip().lower()\nif not re_fullmatch('[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}', value):\n    fail(f'Not an MD5, SHA-1 or SHA-256 hash: {value[:80]}')\nresult = {'collection': 'files', 'id': value}\n",
+          "inputs": [
+            {
+              "name": "hash",
+              "value": "{{ trigger.payload.data.ioc_value }}"
+            }
+          ],
+          "timeout_seconds": 5,
+          "max_steps": 200000
+        },
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": "vt_lookup",
+        "type": "http_request",
+        "label": "VirusTotal file report",
+        "config": {
+          "method": "GET",
+          "url": "https://www.virustotal.com/api/v3/{{ nodes.vt_hash.output.result.collection }}/{{ nodes.vt_hash.output.result.id }}",
+          "query_params": [],
+          "auth_type": "none",
+          "auth_username": "",
+          "auth_secret": "",
+          "headers": [
+            {
+              "name": "x-apikey",
+              "value": "{{ key(\"VIRUSTOTAL_API_KEY\") }}",
+              "secret": true
+            },
+            {
+              "name": "accept",
+              "value": "application/json",
+              "secret": false
+            }
+          ],
+          "body_mode": "none",
+          "body_template": "",
+          "content_type": "application/json",
+          "mode": "sync",
+          "timeout_seconds": 20,
+          "wait_timeout_minutes": 60,
+          "verify_tls": true,
+          "use_proxy": true,
+          "response_format": "json"
+        },
+        "position": {
+          "x": 0,
+          "y": 120
+        }
+      },
+      {
+        "id": "vt_verdict",
+        "type": "python",
+        "label": "VirusTotal verdict",
+        "config": {
+          "code": "# Detection counts and verdict of the VirusTotal answer\nTHRESHOLD = 3\nresponse = inputs['response'] if is_dict(inputs['response']) else {}\nbody = response.get('body') if is_dict(response.get('body')) else {}\nitem = body.get('data') if is_dict(body.get('data')) else {}\nattributes = item.get('attributes') if is_dict(item.get('attributes')) else {}\nstats = attributes.get('last_analysis_stats') if is_dict(attributes.get('last_analysis_stats')) else {}\nfound = response.get('status_code') == 200 and bool(attributes)\nmalicious = int(stats.get('malicious') or 0)\nsuspicious = int(stats.get('suspicious') or 0)\nif not found:\n    verdict = 'unknown'\nelif malicious >= THRESHOLD:\n    verdict = 'malicious'\nelif malicious > 0 or suspicious > 0:\n    verdict = 'suspicious'\nelse:\n    verdict = 'clean'\nresult = {\n    'found': found,\n    'verdict': verdict,\n    'malicious': malicious,\n    'suspicious': suspicious,\n    'engines': sum([int(count) for count in stats.values() if is_number(count)]),\n    'name': attributes.get('meaningful_name'),\n    'type': attributes.get('type_description'),\n    'threat_label': (attributes.get('popular_threat_classification') or {}).get('suggested_threat_label'),\n    'link': f\"https://www.virustotal.com/gui/file/{item.get('id')}\" if found else None,\n}\n",
+          "inputs": [
+            {
+              "name": "response",
+              "value": {
+                "$path": "nodes.vt_lookup.output"
+              }
+            }
+          ],
+          "timeout_seconds": 5,
+          "max_steps": 200000
+        },
+        "position": {
+          "x": 0,
+          "y": 240
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "vt_hash-out-vt_lookup",
+        "source": "vt_hash",
+        "target": "vt_lookup",
+        "source_port": "out"
+      },
+      {
+        "id": "vt_lookup-out-vt_verdict",
+        "source": "vt_lookup",
+        "target": "vt_verdict",
+        "source_port": "out"
+      },
+      {
+        "id": "vt_lookup-error-vt_verdict",
+        "source": "vt_lookup",
+        "target": "vt_verdict",
+        "source_port": "error"
+      }
+    ]
+  },
+  "requirements": {
+    "keystore": [
+      "VIRUSTOTAL_API_KEY"
+    ],
+    "tools": []
+  },
+  "warnings": []
+}

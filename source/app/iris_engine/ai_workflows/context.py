@@ -156,10 +156,38 @@ def ai_workflows_context_untrusted(source, content) -> str:
     return f'<untrusted_input source="{source}">\n{content}\n</untrusted_input>'
 
 
+def ai_workflows_context_path_reference(value):
+    """The dotted path of a `{"$path": "nodes.x.output.y"}` reference, or None."""
+    if isinstance(value, dict) and len(value) == 1 and isinstance(value.get('$path'), str):
+        return value['$path'].strip()
+    return None
+
+
+def _json_copy(value):
+    """`value` as plain JSON data; what is not JSON (functions) becomes null."""
+    try:
+        return json.loads(json.dumps(value, default=lambda _o: None))
+    except (TypeError, ValueError):
+        return None
+
+
 def ai_workflows_context_render_value(value, context, field):
-    """Render every string inside `value` (dicts, lists) as a template."""
+    """Render every string inside `value` (dicts, lists) as a template.
+    `{"$path": "dotted.path"}` is replaced by the value found at that path
+    of the context, structure included (null when missing): the way to pass
+    a list or an object — an IOC's enrichment, a parsed response — to a tool
+    the workflow author chose to give it to."""
     if isinstance(value, str):
         return ai_workflows_context_render(value, context, field)
+    path = ai_workflows_context_path_reference(value)
+    if path is not None:
+        found = ai_workflows_context_get_path(context, path)
+        if found is _MISSING:
+            return None
+        rendered = _json_copy(found)
+        if len(json.dumps(rendered)) > MAX_RENDERED_CHARS:
+            raise AiWorkflowTemplateError(field, f'The value at {path} is too large')
+        return rendered
     if isinstance(value, dict):
         return {k: ai_workflows_context_render_value(v, context, f'{field}.{k}') for k, v in value.items()}
     if isinstance(value, list):
@@ -180,6 +208,8 @@ def _decode_scalars(rendered, original):
     when its template is exactly one `{{ expression }}`. Never to a list
     or an object: interpolated data must not grow new structure (extra
     arguments, nested ids) in a tool call."""
+    if ai_workflows_context_path_reference(original) is not None:
+        return rendered
     if isinstance(rendered, dict):
         return {k: _decode_scalars(v, (original or {}).get(k) if isinstance(original, dict) else None)
                 for k, v in rendered.items()}

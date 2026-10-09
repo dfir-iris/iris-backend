@@ -250,6 +250,7 @@ class EngineTestCase(TestCase):
             f'{_ENGINE}._enqueue': lambda run_id, _countdown=None: self.enqueued.append(run_id),
             f'{_ENGINE}._publish_complete': self.published.append,
             f'{_NODES}.ai_workflows_entities_snapshot': lambda _type, _id: {'id': _id, 'title': 'Phishing'},
+            f'{_ENGINE}.ai_workflows_entities_snapshot': lambda _type, _id: {'id': _id, 'title': 'Phishing'},
             f'{_NODES}.ai_workflows_suggestions_create': store.create_suggestion,
             f'{_NODES}.ai_workflows_tools_execute': _execute,
             f'{_NODES}.ai_workflows_tools_record': store.record_tool,

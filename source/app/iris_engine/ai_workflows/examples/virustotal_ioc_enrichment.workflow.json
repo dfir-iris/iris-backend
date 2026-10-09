@@ -1,0 +1,387 @@
+{
+  "format": "iris-ai-workflow",
+  "format_version": 1,
+  "workflow": {
+    "name": "VirusTotal IOC enrichment",
+    "description": "On IOC creation or update, looks the IOC (hash, IP, domain or URL) up on VirusTotal, stores the verdict in the IOC enrichment (\"virustotal\" key) and a vt:<verdict> tag, and notifies the case team when it is malicious. Needs the keystore entry VIRUSTOTAL_API_KEY (restrict it to www.virustotal.com). Each IOC value is looked up at most once a day.",
+    "trigger_type": "event",
+    "trigger_config": {
+      "hooks": [
+        "on_postload_ioc_create",
+        "on_postload_ioc_update"
+      ],
+      "condition": "",
+      "dedup_minutes": 60,
+      "skip_if_active": true
+    },
+    "graph": {
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "trigger",
+          "label": "IOC created or updated",
+          "config": {},
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "load",
+          "type": "action",
+          "label": "Read the IOC",
+          "config": {
+            "tool": "iris_case_iocs_get",
+            "arguments": {
+              "ioc_identifier": {
+                "$path": "trigger.sub_entity.id"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 120
+          }
+        },
+        {
+          "id": "prepare",
+          "type": "python",
+          "label": "What to look up",
+          "config": {
+            "code": "# What to ask VirusTotal about this IOC, or why not to\nioc = inputs['ioc'] if is_dict(inputs['ioc']) else {}\nioc_type = ioc.get('ioc_type') if is_dict(ioc.get('ioc_type')) else {}\nkind = str(ioc_type.get('type_name') or '').strip().lower()\nvalue = str(ioc.get('ioc_value') or '').strip()\n\n\ndef component(kind, value):\n    # Composite types (filename|sha256, ip-dst|port, domain|ip): keep the part VirusTotal knows\n    if '|' in kind and '|' in value:\n        kinds = kind.split('|')\n        values = value.split('|')\n        for wanted in ('sha256', 'sha1', 'md5', 'url', 'domain', 'hostname', 'ip-dst', 'ip-src'):\n            if wanted in kinds and kinds.index(wanted) < len(values):\n                return values[kinds.index(wanted)].strip()\n    return value\n\n\ndef target(value):\n    lowered = value.lower()\n    if re_fullmatch('[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}', lowered):\n        return {'collection': 'files', 'id': lowered, 'gui': 'file'}\n    info = ip_info(value)\n    if info:\n        if not info['is_global']:\n            return {'reason': 'Private or reserved address: not sent to VirusTotal'}\n        return {'collection': 'ip_addresses', 'id': value, 'gui': 'ip-address'}\n    if '://' in value:\n        parsed = url_parse(value)\n        if parsed and parsed['scheme'] in ('http', 'https') and parsed['host']:\n            # URL identifiers are the unpadded URL-safe base64 of the URL\n            return {'collection': 'urls', 'id': base64_encode(value, urlsafe=True, padding=False), 'gui': 'url'}\n        return {'reason': 'Only http(s) URLs are looked up'}\n    if re_fullmatch('([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\\\.)+[a-z]{2,63}\\\\.?', lowered) and len(lowered) <= 253:\n        return {'collection': 'domains', 'id': lowered.rstrip('.'), 'gui': 'domain'}\n    return {'reason': f'IOC type {kind or \"unknown\"} is not looked up on VirusTotal'}\n\n\nvalue = component(kind, value)\nfound = target(value) if value else {'reason': 'Empty IOC value'}\nprevious = ioc.get('ioc_enrichment')\nprevious = previous.get('virustotal') if is_dict(previous) else None\n# Once a day per value: the enrichment this workflow writes fires the update event again\nif is_dict(previous) and previous.get('value') == value \\\n        and str(previous.get('checked_at') or '')[:10] == inputs['now'][:10]:\n    found = {'reason': 'Already looked up on VirusTotal today'}\nresult = dict(found)\nresult.update({'supported': 'collection' in found, 'value': value, 'kind': kind})\n",
+            "inputs": [
+              {
+                "name": "ioc",
+                "value": {
+                  "$path": "nodes.load.output.result"
+                }
+              },
+              {
+                "name": "now",
+                "value": "{{ now }}"
+              }
+            ],
+            "timeout_seconds": 5,
+            "max_steps": 200000
+          },
+          "position": {
+            "x": 0,
+            "y": 240
+          }
+        },
+        {
+          "id": "supported",
+          "type": "condition",
+          "label": "Something to look up?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.prepare.output.result.supported",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 360
+          }
+        },
+        {
+          "id": "vt",
+          "type": "http_request",
+          "label": "VirusTotal lookup",
+          "config": {
+            "method": "GET",
+            "url": "https://www.virustotal.com/api/v3/{{ nodes.prepare.output.result.collection }}/{{ nodes.prepare.output.result.id }}",
+            "query_params": [],
+            "auth_type": "none",
+            "auth_username": "",
+            "auth_secret": "",
+            "headers": [
+              {
+                "name": "x-apikey",
+                "value": "{{ key(\"VIRUSTOTAL_API_KEY\") }}",
+                "secret": true
+              },
+              {
+                "name": "accept",
+                "value": "application/json",
+                "secret": false
+              }
+            ],
+            "body_mode": "none",
+            "body_template": "",
+            "content_type": "application/json",
+            "mode": "sync",
+            "timeout_seconds": 20,
+            "wait_timeout_minutes": 60,
+            "verify_tls": true,
+            "use_proxy": true,
+            "response_format": "json"
+          },
+          "position": {
+            "x": 0,
+            "y": 480
+          }
+        },
+        {
+          "id": "not_found",
+          "type": "condition",
+          "label": "Unknown to VirusTotal?",
+          "config": {
+            "mode": "expression",
+            "expression": "nodes.vt.output.status_code == 404",
+            "logic": "and",
+            "rules": []
+          },
+          "position": {
+            "x": 320,
+            "y": 600
+          }
+        },
+        {
+          "id": "summary",
+          "type": "python",
+          "label": "Verdict and enrichment",
+          "config": {
+            "code": "# Verdict of the VirusTotal answer, merged into the IOC enrichment and tags\nTHRESHOLD = 3  # engines flagging the IOC as malicious before the analysts are alerted\n\nioc = inputs['ioc'] if is_dict(inputs['ioc']) else {}\ntarget = inputs['target']\nresponse = inputs['response'] if is_dict(inputs['response']) else {}\nbody = response.get('body') if is_dict(response.get('body')) else {}\nitem = body.get('data') if is_dict(body.get('data')) else {}\nattributes = item.get('attributes') if is_dict(item.get('attributes')) else {}\nstats = attributes.get('last_analysis_stats') if is_dict(attributes.get('last_analysis_stats')) else {}\nresults = attributes.get('last_analysis_results') if is_dict(attributes.get('last_analysis_results')) else {}\n\nfound = response.get('status_code') == 200 and bool(attributes)\nmalicious = int(stats.get('malicious') or 0)\nsuspicious = int(stats.get('suspicious') or 0)\nengines = sum([int(count) for count in stats.values() if is_number(count)])\nif not found:\n    verdict = 'unknown'\nelif malicious >= THRESHOLD:\n    verdict = 'malicious'\nelif malicious > 0 or suspicious > 0:\n    verdict = 'suspicious'\nelse:\n    verdict = 'clean'\n\nlink = f\"https://www.virustotal.com/gui/{target['gui']}/{item.get('id') or target['id']}\" if found else None\ndetections = sorted([f\"{engine}: {outcome.get('result') or outcome.get('category')}\"\n                     for engine, outcome in results.items()\n                     if is_dict(outcome) and outcome.get('category') == 'malicious'])[:15]\nvirustotal = {\n    'value': target['value'],\n    'checked_at': inputs['now'],\n    'found': found,\n    'verdict': verdict,\n    'link': link,\n    'malicious': malicious,\n    'suspicious': suspicious,\n    'harmless': int(stats.get('harmless') or 0),\n    'undetected': int(stats.get('undetected') or 0),\n    'engines': engines,\n    'detections': detections,\n}\nfor name in ('reputation', 'meaningful_name', 'type_description', 'size', 'country', 'as_owner', 'asn', 'network',\n             'registrar', 'times_submitted', 'first_submission_date', 'last_analysis_date'):\n    if attributes.get(name) not in (None, ''):\n        virustotal[name] = attributes.get(name)\nif is_list(attributes.get('tags')):\n    virustotal['tags'] = attributes.get('tags')[:20]\nif is_dict(attributes.get('categories')):\n    virustotal['categories'] = sorted(set([str(v) for v in attributes.get('categories').values()]))[:10]\nclassification = attributes.get('popular_threat_classification')\nif is_dict(classification) and classification.get('suggested_threat_label'):\n    virustotal['threat_label'] = classification.get('suggested_threat_label')\n\n# Keep what other sources wrote; replace the previous VirusTotal entry and vt: tag\nenrichment = dict(ioc.get('ioc_enrichment')) if is_dict(ioc.get('ioc_enrichment')) else {}\nenrichment['virustotal'] = virustotal\ntags = [t.strip() for t in str(ioc.get('ioc_tags') or '').split(',') if t.strip()]\ntags = [t for t in tags if not t.lower().startswith('vt:')] + [f'vt:{verdict}']\n\nresult = {\n    'enrichment': enrichment,\n    'tags': ','.join(tags),\n    'verdict': verdict,\n    'malicious': malicious,\n    'engines': engines,\n    'link': link,\n    'alert': verdict == 'malicious',\n}\n",
+            "inputs": [
+              {
+                "name": "ioc",
+                "value": {
+                  "$path": "nodes.load.output.result"
+                }
+              },
+              {
+                "name": "target",
+                "value": {
+                  "$path": "nodes.prepare.output.result"
+                }
+              },
+              {
+                "name": "response",
+                "value": {
+                  "$path": "nodes.vt.output"
+                }
+              },
+              {
+                "name": "now",
+                "value": "{{ now }}"
+              }
+            ],
+            "timeout_seconds": 5,
+            "max_steps": 200000
+          },
+          "position": {
+            "x": 0,
+            "y": 720
+          }
+        },
+        {
+          "id": "update",
+          "type": "action",
+          "label": "Write the enrichment and tag",
+          "config": {
+            "tool": "iris_case_iocs_update",
+            "arguments": {
+              "ioc_identifier": {
+                "$path": "trigger.sub_entity.id"
+              },
+              "payload": {
+                "ioc_enrichment": {
+                  "$path": "nodes.summary.output.result.enrichment"
+                },
+                "ioc_tags": "{{ nodes.summary.output.result.tags }}"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 840
+          }
+        },
+        {
+          "id": "is_malicious",
+          "type": "condition",
+          "label": "Malicious?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.summary.output.result.alert",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 960
+          }
+        },
+        {
+          "id": "notify",
+          "type": "notify",
+          "label": "Alert the case team",
+          "config": {
+            "audience": "entity",
+            "user_ids": [],
+            "title": "VirusTotal: IOC {{ nodes.prepare.output.result.value | truncate(80) }} is malicious",
+            "body": "{{ nodes.summary.output.result.malicious }}/{{ nodes.summary.output.result.engines }} engines flag this IOC of case #{{ trigger.entity_id }} as malicious. Details are in the IOC enrichment."
+          },
+          "position": {
+            "x": 0,
+            "y": 1080
+          }
+        },
+        {
+          "id": "nothing_to_do",
+          "type": "stop",
+          "label": "Nothing to look up",
+          "config": {
+            "status": "succeeded",
+            "reason": "{{ nodes.prepare.output.result.reason }}"
+          },
+          "position": {
+            "x": 320,
+            "y": 480
+          }
+        },
+        {
+          "id": "ioc_gone",
+          "type": "stop",
+          "label": "IOC no longer readable",
+          "config": {
+            "status": "succeeded",
+            "reason": "The IOC could not be read (deleted since the event?)"
+          },
+          "position": {
+            "x": 320,
+            "y": 240
+          }
+        },
+        {
+          "id": "vt_failed",
+          "type": "stop",
+          "label": "VirusTotal unavailable",
+          "config": {
+            "status": "failed",
+            "reason": "VirusTotal answered {{ nodes.vt.output.status_code | default(\"nothing\") }}: {{ nodes.vt.output.error | default(\"\") | truncate(300) }}"
+          },
+          "position": {
+            "x": 640,
+            "y": 720
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "trigger-out-load",
+          "source": "trigger",
+          "target": "load",
+          "source_port": "out"
+        },
+        {
+          "id": "load-out-prepare",
+          "source": "load",
+          "target": "prepare",
+          "source_port": "out"
+        },
+        {
+          "id": "load-error-ioc_gone",
+          "source": "load",
+          "target": "ioc_gone",
+          "source_port": "error"
+        },
+        {
+          "id": "prepare-out-supported",
+          "source": "prepare",
+          "target": "supported",
+          "source_port": "out"
+        },
+        {
+          "id": "supported-true-vt",
+          "source": "supported",
+          "target": "vt",
+          "source_port": "true"
+        },
+        {
+          "id": "supported-false-nothing_to_do",
+          "source": "supported",
+          "target": "nothing_to_do",
+          "source_port": "false"
+        },
+        {
+          "id": "vt-out-summary",
+          "source": "vt",
+          "target": "summary",
+          "source_port": "out"
+        },
+        {
+          "id": "vt-error-not_found",
+          "source": "vt",
+          "target": "not_found",
+          "source_port": "error"
+        },
+        {
+          "id": "vt-timeout-vt_failed",
+          "source": "vt",
+          "target": "vt_failed",
+          "source_port": "timeout"
+        },
+        {
+          "id": "not_found-true-summary",
+          "source": "not_found",
+          "target": "summary",
+          "source_port": "true"
+        },
+        {
+          "id": "not_found-false-vt_failed",
+          "source": "not_found",
+          "target": "vt_failed",
+          "source_port": "false"
+        },
+        {
+          "id": "summary-out-update",
+          "source": "summary",
+          "target": "update",
+          "source_port": "out"
+        },
+        {
+          "id": "update-out-is_malicious",
+          "source": "update",
+          "target": "is_malicious",
+          "source_port": "out"
+        },
+        {
+          "id": "is_malicious-true-notify",
+          "source": "is_malicious",
+          "target": "notify",
+          "source_port": "true"
+        }
+      ]
+    },
+    "write_tool_allowlist": [
+      "iris_case_iocs_update"
+    ],
+    "max_runs_per_hour": 200,
+    "token_budget_per_run": 50000,
+    "suggestion_audience": "entity"
+  },
+  "requirements": {
+    "keystore": [
+      "VIRUSTOTAL_API_KEY"
+    ],
+    "tools": [
+      "iris_case_iocs_get",
+      "iris_case_iocs_update"
+    ]
+  },
+  "warnings": []
+}

@@ -247,6 +247,12 @@ class AiWorkflowRun(db.Model):
     chain_depth = Column(Integer, nullable=False, default=0)
     parent_run_id = Column(ForeignKey('ai_workflow_run.id', ondelete='SET NULL'), nullable=True)
     is_dry_run = Column(Boolean, nullable=False, default=False)
+    # The step whose event this run replays (no foreign key: steps already
+    # reference runs); the step may since have been purged
+    replayed_from_step_id = Column(BigInteger, nullable=True)
+    # The node a test run executes on its own (its definition snapshot
+    # holds that node only); a test is not an event of the workflow
+    tested_node_id = Column(String(64), nullable=True)
     # Keystore names resolved so far: their allowed_hosts bind every later
     # HTTP node and their values are masked everywhere in the run
     used_key_names = Column(JSONB, nullable=False, default=list)
@@ -266,7 +272,8 @@ class AiWorkflowRun(db.Model):
 class AiWorkflowRunStep(db.Model):
     """One node execution (append-only ledger)."""
     __tablename__ = 'ai_workflow_run_step'
-    __table_args__ = (Index('ix_ai_workflow_run_step_run_seq', 'run_id', 'seq'),)
+    __table_args__ = (Index('ix_ai_workflow_run_step_run_seq', 'run_id', 'seq'),
+                      Index('ix_ai_workflow_run_step_node_id', 'node_id', 'run_id'))
 
     id = Column(BigInteger, primary_key=True)
     run_id = Column(ForeignKey('ai_workflow_run.id', ondelete='CASCADE'), nullable=False)
@@ -432,6 +439,30 @@ class AiKeystoreEntry(db.Model):
     last_used_at = Column(DateTime, nullable=True)
 
     owner = relationship('User', foreign_keys=[owner_id])
+
+
+class AiWorkflowBlock(db.Model):
+    """A saved block: a fragment of graph (nodes and the edges between
+    them, no trigger) an editor inserts into any workflow."""
+    __tablename__ = 'ai_workflow_block'
+    __table_args__ = (Index('ix_ai_workflow_block_owner', 'owner_id'),
+                      Index('ix_ai_workflow_block_name', 'name'),
+                      Index('ix_ai_workflow_block_created_by', 'created_by_id'))
+
+    id = Column(BigInteger, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), nullable=False, unique=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(64), nullable=True)
+    # {nodes: [...], edges: [...]}, the shape of a workflow graph
+    definition = Column(JSONB, nullable=False, default=dict)
+    # Shared blocks are visible to every user who may read workflows;
+    # only the owner (or an administrator) changes them
+    is_shared = Column(Boolean, nullable=False, default=False)
+    owner_id = Column(ForeignKey('user.id', ondelete='CASCADE'), nullable=True)
+    created_by_id = Column(ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
 
 class AiWorkflowInboundEvent(db.Model):

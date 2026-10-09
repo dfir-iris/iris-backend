@@ -655,6 +655,7 @@ AI_WORKFLOWS_MAX_STEPS_PER_RUN  # read in iris_engine/ai_workflows/engine.py thr
 AI_WORKFLOWS_RETENTION_DAYS  # read in iris_engine/ai_workflows/tasks.py through app.config
 AI_WORKFLOWS_MAX_INBOUND_BYTES  # read in business/ai_workflows_inbound.py through app.config
 AI_WORKFLOWS_CALLBACK_BASE_URL  # read in iris_engine/ai_workflows/engine.py through app.config
+AI_WORKFLOWS_PYTHON_ENABLED  # read in iris_engine/ai_workflows/nodes.py through app.config
 ai_workflows_task_tick  # Celery task iris.ai_workflows.tick, run by the beat schedule
 ai_workflows_task_prune  # Celery task iris.ai_workflows.prune, run by the beat schedule
 _register_ai_workflows_beat_schedule  # celery.on_after_finalize receiver (iris_engine/ai_workflows/tasks.py)

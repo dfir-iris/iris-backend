@@ -70,6 +70,7 @@ from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_utcnow
 from app.iris_engine.ai_workflows.context import ai_workflows_context_initial
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_customer
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_scope_allows
+from app.iris_engine.ai_workflows.entities import ai_workflows_entities_snapshot
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_user_can_access
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_nodes
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_targets
@@ -314,10 +315,13 @@ def ai_workflows_engine_start_run(workflow, trigger_type, *, run_as_user_id, tri
 def ai_workflows_engine_insert_run(workflow, trigger_type, *, denial=None, triggered_by_user_id=None,
                                    entity_type=None, entity_id=None, sub_entity=None, payload=None, dry_run=False,
                                    dedup_key=None, chain_depth=0, parent_run_id=None, enqueue=True,
-                                   scope_mask=None) -> AiWorkflowRun:
+                                   scope_mask=None, replay=None, tested_node=None) -> AiWorkflowRun:
     """Insert (and commit) the run once `ai_workflows_engine_access_denial`
     returned `denial`: the trigger path checks access before taking the
-    workflow lock (the check may commit), then inserts under the lock."""
+    workflow lock (the check may commit), then inserts under the lock.
+    `replay` (`{step_id, node_id, context}`) starts the run at that node
+    with that context instead of at the trigger; with `tested_node` the
+    run executes that node definition alone."""
     common = {
         'run_as_user_id': workflow.owner_id,
         'triggered_by_user_id': triggered_by_user_id,
@@ -343,6 +347,14 @@ def ai_workflows_engine_insert_run(workflow, trigger_type, *, denial=None, trigg
     if entity_type and entity_id is not None:
         run.customer_id = ai_workflows_entities_customer(entity_type, entity_id)
     run.pending_nodes = [ai_workflows_graph_trigger_id(workflow.graph)]
+    if replay is not None:
+        run.context = replay['context']
+        run.pending_nodes = [replay['node_id']]
+        run.replayed_from_step_id = replay['step_id']
+    if tested_node is not None:
+        run.definition_snapshot = {**run.definition_snapshot,
+                                   'graph': ai_workflows_tools_json_safe({'nodes': [tested_node], 'edges': []})}
+        run.tested_node_id = tested_node['id']
     ai_workflows_db_add(run)
     ai_workflows_db_commit()
     if enqueue:
@@ -359,6 +371,97 @@ def ai_workflows_engine_skip_run(workflow, trigger_type, reason, **_trigger):
     ai_workflows_db_count_skip(workflow.id, reason, ai_workflows_db_utcnow())
     ai_workflows_db_commit()
     logger.info(f'AI workflow #{workflow.id} {trigger_type} trigger suppressed: {reason}')
+
+
+# ---- Replaying -----------------------------------------------------------------------
+
+# Steps whose output the run context held (see `_record_node`, `_park`,
+# `ai_workflows_engine_resume_wait`)
+_CONTEXT_STEP_STATUSES = (STEP_SUCCEEDED, STEP_WAITING, STEP_RESUMED)
+
+
+def ai_workflows_engine_replay_context(source, steps, step) -> dict:
+    """The context `step` (of the run `source`) saw: the trigger and the
+    entity snapshot of the source run, the outputs of the nodes recorded
+    before the step (the latest one per node) and the variables set
+    before it. `steps` are the steps of `source`, in `seq` order."""
+    context = source.context or {}
+    nodes = {}
+    variables = {}
+    last = None
+    for earlier in steps:
+        if earlier.seq >= step.seq:
+            break
+        error_port = earlier.status == STEP_FAILED and earlier.port == PORT_ERROR
+        if earlier.status not in _CONTEXT_STEP_STATUSES and not error_port:
+            continue
+        nodes[earlier.node_id] = {'output': earlier.output, 'port': earlier.port}
+        last = earlier.node_id
+        if earlier.node_type == 'set_variables' and earlier.status == STEP_SUCCEEDED \
+                and isinstance(earlier.output, dict):
+            variables.update(earlier.output)
+    trigger = context.get('trigger')
+    if not isinstance(trigger, dict):
+        trigger = ai_workflows_context_initial(source.trigger_type, source.trigger_payload, source.entity_type,
+                                               source.entity_id, source.sub_entity)['trigger']
+    replayed = {
+        'trigger': trigger,
+        'entity': context.get('entity') if isinstance(context.get('entity'), dict) else {},
+        'nodes': nodes,
+        'vars': variables,
+        'replay': {'run_uuid': str(source.uuid) if source.uuid else None, 'step_id': step.id,
+                   'node_id': step.node_id},
+    }
+    if last is not None:
+        replayed['last'] = last
+    return ai_workflows_tools_json_safe(replayed)
+
+
+def ai_workflows_engine_replay_step(workflow, source, step, steps, *, triggered_by_user_id, dry_run=False,
+                                    scope_mask=None, enqueue=True) -> AiWorkflowRun:
+    """Create (and commit) a run of the current definition of `workflow`
+    that replays the event `step` processed in `source`: it starts at the
+    step's node with the context that step saw, acting as the workflow
+    owner like any run (refused — a `skipped` run — when the owner lost
+    access to the entity). The caller checked the node still exists."""
+    run_as_user_id = workflow.owner_id
+    denial = ai_workflows_engine_access_denial(workflow, run_as_user_id, source.entity_type, source.entity_id,
+                                               scope_mask)
+    replay = {'step_id': step.id, 'node_id': step.node_id,
+              'context': ai_workflows_engine_replay_context(source, steps, step)}
+    return ai_workflows_engine_insert_run(
+        workflow, source.trigger_type, denial=denial, triggered_by_user_id=triggered_by_user_id,
+        entity_type=source.entity_type, entity_id=source.entity_id, sub_entity=source.sub_entity,
+        payload=source.trigger_payload, dry_run=dry_run, chain_depth=source.chain_depth or 0,
+        parent_run_id=source.parent_run_id, enqueue=enqueue, scope_mask=scope_mask, replay=replay)
+
+
+def ai_workflows_engine_test_context(trigger_type, payload, entity_type, entity_id, nodes=None,
+                                     variables=None) -> dict:
+    """The context of a node test that does not start from an event:
+    a trigger, the entity snapshot, and the outputs of the nodes upstream
+    and the variables the tester supplied."""
+    context = ai_workflows_context_initial(trigger_type, payload, entity_type, entity_id, None)
+    if entity_type and entity_id is not None:
+        context['entity'] = ai_workflows_entities_snapshot(entity_type, entity_id) or {}
+    context['nodes'] = nodes or {}
+    context['vars'] = variables or {}
+    return ai_workflows_tools_json_safe(context)
+
+
+def ai_workflows_engine_test_node(workflow, node, context, *, trigger_type, triggered_by_user_id,
+                                  entity_type=None, entity_id=None, sub_entity=None, payload=None, dry_run=False,
+                                  source_step_id=None, scope_mask=None, enqueue=True) -> AiWorkflowRun:
+    """Create (and commit) a run that executes `node` (a definition the
+    caller validated, possibly not saved yet) on its own with `context`,
+    acting as the workflow owner like any run (refused — a `skipped` run
+    — when the owner cannot access the entity). It stops after the node."""
+    denial = ai_workflows_engine_access_denial(workflow, workflow.owner_id, entity_type, entity_id, scope_mask)
+    replay = {'step_id': source_step_id, 'node_id': node['id'], 'context': context}
+    return ai_workflows_engine_insert_run(
+        workflow, trigger_type, denial=denial, triggered_by_user_id=triggered_by_user_id,
+        entity_type=entity_type, entity_id=entity_id, sub_entity=sub_entity, payload=payload, dry_run=dry_run,
+        enqueue=enqueue, scope_mask=scope_mask, replay=replay, tested_node=node)
 
 
 # ---- Executing ------------------------------------------------------------------------
@@ -422,10 +525,11 @@ def _run_payload(run) -> dict:
 
 def _publish_complete(run):
     """`on_postload_ai_workflow_run_complete`, inside the run's chain so
-    the workflows it triggers count one level deeper. Not for dry runs."""
+    the workflows it triggers count one level deeper. Not for dry runs
+    nor node tests."""
     from app.iris_engine.module_handler.module_handler import call_modules_hook
 
-    if run.is_dry_run:
+    if run.is_dry_run or run.tested_node_id:
         return
     try:
         with ai_workflows_identity_chain(run):

@@ -49,7 +49,10 @@ import uuid
 from app import app
 from app.business.access_controls import access_controls_user_accessible_customers
 from app.datamgmt.ai_workflows.ai_workflows_business_db import ai_workflows_business_db_involved_runs
+from app.datamgmt.ai_workflows.ai_workflows_business_db import ai_workflows_business_db_node_stats
+from app.datamgmt.ai_workflows.ai_workflows_business_db import ai_workflows_business_db_node_step_candidates
 from app.datamgmt.ai_workflows.ai_workflows_business_db import ai_workflows_business_db_runs_by_ids
+from app.datamgmt.ai_workflows.ai_workflows_business_db import ai_workflows_business_db_steps_by_ids
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_active_runs_for_workflow
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_add
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_commit
@@ -58,7 +61,9 @@ from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_entity_cus
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_entity_exists
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_entity_title
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get
+from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get_run
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get_run_by_uuid
+from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get_step
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get_user
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get_version
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_list
@@ -84,13 +89,29 @@ from app.iris_engine.ai_workflows.engine import ai_workflows_engine_cancel_run
 from app.iris_engine.ai_workflows.engine import ai_workflows_engine_hash_token
 from app.iris_engine.ai_workflows.engine import ai_workflows_engine_inbound_url
 from app.iris_engine.ai_workflows.engine import ai_workflows_engine_new_token
+from app.iris_engine.ai_workflows.engine import ai_workflows_engine_replay_context
+from app.iris_engine.ai_workflows.engine import ai_workflows_engine_replay_step
 from app.iris_engine.ai_workflows.engine import ai_workflows_engine_start_run
+from app.iris_engine.ai_workflows.engine import ai_workflows_engine_test_context
+from app.iris_engine.ai_workflows.engine import ai_workflows_engine_test_node
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_scope_allows
 from app.iris_engine.ai_workflows.entities import ai_workflows_entities_user_can_access
+from app.iris_engine.ai_workflows.graph import ai_workflows_graph_nodes
+from app.iris_engine.ai_workflows.guide import ai_workflows_guide_examples
+from app.iris_engine.ai_workflows.guide import ai_workflows_guide_render
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate
+from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_node
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_trigger_config
 from app.iris_engine.ai_workflows.keystore import ai_workflows_keystore_visible_entries
+from app.iris_engine.ai_workflows.nodes import NODE_TRIGGER
 from app.iris_engine.ai_workflows.nodes import ai_workflows_nodes_catalogue
+from app.iris_engine.ai_workflows.nodes import ai_workflows_nodes_is_waiting
+from app.iris_engine.ai_workflows.portable import PortableError
+from app.iris_engine.ai_workflows.portable import ai_workflows_portable_export_workflow
+from app.iris_engine.ai_workflows.portable import ai_workflows_portable_key_references
+from app.iris_engine.ai_workflows.portable import ai_workflows_portable_literal_secrets
+from app.iris_engine.ai_workflows.portable import ai_workflows_portable_read_workflow
+from app.iris_engine.ai_workflows.portable import ai_workflows_portable_tools
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_serialize
 from app.iris_engine.ai_workflows.suggestions import ai_workflows_suggestions_user_can_see
 from app.iris_engine.ai_workflows.tools import ai_workflows_tools_catalogue
@@ -105,6 +126,10 @@ from app.models.ai_workflows import ENTITY_TYPES
 from app.models.ai_workflows import EXEC_ACCEPTED_BY_USER
 from app.models.ai_workflows import RUN_ACTIVE_STATUSES
 from app.models.ai_workflows import RUN_STATUSES
+from app.models.ai_workflows import STEP_FAILED
+from app.models.ai_workflows import STEP_RESUMED
+from app.models.ai_workflows import STEP_SUCCEEDED
+from app.models.ai_workflows import STEP_WAITING
 from app.models.ai_workflows import SUGGESTION_KINDS
 from app.models.ai_workflows import TRIGGER_MANUAL
 from app.models.ai_workflows import TRIGGER_TYPES
@@ -147,6 +172,8 @@ _MAX_TOOL_RESULT_CHARS = 16 * 1024
 _MAX_TOOL_CALLS_PER_STEP = 200
 # Non-administrator run listing: newest runs examined for visibility
 _MAX_RUN_SCAN = 5000
+# JSON size of the upstream outputs / variables / payload a node test supplies
+_MAX_TEST_CONTEXT_BYTES = 256 * 1024
 
 
 # ---- Helpers ---------------------------------------------------------------
@@ -290,6 +317,8 @@ def ai_workflows_run_summary(run, users=None, titles=None) -> dict:
         'finished_at': _iso(run.finished_at),
         'chain_depth': run.chain_depth or 0,
         'parent_run_id': run.parent_run_id,
+        'replayed_from_step_id': getattr(run, 'replayed_from_step_id', None),
+        'tested_node_id': getattr(run, 'tested_node_id', None),
     }
 
 
@@ -778,6 +807,53 @@ def ai_workflows_delete(workflow_id, user_id, is_admin) -> None:
     track_activity(f'AI workflow #{workflow_id} "{name}" deleted', ctx_less=True)
 
 
+def ai_workflows_export(workflow_id, user_id, is_admin) -> dict:
+    """The portable JSON document of a workflow: no owner, customer
+    scope, inbound token, signing secret or keystore value; a literal
+    credential left in an HTTP request becomes a `key()` reference."""
+    workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
+    document = ai_workflows_portable_export_workflow(_definition(workflow),
+                                                     exported_at=_iso(ai_workflows_db_utcnow()),
+                                                     instance_version=app.config.get('IRIS_VERSION'))
+    track_activity(f'AI workflow #{workflow.id} "{workflow.name}" exported', ctx_less=True)
+    return document
+
+
+def ai_workflows_import_warnings(user_id, nodes, allowlist=()) -> list:
+    """What an imported definition needs and the importer lacks:
+    keystore entries it cannot use, tools disabled here, literal secrets."""
+    warnings = []
+    visible = {e.name for e in ai_workflows_keystore_visible_entries(user_id)}
+    for name in ai_workflows_portable_key_references(nodes):
+        if name not in visible:
+            warnings.append(_error(None, 'keystore', f'Keystore entry {name} does not exist or is not usable by '
+                                                     'you: create it before activating the workflow'))
+    enabled = {t['name']: t.get('enabled', True) for t in ai_workflows_tools_catalogue()}
+    for name in ai_workflows_portable_tools(nodes, allowlist):
+        if name in enabled and not enabled[name]:
+            warnings.append(_error(None, 'tools', f'Tool {name} is disabled in the MCP settings of this instance'))
+    for warning in ai_workflows_portable_literal_secrets(nodes):
+        warnings.append(_error(warning['node_id'], warning['field'], 'This field holds a literal credential: '
+                                                                     'move it to the keystore and use key()'))
+    return warnings
+
+
+def ai_workflows_import(document, user_id, is_admin) -> dict:
+    """Create a workflow from a portable document (or a bare definition).
+    The workflow is inactive, owned by the importer, without customer
+    scope; it is validated like any new workflow."""
+    try:
+        body = ai_workflows_portable_read_workflow(document)
+    except PortableError as e:
+        _raise_invalid([_error(None, None, str(e))])
+    body['is_active'] = False
+    body['version_note'] = 'Imported'
+    workflow = ai_workflows_create(body, user_id, is_admin)
+    graph = body.get('graph') if isinstance(body.get('graph'), dict) else {}
+    warnings = ai_workflows_import_warnings(user_id, graph.get('nodes'), body.get('write_tool_allowlist'))
+    return {'workflow': workflow, 'warnings': warnings}
+
+
 def ai_workflows_list_versions(workflow_id, user_id, is_admin) -> list:
     workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
     versions = ai_workflows_db_list_versions(workflow.id)
@@ -884,6 +960,14 @@ def ai_workflows_catalogue(user_id) -> dict:
     }
 
 
+def ai_workflows_authoring_guide(user_id) -> dict:
+    """`{markdown, examples}`: how to write workflows and blocks as JSON,
+    with the live catalogue of this instance (keystore names only)."""
+    catalogue = ai_workflows_catalogue(user_id)
+    examples = ai_workflows_guide_examples()
+    return {'markdown': ai_workflows_guide_render(catalogue, examples), 'examples': examples}
+
+
 # ---- Runs ------------------------------------------------------------------
 
 def ai_workflows_require_enabled():
@@ -892,15 +976,16 @@ def ai_workflows_require_enabled():
         raise AiWorkflowsDisabledError()
 
 
-def _check_entity(workflow, entity_type, entity_id, user_id, scope_mask=None):
+def _check_entity(workflow, entity_type, entity_id, user_id, scope_mask=None, any_type=False):
     """Validate and coerce a run target the clicking user must be able
     to access (an entity they cannot see is not found); returns
-    (type, id)."""
+    (type, id). `any_type` (a node test) ignores the manual trigger
+    restriction."""
     # Manual trigger `entity_types` restricts the target, and then makes it
     # mandatory; empty = any type, or none
     allowed_types = list(ENTITY_TYPES)
     restricted = False
-    if workflow.trigger_type == TRIGGER_MANUAL:
+    if workflow.trigger_type == TRIGGER_MANUAL and not any_type:
         configured = list((workflow.trigger_config or {}).get('entity_types') or [])
         if configured:
             allowed_types = configured
@@ -1109,3 +1194,181 @@ def ai_workflows_list_inbound_events(user_id, is_admin, workflow_id=None, limit=
                                                                    limit=limit)
     run_uuids = ai_workflows_db_run_uuids([e.run_id for e in events])
     return [ai_workflows_inbound_event_public(e, run_uuids) for e in events]
+
+
+# ---- Node events -----------------------------------------------------------
+# Every execution of a node (a step, `resumed` rows aside) is an event the
+# node processed; any of them can be replayed through the current
+# definition of the workflow, from that node, with the context it saw.
+
+_EVENT_STATUSES = (STEP_SUCCEEDED, STEP_FAILED, STEP_WAITING)
+
+
+def ai_workflows_node_stats(workflow_id, user_id, is_admin) -> dict:
+    """`{nodes: {node_id: {total, counts: {status: n}, last_at}}}`: the
+    events each node processed, over every run of the workflow (for a
+    non-administrator, the runs they are involved in)."""
+    workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
+    stats = ai_workflows_business_db_node_stats(workflow.id, None if is_admin else user_id)
+    return {'nodes': {node_id: {'total': sum(entry['counts'].values()), 'counts': entry['counts'],
+                                'last_at': _iso(entry['last_at'])}
+                      for node_id, entry in stats.items()}}
+
+
+def ai_workflows_node_events(workflow_id, node_id, user_id, is_admin, status=None, page=1, per_page=25,
+                             scope_mask=None) -> dict:
+    """The events `node_id` processed, newest first, each with its run;
+    a non-administrator only sees the events of runs they can see
+    (`ai_workflows_user_can_see_run`: involved in, on an entity they can
+    access) — not those of a previous owner of the workflow."""
+    workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
+    if status and status not in _EVENT_STATUSES:
+        raise BusinessProcessingError('Invalid status filter', data={'status': [f'Unknown status {status}']})
+    per_page = max(1, min(int(per_page or 25), _MAX_PER_PAGE))
+    page = max(1, int(page or 1))
+    candidates = ai_workflows_business_db_node_step_candidates(workflow.id, node_id, status or None,
+                                                               limit=_MAX_RUN_SCAN,
+                                                               involved_user_id=None if is_admin else user_id)
+    if not is_admin:
+        cache = {}
+        candidates = [c for c in candidates if _entity_visible(user_id, c.entity_type, c.entity_id, cache,
+                                                               scope_mask)]
+    total = len(candidates)
+    start = (page - 1) * per_page
+    steps = ai_workflows_business_db_steps_by_ids([c.id for c in candidates[start:start + per_page]])
+    runs = {r.id: r for r in ai_workflows_business_db_runs_by_ids(list(dict.fromkeys(s.run_id for s in steps)))}
+    users = ai_workflows_db_user_summary([r.run_as_user_id for r in runs.values()] +
+                                         [r.triggered_by_user_id for r in runs.values()])
+    titles = {}
+    last_page = max(1, -(-total // per_page)) if total > 0 else 1
+    return {
+        'node_id': node_id,
+        'data': [{**_step_public(s), 'run': ai_workflows_run_summary(runs[s.run_id], users, titles)}
+                 for s in steps if s.run_id in runs],
+        'total': total,
+        'truncated': total >= _MAX_RUN_SCAN,
+        'page': page,
+        'per_page': per_page,
+        'current_page': page,
+        'last_page': last_page,
+        'next_page': page + 1 if page < last_page else None,
+    }
+
+
+def _get_node_event(workflow, node_id, step_id, user_id, is_admin, scope_mask):
+    """(step, run) of an event of `node_id` in a run of `workflow` the
+    user can see; anything else is not found."""
+    step = ai_workflows_db_get_step(step_id)
+    if step is None or step.node_id != node_id or step.status == STEP_RESUMED:
+        raise ObjectNotFoundError()
+    run = ai_workflows_db_get_run(step.run_id)
+    if run is None or run.workflow_id != workflow.id \
+            or not ai_workflows_user_can_see_run(user_id, is_admin, run, scope_mask=scope_mask):
+        raise ObjectNotFoundError()
+    return step, run
+
+
+def ai_workflows_node_event(workflow_id, node_id, step_id, user_id, is_admin, scope_mask=None) -> dict:
+    """One event with the context the node saw (what a replay starts with)."""
+    workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
+    step, run = _get_node_event(workflow, node_id, step_id, user_id, is_admin, scope_mask)
+    data = {**_step_public(step), 'run': ai_workflows_run_summary(run)}
+    data['context'] = ai_workflows_engine_replay_context(run, ai_workflows_db_list_steps(run.id), step)
+    return data
+
+
+def ai_workflows_replay_event(workflow_id, node_id, step_id, body, user_id, is_admin, scope_mask=None) -> dict:
+    """Replay an event through the current definition of the workflow,
+    from its node. Like a re-run, it acts as the workflow owner and is
+    triggered by the current user, who must access the entity; it is a
+    dry run if asked, or if the replayed run was one."""
+    ai_workflows_require_enabled()
+    workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
+    step, source = _get_node_event(workflow, node_id, step_id, user_id, is_admin, scope_mask)
+    if node_id not in ai_workflows_graph_nodes(workflow.graph):
+        raise BusinessProcessingError('This node is no longer in the workflow: the event cannot be replayed')
+    body = body if isinstance(body, dict) else {}
+    dry_run = body.get('dry_run', bool(source.is_dry_run))
+    if not isinstance(dry_run, bool):
+        raise BusinessProcessingError('Invalid replay request', data={'dry_run': ['Must be a boolean']})
+    _check_entity_access(user_id, source.entity_type, source.entity_id, scope_mask)
+    run = ai_workflows_engine_replay_step(workflow, source, step, ai_workflows_db_list_steps(source.id),
+                                          triggered_by_user_id=user_id, dry_run=dry_run, scope_mask=scope_mask)
+    mode = 'dry run' if dry_run else 'run'
+    track_activity(f'AI workflow #{workflow.id} "{workflow.name}" event of node {node_id} (run {source.uuid}, '
+                   f'step {step.id}) replayed as {mode} {run.uuid}', ctx_less=True)
+    return ai_workflows_run_summary(run)
+
+
+# ---- Node tests ------------------------------------------------------------
+# One node executed on its own, from its definition in the editor (saved
+# or not), so its output can be checked before the workflow runs it.
+
+def _test_context_part(body, name, kinds):
+    value = body.get(name)
+    if value is None:
+        return None
+    if not isinstance(value, kinds):
+        raise BusinessProcessingError('Invalid node test', data={name: ['Must be an object']})
+    try:
+        size = len(json.dumps(value, default=str).encode('utf-8'))
+    except (TypeError, ValueError, RecursionError):
+        raise BusinessProcessingError('Invalid node test', data={name: ['Not serialisable']})
+    if size > _MAX_TEST_CONTEXT_BYTES:
+        raise BusinessProcessingError('Invalid node test',
+                                      data={name: [f'At most {_MAX_TEST_CONTEXT_BYTES // 1024} KB']})
+    return value
+
+
+def ai_workflows_test_node(workflow_id, body, user_id, is_admin, scope_mask=None) -> dict:
+    """Test `body.node` alone: from the context an earlier event of that
+    node saw (`step_id`), or from an entity, a trigger payload and the
+    upstream outputs / variables the tester supplies (`entity_type`,
+    `entity_id`, `payload`, `nodes`, `vars`). The node is checked against
+    the workflow write allowlist; like any run, the test acts as the
+    workflow owner, is triggered by the current user, who must access the
+    entity, and really executes the node unless `dry_run`."""
+    ai_workflows_require_enabled()
+    workflow = _get_owned_workflow(workflow_id, user_id, is_admin)
+    body = body if isinstance(body, dict) else {}
+    node = body.get('node')
+    errors = ai_workflows_graph_validate_node(node, workflow.write_tool_allowlist)
+    if errors:
+        raise BusinessProcessingError('Invalid node', data={'errors': errors})
+    if node.get('type') == NODE_TRIGGER:
+        raise BusinessProcessingError('A trigger cannot be tested on its own: run the workflow')
+    if ai_workflows_nodes_is_waiting(node):
+        raise BusinessProcessingError('A node that waits cannot be tested on its own: run the workflow')
+    dry_run = body.get('dry_run', False)
+    if not isinstance(dry_run, bool):
+        raise BusinessProcessingError('Invalid node test', data={'dry_run': ['Must be a boolean']})
+    node = {key: node[key] for key in ('id', 'type', 'label', 'config') if key in node}
+
+    step_id = body.get('step_id')
+    if step_id is not None:
+        if isinstance(step_id, bool) or not isinstance(step_id, int):
+            raise BusinessProcessingError('Invalid node test', data={'step_id': ['An integer id is required']})
+        step, source = _get_node_event(workflow, node['id'], step_id, user_id, is_admin, scope_mask)
+        _check_entity_access(user_id, source.entity_type, source.entity_id, scope_mask)
+        context = ai_workflows_engine_replay_context(source, ai_workflows_db_list_steps(source.id), step)
+        run = ai_workflows_engine_test_node(
+            workflow, node, context, trigger_type=source.trigger_type, triggered_by_user_id=user_id,
+            entity_type=source.entity_type, entity_id=source.entity_id, sub_entity=source.sub_entity,
+            payload=source.trigger_payload, dry_run=dry_run, source_step_id=step.id, scope_mask=scope_mask)
+        origin = f'event of run {source.uuid} (step {step.id})'
+    else:
+        entity_type, entity_id = _check_entity(workflow, body.get('entity_type'), body.get('entity_id'), user_id,
+                                               scope_mask, any_type=True)
+        payload = _test_context_part(body, 'payload', (dict, list))
+        nodes = _test_context_part(body, 'nodes', dict)
+        variables = _test_context_part(body, 'vars', dict)
+        context = ai_workflows_engine_test_context(TRIGGER_MANUAL, payload, entity_type, entity_id, nodes,
+                                                   variables)
+        run = ai_workflows_engine_test_node(
+            workflow, node, context, trigger_type=TRIGGER_MANUAL, triggered_by_user_id=user_id,
+            entity_type=entity_type, entity_id=entity_id, payload=payload, dry_run=dry_run, scope_mask=scope_mask)
+        origin = f'{entity_type} #{entity_id}' if entity_type else 'a supplied context'
+    mode = 'dry run' if dry_run else 'run'
+    track_activity(f'AI workflow #{workflow.id} "{workflow.name}" node {node["id"]} ({node["type"]}) tested on '
+                   f'{origin} as {mode} {run.uuid}', ctx_less=True)
+    return ai_workflows_run_summary(run)

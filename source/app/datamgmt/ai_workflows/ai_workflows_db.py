@@ -212,10 +212,12 @@ def ai_workflows_db_run_uuids(run_ids) -> dict:
 
 
 def ai_workflows_db_count_runs_since(workflow_id, since) -> int:
+    """Runs toward the hourly cap: node tests are not."""
     return AiWorkflowRun.query.filter(
         AiWorkflowRun.workflow_id == workflow_id,
         AiWorkflowRun.started_at >= since,
         AiWorkflowRun.status != RUN_SKIPPED,
+        AiWorkflowRun.tested_node_id.is_(None),
     ).count()
 
 

@@ -238,6 +238,28 @@ class TestsGraphLimits(TestCase):
         messages = self._messages(_graph([node], [_edge('trigger', 'end')]))
         self.assertEqual([('end', 'label', 'A label is a string of at most 255 characters')], messages)
 
+    def test_handles_should_name_sides(self):
+        node = _node('end', 'stop')
+        node['handles'] = {'input': 'top', 'output': 'bottom'}
+        self.assertEqual([], self._messages(_graph([node], [_edge('trigger', 'end')])))
+        for handles in ({'input': 'middle'}, {'side': 'top'}, 'top'):
+            node['handles'] = handles
+            messages = self._messages(_graph([node], [_edge('trigger', 'end')]))
+            self.assertEqual([('end', 'handles')], [m[:2] for m in messages])
+
+    def test_edge_sides_should_name_sides(self):
+        edge = _edge('trigger', 'end')
+        edge.update({'source_side': 'bottom', 'target_side': 'top'})
+        self.assertEqual([], self._messages(_graph([_node('end', 'stop')], [edge])))
+        edge['target_side'] = 'middle'
+        messages = self._messages(_graph([_node('end', 'stop')], [edge]))
+        self.assertIn('edges.0.target_side', [m[1] for m in messages])
+
+    def test_reserved_node_ids_should_be_refused(self):
+        for node_id in ('__proto__', 'constructor', 'prototype'):
+            messages = self._messages(_graph([_node(node_id, 'stop')], [_edge('trigger', node_id)]))
+            self.assertIn('nodes.1.id', [m[1] for m in messages], node_id)
+
 
 class TestsGraphSecurityChecks(TestCase):
 
