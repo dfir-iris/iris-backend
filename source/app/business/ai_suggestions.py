@@ -336,6 +336,22 @@ def _publish_expired(expired):
 
 # ---- Read ------------------------------------------------------------------
 
+def _statuses(status):
+    """None for every status; `status` may list several, comma-separated."""
+    if not status:
+        return [SUGGESTION_OPEN]
+    if status == 'all':
+        return None
+    statuses = []
+    for value in str(status).split(','):
+        value = value.strip()
+        if value not in SUGGESTION_STATUSES:
+            raise BusinessProcessingError('Invalid status filter', data={'status': [f'Unknown status {value}']})
+        if value not in statuses:
+            statuses.append(value)
+    return statuses
+
+
 def ai_suggestions_list(user_id, entity_type=None, entity_id=None, status=None, run_uuid=None,
                         scope_mask=None, workflow_id=None, severity=None, mine=False, limit=None) -> list:
     """Newest first. `entity_type` `none`: the suggestions about no
@@ -349,14 +365,7 @@ def ai_suggestions_list(user_id, entity_type=None, entity_id=None, status=None, 
         raise BusinessProcessingError('Invalid entity type', data={'entity_type': [f'Unknown {entity_type}']})
     if severity and severity not in SEVERITIES:
         raise BusinessProcessingError('Invalid severity filter', data={'severity': [f'Unknown severity {severity}']})
-    if not status:
-        statuses = [SUGGESTION_OPEN]
-    elif status == 'all':
-        statuses = None
-    elif status in SUGGESTION_STATUSES:
-        statuses = [status]
-    else:
-        raise BusinessProcessingError('Invalid status filter', data={'status': [f'Unknown status {status}']})
+    statuses = _statuses(status)
     run_id = None
     if run_uuid:
         run = ai_workflows_db_get_run_by_uuid(run_uuid)

@@ -58,7 +58,8 @@ paths:
         required: false
         schema:
           type: string
-        description: Suggestion status, 'open' by default, 'all' for every status
+        description: 'Suggestion status, or several comma-separated: ''open'' by default, ''all'' for
+          every status'
       - name: run_uuid
         in: query
         required: false

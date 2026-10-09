@@ -392,6 +392,14 @@ class TestsInboxList(_SuggestionsTestCase):
         self.assertEqual(500, query['limit'])
         self.assertEqual(['dry_run'], query['statuses'])
 
+    def test_several_statuses_should_reach_the_query(self):
+        _listed, query = self._list(status='open, dry_run,open')
+        self.assertEqual(['open', 'dry_run'], query['statuses'])
+
+    def test_unknown_status_should_be_refused(self):
+        with self.assertRaises(BusinessProcessingError):
+            ai_suggestions_list(_ANALYST, status='open,pending')
+
     def test_unknown_severity_should_be_refused(self):
         with self.assertRaises(BusinessProcessingError):
             ai_suggestions_list(_ANALYST, severity='urgent')

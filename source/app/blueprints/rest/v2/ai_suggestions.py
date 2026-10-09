@@ -89,7 +89,8 @@ ai_suggestions_blueprint = Blueprint('ai_suggestions_rest_v2', __name__, url_pre
 @api_doc(tags=['AiSuggestions'], summary='List the AI suggestions the user can see',
          query_params=[('entity_type', 'string', "Entity type, 'none' for the suggestions about no entity"),
                        ('entity_id', 'integer'),
-                       ('status', 'string', "Suggestion status, 'open' by default, 'all' for every status"),
+                       ('status', 'string', "Suggestion status, or several comma-separated: 'open' by default, "
+                                             "'all' for every status"),
                        ('run_uuid', 'string'), ('workflow_id', 'integer'), ('severity', 'string'),
                        ('mine', 'boolean', 'Only the suggestions addressed to the current user'),
                        ('limit', 'integer', 'At most this many suggestions (200 by default, 500 at most)')])
