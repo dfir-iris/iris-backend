@@ -19,8 +19,9 @@
 """The authoring guide: `authoring_guide.md` (how to write workflows and
 blocks as JSON) followed by a live catalogue of this instance — node
 types and their defaults, events, tools with their arguments, keystore
-names — and the example documents shipped in `examples/`. Meant to be
-handed to an LLM as is."""
+names — and the example documents shipped in `examples/` (the
+VirusTotal pair in full, the rest of the workflow library by name).
+Meant to be handed to an LLM as is."""
 
 import json
 import os
@@ -29,6 +30,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _GUIDE = os.path.join(_HERE, 'authoring_guide.md')
 _EXAMPLES = os.path.join(_HERE, 'examples')
 _MAX_DESCRIPTION = 300
+# Reproduced in full in the guide; the others are only listed
+_EMBEDDED = ('virustotal_ioc_enrichment.workflow.json', 'virustotal_lookup.block.json')
 
 
 def ai_workflows_guide_examples() -> list:
@@ -107,9 +110,20 @@ def ai_workflows_guide_render(catalogue, examples=None) -> str:
         lines = [handle.read().rstrip(), '']
     lines += _catalogue_markdown(catalogue)
     examples = ai_workflows_guide_examples() if examples is None else examples
-    if examples:
+    embedded = [e for e in examples if e['file'] in _EMBEDDED]
+    listed = [e for e in examples if e['file'] not in _EMBEDDED]
+    if embedded:
         lines += ['', '## Shipped examples', '']
-        for example in examples:
+        for example in embedded:
             lines += [f'### {example["name"]} (`{example["file"]}`, {example["kind"]})', '', '```json',
                       json.dumps(example['document'], indent=2, ensure_ascii=False), '```', '']
+    if listed:
+        # In full they would make the guide too long to hand to an LLM
+        lines += ['', '## Workflow library', '',
+                  'Also shipped, in the workflow library (`GET /api/v2/ai-workflows/library`, or the Library button '
+                  'of the AI workflows page), not reproduced here:', '']
+        for example in listed:
+            body = example['document'].get(example['kind']) or {}
+            lines.append(f'- **{example["name"]}** (`{example["file"]}`, {example["kind"]}) — '
+                         f'{_sentence(body.get("description"))}')
     return '\n'.join(lines).rstrip() + '\n'

@@ -862,6 +862,22 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/ai-workflows/library:
+    get:
+      operationId: get_ai_workflows_library_route_get
+      summary: 'The workflow library: shipped workflows to add as they are or after an edit, with what
+        the caller lacks to run each'
+      tags:
+      - AiWorkflows
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/ai-workflows/runs:
     get:
       operationId: list_ai_workflow_runs_route_get

@@ -280,10 +280,12 @@ else:
 
 The complete version of this workflow, which covers hashes, IPs, domains and URLs, merges the VirusTotal verdict into the existing enrichment and tags, and alerts the analysts on malicious verdicts, ships with IRIS as `virustotal_ioc_enrichment.workflow.json`. A matching saved block is `virustotal_lookup.block.json`.
 
-Two more examples ship with IRIS:
+More workflows ship in the workflow library; they are listed at the end of this guide, and the library endpoint returns them in full. Among them:
 
 - `detection_rule_feedback.workflow.json` runs every Monday morning. It pages through the alerts closed in the last 7 days with `iris_alerts_list` and its `fields` argument, so that each page stays small. A Python node groups them per detection rule and computes the false positive rate and the time to close. An agent then proposes tunings for the noisiest rules. The proposals become one suggestion and a notification to the workflow owner.
-- `ioc_estate_hunt.workflow.json` runs when an IOC is created. It searches the SIEM for the IOC over the last 30 days with `http_request` and counts the hits per host in Python. Hosts that are not assets of the case are listed in a notification. Each of them, up to 5, becomes a suggestion to add it to the case as an asset linked to the IOC. Set `SIEM_API_KEY` in the keystore and the search URL to your SIEM before enabling it.
+- `ioc_estate_hunt.workflow.json` runs when an IOC is created. It searches the SIEM for the IOC over the last 30 days with `http_request`, Elasticsearch / OpenSearch or Splunk depending on the `siem` input of its query node, and counts the hits per host in Python. Hosts that are not assets of the case are listed in a notification. Each of them, up to 5, becomes a suggestion to add it to the case as an asset linked to the IOC. Set `SIEM_API_KEY` in the keystore and the search URL to your SIEM before enabling it.
+- `alert_triage.workflow.json` runs when an alert of severity Medium or above is created. `find_related` and a Python node list the alerts and open cases that share its IOCs or assets. An agent then picks a verdict, and a Python node checks it before the conditions route it: a suggestion to close the alert (the status and resolution ids are looked up by name with `iris_taxonomies_list`), to merge it into one of those open cases, or to escalate it. When the agent needs facts, `ask_analyst` asks once (a variable remembers it) and the answer goes back to the agent.
+- `case_kickoff.workflow.json` runs when a case is opened. An agent drafts a kickoff note and the first tasks; each becomes a suggestion whose proposed action creates the note or the task.
 
 ## 9. Checklist before answering with a workflow
 

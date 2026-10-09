@@ -61,6 +61,7 @@ from app.business.ai_workflows import ai_workflows_get
 from app.business.ai_workflows import ai_workflows_get_run
 from app.business.ai_workflows import ai_workflows_get_version
 from app.business.ai_workflows import ai_workflows_import
+from app.business.ai_workflows import ai_workflows_library
 from app.business.ai_workflows import ai_workflows_list
 from app.business.ai_workflows import ai_workflows_list_inbound_events
 from app.business.ai_workflows import ai_workflows_list_runs
@@ -231,6 +232,15 @@ def list_ai_workflow_inbound_events_route():
          summary='Markdown guide to write workflows and blocks as JSON (for people and LLMs), with the live catalogue')
 def get_ai_workflows_authoring_guide_route():
     return _handle(lambda: ai_workflows_authoring_guide(iris_current_user.id))
+
+
+@ai_workflows_blueprint.get('/library')
+@ac_api_requires(*_READ)
+@api_doc(tags=['AiWorkflows'],
+         summary='The workflow library: shipped workflows to add as they are or after an edit, with what the caller '
+                 'lacks to run each')
+def get_ai_workflows_library_route():
+    return _handle(lambda: ai_workflows_library(iris_current_user.id))
 
 
 @ai_workflows_blueprint.post('/import')

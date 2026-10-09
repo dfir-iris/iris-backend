@@ -1,0 +1,212 @@
+{
+  "format": "iris-ai-workflow",
+  "format_version": 1,
+  "category": "Operations",
+  "workflow": {
+    "name": "Alert SLA watchdog",
+    "description": "Every 15 minutes, checks the open alerts nobody is assigned to against the time allowed for their severity (Critical 15 min, High 1 h, Medium 4 h, Low 24 h, Informational 48 h; set them in the SLA check node) and, when alerts went past it since the previous check, notifies the workflow owner with the list of every alert waiting past its SLA, new breaches first. Set the notify node to the SOC leads. Checks the newest 100 waiting alerts. No AI involved.",
+    "trigger_type": "cron",
+    "trigger_config": {
+      "cron": "*/15 * * * *",
+      "target": "none"
+    },
+    "graph": {
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "trigger",
+          "label": "Every 15 minutes",
+          "config": {},
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "fetch",
+          "type": "action",
+          "label": "Open unassigned alerts",
+          "config": {
+            "tool": "iris_alerts_list",
+            "arguments": {
+              "query": "is:open is:unassigned",
+              "per_page": 100,
+              "sort": "desc",
+              "fields": [
+                "alert_id",
+                "alert_title",
+                "alert_creation_time",
+                "severity.severity_name",
+                "customer.customer_name"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 120
+          }
+        },
+        {
+          "id": "check",
+          "type": "python",
+          "label": "SLA check",
+          "config": {
+            "code": "def epoch(text):\n    # Seconds since 1970 of an ISO date-time read as UTC, or None\n    m = re_match('(\\\\d{4})-(\\\\d{2})-(\\\\d{2})[T ](\\\\d{2}):(\\\\d{2}):(\\\\d{2})', text if is_str(text) else '')\n    if m is None:\n        return None\n    y, mo, d, h, mi, s = [int(g) for g in m['groups']]\n    if mo <= 2:\n        y -= 1\n    era = y // 400\n    yoe = y - era * 400\n    doy = (153 * (mo - 3 if mo > 2 else mo + 9) + 2) // 5 + d - 1\n    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy\n    return (era * 146097 + doe - 719468) * 86400 + h * 3600 + mi * 60 + s\n\ndef duration(minutes):\n    # 45 min, 3 h 20 min, 2 d 4 h\n    minutes = int(minutes)\n    if minutes < 60:\n        return f'{minutes} min'\n    if minutes < 2880:\n        hours = minutes // 60\n        rest = minutes - hours * 60\n        return f'{hours} h {rest} min' if rest else f'{hours} h'\n    days = minutes // 1440\n    hours = (minutes - days * 1440) // 60\n    return f'{days} d {hours} h' if hours else f'{days} d'\n\ndef cell(value, size):\n    # A table cell: one line, no pipe, at most `size` characters\n    text = re_sub('\\\\s+', ' ', re_sub('\\\\|', '/', str(value if value is not None else ''))).strip()\n    return text if len(text) <= size else text[:size - 1] + '…'\n\nRANKS = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'informational': 4, 'unspecified': 5}\n\ndef rank(name):\n    return RANKS.get(str(name or '').lower(), 6)\n\npage = inputs.get('page') if is_dict(inputs.get('page')) else {}\nnow = epoch(inputs.get('now'))\nif now is None:\n    fail(f\"Unreadable time: {inputs.get('now')}\")\nsla = inputs.get('sla_minutes') if is_dict(inputs.get('sla_minutes')) else {}\ndefault = int(inputs.get('default_minutes') or 0)\ninterval = int(inputs.get('interval_minutes') or 15)\nmax_rows = int(inputs.get('max_rows') or 15)\nrows = page.get('data') or []\n\nbreaches = []\nfor alert in rows:\n    if not is_dict(alert):\n        continue\n    severity = str((alert.get('severity') or {}).get('severity_name') or 'Unspecified')\n    allowed = sla.get(severity)\n    allowed = int(allowed if allowed is not None else default)\n    created = epoch(alert.get('alert_creation_time'))\n    if allowed <= 0 or created is None:\n        continue\n    waiting = (now - created) // 60\n    if waiting <= allowed:\n        continue\n    breaches.append({\n        'id': alert.get('alert_id'),\n        'title': str(alert.get('alert_title') or '(no title)'),\n        'severity': severity,\n        'customer': (alert.get('customer') or {}).get('customer_name'),\n        'waiting_minutes': waiting,\n        'sla_minutes': allowed,\n        # Breached since the previous check\n        'new': waiting - allowed <= interval,\n    })\n\norder = sorted([(0 if b['new'] else 1, rank(b['severity']), -b['waiting_minutes'], i) for i, b in enumerate(breaches)])\nbreaches = [breaches[o[3]] for o in order]\nlines = []\nif breaches:\n    lines = ['| Alert | Severity | Waiting | SLA | Customer |', '|---|---|---|---|---|']\n    for b in breaches[:max_rows]:\n        flag = ' **new**' if b['new'] else ''\n        lines.append(f\"| #{b['id']} {cell(b['title'], 60)}{flag} | {b['severity']} | {duration(b['waiting_minutes'])} | {duration(b['sla_minutes'])} | {cell(b['customer'], 30)} |\")\n    if len(breaches) > max_rows:\n        lines.append(f\"\\n{len(breaches) - max_rows} more not shown.\")\ntotal = page.get('total') if page.get('total') is not None else len(rows)\nresult = {\n    'breaches': len(breaches),\n    'new_breaches': len([b for b in breaches if b['new']]),\n    'rows': breaches[:max_rows],\n    'table': '\\n'.join(lines),\n    'checked': len(rows),\n    'coverage': f\" Only the newest {len(rows)} of {total} waiting alerts were checked.\" if total > len(rows) else '',\n}\n",
+            "inputs": [
+              {
+                "name": "page",
+                "value": {
+                  "$path": "nodes.fetch.output.result"
+                }
+              },
+              {
+                "name": "now",
+                "value": "{{ now }}"
+              },
+              {
+                "name": "sla_minutes",
+                "value": {
+                  "Critical": 15,
+                  "High": 60,
+                  "Medium": 240,
+                  "Low": 1440,
+                  "Informational": 2880,
+                  "Unspecified": 1440
+                }
+              },
+              {
+                "name": "default_minutes",
+                "value": 1440
+              },
+              {
+                "name": "interval_minutes",
+                "value": 15
+              },
+              {
+                "name": "max_rows",
+                "value": 15
+              }
+            ],
+            "timeout_seconds": 10,
+            "max_steps": 1000000
+          },
+          "position": {
+            "x": 0,
+            "y": 240
+          }
+        },
+        {
+          "id": "any",
+          "type": "condition",
+          "label": "New breaches?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.check.output.result.new_breaches",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 360
+          }
+        },
+        {
+          "id": "notify",
+          "type": "notify",
+          "label": "Tell the SOC leads",
+          "config": {
+            "audience": "owner",
+            "user_ids": [],
+            "title": "Alert SLA: {{ nodes.check.output.result.new_breaches }} new breach(es), {{ nodes.check.output.result.breaches }} alert(s) waiting past their SLA",
+            "body": "Open alerts nobody has picked up, past the time allowed for their severity.{{ nodes.check.output.result.coverage }}\n\n{{ nodes.check.output.result.table }}"
+          },
+          "position": {
+            "x": 0,
+            "y": 480
+          }
+        },
+        {
+          "id": "quiet",
+          "type": "stop",
+          "label": "No new breach",
+          "config": {
+            "status": "succeeded",
+            "reason": "{{ nodes.check.output.result.breaches }} alert(s) past their SLA, none new"
+          },
+          "position": {
+            "x": 300,
+            "y": 480
+          }
+        },
+        {
+          "id": "fetch_failed",
+          "type": "stop",
+          "label": "Alerts unavailable",
+          "config": {
+            "status": "failed",
+            "reason": "Could not list the alerts: {{ nodes.fetch.output.error | default(\"\") | truncate(300) }}"
+          },
+          "position": {
+            "x": 300,
+            "y": 120
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "trigger-out-fetch",
+          "source": "trigger",
+          "target": "fetch",
+          "source_port": "out"
+        },
+        {
+          "id": "fetch-out-check",
+          "source": "fetch",
+          "target": "check",
+          "source_port": "out"
+        },
+        {
+          "id": "fetch-error-fetch_failed",
+          "source": "fetch",
+          "target": "fetch_failed",
+          "source_port": "error"
+        },
+        {
+          "id": "check-out-any",
+          "source": "check",
+          "target": "any",
+          "source_port": "out"
+        },
+        {
+          "id": "any-true-notify",
+          "source": "any",
+          "target": "notify",
+          "source_port": "true"
+        },
+        {
+          "id": "any-false-quiet",
+          "source": "any",
+          "target": "quiet",
+          "source_port": "false"
+        }
+      ]
+    },
+    "write_tool_allowlist": [],
+    "max_runs_per_hour": 6,
+    "token_budget_per_run": 10000,
+    "suggestion_audience": "owner"
+  },
+  "requirements": {
+    "keystore": [],
+    "tools": [
+      "iris_alerts_list"
+    ]
+  },
+  "warnings": []
+}

@@ -99,6 +99,7 @@ from app.iris_engine.ai_workflows.entities import ai_workflows_entities_user_can
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_nodes
 from app.iris_engine.ai_workflows.guide import ai_workflows_guide_examples
 from app.iris_engine.ai_workflows.guide import ai_workflows_guide_render
+from app.iris_engine.ai_workflows.library import ai_workflows_library_entries
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_node
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_trigger_config
@@ -970,6 +971,18 @@ def ai_workflows_authoring_guide(user_id) -> dict:
     catalogue = ai_workflows_catalogue(user_id)
     examples = ai_workflows_guide_examples()
     return {'markdown': ai_workflows_guide_render(catalogue, examples), 'examples': examples}
+
+
+def ai_workflows_library(user_id) -> list:
+    """The shipped workflows, each with what `user_id` would lack to run
+    it here (`warnings`, as on import)."""
+    entries = []
+    for entry in ai_workflows_library_entries():
+        workflow = entry['document'].get('workflow') or {}
+        graph = workflow.get('graph') if isinstance(workflow.get('graph'), dict) else {}
+        warnings = ai_workflows_import_warnings(user_id, graph.get('nodes'), workflow.get('write_tool_allowlist'))
+        entries.append({**entry, 'warnings': warnings})
+    return entries
 
 
 # ---- Runs ------------------------------------------------------------------

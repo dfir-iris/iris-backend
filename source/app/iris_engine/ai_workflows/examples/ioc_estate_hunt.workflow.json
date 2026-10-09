@@ -1,9 +1,10 @@
 {
   "format": "iris-ai-workflow",
   "format_version": 1,
+  "category": "Hunting",
   "workflow": {
     "name": "IOC hunt across the estate",
-    "description": "When an IOC (IP, domain, URL, hash or file name) is added to a case, searches the SIEM for it over the last 30 days, counts the hits per host and, when hosts outside the case saw it, notifies the case owner and whoever added the IOC and suggests adding each of those hosts (up to 5, one a minute) to the case as an asset linked to the IOC. Written for Elasticsearch / OpenSearch with ECS fields: set the URL of the search node to your cluster and index, and adapt the query of the \"SIEM query\" node to another SIEM or EDR. Needs the keystore entry SIEM_API_KEY (an API key, restricted to the SIEM host) and, for an internal SIEM, IRIS_AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS. For long searches, switch the request to async mode.",
+    "description": "When an IOC (IP, domain, URL, hash or file name) is added to a case, searches the SIEM for it over the last 30 days, counts the hits per host and, when hosts outside the case saw it, notifies the case owner and whoever added the IOC and suggests adding each of those hosts (up to 5, one a minute) to the case as an asset linked to the IOC. Works with Elasticsearch / OpenSearch (ECS fields) and Splunk (CIM fields): set the input siem of the \"SIEM query\" node to elastic or splunk, then the URL of the matching search node (your cluster and index, or your Splunk management port); adapt the field lists at the top of the \"SIEM query\" script to your data. Needs the keystore entry SIEM_API_KEY (an Elastic API key, or a Splunk authentication token of a user with read-only search rights, restricted to the SIEM host) and, for an internal SIEM, IRIS_AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS. For long searches, switch the request to async mode.",
     "trigger_type": "event",
     "trigger_config": {
       "hooks": [
@@ -47,8 +48,12 @@
           "type": "python",
           "label": "SIEM query",
           "config": {
-            "code": "# Fields an IOC value is searched in (Elastic Common Schema)\nFIELDS = {\n    'ip': ['source.ip', 'destination.ip', 'client.ip', 'server.ip'],\n    'domain': ['dns.question.name', 'url.domain', 'destination.domain', 'tls.client.server_name'],\n    'url': ['url.full', 'url.original'],\n    'md5': ['file.hash.md5', 'process.hash.md5', 'dll.hash.md5'],\n    'sha1': ['file.hash.sha1', 'process.hash.sha1', 'dll.hash.sha1'],\n    'sha256': ['file.hash.sha256', 'process.hash.sha256', 'dll.hash.sha256'],\n    'filename': ['file.name', 'process.name'],\n}\nKINDS = {'ip-src': 'ip', 'ip-dst': 'ip', 'ip-any': 'ip', 'ip': 'ip', 'domain': 'domain', 'hostname': 'domain',\n         'url': 'url', 'uri': 'url', 'md5': 'md5', 'sha1': 'sha1', 'sha256': 'sha256', 'filename': 'filename'}\n\n\nPREFERENCE = ['sha256', 'sha1', 'md5', 'url', 'domain', 'ip', 'filename']\n\n\ndef target(type_name, value):\n    # 'filename|sha256' and the like: the most specific component\n    types = type_name.lower().split('|')\n    values = value.split('|')\n    found = {}\n    for index, part in enumerate(types):\n        kind = KINDS.get(part.strip())\n        if kind is not None and kind not in found and index < len(values) and values[index].strip():\n            found[kind] = values[index].strip()\n    for kind in PREFERENCE:\n        if kind in found:\n            return [kind, found[kind]]\n    return [None, None]\n\n\nioc = inputs.get('ioc') if is_dict(inputs.get('ioc')) else {}\ntype_name = ((ioc.get('ioc_type') or {}).get('type_name') or '').strip()\nraw = (ioc.get('ioc_value') or '').strip()\nkind, value = target(type_name, raw)\ndays = int(inputs.get('days') or 30)\nif not raw:\n    result = {'supported': False, 'reason': 'Empty IOC value'}\nelif kind is None:\n    result = {'supported': False, 'reason': f'No search for IOCs of type {type_name or \"unknown\"}'}\nelif kind == 'ip' and ip_info(value) is None:\n    result = {'supported': False, 'reason': f'{value} is not an IP address'}\nelse:\n    if kind in ('domain', 'md5', 'sha1', 'sha256'):\n        value = value.lower().rstrip('.')\n    terms = [{'term': {field: value}} for field in FIELDS[kind]]\n    body = {\n        'size': 0,\n        'track_total_hits': True,\n        'query': {'bool': {'filter': [\n            {'range': {'@timestamp': {'gte': f'now-{days}d'}}},\n            {'bool': {'should': terms, 'minimum_should_match': 1}},\n        ]}},\n        'aggs': {'hosts': {\n            'terms': {'field': 'host.name', 'size': 200},\n            'aggs': {\n                'os': {'terms': {'field': 'host.os.type', 'size': 1}},\n                'ip': {'terms': {'field': 'host.ip', 'size': 1}},\n                'last_seen': {'max': {'field': '@timestamp'}},\n            },\n        }},\n    }\n    result = {'supported': True, 'kind': kind, 'value': value, 'days': days, 'fields': FIELDS[kind], 'body': body}\n",
+            "code": "# Fields an IOC value is searched in, per SIEM: Elastic Common Schema for\n# elastic, the Splunk Common Information Model for splunk\nFIELDS = {\n    'elastic': {\n        'ip': ['source.ip', 'destination.ip', 'client.ip', 'server.ip'],\n        'domain': ['dns.question.name', 'url.domain', 'destination.domain', 'tls.client.server_name'],\n        'url': ['url.full', 'url.original'],\n        'md5': ['file.hash.md5', 'process.hash.md5', 'dll.hash.md5'],\n        'sha1': ['file.hash.sha1', 'process.hash.sha1', 'dll.hash.sha1'],\n        'sha256': ['file.hash.sha256', 'process.hash.sha256', 'dll.hash.sha256'],\n        'filename': ['file.name', 'process.name'],\n    },\n    'splunk': {\n        'ip': ['src', 'src_ip', 'dest', 'dest_ip'],\n        'domain': ['query', 'url_domain', 'dest_host'],\n        'url': ['url'],\n        'md5': ['file_hash', 'process_hash'],\n        'sha1': ['file_hash', 'process_hash'],\n        'sha256': ['file_hash', 'process_hash'],\n        'filename': ['file_name', 'process_name'],\n    },\n}\n# Splunk: the indexes searched and the field naming the host an event is about\nSPLUNK_INDEXES = 'index=*'\nSPLUNK_HOST = 'host'\nKINDS = {'ip-src': 'ip', 'ip-dst': 'ip', 'ip-any': 'ip', 'ip': 'ip', 'domain': 'domain', 'hostname': 'domain',\n         'url': 'url', 'uri': 'url', 'md5': 'md5', 'sha1': 'sha1', 'sha256': 'sha256', 'filename': 'filename'}\n\n\nPREFERENCE = ['sha256', 'sha1', 'md5', 'url', 'domain', 'ip', 'filename']\n\n\ndef target(type_name, value):\n    # 'filename|sha256' and the like: the most specific component\n    types = type_name.lower().split('|')\n    values = value.split('|')\n    found = {}\n    for index, part in enumerate(types):\n        kind = KINDS.get(part.strip())\n        if kind is not None and kind not in found and index < len(values) and values[index].strip():\n            found[kind] = values[index].strip()\n    for kind in PREFERENCE:\n        if kind in found:\n            return [kind, found[kind]]\n    return [None, None]\n\n\ndef elastic_body(fields, value, days):\n    terms = [{'term': {field: value}} for field in fields]\n    return {\n        'size': 0,\n        'track_total_hits': True,\n        'query': {'bool': {'filter': [\n            {'range': {'@timestamp': {'gte': f'now-{days}d'}}},\n            {'bool': {'should': terms, 'minimum_should_match': 1}},\n        ]}},\n        'aggs': {'hosts': {\n            'terms': {'field': 'host.name', 'size': 200},\n            'aggs': {\n                'os': {'terms': {'field': 'host.os.type', 'size': 1}},\n                'ip': {'terms': {'field': 'host.ip', 'size': 1}},\n                'last_seen': {'max': {'field': '@timestamp'}},\n            },\n        }},\n    }\n\n\ndef spl_quoted(value):\n    # A double-quoted SPL string: the value cannot end it and add commands\n    return '\"' + value.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"') + '\"'\n\n\ndef splunk_form(fields, value, days):\n    match = ' OR '.join([f'{field}={spl_quoted(value)}' for field in fields])\n    search = (f'search {SPLUNK_INDEXES} ({match})'\n              f' | stats count AS hits, max(_time) AS last_seen, latest(os) AS os BY {SPLUNK_HOST}'\n              f' | rename {SPLUNK_HOST} AS host_name'\n              ' | eval last_seen=strftime(last_seen, \"%Y-%m-%dT%H:%M:%S%z\")'\n              ' | sort 200 - hits')\n    # A oneshot search answers in the response, as one JSON document\n    return {'search': search, 'exec_mode': 'oneshot', 'output_mode': 'json', 'count': 0,\n            'earliest_time': f'-{days}d', 'latest_time': 'now'}\n\n\nsiem = str(inputs.get('siem') or 'elastic').strip().lower()\nif siem not in FIELDS:\n    fail(f'Unknown SIEM {siem}: set the input siem to elastic or splunk')\nioc = inputs.get('ioc') if is_dict(inputs.get('ioc')) else {}\ntype_name = ((ioc.get('ioc_type') or {}).get('type_name') or '').strip()\nraw = (ioc.get('ioc_value') or '').strip()\nkind, value = target(type_name, raw)\ndays = int(inputs.get('days') or 30)\nif not raw:\n    result = {'supported': False, 'reason': 'Empty IOC value'}\nelif kind is None:\n    result = {'supported': False, 'reason': f'No search for IOCs of type {type_name or \"unknown\"}'}\nelif kind == 'ip' and ip_info(value) is None:\n    result = {'supported': False, 'reason': f'{value} is not an IP address'}\nelif re_search('[\\\\x00-\\\\x1f]', value) is not None:\n    result = {'supported': False, 'reason': 'The IOC value holds control characters'}\nelse:\n    if kind in ('domain', 'md5', 'sha1', 'sha256'):\n        value = value.lower().rstrip('.')\n    fields = FIELDS[siem][kind]\n    result = {'supported': True, 'siem': siem, 'kind': kind, 'value': value, 'days': days, 'fields': fields}\n    if siem == 'splunk':\n        result['form'] = splunk_form(fields, value, days)\n    else:\n        result['body'] = elastic_body(fields, value, days)\n",
             "inputs": [
+              {
+                "name": "siem",
+                "value": "elastic"
+              },
               {
                 "name": "ioc",
                 "value": {
@@ -90,9 +95,30 @@
           }
         },
         {
+          "id": "which",
+          "type": "condition",
+          "label": "Splunk?",
+          "position": {
+            "x": 0,
+            "y": 420
+          },
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.prepare.output.result.siem",
+                "operator": "eq",
+                "value": "splunk"
+              }
+            ]
+          }
+        },
+        {
           "id": "siem",
           "type": "http_request",
-          "label": "Search the SIEM",
+          "label": "Search Elasticsearch",
           "config": {
             "method": "POST",
             "url": "https://siem.example.org:9200/logs-*/_search",
@@ -119,7 +145,40 @@
           },
           "position": {
             "x": 0,
-            "y": 480
+            "y": 540
+          }
+        },
+        {
+          "id": "splunk",
+          "type": "http_request",
+          "label": "Search Splunk",
+          "position": {
+            "x": -320,
+            "y": 540
+          },
+          "config": {
+            "method": "POST",
+            "url": "https://splunk.example.org:8089/services/search/jobs",
+            "query_params": [],
+            "auth_type": "none",
+            "auth_username": "",
+            "auth_secret": "",
+            "headers": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{ key(\"SIEM_API_KEY\") }}",
+                "secret": true
+              }
+            ],
+            "body_mode": "template",
+            "body_template": "{{ nodes.prepare.output.result.form | urlencode }}",
+            "content_type": "application/x-www-form-urlencoded",
+            "mode": "sync",
+            "timeout_seconds": 60,
+            "wait_timeout_minutes": 60,
+            "verify_tls": true,
+            "use_proxy": false,
+            "response_format": "json"
           }
         },
         {
@@ -134,7 +193,7 @@
           },
           "position": {
             "x": 0,
-            "y": 600
+            "y": 660
           }
         },
         {
@@ -142,12 +201,18 @@
           "type": "python",
           "label": "Hits per host",
           "config": {
-            "code": "def first_key(agg):\n    buckets = (agg or {}).get('buckets') if is_dict(agg) else None\n    return buckets[0].get('key') if is_list(buckets) and buckets else None\n\n\ndef short(name):\n    return name.lower().split('.')[0]\n\n\nbody = inputs.get('response') if is_dict(inputs.get('response')) else {}\nassets = inputs.get('assets') if is_list(inputs.get('assets')) else []\nlimit = int(inputs.get('max_suggestions') or 5)\n\nnames = set()\nips = set()\nfor asset in assets:\n    for field in ('asset_name', 'asset_domain'):\n        if is_str(asset.get(field)) and asset.get(field).strip():\n            names.add(short(asset.get(field).strip()))\n    if is_str(asset.get('asset_ip')):\n        for ip in re_split('[,;\\\\s]+', asset.get('asset_ip')):\n            if ip:\n                ips.add(ip)\n\nhosts = {}\nbuckets = (((body.get('aggregations') or {}).get('hosts') or {}).get('buckets'))\nif is_list(buckets):\n    for bucket in buckets:\n        host = str(bucket.get('key') or '').strip()\n        if host:\n            last = (bucket.get('last_seen') or {})\n            hosts[host] = {'host': host, 'hits': int(bucket.get('doc_count') or 0),\n                           'os': first_key(bucket.get('os')), 'ip': first_key(bucket.get('ip')),\n                           'last_seen': last.get('value_as_string')}\nelse:\n    # No aggregation in the answer: count the returned events\n    for hit in ((body.get('hits') or {}).get('hits') or []):\n        source = hit.get('_source') or {}\n        host_doc = source.get('host') or {}\n        host = str(host_doc.get('name') or '').strip()\n        if not host:\n            continue\n        entry = hosts.setdefault(host, {'host': host, 'hits': 0, 'os': (host_doc.get('os') or {}).get('type'),\n                                        'ip': None, 'last_seen': source.get('@timestamp')})\n        entry['hits'] += 1\n\ntotal = (body.get('hits') or {}).get('total')\ntotal = total.get('value') if is_dict(total) else total\nranked = sorted(hosts.values(), key=lambda h: h['hits'], reverse=True)\nfor entry in ranked:\n    entry['known'] = short(entry['host']) in names or (entry['ip'] is not None and str(entry['ip']) in ips)\nnew_hosts = [h for h in ranked if not h['known']]\n\n\ndef line(h):\n    return f\"| {h['host'].replace('|', '/')} | {h['hits']} | {h['os'] or '-'} | {h['last_seen'] or '-'} |\"\n\n\ntable = ''\nif new_hosts:\n    table = '\\n'.join(['| Host | Events | OS | Last seen |', '|---|---|---|---|'] + [line(h) for h in new_hosts[:25]])\nresult = {\n    'total_hits': total if total is not None else sum([h['hits'] for h in ranked]),\n    'hosts': len(ranked),\n    'known_hosts': [h['host'] for h in ranked if h['known']],\n    'new_hosts': new_hosts,\n    'new_count': len(new_hosts),\n    'to_suggest': new_hosts[:limit],\n    'has_new': len(new_hosts) > 0,\n    'table': table,\n}\n",
+            "code": "def first_key(agg):\n    buckets = (agg or {}).get('buckets') if is_dict(agg) else None\n    return buckets[0].get('key') if is_list(buckets) and buckets else None\n\n\ndef short(name):\n    return name.lower().split('.')[0]\n\n\nbody = inputs.get('response') if is_dict(inputs.get('response')) else {}\nsplunk = inputs.get('splunk') if is_dict(inputs.get('splunk')) else None\nassets = inputs.get('assets') if is_list(inputs.get('assets')) else []\nlimit = int(inputs.get('max_suggestions') or 5)\n\nnames = set()\nips = set()\nfor asset in assets:\n    for field in ('asset_name', 'asset_domain'):\n        if is_str(asset.get(field)) and asset.get(field).strip():\n            names.add(short(asset.get(field).strip()))\n    if is_str(asset.get('asset_ip')):\n        for ip in re_split('[,;\\\\s]+', asset.get('asset_ip')):\n            if ip:\n                ips.add(ip)\n\nhosts = {}\nbuckets = (((body.get('aggregations') or {}).get('hosts') or {}).get('buckets'))\nif splunk is not None:\n    # Splunk: one result row per host, every value a string\n    for row in splunk.get('results') or []:\n        host = str(row.get('host_name') or '').strip() if is_dict(row) else ''\n        if host:\n            hosts[host] = {'host': host, 'hits': int(row.get('hits') or 0), 'os': row.get('os') or None,\n                           'ip': row.get('ip') or None, 'last_seen': row.get('last_seen') or None}\nelif is_list(buckets):\n    for bucket in buckets:\n        host = str(bucket.get('key') or '').strip()\n        if host:\n            last = (bucket.get('last_seen') or {})\n            hosts[host] = {'host': host, 'hits': int(bucket.get('doc_count') or 0),\n                           'os': first_key(bucket.get('os')), 'ip': first_key(bucket.get('ip')),\n                           'last_seen': last.get('value_as_string')}\nelse:\n    # No aggregation in the answer: count the returned events\n    for hit in ((body.get('hits') or {}).get('hits') or []):\n        source = hit.get('_source') or {}\n        host_doc = source.get('host') or {}\n        host = str(host_doc.get('name') or '').strip()\n        if not host:\n            continue\n        entry = hosts.setdefault(host, {'host': host, 'hits': 0, 'os': (host_doc.get('os') or {}).get('type'),\n                                        'ip': None, 'last_seen': source.get('@timestamp')})\n        entry['hits'] += 1\n\ntotal = (body.get('hits') or {}).get('total')\ntotal = total.get('value') if is_dict(total) else total\nranked = sorted(hosts.values(), key=lambda h: h['hits'], reverse=True)\nfor entry in ranked:\n    entry['known'] = short(entry['host']) in names or (entry['ip'] is not None and str(entry['ip']) in ips)\nnew_hosts = [h for h in ranked if not h['known']]\n\n\ndef line(h):\n    return f\"| {h['host'].replace('|', '/')} | {h['hits']} | {h['os'] or '-'} | {h['last_seen'] or '-'} |\"\n\n\ntable = ''\nif new_hosts:\n    table = '\\n'.join(['| Host | Events | OS | Last seen |', '|---|---|---|---|'] + [line(h) for h in new_hosts[:25]])\nresult = {\n    'total_hits': total if total is not None else sum([h['hits'] for h in ranked]),\n    'hosts': len(ranked),\n    'known_hosts': [h['host'] for h in ranked if h['known']],\n    'new_hosts': new_hosts,\n    'new_count': len(new_hosts),\n    'to_suggest': new_hosts[:limit],\n    'has_new': len(new_hosts) > 0,\n    'table': table,\n}\n",
             "inputs": [
               {
                 "name": "response",
                 "value": {
                   "$path": "nodes.siem.output.body"
+                }
+              },
+              {
+                "name": "splunk",
+                "value": {
+                  "$path": "nodes.splunk.output.body"
                 }
               },
               {
@@ -166,7 +231,7 @@
           },
           "position": {
             "x": 0,
-            "y": 720
+            "y": 780
           }
         },
         {
@@ -187,7 +252,7 @@
           },
           "position": {
             "x": 0,
-            "y": 840
+            "y": 900
           }
         },
         {
@@ -202,7 +267,7 @@
           },
           "position": {
             "x": 0,
-            "y": 960
+            "y": 1020
           }
         },
         {
@@ -215,7 +280,7 @@
           },
           "position": {
             "x": 0,
-            "y": 1080
+            "y": 1140
           }
         },
         {
@@ -223,7 +288,7 @@
           "type": "python",
           "label": "Next host",
           "config": {
-            "code": "TYPE_BY_OS = {'windows': 'Windows - Computer', 'linux': 'Linux - Computer', 'macos': 'Mac - Computer'}\n\nhosts = inputs.get('hosts') if is_list(inputs.get('hosts')) else []\nindex = int(inputs.get('index') or 0)\nif index >= len(hosts):\n    fail('No host left to suggest')\nhost = hosts[index]\nfallback = inputs.get('default_type') or 'Windows - Computer'\nwanted = TYPE_BY_OS.get(str(host.get('os') or '').lower()) or fallback\nids = {}\nfor entry in inputs.get('types') or []:\n    ids[str(entry.get('name') or '').lower()] = entry.get('id')\ntype_id = ids.get(wanted.lower())\nif type_id is None:\n    type_id = ids.get(fallback.lower())\nif type_id is None:\n    fail(f'No asset type named {wanted} or {fallback}: set default_type to one of the asset types of this instance')\nioc = inputs.get('ioc') or {}\npayload = {\n    'asset_name': host['host'],\n    'asset_type_id': type_id,\n    'asset_description': f\"Seen with IOC {ioc.get('value')} in {host['hits']} SIEM event(s) over the last \"\n                         f\"{ioc.get('days')} days (last seen {host.get('last_seen') or 'unknown'}).\",\n    'asset_tags': 'ioc-hunt',\n}\nif host.get('ip'):\n    payload['asset_ip'] = str(host['ip'])\nresult = {'host': host, 'payload': payload, 'next': index + 1, 'more': index + 1 < len(hosts)}\n",
+            "code": "# The asset type of a host whose OS name contains the key\nTYPE_BY_OS = {'windows': 'Windows - Computer', 'linux': 'Linux - Computer', 'mac': 'Mac - Computer'}\n\n\ndef type_of(os_name):\n    os_name = str(os_name or '').lower()\n    for key in TYPE_BY_OS:\n        if key in os_name:\n            return TYPE_BY_OS[key]\n    return None\n\n\nhosts = inputs.get('hosts') if is_list(inputs.get('hosts')) else []\nindex = int(inputs.get('index') or 0)\nif index >= len(hosts):\n    fail('No host left to suggest')\nhost = hosts[index]\nfallback = inputs.get('default_type') or 'Windows - Computer'\nwanted = type_of(host.get('os')) or fallback\nids = {}\nfor entry in inputs.get('types') or []:\n    ids[str(entry.get('name') or '').lower()] = entry.get('id')\ntype_id = ids.get(wanted.lower())\nif type_id is None:\n    type_id = ids.get(fallback.lower())\nif type_id is None:\n    fail(f'No asset type named {wanted} or {fallback}: set default_type to one of the asset types of this instance')\nioc = inputs.get('ioc') or {}\npayload = {\n    'asset_name': host['host'],\n    'asset_type_id': type_id,\n    'asset_description': f\"Seen with IOC {ioc.get('value')} in {host['hits']} SIEM event(s) over the last \"\n                         f\"{ioc.get('days')} days (last seen {host.get('last_seen') or 'unknown'}).\",\n    'asset_tags': 'ioc-hunt',\n}\nif host.get('ip'):\n    payload['asset_ip'] = str(host['ip'])\nresult = {'host': host, 'payload': payload, 'next': index + 1, 'more': index + 1 < len(hosts)}\n",
             "inputs": [
               {
                 "name": "hosts",
@@ -257,7 +322,7 @@
           },
           "position": {
             "x": 0,
-            "y": 1200
+            "y": 1260
           }
         },
         {
@@ -284,7 +349,7 @@
           },
           "position": {
             "x": 0,
-            "y": 1320
+            "y": 1380
           }
         },
         {
@@ -303,7 +368,7 @@
           },
           "position": {
             "x": 0,
-            "y": 1440
+            "y": 1500
           }
         },
         {
@@ -324,7 +389,7 @@
           },
           "position": {
             "x": 0,
-            "y": 1560
+            "y": 1620
           }
         },
         {
@@ -336,7 +401,7 @@
           },
           "position": {
             "x": 320,
-            "y": 1380
+            "y": 1440
           }
         },
         {
@@ -371,11 +436,11 @@
           "label": "SIEM unavailable",
           "config": {
             "status": "failed",
-            "reason": "The SIEM answered {{ nodes.siem.output.status_code | default(\"nothing\") }}: {{ nodes.siem.output.error | default(\"\") | truncate(300) }}"
+            "reason": "The SIEM answered {{ nodes.siem.output.status_code or nodes.splunk.output.status_code or \"nothing\" }}: {{ (nodes.siem.output.error or nodes.splunk.output.error) | default(\"\") | truncate(300) }}"
           },
           "position": {
             "x": 320,
-            "y": 480
+            "y": 540
           }
         },
         {
@@ -388,7 +453,7 @@
           },
           "position": {
             "x": 320,
-            "y": 600
+            "y": 660
           }
         },
         {
@@ -401,7 +466,7 @@
           },
           "position": {
             "x": 320,
-            "y": 840
+            "y": 900
           }
         }
       ],
@@ -431,10 +496,22 @@
           "source_port": "out"
         },
         {
-          "id": "supported-true-siem",
+          "id": "supported-true-which",
           "source": "supported",
-          "target": "siem",
+          "target": "which",
           "source_port": "true"
+        },
+        {
+          "id": "which-true-splunk",
+          "source": "which",
+          "target": "splunk",
+          "source_port": "true"
+        },
+        {
+          "id": "which-false-siem",
+          "source": "which",
+          "target": "siem",
+          "source_port": "false"
         },
         {
           "id": "supported-false-nothing_to_do",
@@ -457,6 +534,24 @@
         {
           "id": "siem-timeout-siem_failed",
           "source": "siem",
+          "target": "siem_failed",
+          "source_port": "timeout"
+        },
+        {
+          "id": "splunk-out-assets",
+          "source": "splunk",
+          "target": "assets",
+          "source_port": "out"
+        },
+        {
+          "id": "splunk-error-siem_failed",
+          "source": "splunk",
+          "target": "siem_failed",
+          "source_port": "error"
+        },
+        {
+          "id": "splunk-timeout-siem_failed",
+          "source": "splunk",
           "target": "siem_failed",
           "source_port": "timeout"
         },

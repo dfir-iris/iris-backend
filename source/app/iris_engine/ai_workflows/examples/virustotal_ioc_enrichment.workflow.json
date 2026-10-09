@@ -1,6 +1,7 @@
 {
   "format": "iris-ai-workflow",
   "format_version": 1,
+  "category": "Enrichment",
   "workflow": {
     "name": "VirusTotal IOC enrichment",
     "description": "On IOC creation or update, looks the IOC (hash, IP, domain or URL) up on VirusTotal, stores the verdict and a readable summary (detection ratio, threat label and names, flagging engines, reputation, dates, network or registrar) in the IOC enrichment (\"virustotal\" key) and a vt:<verdict> tag, and notifies the case owner and whoever added the IOC when it is malicious. Needs the keystore entry VIRUSTOTAL_API_KEY (restrict it to www.virustotal.com). Each IOC value is looked up at most once a day.",

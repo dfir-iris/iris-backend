@@ -17,11 +17,13 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """The IOC hunt example: it validates, its scripts build the SIEM search
-and sort the hosts it answers into known and new, and a run suggests
-adding each new host to the case and tells the case owner."""
+(Elasticsearch or Splunk) and sort the hosts it answers into known and
+new, and a run suggests adding each new host to the case and tells the
+case owner."""
 
 import json
 import os
+from urllib.parse import parse_qs
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -97,10 +99,24 @@ class TestsIocHuntDocument(TestCase):
                          _DOCUMENT['requirements'])
 
 
+def _splunk(*rows):
+    return {'preview': False, 'init_offset': 0, 'messages': [], 'fields': [{'name': 'host_name'}],
+            'results': [{'host_name': host, 'hits': str(hits), 'os': os_name, 'last_seen': last_seen}
+                        for host, hits, os_name, last_seen in rows]}
+
+
+def _splunk_document():
+    document = json.loads(json.dumps(_DOCUMENT))
+    for node in document['workflow']['graph']['nodes']:
+        if node['id'] == 'prepare':
+            node['config']['inputs'][0]['value'] = 'splunk'
+    return document
+
+
 class TestsIocHuntPrepareScript(TestCase):
 
-    def _prepare(self, ioc):
-        return _script('prepare', {'ioc': ioc, 'days': 30})
+    def _prepare(self, ioc, siem='elastic'):
+        return _script('prepare', {'siem': siem, 'ioc': ioc, 'days': 30})
 
     def _terms(self, result):
         return result['body']['query']['bool']['filter'][1]['bool']['should']
@@ -136,14 +152,44 @@ class TestsIocHuntPrepareScript(TestCase):
             result = self._prepare(ioc)
             self.assertEqual((False, reason), (result['supported'], result['reason']))
 
+    def test_elastic_should_be_the_default(self):
+        self.assertEqual('elastic', _NODES['prepare']['config']['inputs'][0]['value'])
+        result = _script('prepare', {'ioc': _ioc('10.1.2.3', 'ip-dst'), 'days': 30})
+        self.assertEqual(('elastic', False), (result['siem'], 'form' in result))
+
+    def test_splunk_should_get_a_oneshot_search_over_the_cim_fields(self):
+        result = self._prepare(_ioc('Evil.Example.ORG', 'domain'), siem='Splunk')
+        self.assertEqual(('splunk', False), (result['siem'], 'body' in result))
+        self.assertEqual({'search': 'search index=* (query="evil.example.org" OR url_domain="evil.example.org" OR '
+                                    'dest_host="evil.example.org") | stats count AS hits, max(_time) AS last_seen, '
+                                    'latest(os) AS os BY host | rename host AS host_name | eval last_seen=strftime('
+                                    'last_seen, "%Y-%m-%dT%H:%M:%S%z") | sort 200 - hits',
+                          'exec_mode': 'oneshot', 'output_mode': 'json', 'count': 0, 'earliest_time': '-30d',
+                          'latest_time': 'now'}, result['form'])
+
+    def test_splunk_values_should_not_escape_their_quotes(self):
+        search = self._prepare(_ioc('a" OR index=_internal "b\\', 'filename'), siem='splunk')['form']['search']
+        self.assertIn('(file_name="a\\" OR index=_internal \\"b\\\\" OR ', search)
+
+    def test_control_characters_should_not_be_searched(self):
+        result = self._prepare(_ioc('a\nb', 'filename'), siem='splunk')
+        self.assertEqual((False, 'The IOC value holds control characters'), (result['supported'], result['reason']))
+
+    def test_unknown_siem_should_fail(self):
+        outcome = ai_workflows_sandbox_run(_NODES['prepare']['config']['code'], {'inputs': {
+            'siem': 'qradar', 'ioc': _ioc('10.1.2.3', 'ip')}})
+        self.assertEqual(('failed', 'Unknown SIEM qradar: set the input siem to elastic or splunk'),
+                         (outcome['kind'], outcome['error']))
+
 
 class TestsIocHuntHitsScript(TestCase):
 
     _ASSETS = [{'asset_name': 'WS-001', 'asset_ip': '10.0.0.1'},
                {'asset_name': 'printer', 'asset_ip': '10.0.0.7, 10.0.0.8'}]
 
-    def _hits(self, response, assets=None, max_suggestions=5):
-        return _script('hits', {'response': response, 'assets': self._ASSETS if assets is None else assets,
+    def _hits(self, response, assets=None, max_suggestions=5, splunk=None):
+        return _script('hits', {'response': response, 'splunk': splunk,
+                                'assets': self._ASSETS if assets is None else assets,
                                 'max_suggestions': max_suggestions})
 
     def test_hosts_of_the_case_should_be_told_apart_by_name_short_name_or_ip(self):
@@ -173,6 +219,15 @@ class TestsIocHuntHitsScript(TestCase):
         self.assertEqual([('lnx-1', 2, 'linux')], [(h['host'], h['hits'], h['os']) for h in result['new_hosts']])
         self.assertEqual(3, result['total_hits'])
 
+    def test_splunk_rows_should_be_read_as_hosts(self):
+        result = self._hits(None, splunk=_splunk(('WS-001', 30, 'Microsoft Windows 10', None),
+                                                 ('srv-db', 12, None, '2026-10-08T10:00:00+0000'),
+                                                 ('', 3, None, None)))
+        self.assertEqual((42, 2, ['WS-001']), (result['total_hits'], result['hosts'], result['known_hosts']))
+        [host] = result['to_suggest']
+        self.assertEqual(('srv-db', 12, None, None, '2026-10-08T10:00:00+0000'),
+                         (host['host'], host['hits'], host['os'], host['ip'], host['last_seen']))
+
     def test_no_hit_should_have_nothing_new(self):
         result = self._hits(_answer())
         self.assertEqual((0, 0, False, ''), (result['total_hits'], result['hosts'], result['has_new'], result['table']))
@@ -194,6 +249,13 @@ class TestsIocHuntPickScript(TestCase):
                           'asset_description': 'Seen with IOC evil.example.org in 10 SIEM event(s) over the last '
                                                '30 days (last seen unknown).'}, result['payload'])
         self.assertEqual((1, True), (result['next'], result['more']))
+
+    def test_os_names_should_be_matched_by_their_family(self):
+        hosts = [{'host': 'ws', 'hits': 1, 'os': 'Microsoft Windows 10 Pro'}, {'host': 'mb', 'hits': 1, 'os': 'macOS'}]
+        types = [_script('pick', {'hosts': hosts, 'types': _TYPES, 'ioc': {}, 'index': index,
+                                  'default_type': 'Linux - Computer'})['payload']['asset_type_id']
+                 for index in (0, 1)]
+        self.assertEqual([1, 9], types)
 
     def test_unknown_os_should_use_the_default_type(self):
         result = self._pick(1)
@@ -259,8 +321,8 @@ class TestsIocHuntRun(EngineTestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def _run(self, ioc):
-        body = ai_workflows_portable_read_workflow(_DOCUMENT)
+    def _run(self, ioc, document=_DOCUMENT):
+        body = ai_workflows_portable_read_workflow(document)
         wf = workflow(body['graph'], trigger_type='event', trigger_config=body['trigger_config'])
         self.tool_results.update({
             'iris_case_iocs_get': ioc,
@@ -326,3 +388,31 @@ class TestsIocHuntRun(EngineTestCase):
         self.assertEqual('failed', run.status)
         self.assertIn('401', run.error)
         self.assertEqual([], self.store.suggestions)
+
+    def test_splunk_should_be_searched_when_chosen(self):
+        self.response['response_body'] = json.dumps(_splunk(('WS-001', 4, 'Windows', None),
+                                                            ('srv-db', 10, 'Linux', '2026-10-08T10:00:00+0000')))
+        run = self._run(_ioc('evil.example.org', 'domain'), document=_splunk_document())
+        self.assertEqual('succeeded', run.status, run.error)
+        [request] = self.requests
+        self.assertEqual(('POST', 'https://splunk.example.org:8089/services/search/jobs'),
+                         (request['method'], request['url']))
+        self.assertEqual(f'Bearer {_SIEM_KEY}', request['headers']['Authorization'])
+        self.assertEqual('application/x-www-form-urlencoded', request['headers']['Content-Type'])
+        form = parse_qs(request['body'].decode())
+        self.assertEqual((['oneshot'], ['json'], ['-30d']),
+                         (form['exec_mode'], form['output_mode'], form['earliest_time']))
+        self.assertTrue(form['search'][0].startswith('search index=* (query="evil.example.org" OR '))
+        [suggestion] = self.store.suggestions
+        self.assertEqual({'asset_name': 'srv-db', 'asset_type_id': 3, 'asset_tags': 'ioc-hunt',
+                          'asset_description': 'Seen with IOC evil.example.org in 10 SIEM event(s) over the last 30 '
+                                               'days (last seen 2026-10-08T10:00:00+0000).'},
+                         suggestion.proposed_action['arguments']['payload'])
+        self.assertNotIn(_SIEM_KEY, json.dumps(run.context, default=str))
+
+    def test_splunk_failure_should_fail_the_run(self):
+        self.response = {'success': False, 'status_code': 401, 'error': 'HTTP 401', 'response_body': '{}',
+                         'response_headers': {}}
+        run = self._run(_ioc('evil.example.org', 'domain'), document=_splunk_document())
+        self.assertEqual('failed', run.status)
+        self.assertIn('The SIEM answered 401: HTTP 401', run.error)
