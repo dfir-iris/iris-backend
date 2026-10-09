@@ -27,6 +27,7 @@ from unittest.mock import patch
 
 from app import app
 from tests.app.iris_engine.ai_workflows.harness import EngineTestCase
+from tests.app.iris_engine.ai_workflows.harness import OWNER_ID
 from tests.app.iris_engine.ai_workflows.harness import SECRET_NAME
 from tests.app.iris_engine.ai_workflows.harness import SECRET_VALUE
 from tests.app.iris_engine.ai_workflows.harness import chain
@@ -173,3 +174,43 @@ class TestsNotifyAudience(EngineTestCase):
             run = self.run_to_rest(workflow(chain(node)), entity_type=None, entity_id=None)
         self.assertEqual('succeeded', run.status)
         self.assertEqual([5], notify_many.call_args.args[0])
+
+    def _notify_entity(self, owners, reachable, actor_id=None):
+        node = {'id': 'notify', 'type': 'notify', 'config': {'audience': 'entity', 'title': 'Hello'}}
+        wf = workflow(chain(node))
+        with patch('app.iris_engine.ai_workflows.nodes.ai_workflows_db_entity_owner_ids', lambda *_args: owners), \
+                patch('app.iris_engine.ai_workflows.nodes.ai_workflows_entities_user_can_access',
+                      lambda user_id, *_args: user_id in reachable), \
+                patch('app.iris_engine.notifications.service.notify_many') as notify_many:
+            run = self.start(wf)
+            # An event run: nobody started it by hand
+            run.triggered_by_user_id = None
+            run.trigger_payload = {'actor': {'id': actor_id}} if actor_id else None
+            from app.iris_engine.ai_workflows.engine import ai_workflows_engine_step
+            while run.id in self.enqueued:
+                self.enqueued.remove(run.id)
+                ai_workflows_engine_step(run.id)
+        step = [s for s in self.steps(run) if s.node_id == 'notify'][0]
+        return notify_many, step.output
+
+    def test_entity_audience_should_add_the_user_behind_the_event(self):
+        notify_many, output = self._notify_entity([8], {8, 9}, actor_id=9)
+        self.assertEqual([8, 9], notify_many.call_args.args[0])
+        self.assertEqual([8, 9], output['notified'])
+        self.assertNotIn('note', output)
+
+    def test_entity_audience_should_fall_back_to_the_workflow_owner(self):
+        notify_many, output = self._notify_entity([8], {OWNER_ID}, actor_id=9)
+        self.assertEqual([OWNER_ID], notify_many.call_args.args[0])
+        self.assertIn('workflow owner', output['note'])
+
+    def test_unreachable_audience_should_notify_nobody_and_say_why(self):
+        node = {'id': 'notify', 'type': 'notify', 'config': {'audience': 'owner', 'title': 'Hello'}}
+        with patch('app.iris_engine.ai_workflows.nodes.ai_workflows_entities_user_can_access', lambda *_args: False), \
+                patch('app.iris_engine.notifications.service.notify_many') as notify_many:
+            run = self.run_to_rest(workflow(chain(node)))
+        self.assertEqual('succeeded', run.status)
+        notify_many.assert_not_called()
+        step = [s for s in self.steps(run) if s.node_id == 'notify'][0]
+        self.assertEqual([], step.output['notified'])
+        self.assertIn('None of the users', step.output['note'])

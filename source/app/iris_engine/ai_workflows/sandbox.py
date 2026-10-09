@@ -42,6 +42,7 @@ This module imports nothing from `app`: the child process runs it alone.
 
 import ast
 import base64
+import datetime
 import hashlib
 import ipaddress
 import json
@@ -407,6 +408,7 @@ class _Interpreter:
                 self.regex(pattern, flags).split(self.text(text)))),
             b('ip_info', self.ip_info),
             b('url_parse', self.url_parse),
+            b('iso_datetime', self.iso_datetime),
             b('floor', math.floor),
             b('ceil', math.ceil),
             b('sqrt', math.sqrt),
@@ -558,6 +560,17 @@ class _Interpreter:
             return None
         return {'scheme': parts.scheme, 'host': parts.hostname, 'port': port, 'path': parts.path,
                 'query': parts.query, 'fragment': parts.fragment}
+
+    @staticmethod
+    def iso_datetime(seconds):
+        """A Unix timestamp as `YYYY-MM-DDTHH:MM:SSZ` (UTC), None when not one."""
+        if isinstance(seconds, bool) or not isinstance(seconds, (int, float)):
+            return None
+        try:
+            moment = datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
+        return moment.strftime('%Y-%m-%dT%H:%M:%SZ')
 
     # -- Conversions
 

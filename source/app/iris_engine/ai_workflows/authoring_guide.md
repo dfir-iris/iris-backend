@@ -180,6 +180,7 @@ The config fields are listed with their defaults in the catalogue. Highlights:
   - Output: `answer` and `answered_by`.
 - **`notify`**: an in-app notification.
   - Config: `audience` is `entity`, `owner` or `users` (with `user_ids`), plus `title` and `body`.
+  - `entity` is the entity's owner (a war room: its members) plus the user who triggered the run or whose action fired the event; when none of them can see the entity, the workflow owner is notified instead. Only active users who can see the entity are notified. The output is `{notified: [user ids]}`, with a `note` when the list differs from the audience.
 - **`delay`**: waits `minutes`.
 - **`stop`**: ends the run, with `status` `succeeded` or `failed` and a `reason`.
 
@@ -207,7 +208,7 @@ A script transforms data. It runs in a restricted subset of Python, interpreted 
   - Output and control: `print` (captured in `logs`), `fail(message)` (ends the script in error; it cannot be caught).
   - JSON, encoding and hashing: `json_parse json_dumps`; `base64_encode(text, urlsafe=False, padding=True)`, `base64_decode(text, urlsafe=False)`; `sha256 sha1 md5` (of text).
   - Regular expressions: `re_search re_match re_fullmatch re_findall re_sub re_split`. They take `(pattern, text, flags='')`, where the flags are from `imsx`. A match gives `{match, groups, named, start, end}` or `None`.
-  - Parsing: `ip_info(text)` gives `{version, is_private, is_global, is_loopback, …}` or `None`. `url_parse(text)` gives `{scheme, host, port, path, query, fragment}` or `None`.
+  - Parsing: `ip_info(text)` gives `{version, is_private, is_global, is_loopback, …}` or `None`. `url_parse(text)` gives `{scheme, host, port, path, query, fragment}` or `None`. `iso_datetime(seconds)` gives a Unix timestamp as `YYYY-MM-DDTHH:MM:SSZ` (UTC), or `None`.
   - Maths: `floor ceil sqrt log`.
 - **Methods:** str (`lower upper strip split join replace startswith endswith find count title zfill partition removeprefix …`); list (`append extend insert pop remove index count sort reverse copy clear`); dict (`get keys values items pop setdefault update copy clear`); set (`add discard remove union intersection difference …`).
 - **Limits:** 20,000 characters of code; strings of 1 MB; 100,000 items per container; integers of 4096 bits; a call depth of 32; output of 1 MB. The step and time budgets come from the node config.

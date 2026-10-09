@@ -74,7 +74,10 @@ def _vt_body(malicious=5, suspicious=0, item_id=_SHA256):
         'last_analysis_results': {'EngineA': {'category': 'malicious', 'result': 'Trojan.X'},
                                   'EngineB': {'category': 'undetected', 'result': None}},
         'meaningful_name': 'invoice.exe', 'reputation': -40, 'tags': ['peexe'],
-        'popular_threat_classification': {'suggested_threat_label': 'trojan.x'},
+        'names': ['invoice.exe', 'payload.bin'], 'last_analysis_date': 1700000000,
+        'popular_threat_classification': {'suggested_threat_label': 'trojan.x',
+                                          'popular_threat_category': [{'value': 'trojan', 'count': 9},
+                                                                      {'value': 'dropper', 'count': 2}]},
     }}}
 
 
@@ -176,6 +179,23 @@ class TestsVirusTotalSummaryScript(TestCase):
         self.assertEqual(['EngineA: Trojan.X'], vt['detections'])
         self.assertEqual(f'https://www.virustotal.com/gui/file/{_SHA256}', vt['link'])
 
+    def test_summary_should_give_ratio_names_and_classification(self):
+        result = self._summary({'status_code': 200, 'body': _vt_body(malicious=5)})
+        vt = result['enrichment']['virustotal']
+        self.assertEqual(('5/65', ['EngineA'], ['trojan', 'dropper'], ['invoice.exe', 'payload.bin'],
+                          '2023-11-14T22:13:20Z', -40),
+                         (vt['detection_ratio'], vt['flagged_by'], vt['threat_categories'], vt['names'],
+                          vt['last_analysed'], vt['reputation']))
+        self.assertEqual(vt['summary'], result['summary'])
+        for part in ('Malicious: 5/65 engines', 'trojan.x', 'trojan, dropper', 'invoice.exe, payload.bin',
+                     'Flagged by EngineA', 'Reputation: -40', 'Last analysed 2023-11-14'):
+            self.assertIn(part, result['summary'])
+
+    def test_engines_without_an_opinion_should_not_count(self):
+        body = _vt_body(malicious=5)
+        body['data']['attributes']['last_analysis_stats'].update({'type-unsupported': 10, 'timeout': 2})
+        self.assertEqual('5/65', self._summary({'status_code': 200, 'body': body})['detection_ratio'])
+
     def test_low_detection_count_should_be_suspicious_without_alert(self):
         result = self._summary({'status_code': 200, 'body': _vt_body(malicious=1)})
         self.assertEqual(('suspicious', False), (result['verdict'], result['alert']))
@@ -273,7 +293,11 @@ class TestsVirusTotalWorkflowRun(_VirusTotalRunTestCase):
         self.assertEqual(7, update['ioc_identifier'])
         self.assertEqual('apt,vt:malicious', update['payload']['ioc_tags'])
         self.assertEqual('malicious', update['payload']['ioc_enrichment']['virustotal']['verdict'])
-        self.assertEqual(1, len(self.notified))
+        [(users, args, kwargs)] = self.notified
+        self.assertEqual([OWNER_ID], users)
+        self.assertIn('(5/65)', args[1])
+        self.assertIn('Malicious: 5/65 engines', kwargs['body'])
+        self.assertIn(f'https://www.virustotal.com/gui/file/{_SHA256}', kwargs['body'])
         self.assertNotIn(_VT_KEY, json.dumps(run.context, default=str))
         self.assertNotIn(_VT_KEY, json.dumps([s.input for s in self.steps(run)], default=str))
 

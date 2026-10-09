@@ -95,9 +95,11 @@ class TestsSandboxLanguage(TestCase):
             "data = json_parse('{\"a\": [1, 2]}')",
             "match = re_search('(\\\\d+)', 'abc 42')",
             "result = [url_id, data['a'], match['groups'][0], sha256('x')[:8], ip_info('10.0.0.1')['is_private'],",
-            "          url_parse('https://e.org:8443/p?q=1')['host'], type_of(None)]",
+            "          url_parse('https://e.org:8443/p?q=1')['host'], type_of(None), iso_datetime(1700000000),",
+            "          iso_datetime('x')]",
         ))
-        self.assertEqual(['aHR0cDovL2V4YW1wbGUub3JnL2E', [1, 2], '42', '2d711642', True, 'e.org', 'none'],
+        self.assertEqual(['aHR0cDovL2V4YW1wbGUub3JnL2E', [1, 2], '42', '2d711642', True, 'e.org', 'none',
+                          '2023-11-14T22:13:20Z', None],
                          _result(source))
 
     def test_print_should_be_captured(self):

@@ -717,21 +717,41 @@ def _action(ctx, config):
                       input={'tool': tool, 'arguments': arguments})
 
 
-def _notify_audience(ctx, config) -> list:
+def _event_actor_id(run):
+    """The user whose action fired an event run (the IOC creator, …)."""
+    payload = run.trigger_payload if isinstance(run.trigger_payload, dict) else {}
+    actor = payload.get('actor') if isinstance(payload.get('actor'), dict) else {}
+    actor_id = actor.get('id')
+    return actor_id if isinstance(actor_id, int) and not isinstance(actor_id, bool) else None
+
+
+def _notify_audience(ctx, config) -> tuple:
+    """(users, note): the active users of the audience who can read the
+    run's entity, and why the list is not the configured one, if so.
+    `entity` is the entity's owner (a war room: its members) and the
+    user who triggered the run, or whose action fired the event; when
+    none of them can be reached, the workflow owner is told instead."""
     run = ctx.run
+    owner_id = ctx.snapshot.get('owner_id')
     audience = config.get('audience') or AUDIENCE_ENTITY
     if audience == AUDIENCE_OWNER:
-        candidates = [ctx.snapshot.get('owner_id')]
+        candidates = [owner_id]
     elif audience == 'users':
         candidates = [u for u in config.get('user_ids') or [] if isinstance(u, int) and not isinstance(u, bool)]
+    elif run.entity_type:
+        candidates = list(ai_workflows_db_entity_owner_ids(run.entity_type, run.entity_id)) \
+            + [run.triggered_by_user_id, _event_actor_id(run)]
     else:
-        candidates = list(ai_workflows_db_entity_owner_ids(run.entity_type, run.entity_id)) if run.entity_type \
-            else [ctx.snapshot.get('owner_id')]
+        candidates = [owner_id]
     users = []
     for user_id in candidates:
         if user_id and user_id not in users and _notify_reachable(run, user_id):
             users.append(user_id)
-    return users
+    if users or not candidates:
+        return users, None if users else 'No user to notify'
+    if audience == AUDIENCE_ENTITY and owner_id and _notify_reachable(run, owner_id):
+        return [owner_id], 'Nobody on the entity could be reached: the workflow owner was notified instead'
+    return [], 'None of the users of the audience is active and can access the entity'
 
 
 def _notify_reachable(run, user_id) -> bool:
@@ -752,12 +772,15 @@ def _notify(ctx, config):
         ctx.mask(ctx.render(config.get('title') or '', 'title')).strip() or run.workflow_name)
     body = ai_workflows_suggestions_neutralise_links(ctx.mask(ctx.render(config.get('body') or '', 'body')).strip()
                                                      or None)
-    users = _notify_audience(ctx, config)
+    users, note = _notify_audience(ctx, config)
     if run.is_dry_run:
-        return NodeResult(output={'notified': [], 'would_notify': users, 'title': title, 'body': body})
-    notify_many(users, 'ai_suggestion', title[:250], body=body[:2000] if body else None,
-                link=_entity_link(run.entity_type, run.entity_id), source_type='ai_workflow_run', source_id=run.id)
-    return NodeResult(output={'notified': users})
+        return NodeResult(output={'notified': [], 'would_notify': users, 'title': title, 'body': body,
+                                  **({'note': note} if note else {})})
+    if users:
+        notify_many(users, 'ai_suggestion', title[:250], body=body[:2000] if body else None,
+                    link=_entity_link(run.entity_type, run.entity_id), source_type='ai_workflow_run',
+                    source_id=run.id)
+    return NodeResult(output={'notified': users, **({'note': note} if note else {})})
 
 
 def _delay(_ctx, config):
