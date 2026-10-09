@@ -280,6 +280,11 @@ else:
 
 The complete version of this workflow, which covers hashes, IPs, domains and URLs, merges the VirusTotal verdict into the existing enrichment and tags, and alerts the analysts on malicious verdicts, ships with IRIS as `virustotal_ioc_enrichment.workflow.json`. A matching saved block is `virustotal_lookup.block.json`.
 
+Two more examples ship with IRIS:
+
+- `detection_rule_feedback.workflow.json` runs every Monday morning. It pages through the alerts closed in the last 7 days with `iris_alerts_list` and its `fields` argument, so that each page stays small. A Python node groups them per detection rule and computes the false positive rate and the time to close. An agent then proposes tunings for the noisiest rules. The proposals become one suggestion and a notification to the workflow owner.
+- `ioc_estate_hunt.workflow.json` runs when an IOC is created. It searches the SIEM for the IOC over the last 30 days with `http_request` and counts the hits per host in Python. Hosts that are not assets of the case are listed in a notification. Each of them, up to 5, becomes a suggestion to add it to the case as an asset linked to the IOC. Set `SIEM_API_KEY` in the keystore and the search URL to your SIEM before enabling it.
+
 ## 9. Checklist before answering with a workflow
 
 - [ ] One `trigger` node; every node is reachable; node ids are unique and short.

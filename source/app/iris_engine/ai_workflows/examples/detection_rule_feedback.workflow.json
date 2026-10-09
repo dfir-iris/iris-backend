@@ -1,0 +1,474 @@
+{
+  "format": "iris-ai-workflow",
+  "format_version": 1,
+  "workflow": {
+    "name": "Detection rule feedback loop",
+    "description": "Every Monday, counts the alerts resolved over the last 7 days per detection rule (source and alert title, varying values masked) and verdict, computes the false-positive rate, the share of noise and the mean time to close, and has the AI propose a tuning for each rule that is mostly noise (at least 5 alerts and 60% false positive or benign), based on sample alerts. The proposals land in the AI suggestions inbox and the workflow owner is notified: set the notify node to the detection engineering team. Reads up to 30 pages of 50 alerts, one a minute. Needs an AI provider.",
+    "trigger_type": "cron",
+    "trigger_config": {
+      "cron": "0 7 * * 1",
+      "target": "none"
+    },
+    "graph": {
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "trigger",
+          "label": "Every Monday 07:00 UTC",
+          "config": {},
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "window",
+          "type": "python",
+          "label": "Last 7 days",
+          "config": {
+            "code": "def epoch(text):\n    # Seconds since 1970 of an ISO date-time read as UTC, or None\n    m = re_match('(\\\\d{4})-(\\\\d{2})-(\\\\d{2})[T ](\\\\d{2}):(\\\\d{2}):(\\\\d{2})', text if is_str(text) else '')\n    if m is None:\n        return None\n    y, mo, d, h, mi, s = [int(g) for g in m['groups']]\n    if mo <= 2:\n        y -= 1\n    era = y // 400\n    yoe = y - era * 400\n    doy = (153 * (mo - 3 if mo > 2 else mo + 9) + 2) // 5 + d - 1\n    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy\n    return (era * 146097 + doe - 719468) * 86400 + h * 3600 + mi * 60 + s\n\ndays = int(inputs.get('days') or 7)\nuntil = epoch(inputs.get('now'))\nif until is None:\n    fail(f\"Unreadable time: {inputs.get('now')}\")\nstart = iso_datetime(until - days * 86400).replace('Z', '')\nend = iso_datetime(until).replace('Z', '')\nresult = {'since': start, 'until': end, 'days': days, 'query': f'resolved:[{start} TO {end}]'}\n",
+            "inputs": [
+              {
+                "name": "now",
+                "value": "{{ now }}"
+              },
+              {
+                "name": "days",
+                "value": 7
+              }
+            ],
+            "timeout_seconds": 5,
+            "max_steps": 200000
+          },
+          "position": {
+            "x": 0,
+            "y": 120
+          }
+        },
+        {
+          "id": "fetch",
+          "type": "action",
+          "label": "Resolved alerts, one page",
+          "config": {
+            "tool": "iris_alerts_list",
+            "arguments": {
+              "query": "{{ nodes.window.output.result.query }}",
+              "page": "{{ vars.page | default(1) }}",
+              "per_page": 50,
+              "fields": [
+                "alert_title",
+                "alert_source",
+                "alert_creation_time",
+                "resolved_at",
+                "resolution_status.resolution_status_name"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 240
+          }
+        },
+        {
+          "id": "merge",
+          "type": "python",
+          "label": "Count per rule and verdict",
+          "config": {
+            "code": "def epoch(text):\n    # Seconds since 1970 of an ISO date-time read as UTC, or None\n    m = re_match('(\\\\d{4})-(\\\\d{2})-(\\\\d{2})[T ](\\\\d{2}):(\\\\d{2}):(\\\\d{2})', text if is_str(text) else '')\n    if m is None:\n        return None\n    y, mo, d, h, mi, s = [int(g) for g in m['groups']]\n    if mo <= 2:\n        y -= 1\n    era = y // 400\n    yoe = y - era * 400\n    doy = (153 * (mo - 3 if mo > 2 else mo + 9) + 2) // 5 + d - 1\n    doe = yoe * 365 + yoe // 4 - yoe // 100 + doy\n    return (era * 146097 + doe - 719468) * 86400 + h * 3600 + mi * 60 + s\n\ndef rule_key(title, source):\n    # Alerts of one rule differ by the values in their title: hide them\n    name = (title or '').strip()\n    name = re_sub('\\\\b(?:\\\\d{1,3}\\\\.){3}\\\\d{1,3}\\\\b', '{ip}', name)\n    name = re_sub('\\\\b[0-9a-fA-F]{16,}\\\\b', '{hash}', name)\n    name = re_sub('\"[^\"]*\"|\\'[^\\']*\\'', '{value}', name)\n    name = re_sub('\\\\d+', '{n}', name)\n    name = re_sub('\\\\s+', ' ', name).strip() or '(no title)'\n    return [f\"{(source or 'unknown').strip()} | {name}\", name, (source or 'unknown').strip()]\n\n\ndef verdict(resolution):\n    name = (resolution or '').strip().lower()\n    if name == 'false positive':\n        return 'false_positive'\n    if name in ('legitimate', 'not applicable'):\n        return 'benign'\n    if name.startswith('true positive'):\n        return 'true_positive'\n    return 'other'\n\n\nmax_rules = 1000\nstats = inputs.get('stats')\nif not is_dict(stats):\n    stats = {'alerts': 0, 'pages': 0, 'total': None, 'clipped': False, 'rules': {}}\npage = inputs.get('page') if is_dict(inputs.get('page')) else {}\nrows = page.get('data') if is_list(page.get('data')) else []\nrules = stats['rules']\nfor row in rows:\n    key, name, source = rule_key(row.get('alert_title'), row.get('alert_source'))\n    if key not in rules and len(rules) >= max_rules:\n        key, name, source = ['(other rules)', '(other rules)', '']\n    rule = rules.get(key)\n    if rule is None:\n        rule = {'rule': name, 'source': source, 'alerts': 0, 'false_positive': 0, 'benign': 0,\n                'true_positive': 0, 'other': 0, 'close_seconds': 0, 'timed': 0, 'samples': []}\n        rules[key] = rule\n    resolution = (row.get('resolution_status') or {}).get('resolution_status_name')\n    rule['alerts'] += 1\n    rule[verdict(resolution)] += 1\n    created = epoch(row.get('alert_creation_time'))\n    resolved = epoch(row.get('resolved_at'))\n    if created is not None and resolved is not None and resolved >= created:\n        rule['close_seconds'] += resolved - created\n        rule['timed'] += 1\n    if len(rule['samples']) < 5 and row.get('alert_id') is not None:\n        rule['samples'].append(row.get('alert_id'))\nstats['alerts'] += len(rows)\nstats['pages'] += 1\nstats['total'] = page.get('total')\nif '_truncated' in page:\n    stats['clipped'] = True\npage_no = int(inputs.get('page_no') or 1)\nhas_next = page.get('next_page') is not None and len(rows) > 0\nmore = has_next and page_no < int(inputs.get('max_pages') or 30)\nstats['truncated'] = has_next and not more\nresult = {'stats': stats, 'more': more, 'next_page': page_no + 1}\n",
+            "inputs": [
+              {
+                "name": "page",
+                "value": {
+                  "$path": "nodes.fetch.output.result"
+                }
+              },
+              {
+                "name": "stats",
+                "value": {
+                  "$path": "vars.stats"
+                }
+              },
+              {
+                "name": "page_no",
+                "value": "{{ vars.page | default(1) }}"
+              },
+              {
+                "name": "max_pages",
+                "value": 30
+              }
+            ],
+            "timeout_seconds": 10,
+            "max_steps": 2000000
+          },
+          "position": {
+            "x": 0,
+            "y": 360
+          }
+        },
+        {
+          "id": "keep",
+          "type": "set_variables",
+          "label": "Keep the counts",
+          "config": {
+            "variables": [
+              {
+                "name": "stats",
+                "value": {
+                  "$path": "nodes.merge.output.result.stats"
+                }
+              },
+              {
+                "name": "page",
+                "value": {
+                  "$path": "nodes.merge.output.result.next_page"
+                }
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 480
+          }
+        },
+        {
+          "id": "more",
+          "type": "condition",
+          "label": "More pages?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.merge.output.result.more",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 600
+          }
+        },
+        {
+          "id": "pause",
+          "type": "delay",
+          "label": "Next page in a minute",
+          "config": {
+            "minutes": 1
+          },
+          "position": {
+            "x": 320,
+            "y": 420
+          }
+        },
+        {
+          "id": "report",
+          "type": "python",
+          "label": "Rates and tuning candidates",
+          "config": {
+            "code": "def pct(part, whole):\n    return round(100 * part / whole) if whole else 0\n\n\nstats = inputs.get('stats') if is_dict(inputs.get('stats')) else {}\nmin_alerts = int(inputs.get('min_alerts') or 5)\nthreshold = float(inputs.get('noise_threshold') or 60)\nlimit = int(inputs.get('max_candidates') or 15)\nrows = []\nfor rule in (stats.get('rules') or {}).values():\n    alerts = rule['alerts']\n    noise = rule['false_positive'] + rule['benign']\n    rows.append({\n        'rule': rule['rule'],\n        'source': rule['source'],\n        'alerts': alerts,\n        'false_positive': rule['false_positive'],\n        'benign': rule['benign'],\n        'true_positive': rule['true_positive'],\n        'other': rule['other'],\n        'false_positive_rate': pct(rule['false_positive'], alerts),\n        'noise_rate': pct(noise, alerts),\n        'mean_hours_to_close': round(rule['close_seconds'] / rule['timed'] / 3600, 1) if rule['timed'] else None,\n        'sample_alert_ids': rule['samples'],\n    })\nrows = sorted(rows, key=lambda r: (r['false_positive'] + r['benign'], r['alerts']), reverse=True)\ncandidates = [r for r in rows if r['alerts'] >= min_alerts and r['noise_rate'] >= threshold\n              and r['rule'] != '(other rules)'][:limit]\n\n\ndef hours(value):\n    return '-' if value is None else f'{value} h'\n\n\nlines = ['| Rule | Source | Alerts | False positive | Benign | True positive | Mean time to close |',\n         '|---|---|---|---|---|---|---|']\nfor r in candidates:\n    rule = r['rule'].replace('|', '/')[:120]\n    lines.append(f\"| {rule} | {r['source'].replace('|', '/')} | {r['alerts']} | {r['false_positive']} \"\n                 f\"({r['false_positive_rate']}%) | {r['benign']} | {r['true_positive']} | \"\n                 f\"{hours(r['mean_hours_to_close'])} |\")\nreviewed = stats.get('alerts') or 0\nnoise = sum([r['false_positive'] + r['benign'] for r in rows])\ncoverage = ''\nif stats.get('truncated') or stats.get('clipped'):\n    coverage = f\" Only the first {reviewed} of {stats.get('total')} resolved alerts were reviewed.\"\nresult = {\n    'alerts': reviewed,\n    'rules': len(rows),\n    'noise_alerts': noise,\n    'noise_rate': pct(noise, reviewed),\n    'candidates': candidates,\n    'has_candidates': len(candidates) > 0,\n    'table': '\\n'.join(lines) if candidates else '',\n    'coverage': coverage,\n}\n",
+            "inputs": [
+              {
+                "name": "stats",
+                "value": {
+                  "$path": "vars.stats"
+                }
+              },
+              {
+                "name": "min_alerts",
+                "value": 5
+              },
+              {
+                "name": "noise_threshold",
+                "value": 60
+              },
+              {
+                "name": "max_candidates",
+                "value": 15
+              }
+            ],
+            "timeout_seconds": 10,
+            "max_steps": 1000000
+          },
+          "position": {
+            "x": 0,
+            "y": 720
+          }
+        },
+        {
+          "id": "any",
+          "type": "condition",
+          "label": "Rules to tune?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.report.output.result.has_candidates",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 840
+          }
+        },
+        {
+          "id": "agent",
+          "type": "ai_agent",
+          "label": "Propose tunings",
+          "config": {
+            "prompt": "You review detection rules for the detection engineering team of a SOC.\n\nBelow are the detection rules whose alerts, resolved between {{ nodes.window.output.result.since }} and {{ nodes.window.output.result.until }} (UTC), were mostly false positives or benign activity. For each rule: the alert counts per verdict, the false-positive rate and the share of noise (false positive + benign) in percent, the mean time to close in hours, and up to five sample alert ids. Rules are named after the source and the alert title, with the varying values replaced by {ip}, {hash}, {value} and {n}.\n\nFor each rule, read a few sample alerts with iris_alerts_get and propose one concrete tuning:\n- exclude: an exclusion on a host, user, process, path, parent process or value that recurs in the sample alerts;\n- threshold: a threshold, aggregation or time-window change;\n- severity: a lower severity, when the alerts are useful context but not worth triage;\n- retire: retire the rule, only when it never produced a true positive;\n- investigate: when the samples show no clear pattern, say what to look at.\n\nBase every exclusion on what the sample alerts show, never on a guess, and keep it as narrow as possible. When a rule also had true positives, say how the tuning keeps them. Estimate the share of alerts the change removes.\n\nRules:\n{{ nodes.report.output.result.candidates | tojson }}",
+            "tools": [
+              "iris_alerts_get"
+            ],
+            "output_schema": {
+              "type": "object",
+              "properties": {
+                "summary": {
+                  "type": "string",
+                  "description": "Two or three sentences for the detection engineering team"
+                },
+                "proposals": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "rule": {
+                        "type": "string"
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "exclude",
+                          "threshold",
+                          "severity",
+                          "retire",
+                          "investigate"
+                        ]
+                      },
+                      "change": {
+                        "type": "string",
+                        "description": "The tuning, precise enough to implement"
+                      },
+                      "rationale": {
+                        "type": "string",
+                        "description": "What in the sample alerts supports it"
+                      },
+                      "expected_reduction": {
+                        "type": "string"
+                      },
+                      "keeps_true_positives": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "rule",
+                      "action",
+                      "change",
+                      "rationale"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "summary",
+                "proposals"
+              ]
+            },
+            "max_turns": 10,
+            "max_tool_calls": 30,
+            "timeout_minutes": 20,
+            "model": "",
+            "include_entity": false
+          },
+          "position": {
+            "x": 0,
+            "y": 960
+          }
+        },
+        {
+          "id": "suggest",
+          "type": "suggest",
+          "label": "Tuning proposals",
+          "config": {
+            "kind": "generic_action",
+            "title": "Detection tuning: {{ nodes.report.output.result.candidates | length }} noisy rule(s) to review",
+            "body": "{{ nodes.agent.output.output.summary }}\n\n{% for p in nodes.agent.output.output.proposals %}### {{ loop.index }}. {{ p.rule }}\n**{{ p.action | capitalize }}**: {{ p.change }}\n\n{{ p.rationale }}{% if p.expected_reduction %} Expected reduction: {{ p.expected_reduction }}.{% endif %}{% if p.keeps_true_positives == false %} **This change may also hide true positives.**{% endif %}\n\n{% endfor %}#### The numbers\n{{ nodes.report.output.result.alerts }} alerts resolved between {{ nodes.window.output.result.since }} and {{ nodes.window.output.result.until }} (UTC); {{ nodes.report.output.result.noise_rate }}% were false positives or benign.{{ nodes.report.output.result.coverage }}\n\n{{ nodes.report.output.result.table }}",
+            "confidence": 0.6,
+            "severity": "low"
+          },
+          "position": {
+            "x": 0,
+            "y": 1080
+          }
+        },
+        {
+          "id": "notify",
+          "type": "notify",
+          "label": "Tell detection engineering",
+          "config": {
+            "audience": "owner",
+            "user_ids": [],
+            "title": "Detection tuning: {{ nodes.report.output.result.candidates | length }} noisy rule(s) this week",
+            "body": "{{ nodes.agent.output.output.summary | truncate(600) }} The proposals are in the AI suggestions inbox."
+          },
+          "position": {
+            "x": 0,
+            "y": 1200
+          }
+        },
+        {
+          "id": "notify_raw",
+          "type": "notify",
+          "label": "Numbers only",
+          "config": {
+            "audience": "owner",
+            "user_ids": [],
+            "title": "Detection tuning: {{ nodes.report.output.result.candidates | length }} noisy rule(s) this week",
+            "body": "The AI review could not run ({{ nodes.agent.output.error | default(\"unknown error\") | truncate(200) }}). These detection rules were mostly noise between {{ nodes.window.output.result.since }} and {{ nodes.window.output.result.until }} (UTC):{{ nodes.report.output.result.coverage }}\n\n{{ nodes.report.output.result.table }}"
+          },
+          "position": {
+            "x": 320,
+            "y": 1080
+          }
+        },
+        {
+          "id": "quiet",
+          "type": "stop",
+          "label": "Nothing to tune",
+          "config": {
+            "status": "succeeded",
+            "reason": "No rule over the noise threshold ({{ nodes.report.output.result.alerts }} alerts reviewed)"
+          },
+          "position": {
+            "x": 320,
+            "y": 960
+          }
+        },
+        {
+          "id": "fetch_failed",
+          "type": "stop",
+          "label": "Alerts unavailable",
+          "config": {
+            "status": "failed",
+            "reason": "Could not list the alerts: {{ nodes.fetch.output.error | default(\"\") | truncate(300) }}"
+          },
+          "position": {
+            "x": 320,
+            "y": 240
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "trigger-out-window",
+          "source": "trigger",
+          "target": "window",
+          "source_port": "out"
+        },
+        {
+          "id": "window-out-fetch",
+          "source": "window",
+          "target": "fetch",
+          "source_port": "out"
+        },
+        {
+          "id": "fetch-out-merge",
+          "source": "fetch",
+          "target": "merge",
+          "source_port": "out"
+        },
+        {
+          "id": "fetch-error-fetch_failed",
+          "source": "fetch",
+          "target": "fetch_failed",
+          "source_port": "error"
+        },
+        {
+          "id": "merge-out-keep",
+          "source": "merge",
+          "target": "keep",
+          "source_port": "out"
+        },
+        {
+          "id": "keep-out-more",
+          "source": "keep",
+          "target": "more",
+          "source_port": "out"
+        },
+        {
+          "id": "more-true-pause",
+          "source": "more",
+          "target": "pause",
+          "source_port": "true"
+        },
+        {
+          "id": "more-false-report",
+          "source": "more",
+          "target": "report",
+          "source_port": "false"
+        },
+        {
+          "id": "pause-out-fetch",
+          "source": "pause",
+          "target": "fetch",
+          "source_port": "out"
+        },
+        {
+          "id": "report-out-any",
+          "source": "report",
+          "target": "any",
+          "source_port": "out"
+        },
+        {
+          "id": "any-true-agent",
+          "source": "any",
+          "target": "agent",
+          "source_port": "true"
+        },
+        {
+          "id": "any-false-quiet",
+          "source": "any",
+          "target": "quiet",
+          "source_port": "false"
+        },
+        {
+          "id": "agent-out-suggest",
+          "source": "agent",
+          "target": "suggest",
+          "source_port": "out"
+        },
+        {
+          "id": "agent-error-notify_raw",
+          "source": "agent",
+          "target": "notify_raw",
+          "source_port": "error"
+        },
+        {
+          "id": "suggest-out-notify",
+          "source": "suggest",
+          "target": "notify",
+          "source_port": "out"
+        }
+      ]
+    },
+    "write_tool_allowlist": [],
+    "max_runs_per_hour": 2,
+    "token_budget_per_run": 300000,
+    "suggestion_audience": "owner"
+  },
+  "requirements": {
+    "keystore": [],
+    "tools": [
+      "iris_alerts_get",
+      "iris_alerts_list"
+    ]
+  },
+  "warnings": []
+}

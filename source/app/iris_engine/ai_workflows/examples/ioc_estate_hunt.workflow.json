@@ -1,0 +1,554 @@
+{
+  "format": "iris-ai-workflow",
+  "format_version": 1,
+  "workflow": {
+    "name": "IOC hunt across the estate",
+    "description": "When an IOC (IP, domain, URL, hash or file name) is added to a case, searches the SIEM for it over the last 30 days, counts the hits per host and, when hosts outside the case saw it, notifies the case owner and whoever added the IOC and suggests adding each of those hosts (up to 5, one a minute) to the case as an asset linked to the IOC. Written for Elasticsearch / OpenSearch with ECS fields: set the URL of the search node to your cluster and index, and adapt the query of the \"SIEM query\" node to another SIEM or EDR. Needs the keystore entry SIEM_API_KEY (an API key, restricted to the SIEM host) and, for an internal SIEM, IRIS_AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS. For long searches, switch the request to async mode.",
+    "trigger_type": "event",
+    "trigger_config": {
+      "hooks": [
+        "on_postload_ioc_create"
+      ],
+      "condition": "",
+      "dedup_minutes": 60,
+      "skip_if_active": true
+    },
+    "graph": {
+      "nodes": [
+        {
+          "id": "trigger",
+          "type": "trigger",
+          "label": "IOC created",
+          "config": {},
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "id": "load",
+          "type": "action",
+          "label": "Read the IOC",
+          "config": {
+            "tool": "iris_case_iocs_get",
+            "arguments": {
+              "ioc_identifier": {
+                "$path": "trigger.sub_entity.id"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 120
+          }
+        },
+        {
+          "id": "prepare",
+          "type": "python",
+          "label": "SIEM query",
+          "config": {
+            "code": "# Fields an IOC value is searched in (Elastic Common Schema)\nFIELDS = {\n    'ip': ['source.ip', 'destination.ip', 'client.ip', 'server.ip'],\n    'domain': ['dns.question.name', 'url.domain', 'destination.domain', 'tls.client.server_name'],\n    'url': ['url.full', 'url.original'],\n    'md5': ['file.hash.md5', 'process.hash.md5', 'dll.hash.md5'],\n    'sha1': ['file.hash.sha1', 'process.hash.sha1', 'dll.hash.sha1'],\n    'sha256': ['file.hash.sha256', 'process.hash.sha256', 'dll.hash.sha256'],\n    'filename': ['file.name', 'process.name'],\n}\nKINDS = {'ip-src': 'ip', 'ip-dst': 'ip', 'ip-any': 'ip', 'ip': 'ip', 'domain': 'domain', 'hostname': 'domain',\n         'url': 'url', 'uri': 'url', 'md5': 'md5', 'sha1': 'sha1', 'sha256': 'sha256', 'filename': 'filename'}\n\n\nPREFERENCE = ['sha256', 'sha1', 'md5', 'url', 'domain', 'ip', 'filename']\n\n\ndef target(type_name, value):\n    # 'filename|sha256' and the like: the most specific component\n    types = type_name.lower().split('|')\n    values = value.split('|')\n    found = {}\n    for index, part in enumerate(types):\n        kind = KINDS.get(part.strip())\n        if kind is not None and kind not in found and index < len(values) and values[index].strip():\n            found[kind] = values[index].strip()\n    for kind in PREFERENCE:\n        if kind in found:\n            return [kind, found[kind]]\n    return [None, None]\n\n\nioc = inputs.get('ioc') if is_dict(inputs.get('ioc')) else {}\ntype_name = ((ioc.get('ioc_type') or {}).get('type_name') or '').strip()\nraw = (ioc.get('ioc_value') or '').strip()\nkind, value = target(type_name, raw)\ndays = int(inputs.get('days') or 30)\nif not raw:\n    result = {'supported': False, 'reason': 'Empty IOC value'}\nelif kind is None:\n    result = {'supported': False, 'reason': f'No search for IOCs of type {type_name or \"unknown\"}'}\nelif kind == 'ip' and ip_info(value) is None:\n    result = {'supported': False, 'reason': f'{value} is not an IP address'}\nelse:\n    if kind in ('domain', 'md5', 'sha1', 'sha256'):\n        value = value.lower().rstrip('.')\n    terms = [{'term': {field: value}} for field in FIELDS[kind]]\n    body = {\n        'size': 0,\n        'track_total_hits': True,\n        'query': {'bool': {'filter': [\n            {'range': {'@timestamp': {'gte': f'now-{days}d'}}},\n            {'bool': {'should': terms, 'minimum_should_match': 1}},\n        ]}},\n        'aggs': {'hosts': {\n            'terms': {'field': 'host.name', 'size': 200},\n            'aggs': {\n                'os': {'terms': {'field': 'host.os.type', 'size': 1}},\n                'ip': {'terms': {'field': 'host.ip', 'size': 1}},\n                'last_seen': {'max': {'field': '@timestamp'}},\n            },\n        }},\n    }\n    result = {'supported': True, 'kind': kind, 'value': value, 'days': days, 'fields': FIELDS[kind], 'body': body}\n",
+            "inputs": [
+              {
+                "name": "ioc",
+                "value": {
+                  "$path": "nodes.load.output.result"
+                }
+              },
+              {
+                "name": "days",
+                "value": 30
+              }
+            ],
+            "timeout_seconds": 5,
+            "max_steps": 200000
+          },
+          "position": {
+            "x": 0,
+            "y": 240
+          }
+        },
+        {
+          "id": "supported",
+          "type": "condition",
+          "label": "Something to hunt?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.prepare.output.result.supported",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 360
+          }
+        },
+        {
+          "id": "siem",
+          "type": "http_request",
+          "label": "Search the SIEM",
+          "config": {
+            "method": "POST",
+            "url": "https://siem.example.org:9200/logs-*/_search",
+            "query_params": [],
+            "auth_type": "none",
+            "auth_username": "",
+            "auth_secret": "",
+            "headers": [
+              {
+                "name": "Authorization",
+                "value": "ApiKey {{ key(\"SIEM_API_KEY\") }}",
+                "secret": true
+              }
+            ],
+            "body_mode": "template",
+            "body_template": "{{ nodes.prepare.output.result.body | tojson }}",
+            "content_type": "application/json",
+            "mode": "sync",
+            "timeout_seconds": 60,
+            "wait_timeout_minutes": 60,
+            "verify_tls": true,
+            "use_proxy": false,
+            "response_format": "json"
+          },
+          "position": {
+            "x": 0,
+            "y": 480
+          }
+        },
+        {
+          "id": "assets",
+          "type": "action",
+          "label": "Assets of the case",
+          "config": {
+            "tool": "iris_case_assets_list",
+            "arguments": {
+              "per_page": 100
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 600
+          }
+        },
+        {
+          "id": "hits",
+          "type": "python",
+          "label": "Hits per host",
+          "config": {
+            "code": "def first_key(agg):\n    buckets = (agg or {}).get('buckets') if is_dict(agg) else None\n    return buckets[0].get('key') if is_list(buckets) and buckets else None\n\n\ndef short(name):\n    return name.lower().split('.')[0]\n\n\nbody = inputs.get('response') if is_dict(inputs.get('response')) else {}\nassets = inputs.get('assets') if is_list(inputs.get('assets')) else []\nlimit = int(inputs.get('max_suggestions') or 5)\n\nnames = set()\nips = set()\nfor asset in assets:\n    for field in ('asset_name', 'asset_domain'):\n        if is_str(asset.get(field)) and asset.get(field).strip():\n            names.add(short(asset.get(field).strip()))\n    if is_str(asset.get('asset_ip')):\n        for ip in re_split('[,;\\\\s]+', asset.get('asset_ip')):\n            if ip:\n                ips.add(ip)\n\nhosts = {}\nbuckets = (((body.get('aggregations') or {}).get('hosts') or {}).get('buckets'))\nif is_list(buckets):\n    for bucket in buckets:\n        host = str(bucket.get('key') or '').strip()\n        if host:\n            last = (bucket.get('last_seen') or {})\n            hosts[host] = {'host': host, 'hits': int(bucket.get('doc_count') or 0),\n                           'os': first_key(bucket.get('os')), 'ip': first_key(bucket.get('ip')),\n                           'last_seen': last.get('value_as_string')}\nelse:\n    # No aggregation in the answer: count the returned events\n    for hit in ((body.get('hits') or {}).get('hits') or []):\n        source = hit.get('_source') or {}\n        host_doc = source.get('host') or {}\n        host = str(host_doc.get('name') or '').strip()\n        if not host:\n            continue\n        entry = hosts.setdefault(host, {'host': host, 'hits': 0, 'os': (host_doc.get('os') or {}).get('type'),\n                                        'ip': None, 'last_seen': source.get('@timestamp')})\n        entry['hits'] += 1\n\ntotal = (body.get('hits') or {}).get('total')\ntotal = total.get('value') if is_dict(total) else total\nranked = sorted(hosts.values(), key=lambda h: h['hits'], reverse=True)\nfor entry in ranked:\n    entry['known'] = short(entry['host']) in names or (entry['ip'] is not None and str(entry['ip']) in ips)\nnew_hosts = [h for h in ranked if not h['known']]\n\n\ndef line(h):\n    return f\"| {h['host'].replace('|', '/')} | {h['hits']} | {h['os'] or '-'} | {h['last_seen'] or '-'} |\"\n\n\ntable = ''\nif new_hosts:\n    table = '\\n'.join(['| Host | Events | OS | Last seen |', '|---|---|---|---|'] + [line(h) for h in new_hosts[:25]])\nresult = {\n    'total_hits': total if total is not None else sum([h['hits'] for h in ranked]),\n    'hosts': len(ranked),\n    'known_hosts': [h['host'] for h in ranked if h['known']],\n    'new_hosts': new_hosts,\n    'new_count': len(new_hosts),\n    'to_suggest': new_hosts[:limit],\n    'has_new': len(new_hosts) > 0,\n    'table': table,\n}\n",
+            "inputs": [
+              {
+                "name": "response",
+                "value": {
+                  "$path": "nodes.siem.output.body"
+                }
+              },
+              {
+                "name": "assets",
+                "value": {
+                  "$path": "nodes.assets.output.result.data"
+                }
+              },
+              {
+                "name": "max_suggestions",
+                "value": 5
+              }
+            ],
+            "timeout_seconds": 10,
+            "max_steps": 1000000
+          },
+          "position": {
+            "x": 0,
+            "y": 720
+          }
+        },
+        {
+          "id": "outside",
+          "type": "condition",
+          "label": "Hosts outside the case?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.hits.output.result.has_new",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 840
+          }
+        },
+        {
+          "id": "notify",
+          "type": "notify",
+          "label": "Tell the case owner",
+          "config": {
+            "audience": "entity",
+            "user_ids": [],
+            "title": "IOC {{ nodes.prepare.output.result.value | truncate(60) }} seen on {{ nodes.hits.output.result.new_count }} host(s) outside the case",
+            "body": "Case #{{ trigger.entity_id }}: the SIEM saw this IOC in {{ nodes.hits.output.result.total_hits }} event(s) over the last {{ nodes.prepare.output.result.days }} days, on {{ nodes.hits.output.result.hosts }} host(s), {{ nodes.hits.output.result.new_count }} of them not in the case. Adding them is suggested in the case.\n\n{{ nodes.hits.output.result.table }}"
+          },
+          "position": {
+            "x": 0,
+            "y": 960
+          }
+        },
+        {
+          "id": "types",
+          "type": "action",
+          "label": "Asset types",
+          "config": {
+            "tool": "iris_taxonomies_list",
+            "arguments": {}
+          },
+          "position": {
+            "x": 0,
+            "y": 1080
+          }
+        },
+        {
+          "id": "pick",
+          "type": "python",
+          "label": "Next host",
+          "config": {
+            "code": "TYPE_BY_OS = {'windows': 'Windows - Computer', 'linux': 'Linux - Computer', 'macos': 'Mac - Computer'}\n\nhosts = inputs.get('hosts') if is_list(inputs.get('hosts')) else []\nindex = int(inputs.get('index') or 0)\nif index >= len(hosts):\n    fail('No host left to suggest')\nhost = hosts[index]\nfallback = inputs.get('default_type') or 'Windows - Computer'\nwanted = TYPE_BY_OS.get(str(host.get('os') or '').lower()) or fallback\nids = {}\nfor entry in inputs.get('types') or []:\n    ids[str(entry.get('name') or '').lower()] = entry.get('id')\ntype_id = ids.get(wanted.lower())\nif type_id is None:\n    type_id = ids.get(fallback.lower())\nif type_id is None:\n    fail(f'No asset type named {wanted} or {fallback}: set default_type to one of the asset types of this instance')\nioc = inputs.get('ioc') or {}\npayload = {\n    'asset_name': host['host'],\n    'asset_type_id': type_id,\n    'asset_description': f\"Seen with IOC {ioc.get('value')} in {host['hits']} SIEM event(s) over the last \"\n                         f\"{ioc.get('days')} days (last seen {host.get('last_seen') or 'unknown'}).\",\n    'asset_tags': 'ioc-hunt',\n}\nif host.get('ip'):\n    payload['asset_ip'] = str(host['ip'])\nresult = {'host': host, 'payload': payload, 'next': index + 1, 'more': index + 1 < len(hosts)}\n",
+            "inputs": [
+              {
+                "name": "hosts",
+                "value": {
+                  "$path": "nodes.hits.output.result.to_suggest"
+                }
+              },
+              {
+                "name": "types",
+                "value": {
+                  "$path": "nodes.types.output.result.asset_types"
+                }
+              },
+              {
+                "name": "ioc",
+                "value": {
+                  "$path": "nodes.prepare.output.result"
+                }
+              },
+              {
+                "name": "index",
+                "value": "{{ vars.index | default(0) }}"
+              },
+              {
+                "name": "default_type",
+                "value": "Windows - Computer"
+              }
+            ],
+            "timeout_seconds": 5,
+            "max_steps": 200000
+          },
+          "position": {
+            "x": 0,
+            "y": 1200
+          }
+        },
+        {
+          "id": "suggest",
+          "type": "suggest",
+          "label": "Suggest adding the host",
+          "config": {
+            "kind": "generic_action",
+            "title": "Add {{ nodes.pick.output.result.host.host | truncate(80) }} to the case: it saw IOC {{ nodes.prepare.output.result.value | truncate(60) }}",
+            "body": "**{{ nodes.pick.output.result.host.host }}** is not an asset of this case, but the SIEM saw IOC `{{ nodes.prepare.output.result.value }}` ({{ nodes.prepare.output.result.kind }}) on it in {{ nodes.pick.output.result.host.hits }} event(s) over the last {{ nodes.prepare.output.result.days }} days; last seen {{ nodes.pick.output.result.host.last_seen | default(\"unknown\", true) }}.\n\nAccept to add it to the case as an asset linked to the IOC, then check the events on the SIEM: a hit may be a block, a scan or a lookup rather than a compromise.",
+            "confidence": 0.7,
+            "severity": "medium",
+            "proposed_action": {
+              "tool": "iris_case_assets_create",
+              "arguments": {
+                "payload": {
+                  "$path": "nodes.pick.output.result.payload"
+                },
+                "ioc_links": [
+                  "{{ trigger.sub_entity.id }}"
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1320
+          }
+        },
+        {
+          "id": "step",
+          "type": "set_variables",
+          "label": "Next index",
+          "config": {
+            "variables": [
+              {
+                "name": "index",
+                "value": {
+                  "$path": "nodes.pick.output.result.next"
+                }
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 1440
+          }
+        },
+        {
+          "id": "again",
+          "type": "condition",
+          "label": "Another host?",
+          "config": {
+            "mode": "rules",
+            "logic": "and",
+            "expression": "",
+            "rules": [
+              {
+                "path": "nodes.pick.output.result.more",
+                "operator": "truthy",
+                "value": ""
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 1560
+          }
+        },
+        {
+          "id": "pause",
+          "type": "delay",
+          "label": "Next one in a minute",
+          "config": {
+            "minutes": 1
+          },
+          "position": {
+            "x": 320,
+            "y": 1380
+          }
+        },
+        {
+          "id": "nothing_to_do",
+          "type": "stop",
+          "label": "Nothing to hunt",
+          "config": {
+            "status": "succeeded",
+            "reason": "{{ nodes.prepare.output.result.reason }}"
+          },
+          "position": {
+            "x": 320,
+            "y": 360
+          }
+        },
+        {
+          "id": "ioc_gone",
+          "type": "stop",
+          "label": "IOC no longer readable",
+          "config": {
+            "status": "succeeded",
+            "reason": "The IOC could not be read (deleted since the event?)"
+          },
+          "position": {
+            "x": 320,
+            "y": 120
+          }
+        },
+        {
+          "id": "siem_failed",
+          "type": "stop",
+          "label": "SIEM unavailable",
+          "config": {
+            "status": "failed",
+            "reason": "The SIEM answered {{ nodes.siem.output.status_code | default(\"nothing\") }}: {{ nodes.siem.output.error | default(\"\") | truncate(300) }}"
+          },
+          "position": {
+            "x": 320,
+            "y": 480
+          }
+        },
+        {
+          "id": "assets_failed",
+          "type": "stop",
+          "label": "Assets unavailable",
+          "config": {
+            "status": "failed",
+            "reason": "Could not list the assets of the case: {{ nodes.assets.output.error | default(\"\") | truncate(300) }}"
+          },
+          "position": {
+            "x": 320,
+            "y": 600
+          }
+        },
+        {
+          "id": "contained",
+          "type": "stop",
+          "label": "Nothing new",
+          "config": {
+            "status": "succeeded",
+            "reason": "{{ nodes.hits.output.result.total_hits }} hit(s), all on hosts already in the case"
+          },
+          "position": {
+            "x": 320,
+            "y": 840
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "trigger-out-load",
+          "source": "trigger",
+          "target": "load",
+          "source_port": "out"
+        },
+        {
+          "id": "load-out-prepare",
+          "source": "load",
+          "target": "prepare",
+          "source_port": "out"
+        },
+        {
+          "id": "load-error-ioc_gone",
+          "source": "load",
+          "target": "ioc_gone",
+          "source_port": "error"
+        },
+        {
+          "id": "prepare-out-supported",
+          "source": "prepare",
+          "target": "supported",
+          "source_port": "out"
+        },
+        {
+          "id": "supported-true-siem",
+          "source": "supported",
+          "target": "siem",
+          "source_port": "true"
+        },
+        {
+          "id": "supported-false-nothing_to_do",
+          "source": "supported",
+          "target": "nothing_to_do",
+          "source_port": "false"
+        },
+        {
+          "id": "siem-out-assets",
+          "source": "siem",
+          "target": "assets",
+          "source_port": "out"
+        },
+        {
+          "id": "siem-error-siem_failed",
+          "source": "siem",
+          "target": "siem_failed",
+          "source_port": "error"
+        },
+        {
+          "id": "siem-timeout-siem_failed",
+          "source": "siem",
+          "target": "siem_failed",
+          "source_port": "timeout"
+        },
+        {
+          "id": "assets-out-hits",
+          "source": "assets",
+          "target": "hits",
+          "source_port": "out"
+        },
+        {
+          "id": "assets-error-assets_failed",
+          "source": "assets",
+          "target": "assets_failed",
+          "source_port": "error"
+        },
+        {
+          "id": "hits-out-outside",
+          "source": "hits",
+          "target": "outside",
+          "source_port": "out"
+        },
+        {
+          "id": "outside-true-notify",
+          "source": "outside",
+          "target": "notify",
+          "source_port": "true"
+        },
+        {
+          "id": "outside-false-contained",
+          "source": "outside",
+          "target": "contained",
+          "source_port": "false"
+        },
+        {
+          "id": "notify-out-types",
+          "source": "notify",
+          "target": "types",
+          "source_port": "out"
+        },
+        {
+          "id": "types-out-pick",
+          "source": "types",
+          "target": "pick",
+          "source_port": "out"
+        },
+        {
+          "id": "pick-out-suggest",
+          "source": "pick",
+          "target": "suggest",
+          "source_port": "out"
+        },
+        {
+          "id": "suggest-out-step",
+          "source": "suggest",
+          "target": "step",
+          "source_port": "out"
+        },
+        {
+          "id": "step-out-again",
+          "source": "step",
+          "target": "again",
+          "source_port": "out"
+        },
+        {
+          "id": "again-true-pause",
+          "source": "again",
+          "target": "pause",
+          "source_port": "true"
+        },
+        {
+          "id": "pause-out-pick",
+          "source": "pause",
+          "target": "pick",
+          "source_port": "out"
+        }
+      ]
+    },
+    "write_tool_allowlist": [],
+    "max_runs_per_hour": 60,
+    "token_budget_per_run": 50000,
+    "suggestion_audience": "entity"
+  },
+  "requirements": {
+    "keystore": [
+      "SIEM_API_KEY"
+    ],
+    "tools": [
+      "iris_case_assets_create",
+      "iris_case_assets_list",
+      "iris_case_iocs_get",
+      "iris_taxonomies_list"
+    ]
+  },
+  "warnings": []
+}
