@@ -284,7 +284,7 @@ def _publish_created(run, suggestion):
     from app.iris_engine.notifications.service import notify_many
 
     dry_run = suggestion.status == SUGGESTION_DRY_RUN
-    prefix = 'AI suggestion (dry run)' if dry_run else 'AI suggestion'
+    prefix = 'Suggestion (dry run)' if dry_run else 'Suggestion'
     try:
         notify_many(
             suggestion.audience_user_ids or [],

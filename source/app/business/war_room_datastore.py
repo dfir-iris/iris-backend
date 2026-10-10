@@ -163,7 +163,7 @@ def war_room_datastore_delete(war_room_id, file_id):
     track_activity(f'deleted file "{filename}" from datastore',
                    war_room_id=war_room_id)
     call_modules_hook('on_postload_war_room_datastore_file_delete',
-                      {'war_room_id': war_room_id, 'file_id': file_id})
+                      {'war_room_id': war_room_id, 'file_id': file_id, 'id': file_id})
 
 
 def war_room_attached_cases(war_room_id):

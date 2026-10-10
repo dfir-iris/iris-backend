@@ -389,7 +389,7 @@ class Config:
     AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS = config.load('IRIS', 'AI_WORKFLOWS_ALLOW_PRIVATE_EGRESS',
                                                     fallback="False") == "True"
     AI_WORKFLOWS_MAX_CHAIN_DEPTH = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_CHAIN_DEPTH', fallback=2))
-    AI_WORKFLOWS_MAX_STEPS_PER_RUN = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_STEPS_PER_RUN', fallback=100))
+    AI_WORKFLOWS_MAX_STEPS_PER_RUN = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_STEPS_PER_RUN', fallback=1000))
     AI_WORKFLOWS_PYTHON_ENABLED = config.load('IRIS', 'AI_WORKFLOWS_PYTHON_ENABLED', fallback="True") == "True"
     AI_WORKFLOWS_RETENTION_DAYS = int(config.load('IRIS', 'AI_WORKFLOWS_RETENTION_DAYS', fallback=90))
     AI_WORKFLOWS_MAX_INBOUND_BYTES = int(config.load('IRIS', 'AI_WORKFLOWS_MAX_INBOUND_BYTES',

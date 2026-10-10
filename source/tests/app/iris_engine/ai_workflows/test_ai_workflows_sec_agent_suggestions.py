@@ -142,7 +142,7 @@ class TestsSuggestionPublication(TestCase):
 
     def test_dry_run_should_be_notified_without_the_hook(self):
         notify, emit, hook = self._publish('dry_run')
-        self.assertTrue(notify.call_args.args[2].startswith('AI suggestion (dry run): '))
+        self.assertTrue(notify.call_args.args[2].startswith('Suggestion (dry run): '))
         self.assertEqual('/suggestions?id=42', notify.call_args.kwargs['link'])
         emit.assert_called_once()
         hook.assert_not_called()

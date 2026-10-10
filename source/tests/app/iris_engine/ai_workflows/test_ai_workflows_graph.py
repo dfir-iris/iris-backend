@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_targets
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate
+from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_fragment
 from app.iris_engine.ai_workflows.graph import ai_workflows_graph_validate_trigger_config
 
 _WRITE_TOOL = 'iris_case_notes_create'
@@ -92,11 +93,10 @@ class TestsGraphStructure(TestCase):
         graph = _graph([_node('vars', 'set_variables')], [_edge('trigger', 'vars'), _edge('vars', 'trigger')])
         self.assertIn(('trigger', 'Nothing can lead back to the trigger'), _messages(self._validate(graph)))
 
-    def test_cycle_without_waiting_node_should_be_rejected(self):
+    def test_cycle_without_waiting_node_should_be_allowed(self):
         graph = _graph([_node('a', 'set_variables'), _node('b', 'set_variables')],
                        [_edge('trigger', 'a'), _edge('a', 'b'), _edge('b', 'a')])
-        flagged = sorted(n for n, m in _messages(self._validate(graph)) if m.startswith('On a loop'))
-        self.assertEqual(['a', 'b'], flagged)
+        self.assertEqual([], self._validate(graph))
 
     def test_cycle_through_a_waiting_node_should_be_allowed(self):
         for waiting in (_node('w', 'delay', minutes=5), _node('w', 'ask_analyst', question='?', fields=['x']),
@@ -106,18 +106,16 @@ class TestsGraphStructure(TestCase):
                            [_edge('trigger', 'a'), _edge('a', 'w'), _edge('w', 'a', port)])
             self.assertEqual([], self._validate(graph), waiting['type'])
 
-    def test_cycle_through_sync_http_or_zero_delay_should_be_rejected(self):
-        for busy in (_node('w', 'http_request', url='https://example.org'), _node('w', 'delay', minutes=0)):
-            graph = _graph([_node('a', 'set_variables'), busy],
+    def test_cycle_through_sync_http_or_zero_delay_should_be_allowed(self):
+        for node in (_node('w', 'http_request', url='https://example.org'), _node('w', 'delay', minutes=0)):
+            graph = _graph([_node('a', 'set_variables'), node],
                            [_edge('trigger', 'a'), _edge('a', 'w'), _edge('w', 'a')])
-            self.assertTrue(any(m.startswith('On a loop') for _n, m in _messages(self._validate(graph))),
-                            busy['config'])
+            self.assertEqual([], self._validate(graph), node['config'])
 
-    def test_node_behind_a_cycle_should_not_be_flagged(self):
-        graph = _graph([_node('a', 'set_variables'), _node('b', 'set_variables'), _node('c', 'stop')],
-                       [_edge('trigger', 'a'), _edge('a', 'b'), _edge('b', 'a'), _edge('b', 'c')])
-        flagged = sorted(n for n, m in _messages(self._validate(graph)) if m.startswith('On a loop'))
-        self.assertEqual(['a', 'b'], flagged)
+    def test_cycle_in_a_block_should_be_allowed(self):
+        fragment = {'nodes': [_node('a', 'set_variables'), _node('b', 'set_variables')],
+                    'edges': [_edge('a', 'b'), _edge('b', 'a')]}
+        self.assertEqual([], ai_workflows_graph_validate_fragment(fragment))
 
 
 class TestsGraphNodeConfig(TestCase):

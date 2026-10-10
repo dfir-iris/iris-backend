@@ -775,7 +775,7 @@ def _pop(run_id):
         _emit_all(expired)
         _publish_complete(run)
         return None
-    max_steps = _config('AI_WORKFLOWS_MAX_STEPS_PER_RUN', 100)
+    max_steps = _config('AI_WORKFLOWS_MAX_STEPS_PER_RUN', 1000)
     if (run.step_count or 0) >= max_steps:
         _finish(run, RUN_FAILED, f'Step limit reached ({max_steps} steps)')
         expired = _close_waits(run)

@@ -49,7 +49,6 @@ from app.iris_engine.ai_workflows.nodes import NODE_SET_VARIABLES
 from app.iris_engine.ai_workflows.nodes import NODE_STOP
 from app.iris_engine.ai_workflows.nodes import NODE_SUGGEST
 from app.iris_engine.ai_workflows.nodes import NODE_TRIGGER
-from app.iris_engine.ai_workflows.nodes import ai_workflows_nodes_is_waiting
 from app.iris_engine.ai_workflows.sandbox import MAX_STEPS
 from app.iris_engine.ai_workflows.sandbox import MAX_TIMEOUT_SECONDS
 from app.iris_engine.ai_workflows.sandbox import ai_workflows_sandbox_check
@@ -644,42 +643,6 @@ def _structure_errors(nodes, edges, fragment=False) -> tuple:
     return errors, by_id, adjacency
 
 
-def _busy_cycle_nodes(by_id, adjacency) -> list:
-    """Nodes on a cycle that has no waiting node (a run would spin):
-    the cycles left once waiting nodes are removed."""
-    remaining = {node_id for node_id, node in by_id.items() if not ai_workflows_nodes_is_waiting(node)}
-    # Kahn: peel nodes without incoming edges; what is left sits on or behind a cycle
-    incoming = {node_id: 0 for node_id in remaining}
-    for source in remaining:
-        for target in adjacency[source]:
-            if target in remaining:
-                incoming[target] += 1
-    queue = [node_id for node_id, count in incoming.items() if count == 0]
-    while queue:
-        node_id = queue.pop()
-        remaining.discard(node_id)
-        for target in adjacency[node_id]:
-            if target in incoming and target in remaining:
-                incoming[target] -= 1
-                if incoming[target] == 0:
-                    queue.append(target)
-    # Keep only nodes actually on a cycle (that can reach themselves)
-    on_cycle = []
-    for start in sorted(remaining):
-        seen = set()
-        stack = [t for t in adjacency[start] if t in remaining]
-        while stack:
-            node_id = stack.pop()
-            if node_id == start:
-                on_cycle.append(start)
-                break
-            if node_id in seen:
-                continue
-            seen.add(node_id)
-            stack.extend(t for t in adjacency[node_id] if t in remaining)
-    return on_cycle
-
-
 def ai_workflows_graph_validate_fragment(fragment) -> list:
     """Errors of a saved block `{nodes, edges}`: the checks of a workflow
     graph but the trigger, reachability and the write allowlist (checked
@@ -703,9 +666,6 @@ def ai_workflows_graph_validate_fragment(fragment) -> list:
     if size > _MAX_DEFINITION_BYTES:
         return [_error(None, 'definition', f'The block is over {_MAX_DEFINITION_BYTES // 1024} KB')]
     errors, by_id, adjacency = _structure_errors(nodes, edges, fragment=True)
-    for node_id in _busy_cycle_nodes(by_id, adjacency):
-        errors.append(_error(node_id, None, 'On a loop without a waiting node (async HTTP request, ask an '
-                                            'analyst or delay)'))
     for node in by_id.values():
         _check_node(node, None, errors)
     return errors
@@ -758,9 +718,6 @@ def ai_workflows_graph_validate(graph, trigger_type, trigger_config, write_tool_
 
     structure, by_id, adjacency = _structure_errors(nodes, edges)
     errors.extend(structure)
-    for node_id in _busy_cycle_nodes(by_id, adjacency):
-        errors.append(_error(node_id, None, 'On a loop without a waiting node (async HTTP request, ask an '
-                                            'analyst or delay)'))
     for node in by_id.values():
         _check_node(node, allowlist, errors)
 

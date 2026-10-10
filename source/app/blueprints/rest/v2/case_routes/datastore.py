@@ -46,6 +46,7 @@ from app.business.datastore import datastore_get_interactive_path_node
 from app.business.datastore import datastore_get_local_file_path
 from app.business.datastore import datastore_get_path_node
 from app.business.datastore import datastore_get_standard_path
+from app.business.datastore import datastore_hook_file_saved
 from app.business.datastore import datastore_rename_node
 from app.business.datastore import ds_list_tree
 from app.iris_engine.demo_builder import DEMO_MODE_UPLOAD_MAX_BYTES
@@ -274,6 +275,7 @@ class DatastoreOperations:
                 f'File "{dsf_sc.file_original_name}" added to DS',
                 caseid=case_identifier
             )
+            datastore_hook_file_saved(dsf_sc, case_identifier, created=True)
             return response_api_created(self._file_schema.dump(dsf_sc))
 
         except marshmallow.exceptions.ValidationError as e:
@@ -324,6 +326,7 @@ class DatastoreOperations:
                 f'File "{dsf.file_original_name}" updated in DS',
                 caseid=case_identifier
             )
+            datastore_hook_file_saved(dsf, case_identifier, created=False)
             return response_api_success(self._file_schema.dump(dsf_sc))
 
         except marshmallow.exceptions.ValidationError as e:
@@ -519,6 +522,7 @@ class DatastoreOperations:
                 f'File "{dsf_sc.file_original_name}" added to DS',
                 caseid=case_identifier
             )
+            datastore_hook_file_saved(dsf_sc, case_identifier, created=True)
 
             return response_api_created({
                 'existed': existed,

@@ -41,6 +41,10 @@ class TestWebhooksEvents(TestCase):
     def test_split_should_handle_global_task_before_task(self):
         self.assertEqual(('global_task', 'create'), webhooks_split_event('on_postload_global_task_create'))
 
+    def test_split_should_parse_case_datastore_file_events(self):
+        self.assertEqual(('datastore_file', 'create'), webhooks_split_event('on_postload_datastore_file_create'))
+        self.assertEqual('Datastore file created', webhooks_event_label('on_postload_datastore_file_create'))
+
     def test_label_should_be_human_readable(self):
         self.assertEqual('War room note created', webhooks_event_label('on_postload_war_room_note_create'))
         self.assertEqual('IOC comment added', webhooks_event_label('on_postload_ioc_commented'))

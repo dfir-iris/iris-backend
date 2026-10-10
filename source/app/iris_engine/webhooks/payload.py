@@ -75,9 +75,10 @@ _ID_KEYS = {
     'vulnerability': ('vulnerability_id', 'id'),
     'vulnerability_finding': ('finding_id', 'id'),
     'case': ('case_id', 'id'),
+    'datastore_file': ('file_id', 'id'),
 }
 
-_CASE_ID_KEYS = ('case_id', 'task_case_id', 'note_case_id', 'event_case_id', 'ioc_case_id')
+_CASE_ID_KEYS = ('case_id', 'task_case_id', 'note_case_id', 'event_case_id', 'ioc_case_id', 'file_case_id')
 
 
 def _json_default(value):

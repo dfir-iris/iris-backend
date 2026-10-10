@@ -161,6 +161,52 @@ class TestsStepping(EngineTestCase):
         self.assertEqual('failed', run.status)
         self.assertIn('Step limit', run.error)
 
+    def test_loop_without_waiting_node_should_run_until_its_condition_exits(self):
+        graph = {
+            'nodes': [
+                {'id': 'trigger', 'type': 'trigger', 'config': {}},
+                {'id': 'count', 'type': 'set_variables', 'config': {
+                    'variables': [{'name': 'count', 'value': '{{ (vars.count | default(0)) + 1 }}'}]}},
+                {'id': 'again', 'type': 'condition', 'config': {'mode': 'expression',
+                                                                'expression': 'vars.count < 30'}},
+                {'id': 'end', 'type': 'stop', 'config': {'status': 'succeeded', 'reason': 'done'}},
+            ],
+            'edges': [
+                {'id': 'e1', 'source': 'trigger', 'target': 'count', 'source_port': 'out'},
+                {'id': 'e2', 'source': 'count', 'target': 'again', 'source_port': 'out'},
+                {'id': 'e3', 'source': 'again', 'target': 'count', 'source_port': 'true'},
+                {'id': 'e4', 'source': 'again', 'target': 'end', 'source_port': 'false'},
+            ],
+        }
+        run = self.run_to_rest(workflow(graph))
+        self.assertEqual('succeeded', run.status)
+        self.assertEqual(30, run.context['vars']['count'])
+        # 1 trigger + 30 passes of 2 nodes + the stop: more than one task's worth of nodes
+        self.assertEqual(62, len(self.steps(run)))
+
+    def test_loop_that_never_exits_should_stop_at_the_step_limit(self):
+        graph = {
+            'nodes': [
+                {'id': 'trigger', 'type': 'trigger', 'config': {}},
+                {'id': 'a', 'type': 'set_variables', 'config': {}},
+                {'id': 'b', 'type': 'set_variables', 'config': {}},
+            ],
+            'edges': [
+                {'id': 'e1', 'source': 'trigger', 'target': 'a', 'source_port': 'out'},
+                {'id': 'e2', 'source': 'a', 'target': 'b', 'source_port': 'out'},
+                {'id': 'e3', 'source': 'b', 'target': 'a', 'source_port': 'out'},
+            ],
+        }
+        from app import app
+        app.config['AI_WORKFLOWS_MAX_STEPS_PER_RUN'] = 40
+        try:
+            run = self.run_to_rest(workflow(graph))
+        finally:
+            app.config.pop('AI_WORKFLOWS_MAX_STEPS_PER_RUN')
+        self.assertEqual('failed', run.status)
+        self.assertIn('Step limit reached (40 steps)', run.error)
+        self.assertEqual(40, len(self.steps(run)))
+
     def test_step_should_refuse_a_run_another_worker_holds(self):
         run = self.start(workflow(chain()))
         run.is_executing = True

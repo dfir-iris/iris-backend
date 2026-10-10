@@ -29,10 +29,11 @@ from pathlib import Path
 
 from app.db import db
 from app.blueprints.iris_user import iris_current_user
+from app.business.datastore import datastore_add_file_as_evidence
+from app.business.datastore import datastore_delete_file
+from app.business.datastore import datastore_hook_file_saved
 from app.datamgmt.datastore.datastore_db import datastore_add_child_node
-from app.datamgmt.datastore.datastore_db import datastore_add_file_as_evidence
 from app.datamgmt.datastore.datastore_db import datastore_add_file_as_ioc
-from app.datamgmt.datastore.datastore_db import datastore_delete_file
 from app.datamgmt.datastore.datastore_db import datastore_delete_node
 from app.datamgmt.datastore.datastore_db import datastore_filter_tree
 from app.datamgmt.datastore.datastore_db import datastore_get_file
@@ -181,6 +182,7 @@ def datastore_update_file(cur_id: int, caseid: int):
             msg_added_as += ' and evidence' if len(msg_added_as) > 0 else 'and added in evidence'
 
         track_activity(f'File \"{dsf.file_original_name}\" updated in DS', caseid=caseid)
+        datastore_hook_file_saved(dsf, caseid, created=False)
         return response_success('File updated in datastore', data=dsf_schema.dump(dsf_sc))
 
     except marshmallow.exceptions.ValidationError as e:
@@ -321,6 +323,7 @@ def datastore_add_file(cur_id: int, caseid: int):
             msg_added_as += ' and evidence' if len(msg_added_as) > 0 else 'and added in evidence'
 
         track_activity(f"File \"{dsf_sc.file_original_name}\" added to DS", caseid=caseid)
+        datastore_hook_file_saved(dsf_sc, caseid, created=True)
         return response_success(f'File saved in datastore {msg_added_as}', data=dsf_schema.dump(dsf_sc))
 
     except marshmallow.exceptions.ValidationError as e:
@@ -358,6 +361,7 @@ def datastore_add_interactive_file(caseid: int):
             msg = "File already existing in datastore. Using it."
 
         track_activity(f"File \"{dsf_sc.file_original_name}\" added to DS", caseid=caseid)
+        datastore_hook_file_saved(dsf_sc, caseid, created=True)
         return response_success(msg, data={"file_url": f"/datastore/file/view/{dsf_sc.file_id}"})
 
     except marshmallow.exceptions.ValidationError as e:

@@ -71,6 +71,15 @@ class TestsTriggerEntity(EngineTestCase):
         event = _event(object_type='ioc', object_id=77, case={'id': 4, 'name': 'c'})
         self.assertEqual(('case', 4, {'type': 'ioc', 'id': 77}), ai_workflows_triggers_entity(event))
 
+    def test_datastore_upload_is_about_its_case_or_war_room(self):
+        event = _event(hook='on_postload_datastore_file_create', object_type='datastore_file', object_id=12,
+                       case={'id': 4, 'name': 'c'})
+        self.assertEqual(('case', 4, {'type': 'datastore_file', 'id': 12}), ai_workflows_triggers_entity(event))
+        event = _event(hook='on_postload_war_room_datastore_file_create', object_type='war_room',
+                       action='datastore_file_create', object_id=3, data={'id': 7, 'war_room_id': 3})
+        self.assertEqual(('war_room', 3, {'type': 'war_room_datastore_file', 'id': 7}),
+                         ai_workflows_triggers_entity(event))
+
     def test_run_completion_is_about_the_run_entity(self):
         event = _event(object_type='ai_workflow_run', object_id=8,
                        data={'id': 8, 'entity_type': 'alert', 'entity_id': 5})

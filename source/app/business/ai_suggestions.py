@@ -461,7 +461,7 @@ def ai_suggestions_accept(suggestion_id, user_id, note=None, scope_mask=None) ->
         ai_workflows_db_commit()
 
     tool_text = f' ({tool}, tool call #{suggestion.result_tool_call_id})' if tool else ''
-    _track(suggestion, f'AI suggestion "{suggestion.title}" accepted{tool_text}', user_id)
+    _track(suggestion, f'Suggestion "{suggestion.title}" accepted{tool_text}', user_id)
     users = ai_workflows_db_user_summary([user_id])
     # The action result stays with the analyst: the run (and so the
     # workflow owner) learns that it was accepted, not what it returned
@@ -481,13 +481,15 @@ def ai_suggestions_dismiss(suggestion_id, user_id, note=None, scope_mask=None) -
     ai_workflows_require_enabled()
     note = _note(note)
     suggestion = _get_visible(suggestion_id, user_id, lock=True, scope_mask=scope_mask)
+    if suggestion.status == SUGGESTION_DRY_RUN:
+        return _dismiss_dry_run(suggestion, user_id, note)
     _require_open(suggestion)
     suggestion.status = SUGGESTION_DISMISSED
     suggestion.resolved_by_id = user_id
     suggestion.resolved_at = ai_workflows_db_utcnow()
     suggestion.resolution_note = note
     ai_workflows_db_commit()
-    _track(suggestion, f'AI suggestion "{suggestion.title}" dismissed', user_id)
+    _track(suggestion, f'Suggestion "{suggestion.title}" dismissed', user_id)
     users = ai_workflows_db_user_summary([user_id])
     # A dismissed question gets no answer: the run leaves through `timeout`
     port = _PORT_TIMEOUT if suggestion.kind == SUGGESTION_INFO_REQUEST else None
@@ -500,6 +502,21 @@ def ai_suggestions_dismiss(suggestion_id, user_id, note=None, scope_mask=None) -
     data = _publish(suggestion, 'on_postload_ai_suggestion_dismiss', user_id)
     _publish_expired(expired)
     return data
+
+
+def _dismiss_dry_run(suggestion, user_id, note) -> dict:
+    """Clears a dry-run suggestion from the review list. A dry run has no
+    real effect: no wait is resolved and no hook fires."""
+    suggestion.status = SUGGESTION_DISMISSED
+    suggestion.resolved_by_id = user_id
+    suggestion.resolved_at = ai_workflows_db_utcnow()
+    suggestion.resolution_note = note
+    ai_workflows_db_commit()
+    try:
+        ai_workflows_suggestions_emit(_Redacted(suggestion), 'updated')
+    except Exception:
+        logger.exception(f'Socket update failed for AI suggestion #{suggestion.id}')
+    return ai_workflows_suggestion_public(suggestion, user_id)
 
 
 def _form_fields(form_schema) -> list:

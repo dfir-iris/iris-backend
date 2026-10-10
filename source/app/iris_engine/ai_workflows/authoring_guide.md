@@ -80,6 +80,7 @@ A block is a reusable fragment of graph (for example "look a hash up on VirusTot
 **What a run is about.**
 - Alert, alert cluster, case and war room events run on that entity.
 - Events about an object *of a case* (IOC, asset, note, task, evidence…) run on the **case**, with `trigger.sub_entity = {"type": "ioc", "id": 42}`.
+- A file uploaded to a datastore: `on_postload_datastore_file_create` runs on the case (`sub_entity` type `datastore_file`, name in `data.file_original_name`, hash in `data.file_sha256`); `on_postload_war_room_datastore_file_create` runs on the war room (`sub_entity` type `war_room_datastore_file`, `data.filename`, `data.sha256`). A case file flagged as evidence also fires `on_postload_evidence_create`.
 - The serialised object of an event is in `trigger.payload.data`.
 
 **Runs never trigger themselves forever.**

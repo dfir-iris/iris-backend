@@ -171,6 +171,15 @@ def get_case_tags(case_id):
     return []
 
 
+def case_db_list_report_templates():
+    """Every report template, investigation and activities, by name."""
+    return CaseTemplateReport.query.order_by(CaseTemplateReport.name).all()
+
+
+def case_db_get_report_template(template_id):
+    return CaseTemplateReport.query.filter(CaseTemplateReport.id == template_id).first()
+
+
 def get_activities_report_template():
     reports = CaseTemplateReport.query.with_entities(
         CaseTemplateReport.id,

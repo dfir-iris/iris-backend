@@ -271,6 +271,15 @@ class TestsDismiss(_SuggestionsTestCase):
         ai_suggestions_dismiss(1, _ANALYST)
         self.assertEqual('timeout', self.resume.call_args.kwargs['port'])
 
+    def test_dry_run_suggestion_should_be_dismissed_without_hook_or_resume(self):
+        wait = self._add_wait()
+        suggestion = self._add(_suggestion(kind=SUGGESTION_INFO_REQUEST, wait_id=wait.id, status='dry_run'))
+        ai_suggestions_dismiss(1, _ANALYST, note='seen')
+        self.assertEqual(SUGGESTION_DISMISSED, suggestion.status)
+        self.assertEqual('seen', suggestion.resolution_note)
+        self.hook.assert_not_called()
+        self.resume.assert_not_called()
+
     def test_dismiss_twice_should_fail(self):
         self._add(_suggestion())
         ai_suggestions_dismiss(1, _ANALYST)

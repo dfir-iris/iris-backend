@@ -64,6 +64,13 @@ class TestWebhooksMakeEvent(TestCase):
         self.assertEqual(f'{_BASE}/case/4/iocs/3', event['url'])
         self.assertEqual('Jane Doe created ioc 1.2.3.4 in case #4 #4 - Phishing', event['summary'])
 
+    def test_datastore_file_event_should_find_its_file_and_case(self):
+        data = {'file_id': 12, 'file_case_id': 4, 'file_original_name': 'dump.raw'}
+        event = _make('on_postload_datastore_file_create', data)
+        self.assertEqual(12, event['object_id'])
+        self.assertEqual('Datastore file created: dump.raw', event['title'])
+        self.assertEqual(4, webhooks_case_id(data, 'datastore_file'))
+
     def test_list_data_should_use_the_first_item(self):
         event = _make('on_postload_asset_update', [{'asset_id': 1, 'asset_name': 'PC'}, {'asset_id': 2}], case=_CASE)
         self.assertEqual(1, event['object_id'])

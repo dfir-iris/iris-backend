@@ -384,23 +384,26 @@ def datastore_add_file_as_ioc(user_identifier, dsf):
 
 
 def datastore_add_file_as_evidence(user_identifier, dsf, caseid):
+    """The evidence created for `dsf` in the case, None when the case
+    already holds one with the same hash."""
     crf = CaseReceivedFile.query.filter(
-        CaseReceivedFile.file_hash == dsf.file_sha256
+        CaseReceivedFile.file_hash == dsf.file_sha256,
+        CaseReceivedFile.case_id == caseid
     ).first()
+    if crf is not None:
+        return None
 
-    if crf is None:
-        crf = CaseReceivedFile()
-        crf.file_hash = dsf.file_sha256
-        crf.file_description = f'Imported from datastore. {dsf.file_description}'
-        crf.case_id = caseid
-        crf.date_added = datetime.datetime.now()
-        crf.filename = dsf.file_original_name
-        crf.file_size = dsf.file_size
-        crf.user_id = user_identifier
+    crf = CaseReceivedFile()
+    crf.file_hash = dsf.file_sha256
+    crf.file_description = f'Imported from datastore. {dsf.file_description}'
+    crf.case_id = caseid
+    crf.date_added = datetime.datetime.now()
+    crf.filename = dsf.file_original_name
+    crf.file_size = dsf.file_size
+    crf.user_id = user_identifier
 
-        db_create(crf)
-
-    return
+    db_create(crf)
+    return crf
 
 
 def datastore_get_local_file_path(file_id, caseid):
