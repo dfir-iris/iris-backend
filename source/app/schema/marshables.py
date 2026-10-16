@@ -2897,6 +2897,30 @@ class CaseSchemaForAPIV2(ma.SQLAlchemyAutoSchema):
         unknown = EXCLUDE
 
     @pre_load
+    def custom_attributes_merge(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        """Merge the submitted custom attribute values into the stored ones.
+
+        Clients send bare values (`{tab: {field: value}}`) while objects persist
+        `{tab: {field: {type, value, mandatory}}}`. Without the merge, the
+        load-instance assignment replaced the whole column: type information was
+        lost and tabs the client did not send (e.g. written by modules) were
+        deleted. Runs as pre_load because, with `load_instance`, the instance
+        already carries the submitted dict by post_load time.
+        """
+        new_attr = data.get('custom_attributes') if isinstance(data, dict) else None
+        if new_attr is None:
+            return data
+
+        assert_type_mml(input_var=new_attr,
+                        field_name='custom_attributes',
+                        type=dict)
+
+        instance = getattr(self, 'instance', None)
+        case_identifier = getattr(instance, 'case_id', None)
+        data['custom_attributes'] = merge_custom_attributes(new_attr, case_identifier, 'case')
+        return data
+
+    @pre_load
     def classification_filter(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Filters out empty classification IDs.
 
