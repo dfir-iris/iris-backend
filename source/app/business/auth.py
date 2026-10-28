@@ -124,14 +124,22 @@ def _is_safe_url(target):
     return not parsed.scheme and not parsed.netloc
 
 
+def safe_next_url(next_url):
+    """Return `next_url` when it is safe to redirect to, None otherwise.
+
+    Unlike `_filter_next_url`, callers that must tell "no destination
+    supplied" apart from "destination rejected" (the OIDC flow keeps the
+    former and drops the latter) use this directly.
+    """
+    return next_url if _is_safe_url(next_url) else None
+
+
 def _filter_next_url(next_url, context_case):
     """
     Ensures that the URL to which the user is redirected is safe. If the provided URL is not safe or is missing,
     a default URL (typically the index page) is returned.
     """
-    if not _is_safe_url(next_url):
-        return url_for('index.index', cid=context_case)
-    return next_url
+    return safe_next_url(next_url) or url_for('index.index', cid=context_case)
 
 
 def mfa_is_enforced() -> bool:

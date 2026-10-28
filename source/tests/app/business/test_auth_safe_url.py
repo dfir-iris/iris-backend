@@ -11,6 +11,7 @@ guard). Comprehensive coverage of bypass attempts is intentional.
 from unittest import TestCase
 
 from app.business.auth import _is_safe_url
+from app.business.auth import safe_next_url
 
 
 class TestIsSafeUrl(TestCase):
@@ -94,3 +95,31 @@ class TestIsSafeUrl(TestCase):
 
     def test_javascript_path_not_safe(self):
         self.assertFalse(_is_safe_url('javascript://evil'))
+
+
+class TestSafeNextUrl(TestCase):
+    """Tests for safe_next_url, the sanitising half used by the OIDC flow."""
+
+    def test_safe_path_is_returned_unchanged(self):
+        self.assertEqual('/case/1/tasks/2', safe_next_url('/case/1/tasks/2'))
+
+    def test_root_path_is_returned_unchanged(self):
+        self.assertEqual('/', safe_next_url('/'))
+
+    def test_path_with_query_is_returned_unchanged(self):
+        self.assertEqual('/dashboard?cid=1', safe_next_url('/dashboard?cid=1'))
+
+    def test_none_returns_none(self):
+        self.assertIsNone(safe_next_url(None))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(safe_next_url(''))
+
+    def test_absolute_url_returns_none(self):
+        self.assertIsNone(safe_next_url('https://evil.com/case/1'))
+
+    def test_protocol_relative_url_returns_none(self):
+        self.assertIsNone(safe_next_url('//evil.com/case/1'))
+
+    def test_relative_path_without_leading_slash_returns_none(self):
+        self.assertIsNone(safe_next_url('case/1/tasks/2'))
