@@ -44,6 +44,11 @@ from app.models.cases import CaseTags
 from app.models.cases import CaseTimeline
 from app.models.cases import Cases
 from app.models.cases import CasesEvent
+from app.models.case_graph import CaseGraphEdge
+from app.models.case_graph import CaseGraphEdgeEvent
+from app.models.case_graph import CaseGraphNode
+from app.models.case_graph import CaseGraphRelationType
+from app.models.case_graph import CaseGraphView
 from app.models.comments import AssetComments
 from app.models.comments import Comments
 from app.models.comments import EventComments
@@ -82,6 +87,17 @@ from app.models.vulnerabilities import CaseAssetVulnerabilityIoc
 from app.models.vulnerabilities import Vulnerability
 
 USER_REF_PREFIX = 'user'
+
+# Graph node kind -> the entity a graph edge endpoint of that kind refers to.
+GRAPH_ENDPOINT_ENTITIES = {
+    'asset': 'asset',
+    'ioc': 'ioc',
+    'event': 'event',
+    'evidence': 'evidence',
+    'task': 'task',
+    'note': 'note',
+    'node': 'graph_node',
+}
 
 
 class LookupSpec:
@@ -122,10 +138,17 @@ class EntitySpec:
     required_refs ref columns that must resolve on import; a row whose required
                   ref resolves to nothing (an optional lookup the target lacks)
                   is skipped
+    poly_refs     `(kind_column, id_column, {kind: entity key})` for a
+                  polymorphic reference (a graph edge endpoint): the id is
+                  exported as a ref to the entity its kind names. On import
+                  the ref must belong to that entity and resolve, else the
+                  row is skipped (a kind with no entity, like `alert`,
+                  never resolves)
     """
 
     def __init__(self, key, model, pk, case_column=None, fields=(), user_refs=(),
-                 entity_refs=None, lookup_refs=None, self_refs=(), blob_column=None, required_refs=()):
+                 entity_refs=None, lookup_refs=None, self_refs=(), blob_column=None, required_refs=(),
+                 poly_refs=()):
         self.key = key
         self.model = model
         self.pk = pk
@@ -137,6 +160,7 @@ class EntitySpec:
         self.self_refs = tuple(self_refs)
         self.blob_column = blob_column
         self.required_refs = tuple(required_refs)
+        self.poly_refs = tuple(poly_refs)
 
 
 _LOOKUP_SPECS = (
@@ -161,6 +185,8 @@ _LOOKUP_SPECS = (
     LookupSpec('evidence_type', EvidenceTypes, 'id', 'name', extra_columns=('description',)),
     LookupSpec('asset_flag', AssetFlag, 'id', 'name', creatable=False, optional=True),
     LookupSpec('event_category', EventCategory, 'id', 'name'),
+    LookupSpec('graph_relation_type', CaseGraphRelationType, 'id', 'name',
+               extra_columns=('label', 'description', 'directed', 'color', 'line_style', 'stix_relationship')),
     # Public catalogue entries travel by identifier. Matching and creation
     # on the target go through `business.vulnerabilities` (alias-aware,
     # validated); private entries never leave the instance — the findings
@@ -272,9 +298,11 @@ ENTITIES = [
                lookup_refs={'category_id': 'event_category'}),
 
     EntitySpec('event_asset', CaseEventsAssets, 'id', case_column='case_id',
+               fields=('role',),
                entity_refs={'event_id': 'event', 'asset_id': 'asset'}),
 
     EntitySpec('event_ioc', CaseEventsIoc, 'id', case_column='case_id',
+               fields=('role',),
                entity_refs={'event_id': 'event', 'ioc_id': 'ioc'}),
 
     # Findings on public entries only. `decision_id` points at a war room
@@ -354,6 +382,35 @@ ENTITIES = [
     EntitySpec('object_state', ObjectState, 'object_id', case_column='object_case_id',
                fields=('object_name', 'object_state', 'object_last_update'),
                user_refs=('object_updated_by_id',)),
+
+    # Investigation graph. Edge endpoints are polymorphic (`<kind>`,
+    # `<id>`); an edge to an object that does not travel (an alert) is
+    # dropped on import. Dismissed suggestions stay behind: their keys
+    # are made of source-instance ids. The node keys inside a view
+    # state (`asset:12`, ...) are rewritten to the new ids on import.
+    EntitySpec('graph_node', CaseGraphNode, 'node_id', case_column='case_id',
+               fields=('label', 'node_type', 'description', 'icon', 'color', 'custom_attributes',
+                       'created_at', 'updated_at'),
+               user_refs=('created_by_id',),
+               lookup_refs={'tlp_id': 'tlp'}),
+
+    EntitySpec('graph_edge', CaseGraphEdge, 'edge_id', case_column='case_id',
+               fields=('directed', 'label', 'description', 'confidence', 'first_seen', 'last_seen',
+                       'origin', 'review_state', 'custom_attributes', 'created_at', 'updated_at'),
+               user_refs=('created_by_id',),
+               lookup_refs={'relation_type_id': 'graph_relation_type', 'tlp_id': 'tlp'},
+               required_refs=('relation_type_id',),
+               poly_refs=(('source_kind', 'source_id', GRAPH_ENDPOINT_ENTITIES),
+                          ('target_kind', 'target_id', GRAPH_ENDPOINT_ENTITIES))),
+
+    EntitySpec('graph_edge_event', CaseGraphEdgeEvent, None,
+               entity_refs={'edge_id': 'graph_edge', 'event_id': 'event'},
+               required_refs=('edge_id', 'event_id')),
+
+    EntitySpec('graph_view', CaseGraphView, 'view_id', case_column='case_id',
+               fields=('name', 'description', 'is_shared', 'is_report_default', 'state', 'snapshot',
+                       'created_at', 'updated_at'),
+               user_refs=('owner_id',)),
 ]
 
 ENTITIES_BY_KEY = {spec.key: spec for spec in ENTITIES}
