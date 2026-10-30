@@ -4748,6 +4748,617 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph:
+    get:
+      operationId: get_case_graph_get
+      summary: Get the investigation graph of a case (derived and stored edges)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all (adds pending and rejected stored edges)
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges:
+    post:
+      operationId: create_case_graph_edge_post
+      summary: Create a stored edge between two nodes of the case
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/{edge_id}:
+    delete:
+      operationId: delete_case_graph_edge_delete
+      summary: Delete a stored edge
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_graph_edge_put
+      summary: Update a stored edge (fields left out keep their value)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/{edge_id}/reverse:
+    post:
+      operationId: reverse_case_graph_edge_post
+      summary: Swap the source and the target of a stored edge
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/{edge_id}/review:
+    post:
+      operationId: review_case_graph_edge_post
+      summary: 'Accept or reject a stored edge ({decision: accept|reject})'
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/export:
+    get:
+      operationId: export_case_graph_get
+      summary: Export the graph as JSON, a STIX 2.1 bundle or GraphML
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: json (default), stix or graphml
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/import:
+    post:
+      operationId: import_case_graph_post
+      summary: 'Import a JSON or STIX 2.1 graph: missing IOCs, free nodes and edges are created'
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/neighbours:
+    get:
+      operationId: get_case_graph_neighbours_get
+      summary: Nodes and edges within 1 to 3 hops of a node
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node
+        in: query
+        required: false
+        schema:
+          type: key of the node, e.g. asset:12
+      - name: hops
+        in: query
+        required: false
+        schema:
+          type: 1 (default) to 3
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all (adds pending and rejected stored edges)
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/nodes:
+    post:
+      operationId: create_case_graph_node_post
+      summary: Create a free node (actor, account, malware, ...)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/nodes/{node_id}:
+    delete:
+      operationId: delete_case_graph_node_delete
+      summary: Delete a free node and its stored edges
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_graph_node_get
+      summary: Get a free node
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_graph_node_put
+      summary: Update a free node (fields left out keep their value)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/nodes/{node_id}/promote:
+    post:
+      operationId: promote_case_graph_node_post
+      summary: Turn a free node into an asset or an IOC ({kind, ...creation fields}); its edges follow
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/paste:
+    post:
+      operationId: paste_case_graph_post
+      summary: Create the IOCs found in a pasted text, optionally linked to a node
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/paths:
+    get:
+      operationId: get_case_graph_paths_get
+      summary: Simple paths between two nodes, shortest first
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: key of the start node
+      - name: target
+        in: query
+        required: false
+        schema:
+          type: key of the end node
+      - name: directed
+        in: query
+        required: false
+        schema:
+          type: follow the edge directions (default true)
+      - name: max_paths
+        in: query
+        required: false
+        schema:
+          type: 1 to 50, default 5
+      - name: max_length
+        in: query
+        required: false
+        schema:
+          type: 1 to 12, default 8
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all (adds pending and rejected stored edges)
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/views:
+    get:
+      operationId: list_case_graph_views_get
+      summary: List the graph views visible to the caller (own and shared), without snapshot
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_case_graph_view_post
+      summary: Save a graph view
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/views/{view_id}:
+    delete:
+      operationId: delete_case_graph_view_delete
+      summary: Delete a graph view
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: view_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_graph_view_get
+      summary: Get a graph view, with its snapshot
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: view_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_graph_view_put
+      summary: Update a graph view (fields left out keep their value)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: view_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{case_identifier}/iocs:
     get:
       operationId: get_case_iocs_get
@@ -10713,6 +11324,95 @@ paths:
                     type:
                     - integer
                     - 'null'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/graph-relation-types:
+    get:
+      operationId: list_graph_relation_types_route_get
+      summary: List the graph relation types, ordered, with their usage count
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_graph_relation_type_route_post
+      summary: Create a graph relation type
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/graph-relation-types/{identifier}:
+    delete:
+      operationId: delete_graph_relation_type_route_delete
+      summary: Delete a custom graph relation type that no stored edge uses
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_graph_relation_type_route_put
+      summary: Update a graph relation type (fields left out keep their value)
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/graph-relation-types/reorder:
+    post:
+      operationId: reorder_graph_relation_types_route_post
+      summary: Reorder the graph relation types (ids must list every type once)
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
         '400':
           $ref: '#/components/responses/ApiError'
         '403':
@@ -28353,6 +29053,14 @@ components:
           type: array
           items:
             type: integer
+        event_assets_roles:
+          type:
+          - object
+          - 'null'
+        event_iocs_roles:
+          type:
+          - object
+          - 'null'
         event_date:
           type: string
           format: date-time
@@ -28460,6 +29168,14 @@ components:
           type: array
           items:
             type: integer
+        event_assets_roles:
+          type:
+          - object
+          - 'null'
+        event_iocs_roles:
+          type:
+          - object
+          - 'null'
         event_date:
           type: string
           format: date-time
