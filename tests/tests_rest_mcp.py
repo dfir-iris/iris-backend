@@ -441,3 +441,73 @@ class TestsRestMcp(TestCase):
         self.assertEqual(200, response.status_code)
         body = response.json()
         self.assertTrue('error' in body or body['result'].get('isError'))
+        self.assertNotIn('secret-host', response.text)
+
+    # ---- investigation graph ---------------------------------------
+
+    def _call_tool(self, name, arguments):
+        response = self._mcp_post(_rpc('tools/call', {'name': name, 'arguments': arguments}),
+                                  api_key=self._admin_key())
+        self.assertEqual(200, response.status_code)
+        return response.json()
+
+    def test_mcp_case_graph_tools_are_listed_when_allowed(self):
+        self._enable_mcp(mcp_tool_allowlist='iris_case_graph_get,iris_case_graph_edge_create,'
+                                            'iris_case_graph_paths,iris_case_graph_gaps')
+        response = self._mcp_post(_rpc('tools/list'), api_key=self._admin_key())
+        tools = {t['name']: t for t in response.json()['result']['tools']}
+        for name in ('iris_case_graph_get', 'iris_case_graph_edge_create', 'iris_case_graph_paths',
+                     'iris_case_graph_gaps'):
+            self.assertIn(name, tools)
+            self.assertIn('case_identifier', tools[name]['inputSchema']['required'])
+
+    def test_mcp_case_graph_edge_create_then_get_paths_and_gaps(self):
+        import json as _json
+        self._enable_mcp(mcp_tool_allowlist='iris_case_graph_get,iris_case_graph_edge_create,'
+                                            'iris_case_graph_paths,iris_case_graph_gaps')
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._subject.create(f'/api/v2/cases/{case_id}/assets',
+                                        {'asset_type_id': 1, 'asset_name': 'WKS-01'}).json()['asset_id']
+        ioc_id = self._subject.create(f'/api/v2/cases/{case_id}/iocs', {
+            'ioc_type_id': 1, 'ioc_tlp_id': 2, 'ioc_value': 'evil.example'}).json()['ioc_id']
+        created = self._call_tool('iris_case_graph_edge_create', {
+            'case_identifier': case_id, 'source': f'asset:{asset_id}', 'target': f'ioc:{ioc_id}',
+            'relation': 'beacons_to'})
+        self.assertFalse(created['result'].get('isError'))
+        edge = _json.loads(created['result']['content'][0]['text'])
+        self.assertEqual('beacons_to', edge['relation'])
+
+        graph = _json.loads(self._call_tool('iris_case_graph_get', {
+            'case_identifier': case_id})['result']['content'][0]['text'])
+        self.assertEqual({f'asset:{asset_id}', f'ioc:{ioc_id}'}, {node['key'] for node in graph['nodes']})
+        self.assertEqual([edge['key']], [row['key'] for row in graph['edges']])
+
+        paths = _json.loads(self._call_tool('iris_case_graph_paths', {
+            'case_identifier': case_id, 'source': f'asset:{asset_id}',
+            'target': f'ioc:{ioc_id}'})['result']['content'][0]['text'])
+        self.assertEqual(1, paths['shortest_length'])
+
+        gaps = _json.loads(self._call_tool('iris_case_graph_gaps', {
+            'case_identifier': case_id})['result']['content'][0]['text'])
+        self.assertEqual(['unsupported_edge'], [gap['code'] for gap in gaps['data']])
+
+    def test_mcp_case_graph_edge_create_with_an_unknown_relation_is_an_error(self):
+        self._enable_mcp(mcp_tool_allowlist='iris_case_graph_edge_create')
+        case_id = self._subject.create_dummy_case()
+        body = self._call_tool('iris_case_graph_edge_create', {
+            'case_identifier': case_id, 'source': 'asset:1', 'target': 'asset:2', 'relation': 'nope'})
+        self.assertTrue('error' in body or body['result'].get('isError'))
+
+    def test_mcp_case_graph_get_without_case_access_is_an_error(self):
+        self._enable_mcp(mcp_tool_allowlist='iris_case_graph_get')
+        case_id = self._subject.create_dummy_case()
+        self._subject.create(f'/api/v2/cases/{case_id}/assets', {'asset_type_id': 1, 'asset_name': 'secret-host'})
+        # standard_user: the call passes the MCP gate and reaches the case ACL.
+        user = self._subject.create_dummy_user(permissions=0x1)
+        response = self._mcp_post(_rpc('tools/call', {
+            'name': 'iris_case_graph_get', 'arguments': {'case_identifier': case_id},
+        }), api_key=user._api._api_key)
+        self.assertEqual(200, response.status_code)
+        body = response.json()
+        self.assertTrue('error' in body or body['result'].get('isError'))
+        self.assertNotIn('secret-host', response.text)
