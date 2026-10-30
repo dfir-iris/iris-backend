@@ -44,8 +44,8 @@ alembic==1.7.5
 setuptools~=70.3.0
 python-dateutil==2.8.2
 python-gnupg==0.4.8
-pyminizip~=0.2.6
-PyJWT==2.4.0
+pyzipper==0.4.0
+PyJWT==2.15.1
 cryptography>=39.0.1
 ldap3==2.9.1
 pyintelowl>=4.4.0

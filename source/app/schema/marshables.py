@@ -19,10 +19,9 @@
 import datetime
 import dateutil.parser
 import os
-import pyminizip
+import pyzipper
 import random
 import re
-import shutil
 import string
 import tempfile
 from flask import current_app
@@ -1569,10 +1568,10 @@ class DSFileSchema(ma.SQLAlchemyAutoSchema):
 
                     file_path = location.as_posix() + '.zip'
 
-                    shutil.copyfile(fn.name, Path(fn.name).parent / file_hash)
-
-                    pyminizip.compress((Path(fn.name).parent / file_hash).as_posix(), None, file_path, passwd, 0)
-                    os.unlink(Path(tmp.name).parent / file_hash)
+                    with pyzipper.AESZipFile(file_path, 'w', compression=pyzipper.ZIP_STORED,
+                                             encryption=pyzipper.WZ_AES) as zf:
+                        zf.setpassword(passwd.encode('utf-8'))
+                        zf.write(fn.name, arcname=file_hash)
                     os.unlink(fn.name)
 
                 except Exception as e:
