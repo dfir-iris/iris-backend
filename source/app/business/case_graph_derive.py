@@ -228,25 +228,48 @@ def _same_pair(stored, derived):
             and stored['source'] == derived['target'] and stored['target'] == derived['source'])
 
 
-def case_graph_merge_edges(stored_edges, derived_edges):
+def case_graph_merge_edges(stored_edges, derived_edges, event_dates=None):
     """Fold every derived edge into the stored edge linking the same
     pair with the same relation (its `event_ids` unioned, the derived
     edge dropped). Stored edges carry `source`, `target`, `relation`
     (name), `directed` and `event_ids`. Returns (stored, remaining
-    derived); the stored dicts are updated in place."""
+    derived); the stored dicts are updated in place.
+
+    An event cited by a stored edge is that edge's evidence: whatever the
+    relation, it no longer derives an edge between the same two nodes.
+    The derived edge loses that event and is dropped when none is left;
+    `event_dates` (`{event_id: date}`) recomputes its first / last seen."""
     index = {}
+    cited = {}
     for stored in stored_edges:
         pair = frozenset((stored['source'], stored['target']))
         index.setdefault((pair, stored['relation']), []).append(stored)
+        cited.setdefault(pair, set()).update(stored['event_ids'])
 
     remaining = []
     for derived in derived_edges:
-        candidates = index.get((frozenset((derived['source'], derived['target'])), derived['relation']), [])
+        pair = frozenset((derived['source'], derived['target']))
+        candidates = index.get((pair, derived['relation']), [])
         target = next((stored for stored in candidates if _same_pair(stored, derived)), None)
         if target is None:
-            remaining.append(derived)
+            derived = _without_cited_events(derived, cited.get(pair), event_dates)
+            if derived is not None:
+                remaining.append(derived)
             continue
         for event_id in derived['event_ids']:
             if event_id not in target['event_ids']:
                 target['event_ids'].append(event_id)
     return stored_edges, remaining
+
+
+def _without_cited_events(derived, cited, event_dates):
+    if not cited or derived['origin'] != ORIGIN_EVENT or not cited.intersection(derived['event_ids']):
+        return derived
+    event_ids = [event_id for event_id in derived['event_ids'] if event_id not in cited]
+    if not event_ids:
+        return None
+    dates = [(event_dates or {}).get(event_id) for event_id in event_ids]
+    dates = [date for date in dates if date is not None]
+    return dict(derived, event_ids=event_ids,
+                first_seen=min(dates) if dates else derived['first_seen'],
+                last_seen=max(dates) if dates else derived['last_seen'])

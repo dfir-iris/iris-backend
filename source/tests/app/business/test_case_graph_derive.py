@@ -261,3 +261,26 @@ class TestMerge(TestCase):
         merged, remaining = case_graph_merge_edges(stored, derived)
         self.assertEqual([], remaining)
         self.assertEqual([3], merged[0]['event_ids'])
+
+    def test_event_cited_by_a_stored_edge_derives_nothing_on_that_pair(self):
+        stored = [self._stored('asset:1', 'asset:2', 'exfiltrated_to', True, [4])]
+        derived = [self._derived('asset:1', 'asset:2', 'connected_to', True, [4])]
+        merged, remaining = case_graph_merge_edges(stored, derived)
+        self.assertEqual([], remaining)
+        self.assertEqual([4], merged[0]['event_ids'])
+
+    def test_uncited_events_keep_the_derived_edge_and_its_dates(self):
+        stored = [self._stored('asset:2', 'asset:1', 'exfiltrated_to', True, [4])]
+        derived = [dict(self._derived('asset:1', 'asset:2', 'connected_to', True, [4, 6]),
+                        first_seen=datetime(2026, 1, 1), last_seen=datetime(2026, 1, 9))]
+        _, remaining = case_graph_merge_edges(stored, derived, {4: datetime(2026, 1, 1),
+                                                                6: datetime(2026, 1, 5)})
+        self.assertEqual([6], remaining[0]['event_ids'])
+        self.assertEqual(datetime(2026, 1, 5), remaining[0]['first_seen'])
+        self.assertEqual(datetime(2026, 1, 5), remaining[0]['last_seen'])
+
+    def test_cited_event_on_another_pair_changes_nothing(self):
+        stored = [self._stored('asset:1', 'asset:3', 'exfiltrated_to', True, [4])]
+        derived = [self._derived('asset:1', 'asset:2', 'connected_to', True, [4])]
+        _, remaining = case_graph_merge_edges(stored, derived)
+        self.assertEqual([4], remaining[0]['event_ids'])

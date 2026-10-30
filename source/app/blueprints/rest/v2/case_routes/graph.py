@@ -42,6 +42,8 @@ from app.business.case_graph import case_graph_edge_create
 from app.business.case_graph import case_graph_edge_delete
 from app.business.case_graph import case_graph_edge_review
 from app.business.case_graph import case_graph_edge_reverse
+from app.business.case_graph import case_graph_edge_timeline_event_links
+from app.business.case_graph import case_graph_edge_timeline_events
 from app.business.case_graph import case_graph_edge_update
 from app.business.case_graph import case_graph_export
 from app.business.case_graph import case_graph_get
@@ -69,10 +71,12 @@ from app.business.case_graph_ai import case_graph_ai_suggest
 from app.business.case_graph_assembly import case_graph_parse_include
 from app.business.cases import cases_exists
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
+from app.iris_engine.utils.collab import notify
 from app.models.authorization import CaseAccessLevel
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
 from app.schema.marshables import CaseAssetsSchema
+from app.schema.marshables import EventSchema
 from app.schema.marshables import IocSchemaForAPIV2
 
 
@@ -227,15 +231,67 @@ def get_case_graph_paths(case_identifier):
 
 # ----------------------------------------------------------------- Edges --
 
+@case_graph_blueprint.get('/edges/timeline-events')
+@ac_api_requires()
+@api_doc(tags=['Case graph'],
+         summary='Timeline events already recording a link between two nodes (linked to both, or cited by '
+                 'a stored edge between them)',
+         query_params=[('source', str, 'Key of one node'), ('target', str, 'Key of the other node')])
+def get_case_graph_edge_timeline_events(case_identifier):
+    err = _require_read_access(case_identifier)
+    if err is not None:
+        return err
+
+    def _operation():
+        source = request.args.get('source')
+        target = request.args.get('target')
+        if not source or not target:
+            raise BusinessProcessingError('source and target are required')
+        return case_graph_edge_timeline_events(case_identifier, source, target)
+
+    return _handle(_operation)
+
+
+def _timeline_event(case_identifier, body):
+    """The `timeline_event` of an edge creation request (event fields:
+    `event_title`, `event_date`, `event_tz`, `event_category_id`,
+    optional `event_content`…), loaded as the event routes do, its links
+    to the edge endpoints set by the graph. None when absent."""
+    fields = body.get('timeline_event')
+    if fields is None:
+        return None
+    if not isinstance(fields, dict):
+        raise BusinessProcessingError('timeline_event must be an object')
+    links = case_graph_edge_timeline_event_links(case_identifier, body)
+    data = dict(fields, **links)
+    data.setdefault('event_source', 'Investigation graph')
+    data.setdefault('event_in_graph', True)
+    data = call_deprecated_on_preload_modules_hook('event_create', data, case_identifier)
+    schema = EventSchema()
+    event = schema.load(data)
+    event.event_date, event.event_date_wtz = schema.validate_date(data.get('event_date'), data.get('event_tz'))
+    return dict(links, event=event, category_id=data.get('event_category_id'))
+
+
 @case_graph_blueprint.post('/edges')
 @ac_api_requires()
-@api_doc(response_shape='created', tags=['Case graph'], summary='Create a stored edge between two nodes of the case')
+@api_doc(response_shape='created', tags=['Case graph'],
+         summary='Create a stored edge between two nodes of the case; with `timeline_event` (event fields), '
+                 'also record it as a timeline event linking the endpoints, cited by the edge')
 def create_case_graph_edge(case_identifier):
     err = _require_full_access(case_identifier)
     if err is not None:
         return err
     body = _body()
-    return _handle(lambda: case_graph_edge_create(case_identifier, iris_current_user.id, body), created=True)
+
+    def _operation():
+        result = case_graph_edge_create(case_identifier, iris_current_user.id, body,
+                                        timeline_event=_timeline_event(case_identifier, body))
+        if result.get('timeline_event_id'):
+            notify(case_identifier, 'events', 'updated', result['timeline_event_id'])
+        return result
+
+    return _handle(_operation, created=True)
 
 
 @case_graph_blueprint.put('/edges/<int:edge_id>')

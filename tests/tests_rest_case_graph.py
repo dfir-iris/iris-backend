@@ -201,6 +201,97 @@ class TestsRestCaseGraph(TestCase):
         self.assertEqual(200, self._graph(case_id, user=user).status_code)
         self.assertEqual(403, self._edge(case_id, f'asset:{first}', f'asset:{second}', user=user).status_code)
 
+    def _timeline_event(self, **extra):
+        return {'event_title': 'A moved to B', 'event_category_id': 1, 'event_date': '2026-03-26T00:00:00.000',
+                'event_tz': '+00:00', **extra}
+
+    def test_create_edge_with_a_timeline_event_should_record_and_cite_it(self):
+        case_id = self._subject.create_dummy_case()
+        source, ioc_id = self._asset(case_id, 'A'), self._ioc(case_id, '10.0.0.1')
+        response = self._edge(case_id, f'asset:{source}', f'ioc:{ioc_id}', 'beacons_to',
+                              timeline_event=self._timeline_event())
+        self.assertEqual(201, response.status_code)
+        body = response.json()
+        event_id = body['timeline_event_id']
+        self.assertEqual([event_id], body['event_ids'])
+        event = self._subject.get(f'/api/v2/cases/{case_id}/events/{event_id}').json()
+        self.assertEqual(('A moved to B', {str(source): 'source'}, {str(ioc_id): 'target'}),
+                         (event['event_title'], event['event_assets_roles'], event['event_iocs_roles']))
+        edges = [edge for edge in self._graph(case_id).json()['edges']
+                 if {edge['source'], edge['target']} == {f'asset:{source}', f'ioc:{ioc_id}'}]
+        self.assertEqual([body['key']], [edge['key'] for edge in edges])
+
+    def test_create_edge_with_a_timeline_event_should_link_undirected_endpoints_as_involved(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        body = self._edge(case_id, f'asset:{first}', f'asset:{second}', 'related_to', directed=False,
+                          timeline_event=self._timeline_event()).json()
+        event = self._subject.get(f'/api/v2/cases/{case_id}/events/{body["timeline_event_id"]}').json()
+        self.assertEqual({str(first): 'involved', str(second): 'involved'}, event['event_assets_roles'])
+
+    def test_create_edge_with_an_invalid_timeline_event_should_create_nothing(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        response = self._edge(case_id, f'asset:{first}', f'asset:{second}',
+                              timeline_event=self._timeline_event(event_date='not a date'))
+        self.assertEqual(400, response.status_code)
+        self.assertEqual([], self._graph(case_id, include='events').json()['events'])
+        self.assertNotIn('e:', ''.join(self._keys(self._graph(case_id).json(), 'edges')))
+
+    def test_create_duplicate_edge_with_a_timeline_event_should_not_record_it(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        self._edge(case_id, f'asset:{first}', f'asset:{second}')
+        response = self._edge(case_id, f'asset:{first}', f'asset:{second}', timeline_event=self._timeline_event())
+        self.assertEqual(400, response.status_code)
+        self.assertEqual([], self._graph(case_id, include='events').json()['events'])
+
+    def test_create_edge_with_an_invalid_field_and_a_timeline_event_should_not_record_it(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        response = self._edge(case_id, f'asset:{first}', f'asset:{second}', confidence=150,
+                              timeline_event=self._timeline_event())
+        self.assertEqual(400, response.status_code)
+        self.assertEqual([], self._graph(case_id, include='events').json()['events'])
+
+    def test_edge_timeline_events_should_list_the_events_linking_both_nodes(self):
+        case_id = self._subject.create_dummy_case()
+        first, second, third = self._asset(case_id, 'A'), self._asset(case_id, 'B'), self._asset(case_id, 'C')
+        linked = self._event(case_id, [first, second], assets_roles={str(first): 'source', str(second): 'target'})
+        self._event(case_id, [first, third])
+        response = self._subject.get(f'/api/v2/cases/{case_id}/graph/edges/timeline-events',
+                                     query_parameters={'source': f'asset:{second}', 'target': f'asset:{first}'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual([(linked.json()['event_id'], 'target', 'source', [])],
+                         [(event['event_id'], event['source_role'], event['target_role'], event['edge_keys'])
+                          for event in response.json()])
+
+    def test_edge_timeline_events_should_list_the_events_cited_by_an_edge(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        event_id = self._event(case_id, [first]).json()['event_id']
+        edge = self._edge(case_id, f'asset:{first}', f'asset:{second}', event_ids=[event_id]).json()
+        events = self._subject.get(f'/api/v2/cases/{case_id}/graph/edges/timeline-events',
+                                   query_parameters={'source': f'asset:{first}', 'target': f'asset:{second}'}).json()
+        self.assertEqual([(event_id, 'involved', None, [edge['key']])],
+                         [(event['event_id'], event['source_role'], event['target_role'], event['edge_keys'])
+                          for event in events])
+
+    def test_edge_timeline_events_should_require_both_nodes(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._asset(case_id, 'A')
+        response = self._subject.get(f'/api/v2/cases/{case_id}/graph/edges/timeline-events',
+                                     query_parameters={'source': f'asset:{asset_id}'})
+        self.assertEqual(400, response.status_code)
+
+    def test_edge_timeline_events_should_return_403_without_case_access(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        user = self._subject.create_dummy_user()
+        response = user.get(f'/api/v2/cases/{case_id}/graph/edges/timeline-events',
+                            query_parameters={'source': f'asset:{first}', 'target': f'asset:{second}'})
+        self.assertEqual(403, response.status_code)
+
     def test_update_edge_should_return_200(self):
         case_id = self._subject.create_dummy_case()
         first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')

@@ -452,7 +452,8 @@ def case_graph_assembly_build(data, include=frozenset(), review_state='accepted'
         present.add(edge['target'])
     derived = [edge for edge in derived if edge['source'] in present and edge['target'] in present]
 
-    stored, derived = case_graph_merge_edges(stored, derived)
+    stored, derived = case_graph_merge_edges(
+        stored, derived, {event_id: event.get('event_date') for event_id, event in events_by_id.items()})
 
     edges = [case_graph_stored_edge_serialize(row, relation_types_by_id, tlps, events_by_id) for row in stored]
     edges.extend(case_graph_assembly_derived_edge(edge, relation_types_by_name) for edge in derived)

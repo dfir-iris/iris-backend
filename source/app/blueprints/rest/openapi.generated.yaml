@@ -4785,7 +4785,8 @@ paths:
   /api/v2/cases/{case_identifier}/graph/edges:
     post:
       operationId: create_case_graph_edge_post
-      summary: Create a stored edge between two nodes of the case
+      summary: Create a stored edge between two nodes of the case; with `timeline_event` (event fields),
+        also record it as a timeline event linking the endpoints, cited by the edge
       tags:
       - Case graph
       security:
@@ -4907,6 +4908,40 @@ paths:
         required: true
         schema:
           type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/timeline-events:
+    get:
+      operationId: get_case_graph_edge_timeline_events_get
+      summary: Timeline events already recording a link between two nodes (linked to both, or cited by
+        a stored edge between them)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: key of one node
+      - name: target
+        in: query
+        required: false
+        schema:
+          type: key of the other node
       responses:
         '200':
           description: Success

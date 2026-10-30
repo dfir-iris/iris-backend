@@ -56,6 +56,7 @@ from app.business.case_graph_paste import case_graph_paste_extract
 from app.business.case_graph_paste import case_graph_paste_plan
 from app.business.case_graph_suggest import CASE_GRAPH_SUGGESTION_KEY
 from app.business.case_graph_suggest import case_graph_suggest_compute
+from app.business.events import events_create
 from app.business.ioc_type_detect import ioc_type_detect_pick
 from app.business.iocs import iocs_create
 from app.datamgmt.case.case_graph_db import case_graph_db_add
@@ -267,6 +268,10 @@ def _validate_endpoint(case_id, raw, field):
     return kind, object_id
 
 
+def _int_keys(roles):
+    return {int(object_id): role for object_id, role in (roles or {}).items()}
+
+
 def _validate_event_ids(case_id, value):
     if value is None:
         return []
@@ -465,27 +470,117 @@ def _edge_new(case_id, user_id, source, target, relation_type, directed, origin,
     return edge
 
 
-def case_graph_edge_create(case_id, user_id, payload, origin='manual', review_state='accepted'):
-    """Create a stored edge (§4.3); the §4.1 edge. `origin` and
-    `review_state` are set by the caller (`ai` / `pending`, `suggestion`,
-    `module`…), never by the request body."""
+def _edge_create_checked(case_id, payload):
+    """Endpoints, relation type and direction of an edge to create;
+    BusinessProcessingError when it cannot be created."""
     if not isinstance(payload, dict):
         raise BusinessProcessingError('A JSON object is required')
-    if origin not in CASE_GRAPH_EDGE_ORIGINS:
-        raise BusinessProcessingError(f'Unknown edge origin {origin!r}')
-    if review_state not in CASE_GRAPH_REVIEW_STATES:
-        raise BusinessProcessingError(f'Unknown review state {review_state!r}')
     source = _validate_endpoint(case_id, payload.get('source'), 'source')
     target = _validate_endpoint(case_id, payload.get('target'), 'target')
+    if source == target:
+        raise BusinessProcessingError('source and target must differ')
     relation_type = _resolve_relation(payload, required=True)
     directed = payload.get('directed')
     directed = relation_type.directed if directed is None else _validate_bool(directed, 'directed')
     if _find_duplicate(case_id, source, target, relation_type.id, directed) is not None:
         raise BusinessProcessingError('An edge with the same endpoints and relation already exists')
-    event_ids = _validate_event_ids(case_id, payload.get('event_ids'))
+    return source, target, relation_type, bool(directed)
 
-    edge = _edge_new(case_id, user_id, source, target, relation_type, bool(directed), origin, review_state)
+
+def case_graph_edge_timeline_event_links(case_id, payload):
+    """Asset / IOC links of the timeline event recording the edge
+    `payload` would create, as `event_assets`, `event_iocs`,
+    `event_assets_roles` and `event_iocs_roles` fields: a directed edge
+    makes its endpoints the `source` and `target` of the event, an
+    undirected one makes both `involved`. Other endpoint kinds are not
+    linked. Checks first that the edge can be created, so that a refused
+    edge leaves no event behind."""
+    source, target, _, directed = _edge_create_checked(case_id, payload)
+    links = {'event_assets': [], 'event_iocs': [], 'event_assets_roles': {}, 'event_iocs_roles': {}}
+    for (kind, object_id), role in ((source, 'source'), (target, 'target')):
+        if kind not in ('asset', 'ioc'):
+            continue
+        links[f'event_{kind}s'].append(object_id)
+        links[f'event_{kind}s_roles'][str(object_id)] = role if directed else 'involved'
+    return links
+
+
+def case_graph_edge_timeline_events(case_id, source, target):
+    """Timeline events already recording a link between `source` and
+    `target`: the events linked to both, and the events cited by a stored
+    edge between them. Each with the role of both endpoints (None when
+    not linked) and the keys of the stored edges citing it, oldest
+    first."""
+    source = _validate_endpoint(case_id, source, 'source')
+    target = _validate_endpoint(case_id, target, 'target')
+    if source == target:
+        raise BusinessProcessingError('source and target must differ')
+    source_key, target_key = case_graph_key(*source), case_graph_key(*target)
+
+    roles = {}
+    for link in case_graph_db_event_link_rows(case_id):
+        key = case_graph_key(link['kind'], link['object_id'])
+        if key in (source_key, target_key):
+            roles.setdefault(link['event_id'], {}).setdefault(key, link.get('role') or 'involved')
+    event_ids = {event_id for event_id, by_key in roles.items() if len(by_key) == 2}
+
+    citing = {}
+    for row in case_graph_db_edge_rows(case_id):
+        if {case_graph_key(row['source_kind'], row['source_id']),
+                case_graph_key(row['target_kind'], row['target_id'])} != {source_key, target_key}:
+            continue
+        for event_id in row['event_ids']:
+            citing.setdefault(event_id, []).append(f'e:{row["edge_id"]}')
+    event_ids.update(citing)
+
+    events = []
+    for row in case_graph_db_event_rows(case_id):
+        if row['event_id'] not in event_ids:
+            continue
+        by_key = roles.get(row['event_id'], {})
+        events.append({
+            'event_id': row['event_id'],
+            'title': row['event_title'],
+            'date': case_graph_isoformat(row['event_date']),
+            'category': row.get('category_name'),
+            'in_graph': row.get('event_in_graph') is not False,
+            'source_role': by_key.get(source_key),
+            'target_role': by_key.get(target_key),
+            'edge_keys': citing.get(row['event_id'], []),
+        })
+    return events
+
+
+def case_graph_edge_create(case_id, user_id, payload, origin='manual', review_state='accepted',
+                           timeline_event=None):
+    """Create a stored edge (§4.3); the §4.1 edge. `origin` and
+    `review_state` are set by the caller (`ai` / `pending`, `suggestion`,
+    `module`…), never by the request body.
+
+    `timeline_event`, when given, records the edge in the timeline too:
+    `{event, category_id, event_assets, event_iocs, event_assets_roles,
+    event_iocs_roles}` with `event` an unsaved CasesEvent built by the
+    blueprint (as the event routes do) and the links from
+    `case_graph_edge_timeline_event_links`. The event is created first,
+    then cited by the edge."""
+    if origin not in CASE_GRAPH_EDGE_ORIGINS:
+        raise BusinessProcessingError(f'Unknown edge origin {origin!r}')
+    if review_state not in CASE_GRAPH_REVIEW_STATES:
+        raise BusinessProcessingError(f'Unknown review state {review_state!r}')
+    source, target, relation_type, directed = _edge_create_checked(case_id, payload)
+    event_ids = _validate_event_ids(case_id, payload.get('event_ids'))
+    # Built and validated (not added) before the timeline event is written,
+    # so that a refused edge field leaves no event behind
+    edge = _edge_new(case_id, user_id, source, target, relation_type, directed, origin, review_state)
     _apply_edge_fields(case_id, edge, payload, case_graph_db_tlps())
+
+    if timeline_event is not None:
+        event = events_create(case_id, timeline_event['event'], timeline_event['category_id'],
+                              timeline_event['event_assets'], timeline_event['event_iocs'], False,
+                              event_assets_roles=_int_keys(timeline_event['event_assets_roles']),
+                              event_iocs_roles=_int_keys(timeline_event['event_iocs_roles']))
+        event_ids.append(event.event_id)
+
     case_graph_db_add(edge)
     case_graph_db_edge_set_events(edge.edge_id, event_ids)
     _commit()
@@ -493,7 +588,10 @@ def case_graph_edge_create(case_id, user_id, payload, origin='manual', review_st
     track_activity(f'added graph edge {_edge_label(edge, relation_type.name)}', caseid=case_id)
     _emit(case_id, 'edge', 'created', f'e:{edge.edge_id}', user_id)
     _hook('on_postload_graph_edge_create', [edge], case_id)
-    return _edge_payload(case_id, edge)
+    result = _edge_payload(case_id, edge)
+    if timeline_event is not None:
+        result['timeline_event_id'] = event_ids[-1]
+    return result
 
 
 def case_graph_edge_update(case_id, user_id, edge_id, payload):
