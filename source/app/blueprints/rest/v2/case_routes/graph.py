@@ -54,11 +54,18 @@ from app.business.case_graph import case_graph_node_promote
 from app.business.case_graph import case_graph_node_update
 from app.business.case_graph import case_graph_paste
 from app.business.case_graph import case_graph_paths
+from app.business.case_graph import case_graph_gaps
+from app.business.case_graph import case_graph_suggestions
+from app.business.case_graph import case_graph_suggestions_accept
+from app.business.case_graph import case_graph_suggestions_dismiss
 from app.business.case_graph import case_graph_view_create
 from app.business.case_graph import case_graph_view_delete
 from app.business.case_graph import case_graph_view_get
 from app.business.case_graph import case_graph_view_update
 from app.business.case_graph import case_graph_views_list
+from app.business.case_graph_ai import CaseGraphAiUnavailableError
+from app.business.case_graph_ai import case_graph_ai_explain
+from app.business.case_graph_ai import case_graph_ai_suggest
 from app.business.case_graph_assembly import case_graph_parse_include
 from app.business.cases import cases_exists
 from app.iris_engine.module_handler.module_handler import call_deprecated_on_preload_modules_hook
@@ -113,6 +120,8 @@ def _handle(operation, created=False):
         return response_api_not_found()
     except ValidationError as e:
         return response_api_error('Data error', data=e.normalized_messages())
+    except CaseGraphAiUnavailableError as e:
+        return response_api_error(e.get_message(), data=e.get_data(), status=409)
     except BusinessProcessingError as e:
         return response_api_error(e.get_message(), data=e.get_data())
     if created:
@@ -364,6 +373,73 @@ def paste_case_graph(case_identifier):
         return err
     body = _body()
     return _handle(lambda: case_graph_paste(case_identifier, iris_current_user.id, body))
+
+
+# ---------------------------------------------------------- Intelligence --
+
+@case_graph_blueprint.get('/suggestions')
+@ac_api_requires()
+@api_doc(tags=['Case graph'], summary='Heuristic edge suggestions (text mentions, IP matches, alerts, enrichment)')
+def get_case_graph_suggestions(case_identifier):
+    err = _require_read_access(case_identifier)
+    if err is not None:
+        return err
+    return _handle(lambda: case_graph_suggestions(case_identifier))
+
+
+@case_graph_blueprint.post('/suggestions/accept')
+@ac_api_requires()
+@api_doc(tags=['Case graph'], summary='Store suggestions as accepted edges ({keys: [...]})')
+def accept_case_graph_suggestions(case_identifier):
+    err = _require_full_access(case_identifier)
+    if err is not None:
+        return err
+    body = _body()
+    return _handle(lambda: case_graph_suggestions_accept(case_identifier, iris_current_user.id, body.get('keys')))
+
+
+@case_graph_blueprint.post('/suggestions/dismiss')
+@ac_api_requires()
+@api_doc(tags=['Case graph'], summary='Dismiss suggestions for good ({keys: [...]})')
+def dismiss_case_graph_suggestions(case_identifier):
+    err = _require_full_access(case_identifier)
+    if err is not None:
+        return err
+    body = _body()
+    return _handle(lambda: case_graph_suggestions_dismiss(case_identifier, iris_current_user.id, body.get('keys')))
+
+
+@case_graph_blueprint.post('/suggestions/ai')
+@ac_api_requires()
+@api_doc(tags=['Case graph'],
+         summary='Ask the LLM for edges supported by the timeline, stored as pending AI edges (409 without LLM)')
+def ai_case_graph_suggestions(case_identifier):
+    err = _require_full_access(case_identifier)
+    if err is not None:
+        return err
+    return _handle(lambda: case_graph_ai_suggest(case_identifier, iris_current_user.id))
+
+
+@case_graph_blueprint.get('/gaps')
+@ac_api_requires()
+@api_doc(tags=['Case graph'], summary='Investigation gaps of the graph, most severe first')
+def get_case_graph_gaps(case_identifier):
+    err = _require_read_access(case_identifier)
+    if err is not None:
+        return err
+    return _handle(lambda: case_graph_gaps(case_identifier))
+
+
+@case_graph_blueprint.post('/explain')
+@ac_api_requires()
+@api_doc(tags=['Case graph'],
+         summary='LLM narrative of the attack path ({view_id?, node_keys?}) as Markdown (409 without LLM)')
+def explain_case_graph(case_identifier):
+    err = _require_read_access(case_identifier)
+    if err is not None:
+        return err
+    body = _body()
+    return _handle(lambda: case_graph_ai_explain(case_identifier, iris_current_user.id, body))
 
 
 # ----------------------------------------------------------------- Views --

@@ -276,6 +276,31 @@ def case_graph_db_dismissed_keys(case_id):
     return {row[0] for row in rows}
 
 
+def case_graph_db_dismiss_suggestions(case_id, user_id, keys, dismissed_at):
+    """Record the dismissal of `keys` (flushed, not committed); the
+    number of keys that were not dismissed yet."""
+    already = case_graph_db_dismissed_keys(case_id)
+    added = 0
+    for key in keys:
+        if key in already:
+            continue
+        db.session.add(CaseGraphDismissedSuggestion(case_id=case_id, suggestion_key=key, dismissed_by_id=user_id,
+                                                    dismissed_at=dismissed_at))
+        already.add(key)
+        added += 1
+    db.session.flush()
+    return added
+
+
+def case_graph_db_report_default_snapshot(case_id):
+    """Snapshot (PNG data URL) of the report-default view of the case, or None."""
+    row = (CaseGraphView.query.with_entities(CaseGraphView.snapshot)
+           .filter(CaseGraphView.case_id == case_id, CaseGraphView.is_report_default.is_(True),
+                   CaseGraphView.is_shared.is_(True))
+           .order_by(CaseGraphView.updated_at.desc()).first())
+    return row[0] if row is not None else None
+
+
 # ------------------------------------------------- Graph source data --
 
 def case_graph_db_tlps():

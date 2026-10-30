@@ -402,6 +402,166 @@ class TestsRestCaseGraph(TestCase):
         response = self._subject.create(f'/api/v2/cases/{case_id}/graph/import', {'format': 'stix', 'content': '{'})
         self.assertEqual(400, response.status_code)
 
+    # ------------------------------------------------------ Suggestions --
+
+    def _ip_asset(self, case_id, name, ip):
+        return self._subject.create(f'/api/v2/cases/{case_id}/assets',
+                                    {'asset_type_id': 1, 'asset_name': name, 'asset_ip': ip}).json()['asset_id']
+
+    def _suggestions(self, case_id, user=None):
+        return (user or self._subject).get(f'/api/v2/cases/{case_id}/graph/suggestions')
+
+    def test_suggestions_should_match_an_asset_ip_with_an_ioc(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._ip_asset(case_id, 'WKS-01', '10.0.0.1')
+        ioc_id = self._ioc(case_id, '10.0.0.1')
+        self._ioc(case_id, '10.0.0.12')
+        response = self._suggestions(case_id)
+        self.assertEqual(200, response.status_code)
+        suggestions = response.json()
+        self.assertEqual([('ip_match', f'asset:{asset_id}', f'ioc:{ioc_id}', 'same_as')],
+                         [(row['kind'], row['source'], row['target'], row['relation']) for row in suggestions])
+        self.assertRegex(suggestions[0]['key'], r'^s:[0-9a-f]{16}$')
+        self.assertEqual(suggestions, self._graph(case_id, include='suggestions').json()['suggestions'])
+        self.assertEqual([], self._graph(case_id).json()['suggestions'])
+
+    def test_suggestions_should_mention_entities_on_word_boundaries(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._asset(case_id, 'WKS-01')
+        ioc_id = self._ioc(case_id, '10.0.0.1')
+        other_ioc_id = self._ioc(case_id, '10.0.0.12')
+        self._event(case_id, event_content='WKS-01 connected to 10.0.0.12 on port 443')
+        pairs = {frozenset((row['source'], row['target'])) for row in self._suggestions(case_id).json()
+                 if row['kind'] == 'text_mention'}
+        self.assertIn(frozenset((f'asset:{asset_id}', f'ioc:{other_ioc_id}')), pairs)
+        self.assertFalse(any(f'ioc:{ioc_id}' in pair for pair in pairs))
+
+    def test_accept_suggestion_should_store_an_edge(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._ip_asset(case_id, 'WKS-01', '10.0.0.1')
+        ioc_id = self._ioc(case_id, '10.0.0.1')
+        key = self._suggestions(case_id).json()[0]['key']
+        response = self._subject.create(f'/api/v2/cases/{case_id}/graph/suggestions/accept',
+                                        {'keys': [key, 's:0000000000000000']})
+        self.assertEqual(200, response.status_code)
+        body = response.json()
+        self.assertEqual(['s:0000000000000000'], body['unknown_keys'])
+        edge = body['edges'][0]
+        self.assertEqual((f'asset:{asset_id}', f'ioc:{ioc_id}', 'same_as', 'suggestion', 'accepted', 90),
+                         (edge['source'], edge['target'], edge['relation']['name'], edge['origin'],
+                          edge['review_state'], edge['confidence']))
+        self.assertEqual([], self._suggestions(case_id).json())
+
+    def test_dismiss_suggestion_should_hide_it(self):
+        case_id = self._subject.create_dummy_case()
+        self._ip_asset(case_id, 'WKS-01', '10.0.0.1')
+        self._ioc(case_id, '10.0.0.1')
+        key = self._suggestions(case_id).json()[0]['key']
+        response = self._subject.create(f'/api/v2/cases/{case_id}/graph/suggestions/dismiss', {'keys': [key]})
+        self.assertEqual((200, {'dismissed': 1}), (response.status_code, response.json()))
+        self.assertEqual([], self._suggestions(case_id).json())
+        again = self._subject.create(f'/api/v2/cases/{case_id}/graph/suggestions/dismiss', {'keys': [key]})
+        self.assertEqual({'dismissed': 0}, again.json())
+
+    def test_rejected_edge_should_not_be_suggested_again(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._ip_asset(case_id, 'WKS-01', '10.0.0.1')
+        ioc_id = self._ioc(case_id, '10.0.0.1')
+        edge_id = self._edge(case_id, f'ioc:{ioc_id}', f'asset:{asset_id}', 'same_as').json()['id']
+        self._subject.create(f'/api/v2/cases/{case_id}/graph/edges/{edge_id}/review', {'decision': 'reject'})
+        self.assertEqual([], self._suggestions(case_id).json())
+
+    def test_suggestion_review_should_reject_invalid_keys(self):
+        case_id = self._subject.create_dummy_case()
+        for path in ('accept', 'dismiss'):
+            for keys in (None, [], ['e:1']):
+                response = self._subject.create(f'/api/v2/cases/{case_id}/graph/suggestions/{path}', {'keys': keys})
+                self.assertEqual(400, response.status_code, (path, keys))
+
+    def test_suggestion_review_should_return_403_with_read_only_access(self):
+        case_id = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        self._subject.grant_case_access(user, case_id, IRIS_CASE_ACCESS_LEVEL_READ_ONLY)
+        self.assertEqual(200, self._suggestions(case_id, user=user).status_code)
+        for path in ('accept', 'dismiss', 'ai'):
+            response = user.create(f'/api/v2/cases/{case_id}/graph/suggestions/{path}',
+                                   {'keys': ['s:0000000000000000']})
+            self.assertEqual(403, response.status_code, path)
+
+    def test_suggestions_should_return_403_without_case_access(self):
+        case_id = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        self.assertEqual(403, self._suggestions(case_id, user=user).status_code)
+        self.assertEqual(403, user.get(f'/api/v2/cases/{case_id}/graph/gaps').status_code)
+        self.assertEqual(403, user.create(f'/api/v2/cases/{case_id}/graph/explain', {}).status_code)
+
+    # --------------------------------------------------------------- AI --
+
+    def test_ai_suggestions_should_return_409_without_an_llm(self):
+        case_id = self._subject.create_dummy_case()
+        self._asset(case_id, 'WKS-01')
+        response = self._subject.create(f'/api/v2/cases/{case_id}/graph/suggestions/ai', {})
+        self.assertEqual(409, response.status_code)
+        self.assertEqual([], self._graph(case_id, review_state='all').json()['edges'])
+
+    def test_explain_should_return_409_without_an_llm(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._asset(case_id, 'WKS-01')
+        response = self._subject.create(f'/api/v2/cases/{case_id}/graph/explain', {'node_keys': [f'asset:{asset_id}']})
+        self.assertEqual(409, response.status_code)
+
+    def test_explain_should_reject_an_invalid_payload(self):
+        case_id = self._subject.create_dummy_case()
+        for body in ({'view_id': 'x'}, {'node_keys': 'asset:1'}):
+            self.assertEqual(400, self._subject.create(f'/api/v2/cases/{case_id}/graph/explain', body).status_code)
+
+    def test_explain_should_be_allowed_with_read_only_access(self):
+        case_id = self._subject.create_dummy_case()
+        user = self._subject.create_dummy_user()
+        self._subject.grant_case_access(user, case_id, IRIS_CASE_ACCESS_LEVEL_READ_ONLY)
+        self.assertEqual(409, user.create(f'/api/v2/cases/{case_id}/graph/explain', {}).status_code)
+
+    # ------------------------------------------------------------- Gaps --
+
+    def test_gaps_should_list_isolated_iocs_and_compromised_assets(self):
+        case_id = self._subject.create_dummy_case()
+        asset_id = self._subject.create(f'/api/v2/cases/{case_id}/assets', {
+            'asset_type_id': 1, 'asset_name': 'WKS-01', 'asset_compromise_status_id': 1}).json()['asset_id']
+        ioc_id = self._ioc(case_id, 'evil.example')
+        response = self._subject.get(f'/api/v2/cases/{case_id}/graph/gaps')
+        self.assertEqual(200, response.status_code)
+        gaps = {(gap['code'], tuple(gap['node_keys'])) for gap in response.json()}
+        self.assertIn(('initial_access_unknown', (f'asset:{asset_id}',)), gaps)
+        self.assertIn(('compromised_without_event', (f'asset:{asset_id}',)), gaps)
+        self.assertIn(('isolated_ioc', (f'ioc:{ioc_id}',)), gaps)
+
+    def test_gaps_should_list_unsupported_edges(self):
+        case_id = self._subject.create_dummy_case()
+        first, second = self._asset(case_id, 'A'), self._asset(case_id, 'B')
+        edge_key = self._edge(case_id, f'asset:{first}', f'asset:{second}', 'lateral_movement').json()['key']
+        gaps = self._subject.get(f'/api/v2/cases/{case_id}/graph/gaps').json()
+        self.assertEqual([('unsupported_edge', [edge_key])],
+                         [(gap['code'], gap['edge_keys']) for gap in gaps if gap['edge_keys']])
+
+    # ----------------------------------------------------------- Report --
+
+    def test_report_should_render_the_graph_and_its_snapshot(self):
+        data = {'report_name': 'graph', 'report_type': 1, 'report_language': 1, 'report_description': 'graph',
+                'report_name_format': 'report_name_format'}
+        report_identifier = self._subject.create_report(data, 'variable_case_graph.md')
+        case_id = self._subject.create_dummy_case()
+        self._asset(case_id, 'WKS-01')
+        self._ioc(case_id, 'evil.example')
+        rendered = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
+                                     {'cid': case_id, 'safe': True}).text
+        self.assertEqual('2|0|None', rendered.strip())
+        self._subject.create(f'/api/v2/cases/{case_id}/graph/views', {
+            'name': 'Report', 'is_shared': True, 'is_report_default': True,
+            'snapshot': 'data:image/png;base64,iVBORw0KGgo='})
+        rendered = self._subject.get(f'/case/report/generate-investigation/{report_identifier}',
+                                     {'cid': case_id, 'safe': True}).text
+        self.assertEqual('2|0|iVBORw0KGgo=', rendered.strip())
+
     # ------------------------------------------------------- Event roles --
 
     def test_create_event_should_return_roles(self):

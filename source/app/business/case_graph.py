@@ -30,6 +30,7 @@ war-room graph, MCP tools and report contexts build on it.
 
 import datetime
 import json
+import logging
 import re
 
 from flask import current_app
@@ -49,9 +50,12 @@ from app.business.case_graph_exchange import case_graph_exchange_to_graphml
 from app.business.case_graph_exchange import case_graph_exchange_to_stix
 from app.business.case_graph_explore import case_graph_explore_neighbours
 from app.business.case_graph_explore import case_graph_explore_paths
+from app.business.case_graph_gaps import case_graph_gaps_compute
 from app.business.case_graph_paste import CASE_GRAPH_PASTE_MAX_TEXT
 from app.business.case_graph_paste import case_graph_paste_extract
 from app.business.case_graph_paste import case_graph_paste_plan
+from app.business.case_graph_suggest import CASE_GRAPH_SUGGESTION_KEY
+from app.business.case_graph_suggest import case_graph_suggest_compute
 from app.business.ioc_type_detect import ioc_type_detect_pick
 from app.business.iocs import iocs_create
 from app.datamgmt.case.case_graph_db import case_graph_db_add
@@ -65,6 +69,8 @@ from app.datamgmt.case.case_graph_db import case_graph_db_case_rows
 from app.datamgmt.case.case_graph_db import case_graph_db_commit
 from app.datamgmt.case.case_graph_db import case_graph_db_delete
 from app.datamgmt.case.case_graph_db import case_graph_db_delete_edges_touching
+from app.datamgmt.case.case_graph_db import case_graph_db_dismiss_suggestions
+from app.datamgmt.case.case_graph_db import case_graph_db_dismissed_keys
 from app.datamgmt.case.case_graph_db import case_graph_db_edge_as_dict
 from app.datamgmt.case.case_graph_db import case_graph_db_edge_event_ids
 from app.datamgmt.case.case_graph_db import case_graph_db_edge_get
@@ -86,6 +92,7 @@ from app.datamgmt.case.case_graph_db import case_graph_db_note_rows
 from app.datamgmt.case.case_graph_db import case_graph_db_relation_type_by_name
 from app.datamgmt.case.case_graph_db import case_graph_db_relation_type_get
 from app.datamgmt.case.case_graph_db import case_graph_db_relation_types
+from app.datamgmt.case.case_graph_db import case_graph_db_report_default_snapshot
 from app.datamgmt.case.case_graph_db import case_graph_db_rollback
 from app.datamgmt.case.case_graph_db import case_graph_db_task_rows
 from app.datamgmt.case.case_graph_db import case_graph_db_tlps
@@ -95,6 +102,7 @@ from app.datamgmt.case.case_graph_db import case_graph_db_views_visible
 from app.datamgmt.case.case_iocs_db import get_ioc_types_list
 from app.datamgmt.manage.manage_attribute_db import get_default_custom_attributes
 from app.iris_engine.case_graph_live import case_graph_live_emit
+from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.assets import ASSET_FLAG_COLORS
 from app.models.case_graph import CASE_GRAPH_EDGE_KINDS
@@ -115,6 +123,9 @@ CASE_GRAPH_VIEW_STATE_MAX = 1024 * 1024
 CASE_GRAPH_VIEW_SNAPSHOT_MAX = 4 * 1024 * 1024
 CASE_GRAPH_PASTE_MAX_VALUES = 1000
 CASE_GRAPH_IMPORT_MAX_OBJECTS = 20000
+CASE_GRAPH_SUGGESTION_KEYS_MAX = 1000
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_MAX_NODES = 5000
 _LABEL_MAX = 1024
@@ -150,6 +161,18 @@ def _commit():
 
 def _emit(case_id, entity, action, key, user_id):
     case_graph_live_emit(case_id, entity, action, key=key, by_user_id=user_id)
+
+
+def _hook(hook_name, data, case_id):
+    """Run the module hook `hook_name` (§7) on the committed `data`; a
+    failing hook is logged, never surfaced (the change is committed)."""
+    if not data:
+        return
+    try:
+        call_modules_hook(hook_name, data=data, caseid=case_id)
+    except Exception:
+        logger.exception(f'Module hook {hook_name} failed')
+        case_graph_db_rollback()
 
 
 # ------------------------------------------------------------ Validation --
@@ -309,14 +332,14 @@ def case_graph_load_data(case_id, include=frozenset()):
         'evidences': case_graph_db_evidence_rows(case_id) if _needed('evidences') else [],
         'tasks': case_graph_db_task_rows(case_id) if _needed('tasks') else [],
         'notes': case_graph_db_note_rows(case_id) if _needed('notes') else [],
-        'alerts': case_graph_db_alert_rows(case_id) if _needed('alerts') else [],
+        'alerts': case_graph_db_alert_rows(case_id) if _needed('alerts') or 'suggestions' in include else [],
         'alert_links': [],
         'ioc_cross_cases': case_graph_db_ioc_cross_case_rows(case_id),
         'asset_cross_cases': case_graph_db_asset_cross_case_rows(case_id),
         'cases': [],
         'suggestions': [],
     }
-    if 'alerts' in include:
+    if 'alerts' in include or 'suggestions' in include:
         data['alert_links'] = case_graph_db_alert_link_rows(case_id, [row['alert_id'] for row in data['alerts']])
     if 'cross_case' in include:
         other_ids = {row['case_id'] for row in data['ioc_cross_cases']}
@@ -329,14 +352,27 @@ def case_graph_get(case_id, include=frozenset(), review_state='accepted', readab
     """The §4.1 payload. `readable_case_ids_resolver(case_ids)` returns the
     ids among `case_ids` the caller may read (cross-case nodes of the
     others are anonymised); without it every other case is unreadable."""
+    graph, _ = case_graph_build(case_id, include, review_state, readable_case_ids_resolver)
+    return graph
+
+
+def case_graph_build(case_id, include=frozenset(), review_state='accepted', readable_case_ids_resolver=None):
+    """`(graph, data)`: the §4.1 payload and the rows it was built from."""
     if review_state not in ('accepted', 'all'):
         raise BusinessProcessingError('review_state must be accepted or all')
     data = case_graph_load_data(case_id, include)
     readable = set()
     if 'cross_case' in (include or ()) and data['cases'] and readable_case_ids_resolver is not None:
         readable = set(readable_case_ids_resolver([row['case_id'] for row in data['cases']]))
-    return case_graph_assembly_build(data, include=include, review_state=review_state, readable_case_ids=readable,
-                                     generated_at=_utcnow(), max_nodes=_max_nodes())
+    graph = case_graph_assembly_build(data, include=include, review_state=review_state, readable_case_ids=readable,
+                                      generated_at=_utcnow(), max_nodes=_max_nodes())
+    if 'suggestions' in (include or ()):
+        graph['suggestions'] = case_graph_suggest_compute(data, graph['edges'], case_graph_db_dismissed_keys(case_id))
+    return graph, data
+
+
+def case_graph_max_nodes():
+    return _max_nodes()
 
 
 def case_graph_neighbours(case_id, node_key, hops=1, include=frozenset(), review_state='accepted',
@@ -456,6 +492,7 @@ def case_graph_edge_create(case_id, user_id, payload, origin='manual', review_st
 
     track_activity(f'added graph edge {_edge_label(edge, relation_type.name)}', caseid=case_id)
     _emit(case_id, 'edge', 'created', f'e:{edge.edge_id}', user_id)
+    _hook('on_postload_graph_edge_create', [edge], case_id)
     return _edge_payload(case_id, edge)
 
 
@@ -493,6 +530,7 @@ def case_graph_edge_update(case_id, user_id, edge_id, payload):
 
     track_activity(f'updated graph edge {_edge_label(edge, relation_type.name)}', caseid=case_id)
     _emit(case_id, 'edge', 'updated', f'e:{edge.edge_id}', user_id)
+    _hook('on_postload_graph_edge_update', [edge], case_id)
     return _edge_payload(case_id, edge)
 
 
@@ -504,6 +542,7 @@ def case_graph_edge_delete(case_id, user_id, edge_id):
     _commit()
     track_activity(f'deleted graph edge {label}', caseid=case_id)
     _emit(case_id, 'edge', 'deleted', f'e:{edge_id}', user_id)
+    _hook('on_postload_graph_edge_delete', [edge_id], case_id)
 
 
 def case_graph_edge_review(case_id, user_id, edge_id, decision):
@@ -518,6 +557,7 @@ def case_graph_edge_review(case_id, user_id, edge_id, decision):
     relation_type = case_graph_db_relation_type_get(edge.relation_type_id)
     track_activity(f'{states[decision]} graph edge {_edge_label(edge, relation_type.name)}', caseid=case_id)
     _emit(case_id, 'edge', 'updated', f'e:{edge.edge_id}', user_id)
+    _hook('on_postload_graph_edge_update', [edge], case_id)
     return _edge_payload(case_id, edge)
 
 
@@ -535,7 +575,118 @@ def case_graph_edge_reverse(case_id, user_id, edge_id):
     relation_type = case_graph_db_relation_type_get(edge.relation_type_id)
     track_activity(f'reversed graph edge {_edge_label(edge, relation_type.name)}', caseid=case_id)
     _emit(case_id, 'edge', 'updated', f'e:{edge.edge_id}', user_id)
+    _hook('on_postload_graph_edge_update', [edge], case_id)
     return _edge_payload(case_id, edge)
+
+
+def case_graph_edges_create_batch(case_id, user_id, specs, origin, review_state, activity):
+    """Stored edges from `specs` (`{source, target, relation (name),
+    directed?, event_ids?, label?, description?, confidence?}`), committed
+    together, with one activity entry, one live push and one module hook.
+    An invalid spec (endpoint not in the case, unknown relation,
+    duplicate...) is skipped. `(edges, skipped)`, `skipped` being
+    `[{index, reason}]`."""
+    if origin not in CASE_GRAPH_EDGE_ORIGINS:
+        raise BusinessProcessingError(f'Unknown edge origin {origin!r}')
+    if review_state not in CASE_GRAPH_REVIEW_STATES:
+        raise BusinessProcessingError(f'Unknown review state {review_state!r}')
+    tlps = case_graph_db_tlps()
+    created = []
+    skipped = []
+    for index, spec in enumerate(specs):
+        try:
+            if not isinstance(spec, dict):
+                raise BusinessProcessingError('An edge must be an object')
+            source = _validate_endpoint(case_id, spec.get('source'), 'source')
+            target = _validate_endpoint(case_id, spec.get('target'), 'target')
+            relation_type = _resolve_relation({'relation': spec.get('relation')}, required=True)
+            directed = spec.get('directed')
+            directed = relation_type.directed if directed is None else _validate_bool(directed, 'directed')
+            if _find_duplicate(case_id, source, target, relation_type.id, directed) is not None:
+                raise BusinessProcessingError('An edge with the same endpoints and relation already exists')
+            event_ids = _validate_event_ids(case_id, spec.get('event_ids'))
+            edge = _edge_new(case_id, user_id, source, target, relation_type, bool(directed), origin, review_state)
+            _apply_edge_fields(case_id, edge, {name: spec[name] for name in ('label', 'description', 'confidence')
+                                               if name in spec}, tlps)
+        except BusinessProcessingError as e:
+            skipped.append({'index': index, 'reason': e.get_message()})
+            continue
+        case_graph_db_add(edge)
+        case_graph_db_edge_set_events(edge.edge_id, event_ids)
+        created.append(edge)
+    if not created:
+        return [], skipped
+    _commit()
+    track_activity(f'{activity}: {len(created)} graph edges created', caseid=case_id)
+    _emit(case_id, 'edge', 'created', f'e:{created[0].edge_id}' if len(created) == 1 else None, user_id)
+    _hook('on_postload_graph_edge_create', created, case_id)
+    return [_edge_payload(case_id, edge) for edge in created], skipped
+
+
+# ----------------------------------------------------------- Suggestions --
+
+def case_graph_suggestions(case_id):
+    """§4.8 / §6: the heuristic suggestions of the case, best first."""
+    return case_graph_get(case_id, frozenset({'suggestions'}))['suggestions']
+
+
+def _validate_suggestion_keys(keys):
+    if not isinstance(keys, list) or not keys:
+        raise BusinessProcessingError('keys must be a non-empty list of suggestion keys')
+    if len(keys) > CASE_GRAPH_SUGGESTION_KEYS_MAX:
+        raise BusinessProcessingError(f'At most {CASE_GRAPH_SUGGESTION_KEYS_MAX} keys at once')
+    if not all(isinstance(key, str) and CASE_GRAPH_SUGGESTION_KEY.match(key) for key in keys):
+        raise BusinessProcessingError('keys must be suggestion keys (s:<16 hex digits>)')
+    return list(dict.fromkeys(keys))
+
+
+def case_graph_suggestions_accept(case_id, user_id, keys):
+    """Turn current suggestions into stored edges (origin `suggestion`,
+    accepted; the reason becomes the description and the score the
+    confidence). `{edges, unknown_keys}`: keys that are no longer
+    suggested (or could not be created) are listed, not an error."""
+    keys = _validate_suggestion_keys(keys)
+    current = {item['key']: item for item in case_graph_suggestions(case_id)}
+    found = [current[key] for key in keys if key in current]
+    unknown = [key for key in keys if key not in current]
+    specs = [{'source': item['source'], 'target': item['target'], 'relation': item['relation'],
+              'directed': item['directed'], 'event_ids': item['event_ids'], 'description': item['reason'],
+              'confidence': item['score']} for item in found]
+    edges, skipped = case_graph_edges_create_batch(case_id, user_id, specs, 'suggestion', 'accepted',
+                                                   'accepted graph suggestions')
+    unknown.extend(found[item['index']]['key'] for item in skipped)
+    return {'edges': edges, 'unknown_keys': unknown}
+
+
+def case_graph_suggestions_dismiss(case_id, user_id, keys):
+    """Dismiss suggestion keys for good (a dismissed key is never
+    suggested again in the case). `{dismissed}`: the number of keys newly
+    dismissed."""
+    keys = _validate_suggestion_keys(keys)
+    dismissed = case_graph_db_dismiss_suggestions(case_id, user_id, keys, _utcnow())
+    _commit()
+    if dismissed:
+        track_activity(f'dismissed {dismissed} graph suggestions', caseid=case_id)
+    return {'dismissed': dismissed}
+
+
+def case_graph_gaps(case_id):
+    """§4.8: the investigation gaps of the default graph (assets, IOCs,
+    free nodes, accepted edges)."""
+    return case_graph_gaps_compute(case_graph_get(case_id))
+
+
+# ---------------------------------------------------------------- Report --
+
+def case_graph_report_context(case_id):
+    """Report context of §7: `graph` (`nodes`, `edges` of §4.1) and
+    `graph_snapshot`, the PNG of the report-default view as raw base64
+    (no `data:` prefix), or None."""
+    graph = case_graph_get(case_id)
+    snapshot = case_graph_db_report_default_snapshot(case_id)
+    if snapshot:
+        snapshot = re.sub(r'\s+', '', snapshot.split(',', 1)[1]) if ',' in snapshot else None
+    return {'graph': {'nodes': graph['nodes'], 'edges': graph['edges']}, 'graph_snapshot': snapshot or None}
 
 
 # ------------------------------------------------------------ Free nodes --
@@ -594,6 +745,7 @@ def case_graph_node_create(case_id, user_id, payload):
     _commit()
     track_activity(f'added graph node "{node.label}"', caseid=case_id)
     _emit(case_id, 'node', 'created', f'node:{node.node_id}', user_id)
+    _hook('on_postload_graph_node_create', [node], case_id)
     return _node_payload(node)
 
 
@@ -725,6 +877,7 @@ def case_graph_paste(case_id, user_id, payload):
         if edges:
             track_activity(f'linked {len(edges)} pasted IOCs to {link_to} in the graph', caseid=case_id)
             _emit(case_id, 'edge', 'created', None, user_id)
+            _hook('on_postload_graph_edge_create', edges, case_id)
 
     return {'created': created, 'existing': existing, 'edges': [_edge_payload(case_id, edge) for edge in edges],
             'ignored': plan['ignored']}
@@ -886,6 +1039,8 @@ class _Importer:
         self._refs = {}
         self.nodes_created = 0
         self.edges_created = 0
+        self.created_edges = []
+        self.created_nodes = []
         self.skipped = []
         self._tlps = case_graph_db_tlps()
         self._ioc_types = get_ioc_types_list()
@@ -921,6 +1076,7 @@ class _Importer:
         if color in ASSET_FLAG_COLORS:
             payload['color'] = color
         node = _node_new(self._case_id, self._user_id, payload)
+        self.created_nodes.append(node)
         self._nodes[(label.lower(), node_type)] = node.node_id
         self._refs[ref] = ('node', node.node_id)
         self.nodes_created += 1
@@ -1011,6 +1167,7 @@ class _Importer:
             for name, value in fields.items():
                 setattr(edge, name, value)
             case_graph_db_add(edge)
+            self.created_edges.append(edge)
             self.edges_created += 1
 
 
@@ -1041,5 +1198,7 @@ def case_graph_import(case_id, user_id, payload):
                    f'{importer.edges_created} edges created', caseid=case_id)
     if importer.nodes_created or importer.edges_created:
         _emit(case_id, 'edge', 'created', None, user_id)
+    _hook('on_postload_graph_node_create', importer.created_nodes, case_id)
+    _hook('on_postload_graph_edge_create', importer.created_edges, case_id)
     return {'nodes_created': importer.nodes_created, 'edges_created': importer.edges_created,
             'skipped': len(skipped), 'skipped_details': skipped[:_SKIPPED_DETAILS_MAX]}

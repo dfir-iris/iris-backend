@@ -227,7 +227,7 @@ def _alert_node(row):
     )
 
 
-def _case_node(case_id, name, accessible):
+def case_graph_assembly_case_node(case_id, name, accessible):
     return _node('case', case_id, (name or f'Case #{case_id}') if accessible else _RESTRICTED_CASE_LABEL,
                  accessible=accessible, url=f'/case/{case_id}' if accessible else None)
 
@@ -307,7 +307,7 @@ def case_graph_stored_edge_serialize(row, relation_types_by_id, tlps, events_by_
     }
 
 
-def _derived_edge_serialize(edge, relation_types_by_name):
+def case_graph_assembly_derived_edge(edge, relation_types_by_name):
     return {
         'key': case_graph_derived_edge_key(edge),
         'id': None,
@@ -426,8 +426,8 @@ def case_graph_assembly_build(data, include=frozenset(), review_state='accepted'
             for other_case_id in sorted(case_ids):
                 case_key = case_graph_key('case', other_case_id)
                 if case_key not in candidates:
-                    _register(_case_node(other_case_id, case_names.get(other_case_id),
-                                         other_case_id in readable), True)
+                    _register(case_graph_assembly_case_node(other_case_id, case_names.get(other_case_id),
+                                                            other_case_id in readable), True)
                 derived.append({'source': key, 'target': case_key, 'relation': 'same_as', 'directed': False,
                                 'origin': ORIGIN_CROSS_CASE, 'event_ids': [], 'first_seen': None,
                                 'last_seen': None})
@@ -455,7 +455,7 @@ def case_graph_assembly_build(data, include=frozenset(), review_state='accepted'
     stored, derived = case_graph_merge_edges(stored, derived)
 
     edges = [case_graph_stored_edge_serialize(row, relation_types_by_id, tlps, events_by_id) for row in stored]
-    edges.extend(_derived_edge_serialize(edge, relation_types_by_name) for edge in derived)
+    edges.extend(case_graph_assembly_derived_edge(edge, relation_types_by_name) for edge in derived)
 
     nodes = []
     for key, node in candidates.items():
