@@ -41,6 +41,9 @@ from app.models.customers import Client
 from sqlalchemy import or_
 
 
+_DEFAULT_ROLE = 'involved'
+
+
 def get_case_events_assets_graph(caseid):
     events = CaseEventsAssets.query.with_entities(
         CaseEventsAssets.event_id,
@@ -249,7 +252,43 @@ def get_event_iocs_ids(event_id, caseid):
     return [x[0] for x in iocs_list]
 
 
-def update_event_assets(event_id, caseid, assets_list, iocs_list, sync_iocs_assets):
+def get_event_assets_roles(event_id, caseid):
+    """`{asset_id: role}` of the assets linked to the event."""
+    rows = CaseEventsAssets.query.with_entities(
+        CaseEventsAssets.asset_id,
+        CaseEventsAssets.role
+    ).filter(
+        CaseEventsAssets.event_id == event_id,
+        CaseEventsAssets.case_id == caseid
+    ).all()
+    return {row.asset_id: row.role or _DEFAULT_ROLE for row in rows}
+
+
+def get_event_iocs_roles(event_id, caseid):
+    """`{ioc_id: role}` of the IOCs linked to the event."""
+    rows = CaseEventsIoc.query.with_entities(
+        CaseEventsIoc.ioc_id,
+        CaseEventsIoc.role
+    ).filter(
+        CaseEventsIoc.event_id == event_id,
+        CaseEventsIoc.case_id == caseid
+    ).all()
+    return {row.ioc_id: row.role or _DEFAULT_ROLE for row in rows}
+
+
+def _resolve_role(object_id, roles, previous_roles):
+    """Role of a re-linked object: the given one when `roles` is a dict
+    (unlisted ids are `involved`), else the role it had before."""
+    if roles is None:
+        return previous_roles.get(object_id, _DEFAULT_ROLE)
+    return roles.get(object_id, _DEFAULT_ROLE)
+
+
+def update_event_assets(event_id, caseid, assets_list, iocs_list, sync_iocs_assets, roles=None):
+    """Replace the assets linked to the event. `roles` is `{asset_id:
+    role}` (validated by the caller); None keeps the role each asset
+    already had (`involved` for new links)."""
+    previous_roles = get_event_assets_roles(event_id, caseid) if roles is None else {}
 
     CaseEventsAssets.query.filter(
         CaseEventsAssets.event_id == event_id,
@@ -270,6 +309,7 @@ def update_event_assets(event_id, caseid, assets_list, iocs_list, sync_iocs_asse
             cea.asset_id = int(asset.asset_id)
             cea.event_id = event_id
             cea.case_id = caseid
+            cea.role = _resolve_role(cea.asset_id, roles, previous_roles)
 
             db.session.add(cea)
 
@@ -295,7 +335,10 @@ def update_event_assets(event_id, caseid, assets_list, iocs_list, sync_iocs_asse
     return True, ''
 
 
-def update_event_iocs(event_id, caseid, iocs_list):
+def update_event_iocs(event_id, caseid, iocs_list, roles=None):
+    """Replace the IOCs linked to the event, see `update_event_assets`
+    for `roles`."""
+    previous_roles = get_event_iocs_roles(event_id, caseid) if roles is None else {}
 
     CaseEventsIoc.query.filter(
         CaseEventsIoc.event_id == event_id,
@@ -314,6 +357,7 @@ def update_event_iocs(event_id, caseid, iocs_list):
             cea.ioc_id = int(ioc.ioc_id)
             cea.event_id = event_id
             cea.case_id = caseid
+            cea.role = _resolve_role(cea.ioc_id, roles, previous_roles)
 
             db.session.add(cea)
 
@@ -538,7 +582,8 @@ def get_filtered_case_events(case_identifier, filters):
         AssetsType.asset_name.label('type'),
         CaseAssets.asset_ip,
         CaseAssets.asset_description,
-        CaseAssets.asset_compromise_status_id
+        CaseAssets.asset_compromise_status_id,
+        CaseEventsAssets.role
     ).filter(
         assets_cache_condition
     ).join(CaseEventsAssets.asset)
@@ -555,7 +600,8 @@ def get_filtered_case_events(case_identifier, filters):
         CaseEventsIoc.event_id,
         CaseEventsIoc.ioc_id,
         Ioc.ioc_value,
-        Ioc.ioc_description
+        Ioc.ioc_description,
+        CaseEventsIoc.role
     ).filter(
         iocs_cache_condition
     ).join(

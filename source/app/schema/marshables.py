@@ -1279,6 +1279,11 @@ class EventSchema(ma.SQLAlchemyAutoSchema):
     event_title: str = auto_field('event_title', required=True, validate=Length(min=2), allow_none=False)
     event_assets: List[int] = fields.List(fields.Integer, required=True, allow_none=False)
     event_iocs: List[int] = fields.List(fields.Integer, required=True, allow_none=False)
+    # Investigation graph roles, `{"<id>": "source"|"target"|"involved"}`
+    event_assets_roles = fields.Dict(keys=fields.String(), values=fields.String(
+        validate=OneOf(['source', 'target', 'involved'])), required=False, allow_none=True)
+    event_iocs_roles = fields.Dict(keys=fields.String(), values=fields.String(
+        validate=OneOf(['source', 'target', 'involved'])), required=False, allow_none=True)
     event_date: datetime = fields.DateTime("%Y-%m-%dT%H:%M:%S.%f", required=True, allow_none=False)
     event_tz: str = fields.String(required=True, allow_none=False)
     event_category_id: int = ma.Method('get_event_category_id')
