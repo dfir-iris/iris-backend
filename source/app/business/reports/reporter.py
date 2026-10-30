@@ -28,6 +28,7 @@ from docx_generator.docx_generator import DocxGenerator
 from docx_generator.exceptions import rendering_error
 
 from app import app
+from app.business.case_graph import case_graph_report_context
 from app.business.cases import cases_export_to_json
 
 from app.datamgmt.activities.activities_db import get_auto_activities
@@ -60,6 +61,10 @@ def _get_case_info(case_identifier):
     case_info['date'] = datetime.utcnow().strftime("%Y-%m-%d")
     customer_name = case_info['case'].get('client').get('customer_name')
     case_info['case']['for_customer'] = f'{customer_name} (legacy::use client.customer_name)'
+
+    # Investigation graph: `graph` ({nodes, edges}) and `graph_snapshot`
+    # (base64 PNG of the report-default view, or None)
+    case_info.update(case_graph_report_context(case_identifier))
 
     return case_info
 

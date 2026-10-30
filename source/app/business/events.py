@@ -39,10 +39,14 @@ from app.datamgmt.case.case_events_db import update_event_iocs
 from app.datamgmt.case.case_events_db import get_case_event
 from app.datamgmt.case.case_events_db import get_event_assets_ids
 from app.datamgmt.case.case_events_db import get_event_iocs_ids
+from app.datamgmt.case.case_events_db import get_event_assets_roles
+from app.datamgmt.case.case_events_db import get_event_iocs_roles
 from app.datamgmt.case.case_events_db import delete_event
 from app.iris_engine.utils.common import parse_bf_date_format
 from app.iris_engine.utils.tracker import track_activity
 from app.iris_engine.utils.collab import collab_notify
+from app.business.case_graph_cleanup import case_graph_cleanup_edges
+from app.business.case_graph_cleanup import case_graph_cleanup_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.business.case_timelines import attach_event_to_default_timeline_if_unset
 from app.business.case_timelines import set_event_timelines
@@ -50,7 +54,8 @@ from app.business.case_timelines import check_event_timeline_ids
 
 
 def events_create(case_identifier, event: CasesEvent, event_category_id, event_assets,
-                  event_iocs, sync_iocs_assets, timeline_ids=None) -> CasesEvent:
+                  event_iocs, sync_iocs_assets, timeline_ids=None,
+                  event_assets_roles=None, event_iocs_roles=None) -> CasesEvent:
     # Checked before the event is written, so a rejected request leaves no event behind
     if timeline_ids is not None:
         check_event_timeline_ids(case_identifier, timeline_ids)
@@ -69,11 +74,12 @@ def events_create(case_identifier, event: CasesEvent, event_category_id, event_a
 
     setattr(event, 'event_category_id', event_category_id)
 
-    success, log = update_event_assets(event.event_id, case_identifier, event_assets, event_iocs, sync_iocs_assets)
+    success, log = update_event_assets(event.event_id, case_identifier, event_assets, event_iocs, sync_iocs_assets,
+                                       roles=event_assets_roles)
     if not success:
         raise BusinessProcessingError('Error while saving linked assets', data=log)
 
-    success, log = update_event_iocs(event.event_id, case_identifier, event_iocs)
+    success, log = update_event_iocs(event.event_id, case_identifier, event_iocs, roles=event_iocs_roles)
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
@@ -89,6 +95,7 @@ def events_create(case_identifier, event: CasesEvent, event_category_id, event_a
     event = call_modules_hook('on_postload_event_create', event, caseid=case_identifier)
 
     track_activity(f'added event "{event.event_title}"', caseid=case_identifier)
+    case_graph_cleanup_notify(case_identifier, 'created', 'event', event.event_id)
     return event
 
 
@@ -107,8 +114,21 @@ def events_get_iocs_ids(event: CasesEvent) -> list[int]:
     return get_event_iocs_ids(event.event_id, event.case_id)
 
 
+def events_get_assets_roles(event: CasesEvent) -> dict:
+    """`{asset_id: role}` of the assets linked to the event."""
+    return get_event_assets_roles(event.event_id, event.case_id)
+
+
+def events_get_iocs_roles(event: CasesEvent) -> dict:
+    """`{ioc_id: role}` of the IOCs linked to the event."""
+    return get_event_iocs_roles(event.event_id, event.case_id)
+
+
 def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs,
-                  event_sync_iocs_assets, timeline_ids=None) -> CasesEvent:
+                  event_sync_iocs_assets, timeline_ids=None,
+                  event_assets_roles=None, event_iocs_roles=None) -> CasesEvent:
+    """`event_assets_roles` / `event_iocs_roles` are `{id: role}`; None
+    keeps the role each linked object already had."""
     add_obj_history_entry(event, 'updated')
 
     update_timeline_state(event.case_id)
@@ -118,11 +138,12 @@ def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs
 
     setattr(event, 'event_category_id', event_category_id)
 
-    success, log = update_event_assets(event.event_id, event.case_id, event_assets, event_iocs, event_sync_iocs_assets)
+    success, log = update_event_assets(event.event_id, event.case_id, event_assets, event_iocs, event_sync_iocs_assets,
+                                       roles=event_assets_roles)
     if not success:
         raise BusinessProcessingError('Error while saving linked assets', data=log)
 
-    success, log = update_event_iocs(event.event_id, event.case_id, event_iocs)
+    success, log = update_event_iocs(event.event_id, event.case_id, event_iocs, roles=event_iocs_roles)
     if not success:
         raise BusinessProcessingError('Error while saving linked iocs', data=log)
 
@@ -132,15 +153,19 @@ def events_update(event: CasesEvent, event_category_id, event_assets, event_iocs
     event = call_modules_hook('on_postload_event_update', event, caseid=event.case_id)
 
     track_activity(f"updated event \"{event.event_title}\"", caseid=event.case_id)
+    case_graph_cleanup_notify(event.case_id, 'updated', 'event', event.event_id)
     return event
 
 
 def events_delete(user, event: CasesEvent):
+    # The graph edges of the event go in the same transaction as the event
+    case_graph_cleanup_edges(event.case_id, 'event', [event.event_id])
     delete_event(user.id, event)
 
     call_modules_hook('on_postload_event_delete', event.event_id, caseid=event.case_id)
     collab_notify(event.case_id, 'events', 'deletion', event.event_id)
     track_activity(f'deleted event "{event.event_title}" in timeline', event.case_id)
+    case_graph_cleanup_notify(event.case_id, 'deleted', 'event', event.event_id)
 
 
 def events_convert_date(date_value: str) -> dict:
@@ -268,7 +293,8 @@ def events_list_filtered(case_identifier, filters, page: int = 1, per_page: int 
                 'asset_type': asset.type,
                 'ip': asset.asset_ip,
                 'description': asset.asset_description,
-                'compromised': asset.asset_compromise_status_id == CompromiseStatus.compromised.value
+                'compromised': asset.asset_compromise_status_id == CompromiseStatus.compromised.value,
+                'role': asset.role or 'involved'
             }
             for asset in assets_cache
             if asset.event_id == ras['event_id']
@@ -283,7 +309,8 @@ def events_list_filtered(case_identifier, filters, page: int = 1, per_page: int 
                     'id': ioc.ioc_id,
                     'name': f'{ioc.ioc_value}',
                     'ioc_value': ioc.ioc_value,
-                    'description': ioc.ioc_description
+                    'description': ioc.ioc_description,
+                    'role': ioc.role or 'involved'
                 })
         ras['iocs'] = event_iocs
         ras['timeline_ids'] = timelines_by_event.get(ras['event_id'], [])

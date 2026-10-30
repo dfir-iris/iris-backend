@@ -46,6 +46,7 @@ READ_ONLY_TOOLS: frozenset[str] = frozenset({
     'iris_case_notes_directories_list',
     'iris_case_events_list', 'iris_case_evidences_list',
     'iris_case_tasks_list', 'iris_case_tasks_get',
+    'iris_case_graph_get', 'iris_case_graph_paths', 'iris_case_graph_gaps',
     'iris_search',
     'iris_me_get', 'iris_me_context_get',
     'iris_taxonomies_list',
@@ -86,6 +87,7 @@ WRITE_TOOLS: frozenset[str] = frozenset({
     'iris_case_datastore_files_create',
     'iris_case_tasks_create', 'iris_case_tasks_update',
     'iris_case_tasks_set_status',
+    'iris_case_graph_edge_create',
     # War rooms — writes
     'iris_war_rooms_create',
     'iris_war_room_cases_attach', 'iris_war_room_members_add',

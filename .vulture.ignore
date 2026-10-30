@@ -676,3 +676,8 @@ capture  # marshmallow field of schema/marshables.py:TutorialWaitSchema, consume
 go_to  # marshmallow field of schema/marshables.py:TutorialStepSchema (data_key goTo)
 fills  # marshmallow field of schema/marshables.py:TutorialStepSchema, consumed reflectively
 wait_for  # marshmallow field of schema/marshables.py:TutorialStepSchema (data_key waitFor)
+######### Investigation graph
+CASE_GRAPH_MAX_NODES  # read through current_app.config (app/business/case_graph.py)
+dismissed_by_id  # column of case_graph_dismissed_suggestion, used by the graph suggestions
+dismissed_at  # column of case_graph_dismissed_suggestion, used by the graph suggestions
+case_graph_db_dismissed_keys  # for the graph suggestions (§4.8 of docs/investigation-graph.md)

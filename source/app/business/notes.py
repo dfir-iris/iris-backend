@@ -32,6 +32,8 @@ from app.datamgmt.case.case_notes_db import update_note_revision
 from app.datamgmt.case.case_notes_db import delete_note
 from app.iris_engine.collab.sync import collab_current_markdown
 from app.iris_engine.collab.sync import collab_replace_markdown
+from app.business.case_graph_cleanup import case_graph_cleanup_edges
+from app.business.case_graph_cleanup import case_graph_cleanup_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.notifications.hook_listeners import notifications_note_updated
 from app.iris_engine.utils.tracker import track_activity
@@ -135,10 +137,13 @@ def notes_update(user, note: Notes):
 def notes_delete(note: Notes):
     notes_check_writable(note)
     call_modules_hook('on_preload_note_delete', note.note_id, caseid=note.note_case_id)
+    # The graph edges of the note go in the same transaction
+    case_graph_cleanup_edges(note.note_case_id, 'note', [note.note_id])
     delete_note(note.note_id, note.note_case_id)
     call_modules_hook('on_postload_note_delete', note.note_id, caseid=note.note_case_id)
 
     track_activity(f'deleted note "{note.note_title}"', caseid=note.note_case_id)
+    case_graph_cleanup_notify(note.note_case_id, 'deleted', 'note', note.note_id)
 
 
 def notes_list_revisions(identifier: int):

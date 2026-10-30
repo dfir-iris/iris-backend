@@ -102,6 +102,9 @@ class CaseEventsAssets(db.Model):
     event_id = Column(ForeignKey('cases_events.event_id'))
     asset_id = Column(ForeignKey('case_assets.asset_id'))
     case_id = Column(ForeignKey('cases.case_id'))
+    # Part the asset plays in the event: `source`, `target` or `involved`
+    # (the investigation graph derives directed edges from it)
+    role = Column(String(16), nullable=False, default='involved', server_default=text("'involved'"))
 
     event = relationship('CasesEvent')
     asset = relationship('CaseAssets')
@@ -115,6 +118,8 @@ class CaseEventsIoc(db.Model):
     event_id = Column(ForeignKey('cases_events.event_id'))
     ioc_id = Column(ForeignKey('ioc.ioc_id'))
     case_id = Column(ForeignKey('cases.case_id'))
+    # Part the IOC plays in the event: `source`, `target` or `involved`
+    role = Column(String(16), nullable=False, default='involved', server_default=text("'involved'"))
 
     event = relationship('CasesEvent')
     ioc = relationship('Ioc')
@@ -151,29 +156,6 @@ class CaseEventCategory(db.Model):
 
     event = relationship('CasesEvent', cascade="delete")
     category = relationship('EventCategory')
-
-
-class CaseGraphAssets(db.Model):
-    __tablename__ = 'case_graph_assets'
-
-    id = Column(Integer, primary_key=True)
-    case_id = Column(ForeignKey('cases.case_id'))
-    asset_id = Column(Integer)
-    asset_type_id = Column(ForeignKey('assets_type.asset_id'))
-
-    case = relationship('Cases')
-    asset_type = relationship('AssetsType')
-
-
-class CaseGraphLinks(db.Model):
-    __tablename__ = 'case_graph_links'
-
-    id = Column(Integer, primary_key=True)
-    case_id = Column(ForeignKey('cases.case_id'))
-    source_id = Column(ForeignKey('case_graph_assets.id'))
-    dest_id = Column(ForeignKey('case_graph_assets.id'))
-
-    case = relationship('Cases')
 
 
 class Languages(db.Model):

@@ -44,6 +44,7 @@ from app.blueprints.rest.v2.case_routes.tasks import case_tasks_blueprint
 from app.blueprints.rest.v2.case_routes.evidences import case_evidences_blueprint
 from app.blueprints.rest.v2.case_routes.events import case_events_blueprint
 from app.blueprints.rest.v2.case_routes.timelines import case_timelines_blueprint
+from app.blueprints.rest.v2.case_routes.graph import case_graph_blueprint
 from app.blueprints.rest.v2.case_routes.trackers import case_tracker_steps_blueprint
 from app.blueprints.rest.v2.case_routes.trackers import case_trackers_blueprint
 from app.blueprints.rest.v2.case_routes.datastore import case_datastore_blueprint
@@ -400,6 +401,7 @@ cases_blueprint.register_blueprint(case_transfer_blueprint)
 cases_blueprint.register_blueprint(case_vulnerabilities_blueprint)
 cases_blueprint.register_blueprint(case_tracker_steps_blueprint)
 cases_blueprint.register_blueprint(case_trackers_blueprint)
+cases_blueprint.register_blueprint(case_graph_blueprint)
 
 cases_operations = CasesOperations()
 

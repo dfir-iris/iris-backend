@@ -1,0 +1,1 @@
+{{ graph.nodes|length }}|{{ graph.edges|length }}|{{ graph_snapshot }}

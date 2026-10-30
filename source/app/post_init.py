@@ -782,6 +782,16 @@ def create_safe_hooks():
     create_safe(db.session, IrisHook, hook_name='on_postload_ai_suggestion_dismiss',
                 hook_description='Triggered when an analyst dismisses an AI suggestion, after commit in DB')
 
+    # --- Investigation graph
+    create_safe(db.session, IrisHook, hook_name='on_postload_graph_edge_create',
+                hook_description='Triggered on investigation graph edge creation, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_graph_edge_update',
+                hook_description='Triggered on investigation graph edge update, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_graph_edge_delete',
+                hook_description='Triggered on investigation graph edge deletion, after commit in DB')
+    create_safe(db.session, IrisHook, hook_name='on_postload_graph_node_create',
+                hook_description='Triggered on investigation graph free node creation, after commit in DB')
+
 
 def create_safe_languages():
     """Creates new Language objects if they do not already exist.

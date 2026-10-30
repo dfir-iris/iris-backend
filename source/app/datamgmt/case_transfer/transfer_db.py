@@ -26,11 +26,13 @@ is ever used as a key, a path, or a column that was not named in
 should not.
 """
 
+import re
 import uuid
 
 from app.db import db
 from app.datamgmt.case_transfer.transfer_spec import CASE_SPEC
 from app.datamgmt.case_transfer.transfer_spec import ENTITIES
+from app.datamgmt.case_transfer.transfer_spec import GRAPH_ENDPOINT_ENTITIES
 from app.datamgmt.case_transfer.transfer_spec import LOOKUPS
 from app.datamgmt.case_transfer.transfer_spec import USER_REF_PREFIX
 from app.models.authorization import User
@@ -38,6 +40,8 @@ from app.models.cases import Cases
 from app.models.errors import ObjectNotFoundError
 
 _ROOT_PARENT_SENTINEL = 0
+
+_GRAPH_KEY_RE = re.compile(r'^([a-z]+):([0-9]+)$')
 
 
 def make_ref(kind, identifier):
@@ -84,6 +88,13 @@ def _read_row(row, spec, collector):
             collector.lookup_ids[lookup_key].add(value)
             payload[column] = make_ref(lookup_key, value)
 
+    for kind_column, id_column, kinds in spec.poly_refs:
+        kind = getattr(row, kind_column)
+        value = getattr(row, id_column)
+        entity_key = kinds.get(kind)
+        payload[kind_column] = kind
+        payload[id_column] = make_ref(entity_key, value) if entity_key and value is not None else None
+
     for column in spec.self_refs:
         value = getattr(row, column)
         # The datastore root uses 0 rather than NULL to mean "no parent".
@@ -110,6 +121,7 @@ def _entity_query(spec, case_identifier):
         return _vulnerability_entity_query(spec, case_identifier)
 
     from app.models.assets import CaseAssets
+    from app.models.case_graph import CaseGraphEdge
     from app.models.cases import CasesEvent
     from app.models.evidences import CaseReceivedFile
     from app.models.iocs import Ioc
@@ -128,6 +140,7 @@ def _entity_query(spec, case_identifier):
         'asset_comment': (CaseAssets, 'comment_asset_id', 'asset_id', CaseAssets.case_id),
         'evidence_comment': (CaseReceivedFile, 'comment_evidence_id', 'id', CaseReceivedFile.case_id),
         'note_comment': (Notes, 'comment_note_id', 'note_id', Notes.note_case_id),
+        'graph_edge_event': (CaseGraphEdge, 'edge_id', 'edge_id', CaseGraphEdge.case_id),
     }
 
     parent_model, local_column, parent_column, case_column = joins[spec.key]
@@ -416,6 +429,9 @@ def write_case_bundle(new_case_identifier, entities, ref_map):
             if any(getattr(row, column) is None for column in spec.required_refs):
                 continue
 
+            if not _write_poly_refs(row, spec, payload, ref_map):
+                continue
+
             if spec.case_column is not None:
                 setattr(row, spec.case_column, new_case_identifier)
 
@@ -424,6 +440,10 @@ def write_case_bundle(new_case_identifier, entities, ref_map):
 
         if spec.key == 'dsfile':
             _prepare_datastore_files(new_case_identifier, deferred)
+
+        if spec.key == 'graph_view':
+            for row, _ in deferred:
+                row.state = _remap_graph_keys(row.state if isinstance(row.state, dict) else {}, ref_map)
 
         db.session.flush()
 
@@ -443,6 +463,56 @@ def write_case_bundle(new_case_identifier, entities, ref_map):
         written[spec.key] = deferred
 
     return written
+
+
+def _write_poly_refs(row, spec, payload, ref_map):
+    """Set the polymorphic references of a row; False when one does not
+    resolve. The ref must belong to the entity its kind names, so a bundle
+    cannot point an `asset` endpoint at, say, a note."""
+    for kind_column, id_column, kinds in spec.poly_refs:
+        kind = payload.get(kind_column)
+        entity_key = kinds.get(kind) if isinstance(kind, str) else None
+        ref = payload.get(id_column)
+        if entity_key is None or not isinstance(ref, str) or not ref.startswith(f'{entity_key}:'):
+            return False
+        value = ref_map.get(ref)
+        if value is None:
+            return False
+        setattr(row, kind_column, kind)
+        setattr(row, id_column, value)
+    return True
+
+
+def _remap_graph_key(value, ref_map):
+    """`asset:12` (a source-instance graph node key) -> the key of the
+    imported object, None when it did not travel; other strings as is."""
+    match = _GRAPH_KEY_RE.match(value)
+    if match is None:
+        return value
+    entity_key = GRAPH_ENDPOINT_ENTITIES.get(match.group(1))
+    if entity_key is None:
+        return value
+    new_id = ref_map.get(make_ref(entity_key, match.group(2)))
+    return make_ref(match.group(1), new_id) if new_id is not None else None
+
+
+def _remap_graph_keys(value, ref_map):
+    """Rewrite the graph node keys of a view state (dict keys, list items
+    and string values) to the imported ids; entries of objects that did
+    not travel are dropped."""
+    if isinstance(value, dict):
+        remapped = {}
+        for key, item in value.items():
+            new_key = _remap_graph_key(key, ref_map) if isinstance(key, str) else key
+            if new_key is not None:
+                remapped[new_key] = _remap_graph_keys(item, ref_map)
+        return remapped
+    if isinstance(value, list):
+        items = (_remap_graph_keys(item, ref_map) for item in value)
+        return [item for item in items if item is not None]
+    if isinstance(value, str):
+        return _remap_graph_key(value, ref_map)
+    return value
 
 
 def _prepare_datastore_files(new_case_identifier, rows):

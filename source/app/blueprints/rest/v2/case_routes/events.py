@@ -34,10 +34,13 @@ from app.business.events import events_create
 from app.business.events import events_get
 from app.business.events import events_get_assets_ids
 from app.business.events import events_get_iocs_ids
+from app.business.events import events_get_assets_roles
+from app.business.events import events_get_iocs_roles
 from app.business.events import events_list_filtered
 from app.business.events import events_update
 from app.business.events import events_delete
 from app.models.cases import CasesEvent
+from app.models.case_graph import CASE_GRAPH_EVENT_ROLES
 from app.schema.marshables import EventSchema
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
@@ -103,9 +106,14 @@ class Events:
             sync_iocs_assets = request_data.get('event_sync_iocs_assets', False)
             timeline_ids = request_data.get('timeline_ids')
 
+            event_assets_roles = _read_roles(request_data, 'event_assets_roles')
+            event_iocs_roles = _read_roles(request_data, 'event_iocs_roles')
+
             event = events_create(case_identifier, event, event_category_id, event_assets,
-                                  event_iocs, sync_iocs_assets, timeline_ids=timeline_ids)
+                                  event_iocs, sync_iocs_assets, timeline_ids=timeline_ids,
+                                  event_assets_roles=event_assets_roles, event_iocs_roles=event_iocs_roles)
             result = self._schema.dump(event)
+            _stamp_roles(result, event)
             # Stamp the timeline membership on the response so the SPA
             # doesn't need a second round-trip to know where the event
             # ended up.
@@ -154,6 +162,7 @@ class Events:
             # schema load (create/update), so a plain read must stamp them.
             result['event_assets'] = events_get_assets_ids(event)
             result['event_iocs'] = events_get_iocs_ids(event)
+            _stamp_roles(result, event)
             from app.business.case_timelines import get_event_timeline_ids
             result['timeline_ids'] = get_event_timeline_ids(event.event_id)
             return response_api_success(result)
@@ -182,10 +191,15 @@ class Events:
             event_sync_iocs_assets = request_data.get('event_sync_iocs_assets')
             timeline_ids = request_data.get('timeline_ids')
 
+            event_assets_roles = _read_roles(request_data, 'event_assets_roles')
+            event_iocs_roles = _read_roles(request_data, 'event_iocs_roles')
+
             event = events_update(event, event_category_id, event_assets, event_iocs,
-                                  event_sync_iocs_assets, timeline_ids=timeline_ids)
+                                  event_sync_iocs_assets, timeline_ids=timeline_ids,
+                                  event_assets_roles=event_assets_roles, event_iocs_roles=event_iocs_roles)
 
             result = self._schema.dump(event)
+            _stamp_roles(result, event)
             from app.business.case_timelines import get_event_timeline_ids
             result['timeline_ids'] = get_event_timeline_ids(event.event_id)
             notify(case_identifier, 'events', 'updated', identifier, object_data=result)
@@ -215,6 +229,34 @@ class Events:
             return response_api_not_found()
         except BusinessProcessingError as e:
             return response_api_error(e.get_message(), data=e.get_data())
+
+
+def _read_roles(request_data, field):
+    """`{object_id: role}` from the optional `event_assets_roles` /
+    `event_iocs_roles` object of the request; None when absent (the
+    roles already stored are then kept)."""
+    value = request_data.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise BusinessProcessingError(f'{field} must be an object', data={field: 'must be an object'})
+    roles = {}
+    for object_id, role in value.items():
+        try:
+            object_id = int(object_id)
+        except (TypeError, ValueError):
+            raise BusinessProcessingError(f'Invalid id {object_id!r} in {field}',
+                                          data={field: f'invalid id {object_id!r}'})
+        if role not in CASE_GRAPH_EVENT_ROLES:
+            raise BusinessProcessingError(f'Invalid role {role!r} in {field}',
+                                          data={field: f'role must be one of {", ".join(CASE_GRAPH_EVENT_ROLES)}'})
+        roles[object_id] = role
+    return roles
+
+
+def _stamp_roles(result, event):
+    result['event_assets_roles'] = {str(k): v for k, v in events_get_assets_roles(event).items()}
+    result['event_iocs_roles'] = {str(k): v for k, v in events_get_iocs_roles(event).items()}
 
 
 _MULTI_VALUE_FILTER_KEYS = (

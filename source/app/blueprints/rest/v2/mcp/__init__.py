@@ -59,6 +59,7 @@ from app.blueprints.rest.v2.mcp.tools import events as _tools_events
 from app.blueprints.rest.v2.mcp.tools import evidences as _tools_evidences
 from app.blueprints.rest.v2.mcp.tools import datastore as _tools_datastore
 from app.blueprints.rest.v2.mcp.tools import tasks as _tools_tasks
+from app.blueprints.rest.v2.mcp.tools import case_graph as _tools_case_graph
 from app.blueprints.rest.v2.mcp.tools import search as _tools_search
 from app.blueprints.rest.v2.mcp.tools import profile as _tools_profile
 from app.blueprints.rest.v2.mcp.tools import taxonomies as _tools_taxonomies

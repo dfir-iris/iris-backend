@@ -78,6 +78,7 @@ from app.blueprints.rest.v2.war_rooms.chat import war_rooms_chat_blueprint
 from app.blueprints.rest.v2.war_rooms.datastore import war_rooms_datastore_blueprint
 from app.blueprints.rest.v2.war_rooms.decisions import war_rooms_decisions_blueprint
 from app.blueprints.rest.v2.war_rooms.dim_hooks import war_rooms_dim_hooks_blueprint
+from app.blueprints.rest.v2.war_rooms.graph import war_rooms_graph_blueprint
 from app.blueprints.rest.v2.war_rooms.linked_case_timelines import war_rooms_linked_case_timelines_blueprint
 from app.blueprints.rest.v2.war_rooms.note_shares import war_rooms_note_shares_blueprint
 from app.blueprints.rest.v2.war_rooms.notes import war_rooms_notes_blueprint
@@ -110,6 +111,7 @@ war_rooms_blueprint.register_blueprint(war_rooms_dim_hooks_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_tracker_steps_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_trackers_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_board_blueprint)
+war_rooms_blueprint.register_blueprint(war_rooms_graph_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_scope_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_note_shares_blueprint)
 war_rooms_blueprint.register_blueprint(war_rooms_vulnerabilities_blueprint)

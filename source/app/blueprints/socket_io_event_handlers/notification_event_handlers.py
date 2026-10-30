@@ -21,6 +21,7 @@ from flask import g, request
 from flask_socketio import emit
 from flask_socketio import join_room
 from flask_socketio import leave_room
+from flask_socketio import rooms
 
 from app import socket_io
 from app.blueprints.access_controls import is_user_authenticated
@@ -28,10 +29,15 @@ from app.blueprints.iris_user import iris_current_user
 from app.business.ai_workflows import ai_workflows_editor_session
 from app.business.ai_workflows import ai_workflows_live_room
 from app.business.auth import validate_auth_token
+from app.business.case_graph_live import case_graph_live_join_room
+from app.business.case_graph_live import case_graph_live_presence_user
 from app.business.war_rooms_live import war_rooms_live_join_room
 from app.iris_engine.ai_workflows.live import EDITOR_EVENT
 from app.iris_engine.ai_workflows.live import ai_workflows_live_run_room
 from app.iris_engine.ai_workflows.live import ai_workflows_live_workflow_room
+from app.iris_engine.case_graph_live import CASE_GRAPH_LIVE_NAMESPACES
+from app.iris_engine.case_graph_live import CASE_GRAPH_PRESENCE_EVENT
+from app.iris_engine.case_graph_live import case_graph_live_room
 from app.iris_engine.war_rooms_live import war_rooms_live_room
 
 
@@ -322,6 +328,80 @@ def on_ai_workflow_editor_leave(data=None):
         return
     _editor_broadcast('gone', entry)
     leave_room(entry['room'])
+
+
+# ---- Case graph live views -------------------------------------------------
+# Registered in `/notifications` (the authenticated namespace the SPA
+# keeps open) and in the default namespace, where `case-graph-changed`
+# is emitted too (see `app.iris_engine.case_graph_live`).
+
+_PRESENCE_KEY_MAX_LEN = 256
+
+
+def _case_graph_case_id(data):
+    if not isinstance(data, dict):
+        return None
+    case_id = data.get('case_id')
+    if isinstance(case_id, bool) or not isinstance(case_id, int) or case_id <= 0:
+        return None
+    return case_id
+
+
+def on_case_graph_join(data=None):
+    """Follow the changes of the graph of a case (`{case_id}`) the user
+    may read: `case-graph-changed` and `case-graph-presence` events. The
+    ack tells whether the room was joined."""
+    user_id = _current_user_id()
+    case_id = _case_graph_case_id(data)
+    if not user_id or case_id is None:
+        return {'ok': False}
+    try:
+        room = case_graph_live_join_room(user_id, case_id)
+    except Exception:
+        return {'ok': False}
+    join_room(room)
+    return {'ok': True}
+
+
+def on_case_graph_leave(data=None):
+    """Leaving needs no access check (nor still having access)."""
+    case_id = _case_graph_case_id(data)
+    if case_id is None:
+        return
+    leave_room(case_graph_live_room(case_id))
+
+
+def on_case_graph_presence(data=None):
+    """Relay `{case_id, selected_key}` to the other viewers of a graph
+    joined first, as `case-graph-presence {case_id, user, selected_key}`
+    (the user is set here, never taken from the client)."""
+    user_id = _current_user_id()
+    case_id = _case_graph_case_id(data)
+    if not user_id or case_id is None:
+        return {'ok': False}
+    room = case_graph_live_room(case_id)
+    if room not in rooms():
+        return {'ok': False}
+    selected_key = data.get('selected_key')
+    if selected_key is not None and (not isinstance(selected_key, str)
+                                     or len(selected_key) > _PRESENCE_KEY_MAX_LEN):
+        return {'ok': False}
+    try:
+        user = case_graph_live_presence_user(user_id)
+    except Exception:
+        return {'ok': False}
+    payload = {'case_id': case_id, 'user': user, 'selected_key': selected_key}
+    try:
+        emit(CASE_GRAPH_PRESENCE_EVENT, payload, to=room, skip_sid=request.sid)
+    except Exception as exc:
+        logger.warning('SocketIO emit failed for %s: %s', CASE_GRAPH_PRESENCE_EVENT, exc)
+    return {'ok': True}
+
+
+for _namespace in CASE_GRAPH_LIVE_NAMESPACES:
+    socket_io.on_event('join-case-graph', on_case_graph_join, namespace=_namespace)
+    socket_io.on_event('leave-case-graph', on_case_graph_leave, namespace=_namespace)
+    socket_io.on_event(CASE_GRAPH_PRESENCE_EVENT, on_case_graph_presence, namespace=_namespace)
 
 
 def register_notification_socket_handlers():

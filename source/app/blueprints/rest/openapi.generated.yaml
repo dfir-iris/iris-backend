@@ -4748,6 +4748,756 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph:
+    get:
+      operationId: get_case_graph_get
+      summary: Get the investigation graph of a case (derived and stored edges)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all (adds pending and rejected stored edges)
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges:
+    post:
+      operationId: create_case_graph_edge_post
+      summary: Create a stored edge between two nodes of the case
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/{edge_id}:
+    delete:
+      operationId: delete_case_graph_edge_delete
+      summary: Delete a stored edge
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_graph_edge_put
+      summary: Update a stored edge (fields left out keep their value)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/{edge_id}/reverse:
+    post:
+      operationId: reverse_case_graph_edge_post
+      summary: Swap the source and the target of a stored edge
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/edges/{edge_id}/review:
+    post:
+      operationId: review_case_graph_edge_post
+      summary: 'Accept or reject a stored edge ({decision: accept|reject})'
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: edge_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/explain:
+    post:
+      operationId: explain_case_graph_post
+      summary: LLM narrative of the attack path ({view_id?, node_keys?}) as Markdown (409 without LLM)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/export:
+    get:
+      operationId: export_case_graph_get
+      summary: Export the graph as JSON, a STIX 2.1 bundle or GraphML
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: json (default), stix or graphml
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/gaps:
+    get:
+      operationId: get_case_graph_gaps_get
+      summary: Investigation gaps of the graph, most severe first
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/import:
+    post:
+      operationId: import_case_graph_post
+      summary: 'Import a JSON or STIX 2.1 graph: missing IOCs, free nodes and edges are created'
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/neighbours:
+    get:
+      operationId: get_case_graph_neighbours_get
+      summary: Nodes and edges within 1 to 3 hops of a node
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node
+        in: query
+        required: false
+        schema:
+          type: key of the node, e.g. asset:12
+      - name: hops
+        in: query
+        required: false
+        schema:
+          type: 1 (default) to 3
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all (adds pending and rejected stored edges)
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/nodes:
+    post:
+      operationId: create_case_graph_node_post
+      summary: Create a free node (actor, account, malware, ...)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/nodes/{node_id}:
+    delete:
+      operationId: delete_case_graph_node_delete
+      summary: Delete a free node and its stored edges
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_graph_node_get
+      summary: Get a free node
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_graph_node_put
+      summary: Update a free node (fields left out keep their value)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/nodes/{node_id}/promote:
+    post:
+      operationId: promote_case_graph_node_post
+      summary: Turn a free node into an asset or an IOC ({kind, ...creation fields}); its edges follow
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: node_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/paste:
+    post:
+      operationId: paste_case_graph_post
+      summary: Create the IOCs found in a pasted text, optionally linked to a node
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/paths:
+    get:
+      operationId: get_case_graph_paths_get
+      summary: Simple paths between two nodes, shortest first
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: key of the start node
+      - name: target
+        in: query
+        required: false
+        schema:
+          type: key of the end node
+      - name: directed
+        in: query
+        required: false
+        schema:
+          type: follow the edge directions (default true)
+      - name: max_paths
+        in: query
+        required: false
+        schema:
+          type: 1 to 50, default 5
+      - name: max_length
+        in: query
+        required: false
+        schema:
+          type: 1 to 12, default 8
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: 'comma list among events, evidences, tasks, notes, alerts, cross_case, suggestions (default:
+            assets, iocs and free nodes only)'
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all (adds pending and rejected stored edges)
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/suggestions:
+    get:
+      operationId: get_case_graph_suggestions_get
+      summary: Heuristic edge suggestions (text mentions, IP matches, alerts, enrichment)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/suggestions/accept:
+    post:
+      operationId: accept_case_graph_suggestions_post
+      summary: 'Store suggestions as accepted edges ({keys: [...]})'
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/suggestions/ai:
+    post:
+      operationId: ai_case_graph_suggestions_post
+      summary: Ask the LLM for edges supported by the timeline, stored as pending AI edges (409 without
+        LLM)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/suggestions/dismiss:
+    post:
+      operationId: dismiss_case_graph_suggestions_post
+      summary: 'Dismiss suggestions for good ({keys: [...]})'
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/views:
+    get:
+      operationId: list_case_graph_views_get
+      summary: List the graph views visible to the caller (own and shared), without snapshot
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: create_case_graph_view_post
+      summary: Save a graph view
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/graph/views/{view_id}:
+    delete:
+      operationId: delete_case_graph_view_delete
+      summary: Delete a graph view
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: view_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: get_case_graph_view_get
+      summary: Get a graph view, with its snapshot
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: view_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_case_graph_view_put
+      summary: Update a graph view (fields left out keep their value)
+      tags:
+      - Case graph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: view_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{case_identifier}/iocs:
     get:
       operationId: get_case_iocs_get
@@ -10717,6 +11467,95 @@ paths:
           $ref: '#/components/responses/ApiError'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/graph-relation-types:
+    get:
+      operationId: list_graph_relation_types_route_get
+      summary: List the graph relation types, ordered, with their usage count
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: create_graph_relation_type_route_post
+      summary: Create a graph relation type
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/manage/graph-relation-types/{identifier}:
+    delete:
+      operationId: delete_graph_relation_type_route_delete
+      summary: Delete a custom graph relation type that no stored edge uses
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '204':
+          $ref: '#/components/responses/Deleted'
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: update_graph_relation_type_route_put
+      summary: Update a graph relation type (fields left out keep their value)
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/manage/graph-relation-types/reorder:
+    post:
+      operationId: reorder_graph_relation_types_route_post
+      summary: Reorder the graph relation types (ids must list every type once)
+      tags:
+      - ManageGraphRelationTypes
+      security:
+      - ApiKey: []
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v2/manage/groups:
     get:
       operationId: search_groups_get
@@ -16501,6 +17340,39 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/war-rooms/{war_room_id}/graph:
+    get:
+      operationId: get_war_room_graph_get
+      summary: Investigation graph of the attached cases (keys prefixed c<case_id>/, same_as across cases)
+      tags:
+      - WarRoomGraph
+      security:
+      - ApiKey: []
+      parameters:
+      - name: war_room_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: comma list among events, evidences, tasks, notes, alerts
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          type: accepted (default) or all
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/war-rooms/{war_room_id}/linked-case-timelines:
     get:
       operationId: list_available_get
@@ -21277,6 +22149,263 @@ paths:
                   type: integer
                   description: Numeric ID of the IRIS case this call targets.
               required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_graph_edge_create:
+    post:
+      operationId: mcp_tool_iris_case_graph_edge_create
+      summary: Create an edge of the investigation graph between two nodes of the case (keys from `iris_case_graph_get`).
+        `relation` is a relation type name (related_to, lateral_movement, authenticated_to, executed_on,
+        beacons_to, resolves_to, exfiltrated_to, ...); its direction defaults from the relation type.
+        Cite the supporting timeline events in `event_ids`.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_graph_edge_create
+      x-mcp-mvp: false
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_graph_edge_create\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  description: Key of the source node, e.g. asset:12.
+                target:
+                  type: string
+                  description: Key of the target node, e.g. ioc:7.
+                relation:
+                  type: string
+                  description: Relation type name.
+                directed:
+                  type: boolean
+                  description: Defaults to the direction of the relation type.
+                label:
+                  type: string
+                  description: Short label.
+                description:
+                  type: string
+                  description: Why the edge holds (markdown).
+                confidence:
+                  type: integer
+                  description: 0 to 100.
+                event_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Ids of the supporting timeline events of the case.
+                first_seen:
+                  type: string
+                  description: ISO 8601.
+                last_seen:
+                  type: string
+                  description: ISO 8601.
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - source
+              - target
+              - relation
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_graph_gaps:
+    post:
+      operationId: mcp_tool_iris_case_graph_gaps
+      summary: 'Investigation gaps of a case graph, most severe first: compromised assets with unknown
+        initial access, without timeline event or not analysed, edges with no supporting evidence, isolated
+        IOCs.'
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_graph_gaps
+      x-mcp-mvp: false
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_graph_gaps\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_graph_get:
+    post:
+      operationId: mcp_tool_iris_case_graph_get
+      summary: 'Get the investigation graph of a case: nodes (assets, IOCs, free nodes such as actors
+        or accounts, and optionally events, evidences, tasks, notes, alerts, other cases) and edges (stored
+        by analysts, or derived from timeline events, each with its supporting event ids). Node keys look
+        like `asset:12`, `ioc:7`, `node:3`; use them with `iris_case_graph_paths` and `iris_case_graph_edge_create`.
+        Rows are a projection unless `view` is full.'
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_graph_get
+      x-mcp-mvp: false
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_graph_get\"`.\
+        \ The request body schema below is the tool's `input_schema` (identical to what `tools/list` returns\
+        \ for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                view:
+                  type: string
+                  enum:
+                  - summary
+                  - full
+                  description: "Response detail level. 'summary' (the default) returns the identifying,\
+                    \ triage and cross-reference fields. 'full' adds raw source payloads, enrichment blobs,\
+                    \ custom attributes and modification history, and is typically an order of magnitude\
+                    \ larger. Stay on the default unless a field you need is genuinely absent \u2014 to\
+                    \ read one record in full, prefer the matching `*_get` tool over widening a whole\
+                    \ page of results."
+                include:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - events
+                    - evidences
+                    - tasks
+                    - notes
+                    - alerts
+                    - cross_case
+                  description: Extra node kinds. By default the graph holds the assets, IOCs and free
+                    nodes.
+                review_state:
+                  type: string
+                  enum:
+                  - accepted
+                  - all
+                  description: accepted (default) or all, which adds the pending and rejected stored edges.
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - case_identifier
+      responses:
+        '200':
+          description: "Tool result \u2014 JSON-RPC content wrapper."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v2/mcp/tools/iris_case_graph_paths:
+    post:
+      operationId: mcp_tool_iris_case_graph_paths
+      summary: Simple paths between two nodes of the investigation graph of a case, shortest first, e.g.
+        how an attacker got from the initial access asset to a compromised server.
+      tags:
+      - MCP
+      - MCP:tools
+      security:
+      - ApiKey: []
+      x-mcp: true
+      x-mcp-tool: iris_case_graph_paths
+      x-mcp-mvp: false
+      x-mcp-admin-only: false
+      description: "Synthesised documentation entry \u2014 MCP tools are actually dispatched via a single\
+        \ POST /api/v2/mcp with `method: \"tools/call\"` and `params.name = \"iris_case_graph_paths\"\
+        `. The request body schema below is the tool's `input_schema` (identical to what `tools/list`\
+        \ returns for this tool)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  description: Key of the start node.
+                target:
+                  type: string
+                  description: Key of the end node.
+                directed:
+                  type: boolean
+                  description: Follow the edge directions (default true).
+                max_paths:
+                  type: integer
+                  description: 1 to 50, default 5.
+                max_length:
+                  type: integer
+                  description: 1 to 12, default 8.
+                include:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - events
+                    - evidences
+                    - tasks
+                    - notes
+                    - alerts
+                    - cross_case
+                  description: Extra node kinds. By default the graph holds the assets, IOCs and free
+                    nodes.
+                case_identifier:
+                  type: integer
+                  description: Numeric ID of the IRIS case this call targets.
+              required:
+              - source
+              - target
               - case_identifier
       responses:
         '200':
@@ -28353,6 +29482,14 @@ components:
           type: array
           items:
             type: integer
+        event_assets_roles:
+          type:
+          - object
+          - 'null'
+        event_iocs_roles:
+          type:
+          - object
+          - 'null'
         event_date:
           type: string
           format: date-time
@@ -28460,6 +29597,14 @@ components:
           type: array
           items:
             type: integer
+        event_assets_roles:
+          type:
+          - object
+          - 'null'
+        event_iocs_roles:
+          type:
+          - object
+          - 'null'
         event_date:
           type: string
           format: date-time

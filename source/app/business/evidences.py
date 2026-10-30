@@ -21,6 +21,8 @@ from flask_sqlalchemy.pagination import Pagination
 from app.blueprints.iris_user import iris_current_user
 from app.models.errors import BusinessProcessingError
 from app.models.errors import ObjectNotFoundError
+from app.business.case_graph_cleanup import case_graph_cleanup_edges
+from app.business.case_graph_cleanup import case_graph_cleanup_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.evidences import CaseReceivedFile
@@ -68,6 +70,9 @@ def evidences_filter(case_identifier, pagination_parameters: PaginationParameter
 
 def evidences_delete(evidence: CaseReceivedFile):
     call_modules_hook('on_preload_evidence_delete', evidence.id, caseid=evidence.case_id)
+    # The graph edges of the evidence go in the same transaction
+    case_graph_cleanup_edges(evidence.case_id, 'evidence', [evidence.id])
     delete_rfile(evidence)
     call_modules_hook('on_postload_evidence_delete', evidence.id, caseid=evidence.case_id)
     track_activity(f'deleted evidence "{evidence.filename}" from registry', evidence.case_id)
+    case_graph_cleanup_notify(evidence.case_id, 'deleted', 'evidence', evidence.id)
