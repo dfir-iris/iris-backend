@@ -75,6 +75,8 @@ _ID_KEYS = {
     'vulnerability': ('vulnerability_id', 'id'),
     'vulnerability_finding': ('finding_id', 'id'),
     'case': ('case_id', 'id'),
+    'graph_edge': ('edge_id', 'id'),
+    'graph_node': ('node_id', 'id'),
     'datastore_file': ('file_id', 'id'),
 }
 
@@ -258,6 +260,8 @@ def _ui_path(object_type, action, subject, object_id, case_id):
         return f'/case/{case_id}/{case_paths[object_type]}/{object_id}'
     if object_type == 'event':
         return f'/case/{case_id}/timeline'
+    if object_type in ('graph_edge', 'graph_node'):
+        return f'/case/{case_id}/graph'
     return f'/case/{case_id}'
 
 
