@@ -431,6 +431,12 @@ class Config:
     CASE_TRANSFER_STAGING_TTL_MINUTES = int(config.load('IRIS', 'CASE_TRANSFER_STAGING_TTL_MINUTES',
                                                         fallback=120))
 
+    """ Investigation graph
+    GET /cases/<id>/graph is never truncated; above this node count the response
+    carries `meta.warning` so the UI can advise filtering.
+    """
+    CASE_GRAPH_MAX_NODES = int(config.load('IRIS', 'CASE_GRAPH_MAX_NODES', fallback=5000))
+
     """ Asset manager (Manage > Assets) import / export
     Only flat text formats are accepted (CSV, JSON), so there is no decompression
     step and no archive-bomb class to defend against — the byte cap is the whole
