@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from flask_sqlalchemy.pagination import Pagination
 
+from app.datamgmt.case.case_graph_db import case_graph_db_delete_edges_touching
 from app.datamgmt.db_operations import db_create
 from app.datamgmt.db_operations import db_delete
 from app.db import db
@@ -93,6 +94,7 @@ def delete_directory(directory: NoteDirectory):
     if directory:
         # Delete all notes in the directory
         for note in directory.notes:
+            case_graph_db_delete_edges_touching('note', [note.note_id], case_id=directory.case_id)
             delete_note(note.note_id, directory.case_id)
 
         # Delete all subdirectories

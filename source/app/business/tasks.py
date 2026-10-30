@@ -29,6 +29,8 @@ from app.datamgmt.case.case_tasks_db import update_task_assignees
 from app.datamgmt.case.case_tasks_db import get_task
 from app.datamgmt.case.case_tasks_db import get_filtered_tasks
 from app.datamgmt.states import update_tasks_state
+from app.business.case_graph_cleanup import case_graph_cleanup_edges
+from app.business.case_graph_cleanup import case_graph_cleanup_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.notifications.hook_listeners import notifications_task_assignees_added
 from app.iris_engine.utils.tracker import track_activity
@@ -41,10 +43,13 @@ from app.models.errors import ObjectNotFoundError
 def tasks_delete(task: CaseTasks):
     call_modules_hook('on_preload_task_delete', task.id)
 
+    # The graph edges of the task go in the same transaction
+    case_graph_cleanup_edges(task.task_case_id, 'task', [task.id])
     delete_task(task.id)
     update_tasks_state(caseid=task.task_case_id)
     call_modules_hook('on_postload_task_delete', task.id, caseid=task.task_case_id)
     track_activity(f'deleted task "{task.task_title}"')
+    case_graph_cleanup_notify(task.task_case_id, 'deleted', 'task', task.id)
 
 
 def tasks_create(task: CaseTasks, task_assignee_list) -> CaseTasks:

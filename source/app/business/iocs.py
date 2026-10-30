@@ -28,6 +28,8 @@ from app.datamgmt.case.case_iocs_db import delete_ioc
 from app.datamgmt.case.case_iocs_db import get_ioc_links as get_ioc_links
 from app.datamgmt.states import update_ioc_state
 from app.schema.marshables import IocSchema
+from app.business.case_graph_cleanup import case_graph_cleanup_edges
+from app.business.case_graph_cleanup import case_graph_cleanup_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.models.errors import BusinessProcessingError
@@ -61,6 +63,7 @@ def iocs_create(ioc: Ioc):
 
     if ioc:
         track_activity(f'added ioc "{ioc.ioc_value}"', caseid=ioc.case_id)
+        case_graph_cleanup_notify(ioc.case_id, 'created', 'ioc', ioc.ioc_id)
 
         return ioc
 
@@ -86,6 +89,7 @@ def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
 
         if ioc_sc:
             track_activity(f'updated ioc "{ioc_sc.ioc_value}"', caseid=ioc.case_id)
+            case_graph_cleanup_notify(ioc.case_id, 'updated', 'ioc', ioc.ioc_id)
             return ioc_sc
 
         raise BusinessProcessingError('Unable to update ioc for internal reasons')
@@ -97,11 +101,14 @@ def iocs_update(ioc: Ioc, ioc_sc: Ioc) -> (Ioc, str):
 def iocs_delete(ioc: Ioc):
     call_modules_hook('on_preload_ioc_delete', ioc.ioc_id)
 
+    # The graph edges of the IOC go in the same transaction as the IOC
+    case_graph_cleanup_edges(ioc.case_id, 'ioc', [ioc.ioc_id])
     delete_ioc(ioc)
 
     call_modules_hook('on_postload_ioc_delete', ioc.ioc_id, caseid=ioc.case_id)
 
     track_activity(f'deleted IOC "{ioc.ioc_value}"', caseid=ioc.case_id)
+    case_graph_cleanup_notify(ioc.case_id, 'deleted', 'ioc', ioc.ioc_id)
     return f'IOC {ioc.ioc_id} deleted'
 
 

@@ -37,6 +37,8 @@ from app.datamgmt.case.case_assets_db import delete_asset
 from app.business.managed_assets import managed_assets_observe_asset
 from app.business.vulnerability_findings import vulnerability_findings_case_asset_deleted
 from app.business.vulnerability_findings import vulnerability_findings_case_list_for_asset
+from app.business.case_graph_cleanup import case_graph_cleanup_edges
+from app.business.case_graph_cleanup import case_graph_cleanup_notify
 from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.iris_engine.utils.tracker import track_activity
 from app.util import add_obj_history_entry
@@ -62,6 +64,7 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
         # Mirror the observation into the customer's asset registry. Never
         # raises — a registry write must not be able to fail an asset create.
         managed_assets_observe_asset(asset)
+        case_graph_cleanup_notify(case_identifier, 'created', 'asset', asset.asset_id)
         return asset
 
     raise BusinessProcessingError('Unable to create asset for internal reasons')
@@ -70,11 +73,14 @@ def assets_create(user, case_identifier, asset: CaseAssets, ioc_links):
 def assets_delete(asset: CaseAssets):
     call_modules_hook('on_preload_asset_delete', asset.asset_id)
     findings = vulnerability_findings_case_list_for_asset(asset.asset_id)
+    # The graph edges of the asset go in the same transaction as the asset
+    case_graph_cleanup_edges(asset.case_id, 'asset', [asset.asset_id])
     # Deletes an asset and the potential links with the IoCs from the database
     delete_asset(asset)
     vulnerability_findings_case_asset_deleted(findings)
     call_modules_hook('on_postload_asset_delete', asset.asset_id, caseid=asset.case_id)
     track_activity(f'removed asset ID {asset.asset_name}', caseid=asset.case_id)
+    case_graph_cleanup_notify(asset.case_id, 'deleted', 'asset', asset.asset_id)
 
 
 def assets_get(identifier) -> CaseAssets:
@@ -119,6 +125,7 @@ def assets_update(asset: CaseAssets):
         # metadata and its sighting count simply drops as observations
         # stop matching it.
         managed_assets_observe_asset(asset)
+        case_graph_cleanup_notify(asset.case_id, 'updated', 'asset', asset.asset_id)
         return asset
 
     raise BusinessProcessingError('Unable to update asset for internal reasons')
