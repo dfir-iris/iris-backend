@@ -213,18 +213,51 @@ def _parse_datetime(text: str, position: int, end_of_day: bool = False):
     return parsed
 
 
-class AlertQueryCompiler:
-    """Compiles one expression. One instance per request — it caches the
-    name→id lookups it resolves, and those are only valid for as long as
-    the surrounding transaction is."""
+class LuceneQueryCompiler:
+    """Compiles one expression against one model and one vocabulary.
+
+    Subclasses name the model and answer four questions about their
+    vocabulary — what an alias means, which raw columns are reachable,
+    which columns a field-less term searches, and what each `is:` macro
+    is. Everything else (the tree, the value kinds, the lookups) is
+    shared, so the alert bar and the timeline bar read a query the same
+    way.
+
+    One instance per request — it caches the name→id lookups it
+    resolves, and those are only valid for as long as the surrounding
+    transaction is.
+    """
+
+    #: The mapped class the compiled clause filters.
+    model = None
+    #: Columns a field-less term searches, OR'd together.
+    default_search_columns = ()
+    #: `is:` values, name → description.
+    macros = {}
 
     def __init__(self, user_identifier=None):
         self._user_identifier = user_identifier
         self._lookup_cache = {}
-        self._status_cache = None
 
     def compile(self, node):
         return self._compile_node(node)
+
+    # -- vocabulary hooks ------------------------------------------------
+
+    def _field_for_alias(self, alias):
+        raise NotImplementedError
+
+    def _raw_column(self, alias):
+        """The model column an alias names literally, or `None`."""
+        raise NotImplementedError
+
+    def _suggest_field(self, alias):
+        """The closest known alias to a misspelt one, or `None`."""
+        raise NotImplementedError
+
+    def _compile_macro_named(self, name):
+        """The predicate of an `is:` value already known to be in `macros`."""
+        raise NotImplementedError
 
     # -- tree ------------------------------------------------------------
 
@@ -253,7 +286,7 @@ class AlertQueryCompiler:
         if node.field is None:
             return self._compile_free_text(node)
 
-        descriptor = alert_field_for_alias(node.field)
+        descriptor = self._field_for_alias(node.field)
         if descriptor is None:
             return self._compile_raw_column(node)
 
@@ -269,7 +302,7 @@ class AlertQueryCompiler:
         if descriptor.kind == KIND_MEMBERSHIP:
             return self._compile_membership(descriptor, node)
 
-        column = getattr(Alert, descriptor.column)
+        column = getattr(self.model, descriptor.column)
 
         if descriptor.kind == KIND_TEXT:
             return self._compile_text(descriptor, column, node)
@@ -300,20 +333,20 @@ class AlertQueryCompiler:
 
         pattern = _substring_pattern(value)
         return or_(*[
-            build_condition(getattr(Alert, name), 'ilike_pattern', pattern)
-            for name in DEFAULT_SEARCH_COLUMNS
+            build_condition(getattr(self.model, name), 'ilike_pattern', pattern)
+            for name in self.default_search_columns
         ])
 
     def _compile_raw_column(self, node: ClauseNode):
-        """The escape hatch: a literal `Alert` column name.
+        """The escape hatch: a literal model column name.
 
         Anything the filter grid can reach stays reachable from the bar
         even before it earns a friendly alias, so nobody is forced back
         into hand-written `custom_conditions`.
         """
-        column = alert_field_raw_column(node.field)
+        column = self._raw_column(node.field)
         if column is None:
-            suggestion = suggest_alert_field(node.field)
+            suggestion = self._suggest_field(node.field)
             hint = f" — did you mean '{suggestion}'?" if suggestion else ''
             raise SearchQueryError(f"Unknown field '{node.field}'{hint}", node.position)
 
@@ -471,7 +504,6 @@ class AlertQueryCompiler:
 
     def _compile_membership(self, descriptor, node: ClauseNode):
         value = node.value
-        relation = getattr(Alert, descriptor.relation)
         model, column_name = descriptor.relation_columns[0]
 
         if not isinstance(value, TermValue):
@@ -481,9 +513,10 @@ class AlertQueryCompiler:
 
         text = _unescape(value.text)
         if text.lower() == VALUE_NONE:
-            return ~relation.any()
+            return ~self._relation_exists(descriptor)
 
-        return relation.any(
+        return self._relation_exists(
+            descriptor,
             getattr(model, column_name) == self._integer_text(
                 descriptor, text, value.position
             )
@@ -499,13 +532,29 @@ class AlertQueryCompiler:
                 value.position,
             )
 
+        if getattr(descriptor, 'accepts_none', False) and _unescape(value.text).lower() == VALUE_NONE:
+            return ~self._relation_exists(descriptor)
+
         pattern = _substring_pattern(value)
-        relation = getattr(Alert, descriptor.relation)
         matches = [
             build_condition(getattr(model, column_name), 'ilike_pattern', pattern)
             for model, column_name in descriptor.relation_columns
         ]
-        return relation.any(or_(*matches) if len(matches) > 1 else matches[0])
+        return self._relation_exists(
+            descriptor, or_(*matches) if len(matches) > 1 else matches[0]
+        )
+
+    def _relation_exists(self, descriptor, condition=None):
+        """EXISTS over the descriptor's relation, optionally restricted.
+
+        The default reads a relationship attribute of the model and lets
+        SQLAlchemy write the EXISTS; a vocabulary whose model has no such
+        attribute overrides this and writes the subquery itself.
+        """
+        relation = getattr(self.model, descriptor.relation)
+        if condition is None:
+            return relation.any()
+        return relation.any(condition)
 
     def _compile_json(self, descriptor, node: ClauseNode):
         path = node.field.split('.', 1)
@@ -516,7 +565,7 @@ class AlertQueryCompiler:
                 node.position,
             )
 
-        column = getattr(Alert, descriptor.column)
+        column = getattr(self.model, descriptor.column)
         value = node.value
 
         if isinstance(value, TermValue):
@@ -537,55 +586,19 @@ class AlertQueryCompiler:
 
     def _compile_macro(self, node: ClauseNode):
         value = node.value
+        example = next(iter(self.macros), 'name')
         if not isinstance(value, TermValue):
-            raise SearchQueryError("'is' takes a single word, like is:open", value.position)
+            raise SearchQueryError(
+                f"'is' takes a single word, like is:{example}", value.position
+            )
 
         name = _unescape(value.text).lower()
-        if name not in IS_MACROS:
-            suggestion = get_close_matches(name, list(IS_MACROS), n=1, cutoff=0.6)
+        if name not in self.macros:
+            suggestion = get_close_matches(name, list(self.macros), n=1, cutoff=0.6)
             hint = f" — did you mean 'is:{suggestion[0]}'?" if suggestion else ''
             raise SearchQueryError(f"Unknown state 'is:{name}'{hint}", value.position)
 
-        if name == 'open':
-            terminal = self._terminal_status_ids()
-            if not terminal:
-                return true()
-            return Alert.alert_status_id.not_in(terminal)
-
-        if name == 'closed':
-            terminal = self._terminal_status_ids()
-            if not terminal:
-                return false()
-            return Alert.alert_status_id.in_(terminal)
-
-        if name == 'assigned':
-            return Alert.alert_owner_id.is_not(None)
-
-        if name == 'unassigned':
-            return Alert.alert_owner_id.is_(None)
-
-        if name in ('escalated', 'merged'):
-            identifiers = self._status_ids_named((name,))
-            if not identifiers:
-                return false()
-            return Alert.alert_status_id.in_(identifiers)
-
-        if name == 'resolved':
-            return Alert.alert_resolution_status_id.is_not(None)
-
-        if name == 'unresolved':
-            return Alert.alert_resolution_status_id.is_(None)
-
-        if name == 'clustered':
-            return Alert.clusters.any()
-
-        if name == 'orphan':
-            return ~Alert.clusters.any()
-
-        if name == 'in_case':
-            return Alert.cases.any()
-
-        return ~Alert.cases.any()
+        return self._compile_macro_named(name)
 
     # -- helpers ---------------------------------------------------------
 
@@ -716,6 +729,69 @@ class AlertQueryCompiler:
             if name.lower() == suggestion[0]:
                 return f"{message} — did you mean '{name}'?"
         return message
+
+
+class AlertQueryCompiler(LuceneQueryCompiler):
+    """The alert search bar: `GET /alerts?query=…`."""
+
+    model = Alert
+    default_search_columns = DEFAULT_SEARCH_COLUMNS
+    macros = IS_MACROS
+
+    def __init__(self, user_identifier=None):
+        super().__init__(user_identifier)
+        self._status_cache = None
+
+    def _field_for_alias(self, alias):
+        return alert_field_for_alias(alias)
+
+    def _raw_column(self, alias):
+        return alert_field_raw_column(alias)
+
+    def _suggest_field(self, alias):
+        return suggest_alert_field(alias)
+
+    def _compile_macro_named(self, name):
+        if name == 'open':
+            terminal = self._terminal_status_ids()
+            if not terminal:
+                return true()
+            return Alert.alert_status_id.not_in(terminal)
+
+        if name == 'closed':
+            terminal = self._terminal_status_ids()
+            if not terminal:
+                return false()
+            return Alert.alert_status_id.in_(terminal)
+
+        if name == 'assigned':
+            return Alert.alert_owner_id.is_not(None)
+
+        if name == 'unassigned':
+            return Alert.alert_owner_id.is_(None)
+
+        if name in ('escalated', 'merged'):
+            identifiers = self._status_ids_named((name,))
+            if not identifiers:
+                return false()
+            return Alert.alert_status_id.in_(identifiers)
+
+        if name == 'resolved':
+            return Alert.alert_resolution_status_id.is_not(None)
+
+        if name == 'unresolved':
+            return Alert.alert_resolution_status_id.is_(None)
+
+        if name == 'clustered':
+            return Alert.clusters.any()
+
+        if name == 'orphan':
+            return ~Alert.clusters.any()
+
+        if name == 'in_case':
+            return Alert.cases.any()
+
+        return ~Alert.cases.any()
 
     def _terminal_status_ids(self):
         return self._status_ids_named(TERMINAL_ALERT_STATUS_NAMES)

@@ -51,6 +51,8 @@ from app.iris_engine.module_handler.module_handler import call_modules_hook
 from app.business.case_timelines import attach_event_to_default_timeline_if_unset
 from app.business.case_timelines import set_event_timelines
 from app.business.case_timelines import check_event_timeline_ids
+from app.business.events_search import events_search_check_ids
+from app.datamgmt.case.case_events_search_db import events_search_get_events
 
 
 def events_create(case_identifier, event: CasesEvent, event_category_id, event_assets,
@@ -397,3 +399,33 @@ def events_list_filtered(case_identifier, filters, page: int = 1, per_page: int 
         'state': get_timeline_state(caseid=case_identifier),
         'pagination': pagination
     }
+
+
+def events_set_flag(case_identifier, event_ids, flagged) -> int:
+    """Flag or unflag a selection of events of the case in one transaction.
+
+    Each event gets its history entry and its `on_postload_event_update`
+    hook, as if it had been flagged on its own. Returns how many events
+    changed state.
+    """
+    cleaned = events_search_check_ids(case_identifier, event_ids)
+    flagged = bool(flagged)
+    action = 'flagged' if flagged else 'unflagged'
+
+    changed = [event for event in events_search_get_events(case_identifier, cleaned)
+               if bool(event.event_is_flagged) != flagged]
+    if not changed:
+        return 0
+
+    for event in changed:
+        event.event_is_flagged = flagged
+        add_obj_history_entry(event, action)
+
+    update_timeline_state(case_identifier)
+    db.session.commit()
+
+    for event in changed:
+        call_modules_hook('on_postload_event_update', event, caseid=case_identifier)
+
+    track_activity(f'{action} {len(changed)} event(s) in timeline', caseid=case_identifier)
+    return len(changed)

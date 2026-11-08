@@ -43,6 +43,7 @@ from app.blueprints.rest.endpoints import response_api_error
 from app.blueprints.rest.endpoints import response_api_not_found
 from app.blueprints.rest.endpoints import response_api_success
 from app.business.cases import cases_exists
+from app.business.case_timelines import case_timeline_assign_events
 from app.business.case_timelines import case_timeline_create
 from app.business.case_timelines import case_timeline_delete
 from app.business.case_timelines import case_timeline_get
@@ -185,3 +186,33 @@ def delete_timeline(case_identifier, timeline_id):
     except BusinessProcessingError as e:
         return response_api_error(e.get_message())
     return response_api_deleted()
+
+
+@case_timelines_blueprint.post('/<int:timeline_id>/events')
+@ac_api_requires()
+@api_doc(tags=['CaseTimelines'], summary='Move or add several events to a case timeline')
+def assign_timeline_events(case_identifier, timeline_id):
+    """Body: `{"event_ids": [..], "mode": "move" | "add", "from_timeline_ids": [..]}`.
+
+    `add` keeps the timelines the events are already on. `move` takes
+    them off `from_timeline_ids` first, or off every timeline when that
+    list is empty or absent.
+    """
+    err = _require_full_access(case_identifier)
+    if err is not None:
+        return err
+
+    raw = request.get_json(silent=True) or {}
+    try:
+        result = case_timeline_assign_events(
+            case_identifier, timeline_id,
+            raw.get('event_ids'),
+            mode=raw.get('mode', 'add'),
+            from_timeline_ids=raw.get('from_timeline_ids'),
+        )
+    except ObjectNotFoundError:
+        return response_api_not_found()
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message())
+
+    return response_api_success(data=result)

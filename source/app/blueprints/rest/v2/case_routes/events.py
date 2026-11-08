@@ -39,6 +39,13 @@ from app.business.events import events_get_iocs_roles
 from app.business.events import events_list_filtered
 from app.business.events import events_update
 from app.business.events import events_delete
+from app.business.events import events_set_flag
+from app.business.events_search import EVENTS_SEARCH_DEFAULT_LIMIT
+from app.business.events_search import events_search
+from app.business.events_search import events_search_fields
+from app.business.events_search import events_search_histogram_buckets
+from app.business.events_search import events_search_parse_date
+from app.business.events_search import events_search_vocabulary
 from app.models.cases import CasesEvent
 from app.models.case_graph import CASE_GRAPH_EVENT_ROLES
 from app.schema.marshables import EventSchema
@@ -361,3 +368,161 @@ def update_event(case_identifier, identifier):
 @api_doc(response_shape='deleted', tags=['CaseEvents'], summary='Delete a case event')
 def delete_event(case_identifier, identifier):
     return events.delete(case_identifier, identifier)
+
+
+_SEARCH_QUERY_PARAM_DESCRIPTION = (
+    'Lucene-style search expression, the grammar of the alert search bar. '
+    '`category:Lateral*`, `asset:dc01`, `ioc:none`, `timeline:"Initial access"`, '
+    '`date:[2026-01-01 TO 2026-01-31]`, `author:me`, `is:flagged`. A bare term '
+    'searches title, description, source, tags and raw data. GET '
+    '/cases/<id>/events/search-schema lists every alias. A malformed expression '
+    'returns 400 with the character offset in `data.position`.'
+)
+
+_SEARCH_SCOPE_PARAMS = [
+    ('query', 'string', _SEARCH_QUERY_PARAM_DESCRIPTION),
+    ('start', 'string', 'ISO 8601 lower bound of the event date, inclusive'),
+    ('end', 'string', 'ISO 8601 upper bound of the event date, exclusive'),
+    ('timeline_id', 'integer', 'Keep events on any of these timelines; repeatable'),
+]
+
+
+def _read_search_scope(args):
+    """The scope shared by the search, histogram and fields routes."""
+    timeline_ids = []
+    for value in args.getlist('timeline_id'):
+        try:
+            timeline_ids.append(int(value))
+        except (TypeError, ValueError):
+            raise BusinessProcessingError('timeline_id must be an integer')
+
+    return {
+        'query': args.get('query', ''),
+        'start': events_search_parse_date(args.get('start'), 'start'),
+        'end': events_search_parse_date(args.get('end'), 'end'),
+        'timeline_ids': timeline_ids,
+        'user_identifier': iris_current_user.id,
+    }
+
+
+def _search_read_access_denied(case_identifier):
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+    if not ac_fast_check_current_user_has_case_access(
+            case_identifier, [CaseAccessLevel.read_only, CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
+    return None
+
+
+# The `int` converter of `/<int:identifier>` cannot match the literal
+# segments below, so their declaration order is irrelevant.
+@case_events_blueprint.get('/search')
+@ac_api_requires()
+@api_doc(tags=['CaseEvents'], summary='Search case events, one keyset page at a time',
+         query_params=_SEARCH_SCOPE_PARAMS + [
+             ('order', 'string', "'asc' (default) or 'desc' on the event date"),
+             ('cursor', 'string', 'Opaque `next_cursor` of the previous page'),
+             ('limit', 'integer', 'Page size (default 200, at most 1000)'),
+             ('full', 'boolean', 'Return descriptions and raw data whole rather than cut (exports)'),
+         ])
+def search_events_route(case_identifier):
+    """Matching events with their links, comment and child counts.
+
+    `total` is set on the first page only. Descriptions and raw data are
+    cut at 4096 characters, flagged by `event_content_truncated` and
+    `event_raw_truncated`; GET /events/<id> returns them whole, as does
+    this route with `full=true`.
+    """
+    denied = _search_read_access_denied(case_identifier)
+    if denied is not None:
+        return denied
+
+    try:
+        limit = int(request.args.get('limit', EVENTS_SEARCH_DEFAULT_LIMIT))
+    except (TypeError, ValueError):
+        return response_api_error('limit must be an integer')
+
+    order = request.args.get('order', 'asc')
+    if order not in ('asc', 'desc'):
+        return response_api_error("order must be 'asc' or 'desc'")
+
+    try:
+        result = events_search(case_identifier, descending=order == 'desc',
+                               cursor=request.args.get('cursor'), limit=limit,
+                               full_text=request.args.get('full', '').lower() in ('1', 'true'),
+                               **_read_search_scope(request.args))
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+    return response_api_success(result)
+
+
+@case_events_blueprint.get('/histogram')
+@ac_api_requires()
+@api_doc(tags=['CaseEvents'], summary='Count matching case events per date bucket',
+         query_params=_SEARCH_SCOPE_PARAMS)
+def events_histogram_route(case_identifier):
+    """Dense buckets over `[start, end)`, or over the matching events'
+    own span when no range is given. The bucket width is picked so the
+    span fits in about 120 bars."""
+    denied = _search_read_access_denied(case_identifier)
+    if denied is not None:
+        return denied
+
+    try:
+        result = events_search_histogram_buckets(case_identifier, **_read_search_scope(request.args))
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+    return response_api_success(result)
+
+
+@case_events_blueprint.get('/fields')
+@ac_api_requires()
+@api_doc(tags=['CaseEvents'], summary='Most frequent values of the main fields of matching case events',
+         query_params=_SEARCH_SCOPE_PARAMS)
+def events_fields_route(case_identifier):
+    denied = _search_read_access_denied(case_identifier)
+    if denied is not None:
+        return denied
+
+    try:
+        result = events_search_fields(case_identifier, **_read_search_scope(request.args))
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+    return response_api_success(result)
+
+
+@case_events_blueprint.get('/search-schema')
+@ac_api_requires()
+@api_doc(tags=['CaseEvents'], summary='List the fields the event search expression understands')
+def events_search_schema_route(case_identifier):
+    denied = _search_read_access_denied(case_identifier)
+    if denied is not None:
+        return denied
+
+    return response_api_success({'fields': events_search_vocabulary()})
+
+
+@case_events_blueprint.post('/flag')
+@ac_api_requires()
+@api_doc(tags=['CaseEvents'], summary='Flag or unflag several case events at once')
+def flag_events_route(case_identifier):
+    """Body: `{"event_ids": [..], "flagged": true}`."""
+    if not cases_exists(case_identifier):
+        return response_api_not_found()
+    if not ac_fast_check_current_user_has_case_access(case_identifier, [CaseAccessLevel.full_access]):
+        return ac_api_return_access_denied(caseid=case_identifier)
+
+    request_data = request.get_json(silent=True) or {}
+    flagged = request_data.get('flagged')
+    if not isinstance(flagged, bool):
+        return response_api_error('flagged must be a boolean')
+
+    try:
+        changed = events_set_flag(case_identifier, request_data.get('event_ids'), flagged)
+    except BusinessProcessingError as e:
+        return response_api_error(e.get_message(), data=e.get_data())
+
+    return response_api_success({'changed': changed})

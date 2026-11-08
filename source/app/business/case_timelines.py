@@ -22,7 +22,10 @@ timelines so the REST blueprints can stay thin.
 
 import re
 
+from app.business.events_search import events_search_check_ids
+from app.datamgmt.case.case_events_search_db import events_timelines_assign
 from app.db import db
+from app.datamgmt.states import update_timeline_state
 from app.iris_engine.utils.tracker import track_activity
 from app.models.cases import CaseEventTimeline
 from app.models.cases import CaseTimeline
@@ -264,6 +267,34 @@ def attach_event_to_default_timeline_if_unset(event_id, case_id):
         return
     db.session.add(CaseEventTimeline(event_id=event_id, timeline_id=default_id))
     db.session.commit()
+
+
+def case_timeline_assign_events(case_id, timeline_id, event_ids, mode='add', from_timeline_ids=None):
+    """Put a selection of events on a timeline.
+
+    `mode='add'` keeps every timeline the events are already on.
+    `mode='move'` takes them off `from_timeline_ids` first — the timelines
+    the analyst was looking at — or off every timeline when that is
+    empty or `None`. Returns `{'events': n, 'added': memberships created}`.
+    """
+    if mode not in ('add', 'move'):
+        raise BusinessProcessingError("mode must be 'add' or 'move'")
+
+    timeline = case_timeline_get(case_id, timeline_id)
+    cleaned = events_search_check_ids(case_id, event_ids)
+
+    detach_from = None
+    if mode == 'move' and from_timeline_ids:
+        detach_from = check_event_timeline_ids(case_id, from_timeline_ids)
+    detach_all = mode == 'move' and not detach_from
+
+    update_timeline_state(case_id)
+    added = events_timelines_assign(cleaned, timeline.timeline_id,
+                                    detach_from=detach_from, detach_all=detach_all)
+
+    verb = 'moved' if mode == 'move' else 'added'
+    track_activity(f'{verb} {len(cleaned)} event(s) to timeline "{timeline.name}"', caseid=case_id)
+    return {'events': len(cleaned), 'added': added}
 
 
 def get_event_timeline_ids(event_id):

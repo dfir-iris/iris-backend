@@ -4550,6 +4550,185 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events/fields:
+    get:
+      operationId: events_fields_route_get
+      summary: Most frequent values of the main fields of matching case events
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Lucene-style search expression, the grammar of the alert search bar. `category:Lateral*`,
+          `asset:dc01`, `ioc:none`, `timeline:"Initial access"`, `date:[2026-01-01 TO 2026-01-31]`, `author:me`,
+          `is:flagged`. A bare term searches title, description, source, tags and raw data. GET /cases/<id>/events/search-schema
+          lists every alias. A malformed expression returns 400 with the character offset in `data.position`.
+      - name: start
+        in: query
+        required: false
+        schema:
+          type: string
+        description: ISO 8601 lower bound of the event date, inclusive
+      - name: end
+        in: query
+        required: false
+        schema:
+          type: string
+        description: ISO 8601 upper bound of the event date, exclusive
+      - name: timeline_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Keep events on any of these timelines; repeatable
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events/flag:
+    post:
+      operationId: flag_events_route_post
+      summary: Flag or unflag several case events at once
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events/histogram:
+    get:
+      operationId: events_histogram_route_get
+      summary: Count matching case events per date bucket
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      description: 'own span when no range is given. The bucket width is picked so the
+
+        span fits in about 120 bars.'
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Lucene-style search expression, the grammar of the alert search bar. `category:Lateral*`,
+          `asset:dc01`, `ioc:none`, `timeline:"Initial access"`, `date:[2026-01-01 TO 2026-01-31]`, `author:me`,
+          `is:flagged`. A bare term searches title, description, source, tags and raw data. GET /cases/<id>/events/search-schema
+          lists every alias. A malformed expression returns 400 with the character offset in `data.position`.
+      - name: start
+        in: query
+        required: false
+        schema:
+          type: string
+        description: ISO 8601 lower bound of the event date, inclusive
+      - name: end
+        in: query
+        required: false
+        schema:
+          type: string
+        description: ISO 8601 upper bound of the event date, exclusive
+      - name: timeline_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Keep events on any of these timelines; repeatable
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events/search:
+    get:
+      operationId: search_events_route_get
+      summary: Search case events, one keyset page at a time
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      description: '`total` is set on the first page only. Descriptions and raw data are
+
+        cut at 4096 characters, flagged by `event_content_truncated` and
+
+        `event_raw_truncated`; GET /events/<id> returns them whole, as does
+
+        this route with `full=true`.'
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/events/search-schema:
+    get:
+      operationId: events_search_schema_route_get
+      summary: List the fields the event search expression understands
+      tags:
+      - CaseEvents
+      security:
+      - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v2/cases/{case_identifier}/evidences:
     get:
       operationId: search_evidences_get
@@ -6552,6 +6731,39 @@ paths:
       - CaseTimelines
       security:
       - ApiKey: []
+      parameters:
+      - name: case_identifier
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: timeline_id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          $ref: '#/components/responses/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v2/cases/{case_identifier}/timelines/{timeline_id}/events:
+    post:
+      operationId: assign_timeline_events_post
+      summary: Move or add several events to a case timeline
+      tags:
+      - CaseTimelines
+      security:
+      - ApiKey: []
+      description: '`add` keeps the timelines the events are already on. `move` takes
+
+        them off `from_timeline_ids` first, or off every timeline when that
+
+        list is empty or absent.'
       parameters:
       - name: case_identifier
         in: path
