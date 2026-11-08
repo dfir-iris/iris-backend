@@ -1,25 +1,25 @@
-azure-identity==1.10.0
+azure-identity==1.27.0
 azure-keyvault-secrets==4.5.1
 celery==5.4.0
-Flask==3.1.0
+Flask==3.1.3
 Flask-Bcrypt==1.0.1
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
 Flask-WTF==1.2.2
 flask-marshmallow==1.2.1
 Flask-Caching==2.3.0
-marshmallow==3.23.1
+marshmallow==3.26.2
 marshmallow-sqlalchemy==1.1.0
 gunicorn==23.0.0
 psycopg2-binary==2.9.10
 pyunpack==0.2.2
 packaging==21.3
-requests==2.31.0
+requests==2.34.2
 SQLAlchemy==2.0.36
 SQLAlchemy-ImageAttach==1.1.0
 SQLAlchemy-Utils==0.41.2
-urllib3==1.26.18
-Werkzeug==3.1.3
+urllib3==2.8.0
+Werkzeug==3.1.9
 WTForms==3.2.1
 Flask-SocketIO==5.4.1
 # gevent worker class is the concurrency backbone. `monkey.patch_all()`
@@ -41,7 +41,7 @@ psycogreen==1.0.2
 # the on-disk `collab_doc.y_state` blobs.
 pycrdt>=0.14,<0.15
 alembic==1.7.5
-setuptools~=70.3.0
+setuptools~=84.2
 python-dateutil==2.8.2
 python-gnupg==0.4.8
 pyzipper==0.4.0
@@ -53,7 +53,7 @@ pyotp==2.9.0
 qrcode[pil]==7.4.2
 dictdiffer==0.2.0
 oic==1.7.0
-bleach==6.1.0
+bleach==6.4.0
 imap-tools==1.5.0
 # Sentry SDK — the ingest wire is Sentry-compatible so this drives
 # both Sentry and GlitchTip. Optional at runtime: the SDK is only
@@ -62,7 +62,16 @@ imap-tools==1.5.0
 # integrations. See app/iris_engine/observability/reporter.py.
 sentry-sdk[flask]>=2.20,<3
 
-https://github.com/dfir-iris/docx-generator/releases/download/v0.9.1/docx_generator-0.9.1-py3-none-any.whl
+# Dependencies of docx-generator, which itself is installed with
+# `--no-deps` from requirements-nodeps.txt: its release pins
+# requests~=2.31.0 (vulnerable) and docxcompose==1.1.2, which imports
+# `pkg_resources`, gone from setuptools 82. It only uses
+# `docxcompose.composer.Composer` and `requests.get`.
+docxcompose==2.2.0
+docxtpl==0.19.0
+mistletoe==0.7.2
+python-docx==1.1.2
+
 dependencies/iris_interface-1.2.0-py3-none-any.whl
 dependencies/iris_check_module-1.0.1-py3-none-any.whl
 dependencies/iris_vt_module-1.2.1-py3-none-any.whl

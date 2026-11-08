@@ -21,9 +21,10 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY source/dependencies /dependencies
-COPY source/requirements.txt /
+COPY source/requirements.txt source/requirements-nodeps.txt /
 
-RUN pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt \
+    && pip3 install --no-deps -r requirements-nodeps.txt
 
 ###############
 # BUILD IMAGE #

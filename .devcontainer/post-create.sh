@@ -10,3 +10,4 @@ cd source
 
 # install python dependencies
 pip install -r requirements.txt
+pip install --no-deps -r requirements-nodeps.txt

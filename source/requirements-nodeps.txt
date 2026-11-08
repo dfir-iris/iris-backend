@@ -1,0 +1,4 @@
+# Installed with `pip install --no-deps -r requirements-nodeps.txt`,
+# after requirements.txt, which declares these packages' dependencies.
+# See the comment there.
+https://github.com/dfir-iris/docx-generator/releases/download/v0.9.1/docx_generator-0.9.1-py3-none-any.whl

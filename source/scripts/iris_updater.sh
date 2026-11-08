@@ -28,6 +28,7 @@ rsync -av --checksum $TMP_DIR/source/ $2
 echo "Upgrading packages"
 cd $2
 pip3 install -r requirements.txt
+pip3 install --no-deps -r requirements-nodeps.txt
 
 echo "Done"
 
