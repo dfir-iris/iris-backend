@@ -17,7 +17,9 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
-FROM nginx:1.27
+# Track the stable line: 1.27 was a mainline branch and no longer gets
+# security fixes.
+FROM nginx:1.30
 
 # Pull in current Debian security updates (libxml2 CVE-2024-56171 /
 # CVE-2025-49794 / CVE-2025-49796 and similar). `apt-get upgrade` is safe
