@@ -27,6 +27,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from app.iris_engine.notifications.service import notify
+from app.iris_engine.notifications.service import toast_many
 
 _SERVICE = 'app.iris_engine.notifications.service'
 _HOOK = 'app.iris_engine.module_handler.module_handler.call_modules_hook'
@@ -61,6 +62,17 @@ class TestNotificationHook(TestCase):
 
         self.assertEqual(3, called.call_args.kwargs['data'].user_id)
 
+    def test_notify_should_store_a_known_severity_only(self):
+        for severity, stored in (('warning', 'warning'), ('high', None), (None, None)):
+            with patch(f'{_SERVICE}._resolve_channels', return_value={'in_app': True, 'email': False}), \
+                    patch(f'{_SERVICE}.Notification', _FakeNotification), \
+                    patch(f'{_SERVICE}.db'), \
+                    patch(f'{_SERVICE}._safe_socket_emit') as emit, \
+                    patch(_HOOK):
+                notification = notify(3, 'ai_suggestion', 'Hello', severity=severity)
+            self.assertEqual(stored, notification.severity)
+            self.assertEqual(stored, emit.call_args.args[1]['severity'])
+
     def test_notify_should_not_call_the_hook_when_in_app_is_disabled(self):
         # No row is written, so there is nothing to hand to modules —
         # the same condition the email hand-off hangs off.
@@ -80,3 +92,24 @@ class TestNotificationHook(TestCase):
         notification, _ = self._notify({'in_app': True, 'email': False}, _raising_hook)
 
         self.assertEqual('You were mentioned', notification.title)
+
+
+class TestToast(TestCase):
+
+    def test_toast_should_be_emitted_to_each_user_without_storing_anything(self):
+        with patch(f'{_SERVICE}._safe_socket_emit') as emit, \
+                patch(f'{_SERVICE}.db') as db:
+            sent = toast_many([3, 4, 3], 'Hello', body='there', link='/case/1', severity='critical',
+                              timeout_seconds=0)
+        self.assertEqual([3, 4], sent)
+        self.assertEqual(['user-3', 'user-4'], [c.kwargs['room'] for c in emit.call_args_list])
+        event, payload = emit.call_args.args
+        self.assertEqual('toast', event)
+        self.assertEqual({'title': 'Hello', 'body': 'there', 'link': '/case/1', 'severity': 'critical',
+                          'timeout_seconds': 0}, payload)
+        db.session.add.assert_not_called()
+
+    def test_unknown_severity_should_be_dropped(self):
+        with patch(f'{_SERVICE}._safe_socket_emit') as emit:
+            toast_many([3], 'Hello', severity='high')
+        self.assertIsNone(emit.call_args.args[1]['severity'])

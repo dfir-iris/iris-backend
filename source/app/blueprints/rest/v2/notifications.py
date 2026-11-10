@@ -51,6 +51,7 @@ def _serialize(row):
         'title': row.title,
         'body': row.body,
         'link': row.link,
+        'severity': row.severity,
         'source_type': row.source_type,
         'source_id': row.source_id,
         'read_at': row.read_at.isoformat() if row.read_at else None,

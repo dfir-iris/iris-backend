@@ -285,6 +285,26 @@ class TestsGraphNodeConfig(TestCase):
             errors = self._errors(_node('n', 'notify', title='Hi', about=about))
             self.assertEqual(fields, [field for field, _message in errors], about)
 
+    def test_notify_users_should_be_picked_or_read_from_a_variable(self):
+        for config in ({'user_ids': [3]}, {'users_from': '{{ vars.who }}'},
+                       {'users_from': {'$path': 'nodes.a.output.result'}}, {'user_ids': [3], 'users_from': '{{ x }}'}):
+            self.assertEqual([], self._errors(_node('n', 'notify', title='Hi', audience='users', **config)), config)
+        cases = (
+            ({}, ['user_ids']),
+            ({'users_from': '{{'}, ['users_from']),
+            ({'users_from': {'$path': 'not a path'}}, ['users_from']),
+        )
+        for config, fields in cases:
+            errors = self._errors(_node('n', 'notify', title='Hi', audience='users', **config))
+            self.assertEqual(fields, [field for field, _message in errors], config)
+
+    def test_notify_delivery_severity_and_timeout_should_be_checked(self):
+        self.assertEqual([], self._errors(_node('n', 'notify', title='Hi', delivery='both', severity='critical',
+                                                timeout_seconds=0)))
+        errors = self._errors(_node('n', 'notify', title='Hi', delivery='email', severity='high',
+                                    timeout_seconds=-1))
+        self.assertEqual(['delivery', 'severity', 'timeout_seconds'], [field for field, _message in errors])
+
     def test_cron_without_target_should_flag_entity_nodes(self):
         node = _node('related', 'find_related')
         errors = self._errors(node, trigger_type='cron', trigger_config={'cron': '* * * * *'})

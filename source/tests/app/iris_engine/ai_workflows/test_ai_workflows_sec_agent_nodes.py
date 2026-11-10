@@ -236,6 +236,91 @@ class TestsNotifyAudience(EngineTestCase):
         self.assertIn('None of the users', step.output['note'])
 
 
+class TestsNotifyUsersFrom(EngineTestCase):
+    """`users_from`: the users to notify read from the run context."""
+
+    def _notify(self, users_from, user_ids=(), names=None):
+        users = {u: SimpleNamespace(id=u, active=True) for u in (5, 6, 7)}
+        node = {'id': 'notify', 'type': 'notify', 'config': {'audience': 'users', 'user_ids': list(user_ids),
+                                                              'users_from': users_from, 'title': 'Hello'}}
+        lookup = names if names is not None else {'alice': 6, 'bob@example.org': 7}
+        with patch('app.iris_engine.ai_workflows.nodes.ai_workflows_db_get_user', users.get), \
+                patch('app.iris_engine.ai_workflows.nodes.ai_workflows_db_user_ids_by_names',
+                      lambda wanted: {n: lookup[n] for n in wanted if n in lookup}), \
+                patch('app.iris_engine.notifications.service.notify_many') as notify_many:
+            run = self.run_to_rest(workflow(chain(_vars(ids='5', who='alice, bob@example.org'), node)),
+                                   entity_type=None, entity_id=None)
+        step = [s for s in self.steps(run) if s.node_id == 'notify'][0]
+        return run, notify_many, step.output
+
+    def test_template_should_give_ids_logins_and_emails(self):
+        run, notify_many, output = self._notify('{{ vars.who }}, {{ vars.ids }}')
+        self.assertEqual('succeeded', run.status)
+        self.assertEqual([5, 6, 7], notify_many.call_args.args[0])
+        self.assertNotIn('note', output)
+
+    def test_path_should_give_the_value_as_is(self):
+        _run, notify_many, _output = self._notify({'$path': 'vars.ids'})
+        self.assertEqual([5], notify_many.call_args.args[0])
+
+    def test_list_should_hold_ids_names_or_users(self):
+        from app.iris_engine.ai_workflows.nodes import _notify_users_from
+
+        ctx = SimpleNamespace(template_context=dict)
+        value = [5, '6', 'alice', {'user_id': 8}, {'id': 9}, True, None, 'nobody']
+        with patch('app.iris_engine.ai_workflows.nodes.ai_workflows_context_render_arguments',
+                   lambda *_args: value), \
+                patch('app.iris_engine.ai_workflows.nodes.ai_workflows_db_user_ids_by_names',
+                      lambda wanted: {'alice': 7} if 'alice' in wanted else {}):
+            self.assertEqual(([5, 6, 8, 9, 7], ['nobody']), _notify_users_from(ctx, {'users_from': {'$path': 'x'}}))
+
+    def test_picked_users_should_add_to_those_of_the_variable(self):
+        _run, notify_many, _output = self._notify('{{ vars.ids }}', user_ids=[7])
+        self.assertEqual([7, 5], notify_many.call_args.args[0])
+
+    def test_unknown_names_should_be_reported(self):
+        _run, notify_many, output = self._notify('{{ vars.who }}', names={'alice': 6})
+        self.assertEqual([6], notify_many.call_args.args[0])
+        self.assertIn('bob@example.org', output['note'])
+
+
+class TestsNotifyDelivery(EngineTestCase):
+
+    def _notify(self, **config):
+        users = {5: SimpleNamespace(id=5, active=True)}
+        node = {'id': 'notify', 'type': 'notify', 'config': {'audience': 'users', 'user_ids': [5],
+                                                              'title': 'Hello', **config}}
+        with patch('app.iris_engine.ai_workflows.nodes.ai_workflows_db_get_user', users.get), \
+                patch('app.iris_engine.notifications.service.notify_many') as notify_many, \
+                patch('app.iris_engine.notifications.service.toast_many') as toast_many:
+            run = self.run_to_rest(workflow(chain(node)), entity_type=None, entity_id=None)
+        step = [s for s in self.steps(run) if s.node_id == 'notify'][0]
+        return notify_many, toast_many, step.output
+
+    def test_default_should_be_a_notification(self):
+        notify_many, toast_many, output = self._notify()
+        self.assertIsNone(notify_many.call_args.kwargs['severity'])
+        toast_many.assert_not_called()
+        self.assertEqual('notification', output['delivery'])
+
+    def test_notification_should_carry_the_severity(self):
+        notify_many, _toast_many, output = self._notify(severity='critical')
+        self.assertEqual('critical', notify_many.call_args.kwargs['severity'])
+        self.assertEqual('critical', output['severity'])
+
+    def test_toast_should_not_store_a_notification(self):
+        notify_many, toast_many, _output = self._notify(delivery='toast', severity='warning', timeout_seconds=0)
+        notify_many.assert_not_called()
+        self.assertEqual([5], toast_many.call_args.args[0])
+        self.assertEqual('warning', toast_many.call_args.kwargs['severity'])
+        self.assertEqual(0, toast_many.call_args.kwargs['timeout_seconds'])
+
+    def test_both_should_notify_and_toast(self):
+        notify_many, toast_many, _output = self._notify(delivery='both', timeout_seconds=99999)
+        notify_many.assert_called_once()
+        self.assertEqual(3600, toast_many.call_args.kwargs['timeout_seconds'])
+
+
 class TestsNotifyAbout(EngineTestCase):
     """A notification about an entity of the run's scope other than its
     entity: a war room a webhook run created."""

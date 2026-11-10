@@ -52,6 +52,7 @@ from flask import current_app
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_entity_owner_ids
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_get_user
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_last_finished_run
+from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_user_ids_by_names
 from app.datamgmt.ai_workflows.ai_workflows_db import ai_workflows_db_utcnow
 from app.datamgmt.ai_workflows.ai_workflows_runtime_db import ai_workflows_runtime_db_cancel_wait
 from app.datamgmt.ai_workflows.ai_workflows_runtime_db import ai_workflows_runtime_db_create_wait
@@ -105,6 +106,7 @@ from app.models.ai_workflows import WAIT_CALLBACK
 from app.models.ai_workflows import WAIT_DELAY
 from app.models.ai_workflows import WAIT_USER_INPUT
 from app.models.ai_workflows import WAIT_WORKFLOW
+from app.models.notifications import NOTIFICATION_SEVERITIES
 
 NODE_TRIGGER = 'trigger'
 NODE_AI_AGENT = 'ai_agent'
@@ -139,6 +141,14 @@ PORT_NONE = 'none'
 
 # Field types an `ask_analyst` form may use (rendered by the UI)
 FORM_FIELD_TYPES = ('text', 'textarea', 'number', 'boolean', 'select', 'multiselect', 'date')
+
+# `delivery` of a `notify` node: a notification in the bell, a toast that
+# pops up in the browsers of the users connected, or both
+NOTIFY_NOTIFICATION = 'notification'
+NOTIFY_TOAST = 'toast'
+NOTIFY_DELIVERIES = (NOTIFY_NOTIFICATION, NOTIFY_TOAST, 'both')
+# `timeout_seconds` of a toast: 0 keeps it until it is closed
+MAX_TOAST_SECONDS = 3600
 
 _MAX_WAIT_MINUTES = 60 * 24 * 30
 _MAX_HTTP_TIMEOUT = 120
@@ -279,8 +289,9 @@ _CATALOGUE = (
                 'confidence': None, 'severity': None, 'audience': AUDIENCE_ENTITY, 'user_ids': []}),
     _node_spec(NODE_ACTION, 'Action', 'Runs an IRIS tool. Write tools must be on the workflow allowlist.',
                'iris', (PORT_OUT, PORT_ERROR), {'tool': '', 'arguments': {}}),
-    _node_spec(NODE_NOTIFY, 'Notify', 'Sends an in-app notification.', 'human', (PORT_OUT,),
-               {'audience': AUDIENCE_ENTITY, 'user_ids': [], 'title': '', 'body': '', 'about': None}),
+    _node_spec(NODE_NOTIFY, 'Notify', 'Sends an in-app notification, a toast, or both.', 'human', (PORT_OUT,),
+               {'audience': AUDIENCE_ENTITY, 'user_ids': [], 'users_from': '', 'title': '', 'body': '',
+                'about': None, 'delivery': NOTIFY_NOTIFICATION, 'severity': 'info', 'timeout_seconds': 5}),
     _node_spec(NODE_DELAY, 'Delay', 'Waits before continuing.', 'flow', (PORT_OUT,), {'minutes': 5}),
     _node_spec(NODE_SET_VARIABLES, 'Set variables', 'Stores values under `vars` for later nodes.', 'flow',
                (PORT_OUT,), {'variables': []}),
@@ -1035,6 +1046,9 @@ def _event_actor_id(run):
     return actor_id if isinstance(actor_id, int) and not isinstance(actor_id, bool) else None
 
 
+# At most this many users read from `users_from`
+_MAX_USERS_FROM = 50
+
 # Entities a notification can be about, and the argument the run scope
 # checks their identifier as
 _NOTIFY_ABOUT = {ENTITY_CASE: 'case_identifier', ENTITY_ALERT: 'alert_identifier', ENTITY_WAR_ROOM: 'war_room_id'}
@@ -1070,12 +1084,15 @@ def _notify_audience(ctx, config, target) -> tuple:
     owner_id = ctx.snapshot.get('owner_id')
     audience = config.get('audience') or AUDIENCE_ENTITY
     entity_type, entity_id = target
+    unknown = []
     if audience == AUDIENCE_OWNER:
         candidates = [owner_id]
     elif audience == 'triggerer':
         candidates = [run.triggered_by_user_id, _event_actor_id(run)]
     elif audience == 'users':
         candidates = [u for u in config.get('user_ids') or [] if isinstance(u, int) and not isinstance(u, bool)]
+        found, unknown = _notify_users_from(ctx, config)
+        candidates += found
     elif entity_type:
         candidates = list(ai_workflows_db_entity_owner_ids(entity_type, entity_id)) \
             + [run.triggered_by_user_id, _event_actor_id(run)]
@@ -1085,11 +1102,39 @@ def _notify_audience(ctx, config, target) -> tuple:
     for user_id in candidates:
         if user_id and user_id not in users and _notify_reachable(run, user_id, target):
             users.append(user_id)
+    if audience == 'users' and unknown:
+        return users, f'No user is named {", ".join(unknown[:10])}'
     if users or not candidates:
         return users, None if users else 'No user to notify'
     if audience == AUDIENCE_ENTITY and owner_id and _notify_reachable(run, owner_id, target):
         return [owner_id], 'Nobody on the entity could be reached: the workflow owner was notified instead'
     return [], 'None of the users of the audience is active and can access the entity'
+
+
+def _notify_users_from(ctx, config) -> tuple:
+    """(user ids, names that are no user) from `users_from`: a template
+    or a `$path` giving a user id, login or email, a comma-separated list
+    of them, a list of them, or of objects with a `user_id` or an `id`
+    (a user returned by a tool)."""
+    source = config.get('users_from')
+    if source in (None, ''):
+        return [], []
+    value = ai_workflows_context_render_arguments(source, ctx.template_context(), 'users_from')
+    ids = []
+    names = []
+    for item in (value if isinstance(value, list) else [value])[:_MAX_USERS_FROM]:
+        if isinstance(item, dict):
+            item = item.get('user_id', item.get('id'))
+        if isinstance(item, int) and not isinstance(item, bool):
+            ids.append(item)
+        elif isinstance(item, str):
+            for part in (p.strip() for p in item.split(',')):
+                if part.isdigit():
+                    ids.append(int(part))
+                elif part:
+                    names.append(part)
+    found = ai_workflows_db_user_ids_by_names(names[:_MAX_USERS_FROM])
+    return ids + [found[n] for n in names if n in found], [n for n in names if n not in found]
 
 
 def _notify_reachable(run, user_id, target=None) -> bool:
@@ -1106,6 +1151,7 @@ def _notify_reachable(run, user_id, target=None) -> bool:
 def _notify(ctx, config):
     from app.iris_engine.ai_workflows.suggestions import _entity_link
     from app.iris_engine.notifications.service import notify_many
+    from app.iris_engine.notifications.service import toast_many
 
     run = ctx.run
     title = ai_workflows_suggestions_neutralise_links(
@@ -1116,13 +1162,21 @@ def _notify(ctx, config):
     users, note = _notify_audience(ctx, config, target)
     about = {'about': {'entity_type': target[0], 'entity_id': target[1]}} \
         if target != (run.entity_type, run.entity_id) else {}
+    delivery = config.get('delivery') if config.get('delivery') in NOTIFY_DELIVERIES else NOTIFY_NOTIFICATION
+    severity = config.get('severity') if config.get('severity') in NOTIFICATION_SEVERITIES else None
+    shown = {'delivery': delivery, 'severity': severity}
     if run.is_dry_run:
-        return NodeResult(output={'notified': [], 'would_notify': users, 'title': title, 'body': body, **about,
-                                  **({'note': note} if note else {})})
+        return NodeResult(output={'notified': [], 'would_notify': users, 'title': title, 'body': body, **shown,
+                                  **about, **({'note': note} if note else {})})
     if users:
-        notify_many(users, 'ai_suggestion', title[:250], body=body[:2000] if body else None,
-                    link=_entity_link(*target), source_type='ai_workflow_run', source_id=run.id)
-    return NodeResult(output={'notified': users, **about, **({'note': note} if note else {})})
+        link = _entity_link(*target)
+        if delivery != NOTIFY_TOAST:
+            notify_many(users, 'ai_suggestion', title[:250], body=body[:2000] if body else None, link=link,
+                        source_type='ai_workflow_run', source_id=run.id, severity=severity)
+        if delivery != NOTIFY_NOTIFICATION:
+            toast_many(users, title[:250], body=body[:2000] if body else None, link=link, severity=severity,
+                       timeout_seconds=_int(config.get('timeout_seconds'), 5, 0, MAX_TOAST_SECONDS))
+    return NodeResult(output={'notified': users, **shown, **about, **({'note': note} if note else {})})
 
 
 def _delay(_ctx, config):

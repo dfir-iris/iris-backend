@@ -35,6 +35,7 @@ from app.models.notifications import CHANNELS
 from app.models.notifications import EVENT_TYPES
 from app.models.notifications import Notification
 from app.models.notifications import NotificationSetting
+from app.models.notifications import NOTIFICATION_SEVERITIES
 
 
 logger = logging.getLogger(__name__)
@@ -196,7 +197,8 @@ def notify(user_id: int,
            link: Optional[str] = None,
            source_type: Optional[str] = None,
            source_id: Optional[int] = None,
-           default_channels: Optional[dict] = None) -> Optional[Notification]:
+           default_channels: Optional[dict] = None,
+           severity: Optional[str] = None) -> Optional[Notification]:
     """Fire a single notification.
 
     Returns the persisted `Notification` row when in-app was enabled,
@@ -206,6 +208,8 @@ def notify(user_id: int,
       with `event_type='module_custom'` can pass a custom baseline
       (e.g. `{'in_app': True, 'email': True}`) to opt themselves into
       email delivery by default.
+    * `severity` — one of `NOTIFICATION_SEVERITIES`: the icon of the
+      notification in the bell. Anything else is stored as None.
     """
     if not user_id or not event_type or not title:
         # Silently ignore — a hook listener passing None means "no
@@ -228,6 +232,7 @@ def notify(user_id: int,
             title=title[:255],
             body=body,
             link=link[:1024] if link else None,
+            severity=severity if severity in NOTIFICATION_SEVERITIES else None,
             source_type=source_type,
             source_id=source_id,
         )
@@ -240,6 +245,7 @@ def notify(user_id: int,
             'title': notification.title,
             'body': notification.body,
             'link': notification.link,
+            'severity': notification.severity,
             'source_type': notification.source_type,
             'source_id': notification.source_id,
             'created_at': notification.created_at.isoformat(),
@@ -276,7 +282,8 @@ def notify_many(user_ids: Iterable[int],
                 source_type: Optional[str] = None,
                 source_id: Optional[int] = None,
                 exclude_user_ids: Optional[Iterable[int]] = None,
-                default_channels: Optional[dict] = None) -> list:
+                default_channels: Optional[dict] = None,
+                severity: Optional[str] = None) -> list:
     """Fan-out helper. Returns the list of persisted `Notification`
     rows (skips users whose channels are all disabled).
 
@@ -310,10 +317,39 @@ def notify_many(user_ids: Iterable[int],
             source_type=source_type,
             source_id=source_id,
             default_channels=default_channels,
+            severity=severity,
         )
         if n is not None:
             created.append(n)
     return created
+
+
+def toast_many(user_ids: Iterable[int],
+               title: str,
+               body: Optional[str] = None,
+               link: Optional[str] = None,
+               severity: Optional[str] = None,
+               timeout_seconds: int = 5) -> list:
+    """Pop a toast up in the browsers of each user, now. Nothing is
+    stored and the notification settings do not apply: a user who is
+    not connected never sees it. Returns the user ids it was sent to.
+
+    * `timeout_seconds` — how long the toast stays up; 0 keeps it until
+      the user closes it.
+    """
+    targets = list(dict.fromkeys(int(u) for u in user_ids if u))
+    if not targets or not title:
+        return []
+    payload = {
+        'title': title[:255],
+        'body': body,
+        'link': link[:1024] if link else None,
+        'severity': severity if severity in NOTIFICATION_SEVERITIES else None,
+        'timeout_seconds': max(0, int(timeout_seconds or 0)),
+    }
+    for uid in targets:
+        _safe_socket_emit('toast', payload, room=f'user-{uid}')
+    return targets
 
 
 def list_for_user(user_id: int,

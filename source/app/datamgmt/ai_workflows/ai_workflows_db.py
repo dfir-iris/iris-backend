@@ -561,6 +561,24 @@ def ai_workflows_db_get_user(user_id):
     return User.query.filter(User.id == user_id).first()
 
 
+def ai_workflows_db_user_ids_by_names(names) -> dict:
+    """{name: user id} for each name that is the login or the email
+    (case-insensitive) of a user. Unknown names are left out."""
+    wanted = {n.lower(): n for n in names or [] if isinstance(n, str) and n}
+    if not wanted:
+        return {}
+    keys = list(wanted)
+    rows = User.query.with_entities(User.id, User.user, User.email).filter(
+        or_(func.lower(User.user).in_(keys), func.lower(User.email).in_(keys))).all()
+    found = {}
+    for row in rows:
+        for value in (row.user, row.email):
+            name = wanted.get((value or '').lower())
+            if name is not None:
+                found.setdefault(name, row.id)
+    return found
+
+
 def ai_workflows_db_user_summary(user_ids) -> dict:
     ids = [i for i in set(user_ids or []) if i]
     if not ids:

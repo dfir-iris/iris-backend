@@ -56,6 +56,10 @@ EVENT_TYPES = (
 
 CHANNELS = ('in_app', 'email')
 
+# What `Notification.severity` may hold: it picks the icon in the bell
+# and the colour of a toast. NULL is a plain notification.
+NOTIFICATION_SEVERITIES = ('info', 'success', 'warning', 'critical')
+
 
 class Notification(db.Model):
     __tablename__ = 'notification'
@@ -71,6 +75,8 @@ class Notification(db.Model):
     title = Column(String(255), nullable=False)
     body = Column(Text, nullable=True)
     link = Column(String(1024), nullable=True)
+    # One of `NOTIFICATION_SEVERITIES`, or NULL
+    severity = Column(String(16), nullable=True)
 
     # Polymorphic pointer for dedupe and cleanup jobs. Not a FK — the
     # source table varies (notes, comments, cases, alerts, war_room …).

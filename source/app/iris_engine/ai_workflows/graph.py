@@ -35,6 +35,7 @@ from app.iris_engine.ai_workflows.context import ai_workflows_context_split_url
 from app.iris_engine.ai_workflows.cron import ai_workflows_cron_parse
 from app.iris_engine.ai_workflows.nodes import AUTH_OAUTH2_CLIENT_CREDENTIALS
 from app.iris_engine.ai_workflows.nodes import FORM_FIELD_TYPES
+from app.iris_engine.ai_workflows.nodes import MAX_TOAST_SECONDS
 from app.iris_engine.ai_workflows.nodes import HTTP_AUTH_TYPES
 from app.iris_engine.ai_workflows.nodes import NODE_ACTION
 from app.iris_engine.ai_workflows.nodes import NODE_AI_AGENT
@@ -55,6 +56,8 @@ from app.iris_engine.ai_workflows.nodes import NODE_SUGGEST
 from app.iris_engine.ai_workflows.nodes import NODE_TRIGGER
 from app.iris_engine.ai_workflows.nodes import RUN_WORKFLOW_SELF
 from app.iris_engine.ai_workflows.nodes import NOTE_COLORS
+from app.iris_engine.ai_workflows.nodes import NOTIFY_DELIVERIES
+from app.iris_engine.ai_workflows.nodes import NOTIFY_NOTIFICATION
 from app.iris_engine.ai_workflows.nodes import OAUTH_CLIENT_AUTH
 from app.iris_engine.ai_workflows.sandbox import MAX_STEPS
 from app.iris_engine.ai_workflows.sandbox import MAX_TIMEOUT_SECONDS
@@ -83,6 +86,7 @@ from app.models.ai_workflows import TRIGGER_TYPES
 from app.models.ai_workflows import TRIGGER_WEBHOOK
 from app.models.ai_workflows import TRIGGER_WORKFLOW
 from app.models.ai_workflows import ai_workflow_trigger_of_node
+from app.models.notifications import NOTIFICATION_SEVERITIES
 
 logger = logging.getLogger(__name__)
 
@@ -658,10 +662,20 @@ _NOTIFY_ABOUT_TYPES = ('case', 'alert', 'war_room')
 def _check_notify(check):
     check.one_of('audience', (AUDIENCE_ENTITY, 'triggerer', AUDIENCE_OWNER, 'users'), AUDIENCE_ENTITY)
     if check.config.get('audience') == 'users':
-        _check_user_ids(check)
+        # The users picked, those of `users_from`, or both
+        users_from = check.config.get('users_from')
+        if users_from in (None, '') or check.config.get('user_ids'):
+            _check_user_ids(check)
+        if users_from not in (None, ''):
+            check.templates_in('users_from', users_from)
     if check.required('title'):
         check.template('title')
     check.template('body')
+    check.one_of('delivery', NOTIFY_DELIVERIES, NOTIFY_NOTIFICATION)
+    severity = check.config.get('severity')
+    if severity not in (None, '') and severity not in NOTIFICATION_SEVERITIES:
+        check.add('severity', f'Must be one of {", ".join(NOTIFICATION_SEVERITIES)}')
+    check.integer('timeout_seconds', 0, MAX_TOAST_SECONDS)
     about = check.config.get('about')
     if about in (None, {}):
         return
