@@ -109,6 +109,12 @@ def war_room_trackers_db_tracker_get(war_room_id, tracker_id):
     ).first()
 
 
+def war_room_trackers_db_tracker_lock(tracker_id):
+    """Lock a tracker until the commit: serialises the creation of the
+    stored row of a mirrored item."""
+    WarRoomTracker.query.filter(WarRoomTracker.id == tracker_id).with_for_update().first()
+
+
 def war_room_trackers_db_trackers_by_ids(war_room_id, tracker_ids):
     if not tracker_ids:
         return []

@@ -46,6 +46,7 @@ from app.business.war_room_tracker_timelines import war_room_tracker_timelines_c
 from app.business.war_room_trackers import war_room_trackers_apply_state
 from app.business.war_room_trackers import war_room_trackers_describe_changes
 from app.business.war_room_trackers import war_room_trackers_describe_rows
+from app.business.war_room_trackers import war_room_trackers_parse_label
 from app.business.war_room_trackers import war_room_trackers_parse_state_changes
 from app.business.war_room_trackers import war_room_trackers_reorder
 from app.business.war_room_trackers import war_room_trackers_serialize_step
@@ -73,6 +74,7 @@ from app.datamgmt.case.case_trackers_db import case_trackers_db_steps
 from app.datamgmt.case.case_trackers_db import case_trackers_db_task_assignees
 from app.datamgmt.case.case_trackers_db import case_trackers_db_tasks
 from app.datamgmt.case.case_trackers_db import case_trackers_db_tracker_get
+from app.datamgmt.case.case_trackers_db import case_trackers_db_tracker_lock
 from app.datamgmt.case.case_trackers_db import case_trackers_db_trackers
 from app.datamgmt.case.case_trackers_db import case_trackers_db_value_events_after
 from app.datamgmt.war_rooms.war_room_trackers_db import war_room_trackers_db_asset_flags
@@ -558,22 +560,26 @@ def case_trackers_trackers_reorder(case_id, ids):
 
 # ----------------------------------------------------------------- Rows --
 
-def _row_key(item_type, item_id, row_id):
-    if item_type is not None:
+def _row_key(item_type, item_id, row_id, manual):
+    """`row:<id>` for the rows of a manual tracker (an item can have
+    several), `<item_type>:<item_id>` for the items of a mirror (the same
+    before and after their row is stored)."""
+    if item_type is not None and not manual:
         return f'{item_type}:{item_id}'
     return f'row:{row_id}'
 
 
-def _row_payload(stored, item, steps, names):
+def _row_payload(stored, item, steps, names, manual):
     """A row: `stored` is the stored state (None for a mirrored item not
     touched yet), `item` the source item (None for free text, or for an
-    item deleted from the case)."""
+    item deleted from the case). `label` is the item's own label for an
+    item row, `custom_label` the one given to the row."""
     if stored is None:
         return {
-            'row_id': None, 'key': _row_key(item['item_type'], item['item_id'], None),
+            'row_id': None, 'key': _row_key(item['item_type'], item['item_id'], None, manual),
             'item_type': item['item_type'], 'item_id': item['item_id'], 'label': item['label'],
-            'item': item['item'], 'restricted': False, 'steps': [], 'note': None, 'values': {},
-            'updated_at': None, 'updated_by': None,
+            'custom_label': None, 'item': item['item'], 'restricted': False, 'steps': [], 'note': None,
+            'values': {}, 'updated_at': None, 'updated_by': None,
         }
     if stored.item_type is None:
         label = stored.label
@@ -581,10 +587,11 @@ def _row_payload(stored, item, steps, names):
         label = item['label'] if item is not None else None
     return {
         'row_id': stored.id,
-        'key': _row_key(stored.item_type, stored.item_id, stored.id),
+        'key': _row_key(stored.item_type, stored.item_id, stored.id, manual),
         'item_type': stored.item_type,
         'item_id': stored.item_id,
         'label': label,
+        'custom_label': stored.label if stored.item_type is not None else None,
         'item': item['item'] if item is not None else None,
         'restricted': stored.item_type is not None and item is None,
         'steps': [{'step_id': step.step_id, 'set_by': _user_ref(step.set_by_id, names),
@@ -596,7 +603,7 @@ def _row_payload(stored, item, steps, names):
     }
 
 
-def _rows_payload(pairs):
+def _rows_payload(pairs, manual):
     stored_ids = [stored.id for stored, _ in pairs if stored is not None]
     steps = {}
     user_ids = {stored.updated_by_id for stored, _ in pairs if stored is not None}
@@ -604,7 +611,7 @@ def _rows_payload(pairs):
         steps.setdefault(step.row_id, []).append(step)
         user_ids.add(step.set_by_id)
     names = war_room_trackers_db_user_names(user_ids)
-    return [_row_payload(stored, item, steps, names) for stored, item in pairs]
+    return [_row_payload(stored, item, steps, names, manual) for stored, item in pairs]
 
 
 def _stored_by_item(tracker):
@@ -641,7 +648,8 @@ def case_trackers_rows_list(case_id, tracker):
     the case merged with its stored state, a manual tracker its stored
     rows."""
     pairs, truncated = _tracker_pairs(tracker, _SourceCache(case_id))
-    return {'data': _rows_payload(pairs), 'truncated': truncated, 'limit': CASE_TRACKERS_ROWS_LIMIT}
+    return {'data': _rows_payload(pairs, tracker.source == 'manual'), 'truncated': truncated,
+            'limit': CASE_TRACKERS_ROWS_LIMIT}
 
 
 def _offered_step_ids(tracker, case_steps):
@@ -705,16 +713,20 @@ def _resolve_mirror_targets(tracker, refs, cache):
 
 
 def _resolve_manual_targets(tracker, refs, cache):
+    """The stored rows of the refs; an item ref targets every row of the
+    item."""
     stored_rows = case_trackers_db_rows(tracker.id)
-    by_id = {row.id: row for row in stored_rows}
-    by_item = {(row.item_type, row.item_id): row for row in stored_rows if row.item_type is not None}
+    by_id = {row.id: [row] for row in stored_rows}
+    by_item = {}
+    for row in stored_rows:
+        if row.item_type is not None:
+            by_item.setdefault((row.item_type, row.item_id), []).append(row)
     rows = []
     for kind, ref_id in refs:
-        stored = by_id.get(ref_id) if kind == 'row' else by_item.get((kind, ref_id))
-        if stored is None:
+        matches = by_id.get(ref_id) if kind == 'row' else by_item.get((kind, ref_id))
+        if not matches:
             raise BusinessProcessingError(f'Row {kind}:{ref_id} not found in this tracker')
-        if stored not in rows:
-            rows.append(stored)
+        rows.extend(stored for stored in matches if stored not in rows)
     return _manual_pairs(rows, cache)
 
 
@@ -746,8 +758,7 @@ def case_trackers_rows_update_state(case_id, tracker, body, user_id):
     if tracker.source == 'manual':
         targets = _resolve_manual_targets(tracker, refs, cache)
     else:
-        if 'label' in changes:
-            raise BusinessProcessingError('Only free-text rows have a label')
+        case_trackers_db_tracker_lock(tracker.id)
         targets = _resolve_mirror_targets(tracker, refs, cache)
 
     step_names = {step.id: step.name for step in case_steps}
@@ -787,7 +798,7 @@ def case_trackers_rows_update_state(case_id, tracker, body, user_id):
     description = war_room_trackers_describe_changes(applied)
     if description:
         track_activity(f'tracker "{tracker.name}": {description}', caseid=case_id)
-    return _with_timeline({'data': _rows_payload(result)}, writer)
+    return _with_timeline({'data': _rows_payload(result, tracker.source == 'manual')}, writer)
 
 
 def _parse_new_rows(value):
@@ -806,7 +817,7 @@ def _parse_new_rows(value):
                 raise BusinessProcessingError(f'item_type must be one of: {", ".join(CASE_TRACKER_ITEM_TYPES)}')
             if not _is_int(item_id) or item_id <= 0:
                 raise BusinessProcessingError('item_id must be an integer')
-            out.append((item_type, item_id, None))
+            out.append((item_type, item_id, war_room_trackers_parse_label(entry.get('label'))))
         else:
             out.append((None, None, _validate_label(entry.get('label'))))
     return out
@@ -814,8 +825,9 @@ def _parse_new_rows(value):
 
 def case_trackers_rows_add(case_id, tracker, body, user_id):
     """Add rows to a manual tracker: free text (`label`) or items of the
-    case. Items already in the tracker are skipped. Returns `{data:
-    [Row]}` (the created rows)."""
+    case (with an optional custom `label`). Items already in the tracker
+    are skipped, unless `allow_duplicates`. Returns `{data: [Row]}` (the
+    created rows)."""
     if tracker.source != 'manual':
         raise BusinessProcessingError('Rows can only be added to a manual tracker')
     if not isinstance(body, dict):
@@ -830,6 +842,7 @@ def case_trackers_rows_add(case_id, tracker, body, user_id):
         if unknown:
             raise BusinessProcessingError(f'Step #{unknown[0]} is not offered by this tracker')
     note = _validate_note(body.get('note'))
+    allow_duplicates = _validate_bool(body.get('allow_duplicates', False), 'allow_duplicates')
 
     cache = _SourceCache(case_id)
     indexes = {}
@@ -851,7 +864,7 @@ def case_trackers_rows_add(case_id, tracker, body, user_id):
     writer = CaseTrackerTimelineWriter(case_id, tracker, user_id, now, step_names)
     created = []
     for item_type, item_id, label in entries:
-        if item_type is not None:
+        if item_type is not None and not allow_duplicates:
             if (item_type, item_id) in present:
                 continue
             present.add((item_type, item_id))
@@ -860,7 +873,7 @@ def case_trackers_rows_add(case_id, tracker, body, user_id):
             sort_order=sort_order, created_by_id=user_id, created_at=now, updated_by_id=user_id, updated_at=now,
         ))
         sort_order += 1
-        events = [('created', {'label': label} if item_type is None else {})]
+        events = [('created', {'label': label} if label is not None else {})]
         for step_id in step_ids:
             case_trackers_db_add(CaseTrackerRowStep(row_id=row.id, step_id=step_id, set_by_id=user_id, set_at=now))
             events.append(('step_added', {'step_id': step_id, 'step_name': step_names.get(step_id)}))
@@ -875,7 +888,7 @@ def case_trackers_rows_add(case_id, tracker, body, user_id):
         track_activity(f'tracker "{tracker.name}": added '
                        f'{war_room_trackers_describe_rows([(row.item_type, row.label) for row, _ in created])}',
                        caseid=case_id)
-    return _with_timeline({'data': _rows_payload(created)}, writer)
+    return _with_timeline({'data': _rows_payload(created, True)}, writer)
 
 
 def _stored_pairs(tracker, cache):
@@ -985,7 +998,7 @@ def case_trackers_rows_reorder(tracker, ids):
 
 # -------------------------------------------------------------- History --
 
-def _serialize_events(events):
+def _serialize_events(events, manual):
     keys = case_trackers_db_rows_keys({event.row_id for event in events})
     names = war_room_trackers_db_user_names({event.user_id for event in events})
     out = []
@@ -994,7 +1007,7 @@ def _serialize_events(events):
         out.append({
             'id': event.id,
             'row_id': event.row_id,
-            'row_key': _row_key(item_type, item_id, event.row_id),
+            'row_key': _row_key(item_type, item_id, event.row_id, manual),
             'action': event.action,
             'details': event.details,
             'user': _user_ref(event.user_id, names),
@@ -1009,8 +1022,9 @@ def case_trackers_history(tracker, row_id=None, item_type=None, item_id=None):
     if row_id is not None:
         row_ids = [row_id]
     elif item_type is not None and item_id is not None:
-        row = _stored_by_item(tracker).get((item_type, item_id))
-        row_ids = [row.id] if row is not None else []
+        row_ids = [row.id for row in case_trackers_db_rows(tracker.id)
+                   if row.item_type == item_type and row.item_id == item_id]
     else:
         row_ids = None
-    return _serialize_events(case_trackers_db_events(tracker.id, row_ids=row_ids, limit=CASE_TRACKERS_HISTORY_LIMIT))
+    return _serialize_events(case_trackers_db_events(tracker.id, row_ids=row_ids, limit=CASE_TRACKERS_HISTORY_LIMIT),
+                             tracker.source == 'manual')

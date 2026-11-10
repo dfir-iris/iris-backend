@@ -589,6 +589,7 @@ class TestThroughTheTracker(_Db):
             'war_room_trackers_db_existing_user_ids': MagicMock(side_effect=lambda ids: set(ids)),
             'war_room_trackers_db_asset_flags': MagicMock(return_value={}),
             'war_room_trackers_db_rows_max_sort': MagicMock(return_value=-1),
+            'war_room_trackers_db_tracker_lock': MagicMock(),
             'war_room_scope_list_assets': MagicMock(return_value={
                 'data': [_asset(1, 'dc01', 1), _asset(2, 'ws02', 2)], 'truncated': False}),
             'war_room_scope_list_customers': MagicMock(return_value={'data': [

@@ -115,6 +115,12 @@ def case_trackers_db_tracker_get(case_id, tracker_id):
     ).first()
 
 
+def case_trackers_db_tracker_lock(tracker_id):
+    """Lock a tracker until the commit: serialises the creation of the
+    stored row of a mirrored item."""
+    CaseTracker.query.filter(CaseTracker.id == tracker_id).with_for_update().first()
+
+
 def case_trackers_db_row_counts(tracker_ids):
     """`{tracker_id: stored rows}`."""
     if not tracker_ids:

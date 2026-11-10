@@ -185,7 +185,12 @@ class CaseTrackerTimelineWriter:
         if row.item_type is not None and item is None:
             return
         tracker = self._tracker
-        label = row.label if row.item_type is None else item['label']
+        if row.item_type is None:
+            label = row.label
+        elif row.label:
+            label = f"{row.label} ({item['label']})"
+        else:
+            label = item['label']
         if values is None:
             values = row.values
         if events is None:

@@ -245,6 +245,24 @@ class TestsRestWarRoomTrackers(TestCase):
         self.assertEqual(204, self._subject.delete(f'{url}/{ids[0]}').status_code)
         self.assertEqual(1, len(self._subject.get(url).json()['data']))
 
+    def test_manual_rows_should_repeat_an_item_and_be_renamed(self):
+        room_id = self._room()
+        case_id = self._attach_case(room_id)
+        tracker_id = self._tracker(room_id).json()['id']
+        url = f'/api/v2/war-rooms/{room_id}/trackers/{tracker_id}/rows'
+        row = {'item_type': 'case', 'item_id': case_id}
+        response = self._subject.create(url, {'rows': [row, {**row, 'label': 'Second pass'}],
+                                              'allow_duplicates': True})
+        self.assertEqual(201, response.status_code)
+        created = response.json()['data']
+        self.assertEqual([None, 'Second pass'], [entry['custom_label'] for entry in created])
+        self.assertEqual(2, len({entry['key'] for entry in created}))
+        response = self._subject.create(f'{url}/state', {'rows': [{'row_id': created[0]['row_id']}],
+                                                         'label': 'First pass'})
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(['First pass', 'Second pass'],
+                         [entry['custom_label'] for entry in self._subject.get(url).json()['data']])
+
     def test_manual_rows_should_reject_an_item_out_of_the_room(self):
         room_id = self._room()
         case_id = self._subject.create_dummy_case()

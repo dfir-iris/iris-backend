@@ -345,7 +345,8 @@ def list_tracker_rows(war_room_id, tracker_id):
 @war_rooms_trackers_blueprint.post('/<int:tracker_id>/rows')
 @ac_api_requires()
 @api_doc(response_shape='created', tags=['WarRoomTrackers'],
-         summary='Add rows to a manual tracker (free text or war-room items; items already present are skipped)')
+         summary='Add rows to a manual tracker (free text or war-room items; items already present are skipped unless '
+                 'allow_duplicates)')
 def add_tracker_rows(war_room_id, tracker_id):
     err = require_war_room_write(war_room_id)
     if err is not None:
@@ -366,7 +367,8 @@ def add_tracker_rows(war_room_id, tracker_id):
 @war_rooms_trackers_blueprint.post('/<int:tracker_id>/rows/state')
 @ac_api_requires()
 @api_doc(tags=['WarRoomTrackers'],
-         summary='Bulk update the steps, note, column values or label of tracker rows (one history event per change)')
+         summary='Bulk update the steps, note, column values or label (custom label of an item row) of tracker '
+                 'rows (one history event per change)')
 def update_tracker_rows_state(war_room_id, tracker_id):
     err = require_war_room_write(war_room_id)
     if err is not None:

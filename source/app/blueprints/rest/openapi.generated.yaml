@@ -7065,7 +7065,8 @@ paths:
           $ref: '#/components/responses/NotFound'
     post:
       operationId: add_tracker_rows_post
-      summary: Add rows to a manual tracker (free text or case items; items already present are skipped)
+      summary: Add rows to a manual tracker (free text or case items; items already present are skipped
+        unless allow_duplicates)
       tags:
       - CaseTrackers
       security:
@@ -7200,8 +7201,8 @@ paths:
   /api/v2/cases/{case_identifier}/trackers/{tracker_id}/rows/state:
     post:
       operationId: update_tracker_rows_state_post
-      summary: Bulk update the steps, note, column values or label of tracker rows (one history event
-        per change)
+      summary: Bulk update the steps, note, column values or label (custom label of an item row) of tracker
+        rows (one history event per change)
       tags:
       - CaseTrackers
       security:
@@ -20396,7 +20397,8 @@ paths:
           $ref: '#/components/responses/NotFound'
     post:
       operationId: add_tracker_rows_post
-      summary: Add rows to a manual tracker (free text or war-room items; items already present are skipped)
+      summary: Add rows to a manual tracker (free text or war-room items; items already present are skipped
+        unless allow_duplicates)
       tags:
       - WarRoomTrackers
       security:
@@ -20531,8 +20533,8 @@ paths:
   /api/v2/war-rooms/{war_room_id}/trackers/{tracker_id}/rows/state:
     post:
       operationId: update_tracker_rows_state_post
-      summary: Bulk update the steps, note, column values or label of tracker rows (one history event
-        per change)
+      summary: Bulk update the steps, note, column values or label (custom label of an item row) of tracker
+        rows (one history event per change)
       tags:
       - WarRoomTrackers
       security:

@@ -35,7 +35,6 @@ from sqlalchemy import Index
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -100,12 +99,13 @@ class CaseTracker(db.Model):
 class CaseTrackerRow(db.Model):
     """A manual row, or the stored state of a mirrored item.
 
-    Item rows are keyed by `(item_type, item_id)`; free-text rows have
-    no item and a `label`. NULLs are distinct, so the uniqueness only
-    binds item rows."""
+    Item rows point at `(item_type, item_id)`, with an optional custom
+    `label`; free-text rows have no item and a `label`. A manual tracker
+    can hold several rows of one item, a mirror at most one (the
+    business layer locks the tracker before creating it)."""
     __tablename__ = 'case_tracker_row'
     __table_args__ = (
-        UniqueConstraint('tracker_id', 'item_type', 'item_id', name='uq_case_tracker_row_item'),
+        Index('ix_case_tracker_row_item', 'tracker_id', 'item_type', 'item_id'),
     )
 
     id = Column(BigInteger, primary_key=True)

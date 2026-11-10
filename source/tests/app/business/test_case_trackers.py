@@ -71,6 +71,7 @@ class _Patches(TestCase):
             'case_trackers_db_rows': MagicMock(return_value=[]),
             'case_trackers_db_row_steps': MagicMock(return_value=[]),
             'case_trackers_db_steps': MagicMock(return_value=[_step(1, 'THOR received'), _step(2, 'Waiting')]),
+            'case_trackers_db_tracker_lock': MagicMock(),
             'war_room_trackers_db_user_names': MagicMock(return_value={}),
             'track_activity': MagicMock(),
         }
@@ -174,8 +175,37 @@ class TestRows(_Patches):
             result = trackers.case_trackers_rows_add(1, _tracker('manual'), {'rows': [
                 {'item_type': 'asset', 'item_id': 10}, {'item_type': 'asset', 'item_id': 11},
                 {'label': 'Call the CERT'}]}, 3)
-        self.assertEqual(['asset:11', f'row:{result["data"][1]["row_id"]}'],
-                         [row['key'] for row in result['data']])
+        self.assertEqual([f'row:{row["row_id"]}' for row in result['data']], [row['key'] for row in result['data']])
+        self.assertEqual([('asset', 11), (None, None)], [(row['item_type'], row['item_id']) for row in result['data']])
+
+    def test_manual_rows_should_repeat_an_item_when_duplicates_are_allowed(self):
+        self.patches['case_trackers_db_rows'].return_value = [
+            SimpleNamespace(id=50, item_type='asset', item_id=10, label=None)]
+        with patch(f'{_BIZ}.case_trackers_db_rows_max_sort', return_value=0):
+            result = trackers.case_trackers_rows_add(1, _tracker('manual'), {'rows': [
+                {'item_type': 'asset', 'item_id': 10, 'label': 'After reimage'}], 'allow_duplicates': True}, 3)
+        self.assertEqual([('asset', 10, 'dc01', 'After reimage')],
+                         [(row['item_type'], row['item_id'], row['label'], row['custom_label'])
+                          for row in result['data']])
+
+    def test_state_should_give_a_custom_label_to_every_row_of_an_item(self):
+        rows = [SimpleNamespace(id=50, item_type='asset', item_id=10, label=None, note=None, values={},
+                                updated_at=None, updated_by_id=None) for _ in range(2)]
+        rows[1].id = 51
+        self.patches['case_trackers_db_rows'].return_value = rows
+        result = trackers.case_trackers_rows_update_state(
+            1, _tracker('manual'), {'rows': [{'item_type': 'asset', 'item_id': 10}], 'label': 'Patient zero'}, 3)
+        self.assertEqual(['Patient zero', 'Patient zero'], [row.label for row in rows])
+        self.assertEqual([('row:50', 'dc01', 'Patient zero'), ('row:51', 'dc01', 'Patient zero')],
+                         [(row['key'], row['label'], row['custom_label']) for row in result['data']])
+        self.patches['case_trackers_db_tracker_lock'].assert_not_called()
+
+    def test_state_should_lock_a_mirror_before_creating_a_row(self):
+        trackers.case_trackers_rows_update_state(
+            1, _tracker(), {'rows': [{'item_type': 'asset', 'item_id': 10}], 'label': 'DC'}, 3)
+        self.patches['case_trackers_db_tracker_lock'].assert_called_once_with(7)
+        rows = [obj for obj in self.added if isinstance(obj, CaseTrackerRow)]
+        self.assertEqual([('asset', 10, 'DC')], [(row.item_type, row.item_id, row.label) for row in rows])
 
     def test_mirrored_rows_cannot_be_reordered(self):
         with self.assertRaises(BusinessProcessingError):

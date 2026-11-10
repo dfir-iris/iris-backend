@@ -318,7 +318,8 @@ def list_tracker_rows(case_identifier, tracker_id):
 @case_trackers_blueprint.post('/<int:tracker_id>/rows')
 @ac_api_requires()
 @api_doc(response_shape='created', tags=['CaseTrackers'],
-         summary='Add rows to a manual tracker (free text or case items; items already present are skipped)')
+         summary='Add rows to a manual tracker (free text or case items; items already present are skipped unless '
+                 'allow_duplicates)')
 def add_tracker_rows(case_identifier, tracker_id):
     err = _require_full_access(case_identifier)
     if err is not None:
@@ -331,7 +332,8 @@ def add_tracker_rows(case_identifier, tracker_id):
 @case_trackers_blueprint.post('/<int:tracker_id>/rows/state')
 @ac_api_requires()
 @api_doc(tags=['CaseTrackers'],
-         summary='Bulk update the steps, note, column values or label of tracker rows (one history event per change)')
+         summary='Bulk update the steps, note, column values or label (custom label of an item row) of tracker '
+                 'rows (one history event per change)')
 def update_tracker_rows_state(case_identifier, tracker_id):
     err = _require_full_access(case_identifier)
     if err is not None:

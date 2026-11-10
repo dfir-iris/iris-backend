@@ -93,6 +93,7 @@ class _Patches(TestCase):
             'war_room_trackers_db_rows_max_sort': MagicMock(return_value=-1),
             'war_room_trackers_db_events': MagicMock(return_value=[]),
             'war_room_trackers_db_rows_keys': MagicMock(return_value={}),
+            'war_room_trackers_db_tracker_lock': MagicMock(),
             'track_activity': MagicMock(),
             'war_room_board_widgets_prune': MagicMock(),
             'war_room_scope_list_assets': MagicMock(return_value={'data': [], 'truncated': False}),
@@ -264,12 +265,27 @@ class TestApplyState(TestCase):
                                                                          'label': 'x'}, [], {})
         self.assertEqual(events, [])
 
-    def test_label_only_on_free_text_rows(self):
+    def test_an_item_row_takes_a_custom_label_and_drops_it(self):
+        row = _row(1, 'asset', 4)
+        _, _, events = trackers.war_room_trackers_apply_state(row, set(), {'label': 'Before reimage'}, [], {})
+        self.assertEqual((row.label, events), ('Before reimage', [('label_changed', {'old': None,
+                                                                                   'new': 'Before reimage'})]))
+        trackers.war_room_trackers_apply_state(row, set(), {'label': None}, [], {})
+        self.assertIsNone(row.label)
+
+    def test_a_free_text_row_keeps_a_label(self):
         with self.assertRaises(BusinessProcessingError):
-            trackers.war_room_trackers_apply_state(_row(1, 'asset', 4), set(), {'label': 'x'}, [], {})
+            trackers.war_room_trackers_apply_state(_row(1, label='Call CERT'), set(), {'label': None}, [], {})
 
 
 class TestParseStateChanges(TestCase):
+
+    def test_a_blank_label_drops_it(self):
+        for value in (None, '', '  '):
+            changes = trackers.war_room_trackers_parse_state_changes({'label': value}, _tracker(), [])
+            self.assertEqual(changes, {'label': None})
+        self.assertEqual(trackers.war_room_trackers_parse_state_changes({'label': ' x '}, _tracker(), []),
+                         {'label': 'x'})
 
     def test_set_is_exclusive_and_steps_must_be_offered(self):
         tracker = _tracker(step_ids=[1])
@@ -453,7 +469,7 @@ class TestBoardData(_Patches):
         self.assertEqual(data['total'], 2)
         visible, restricted = data['rows']
         self.assertEqual((visible['key'], visible['label'], visible['case_ids'], visible['step_ids']),
-                         ('case:2', 'Entity 2', [2], [1, 3]))
+                         ('row:11', 'Entity 2', [2], [1, 3]))
         self.assertTrue(restricted['restricted'])
         self.assertIsNone(restricted['label'])
         self.assertEqual(restricted['case_ids'], [])
@@ -600,6 +616,24 @@ class TestRowsState(_Patches):
         self.assertEqual([e.action for e in self.added_of(WarRoomTrackerRowEvent)],
                          ['step_removed', 'label_changed'])
 
+    def test_a_mirrored_item_gets_a_custom_label_under_the_tracker_lock(self):
+        result, _ = trackers.war_room_trackers_rows_update_state(
+            7, _tracker(source='assets'), {'rows': [{'item_type': 'asset', 'item_id': 1}], 'label': 'Patient zero'},
+            trackers.WarRoomTrackerAccess([1]), 3)
+        self.patches['war_room_trackers_db_tracker_lock'].assert_called_once_with(4)
+        row = result['data'][0]
+        self.assertEqual((row['key'], row['label'], row['custom_label']), ('asset:1', 'dc01', 'Patient zero'))
+
+    def test_an_item_ref_targets_every_row_of_the_item(self):
+        rows = [_row(10, 'asset', 1), _row(11, 'asset', 1), _row(12, 'asset', 2)]
+        self.patches['war_room_trackers_db_rows'].return_value = rows
+        result, _ = trackers.war_room_trackers_rows_update_state(
+            7, _tracker(), {'rows': [{'item_type': 'asset', 'item_id': 1}, {'row_id': 10}], 'note': 'n'},
+            trackers.WarRoomTrackerAccess([1]), 3)
+        self.assertEqual([r['key'] for r in result['data']], ['row:10', 'row:11'])
+        self.assertEqual([row.note for row in rows], ['n', 'n', None])
+        self.patches['war_room_trackers_db_tracker_lock'].assert_not_called()
+
     def test_rows_are_required(self):
         for body in ({}, {'rows': []}, {'rows': [{'item_type': 'nope', 'item_id': 1}]},
                      {'rows': [{'row_id': 1}] * 501}):
@@ -628,6 +662,23 @@ class TestRowsAdd(_Patches):
         self.assertEqual([r['key'] for r in result['data']], [f'row:{self.added_of(WarRoomTrackerRow)[0].id}'])
         self.assertEqual(result['data'][0]['note'], 'n')
         self.assertEqual([e.action for e in self.added_of(WarRoomTrackerRowEvent)], ['created'])
+
+    def test_an_item_is_added_again_when_duplicates_are_allowed(self):
+        self.patches['war_room_scope_list_assets'].return_value = {'data': [_asset(1, 'dc01')], 'truncated': False}
+        self.patches['war_room_trackers_db_rows'].return_value = [_row(10, 'asset', 1)]
+        result = trackers.war_room_trackers_rows_add(
+            7, _tracker(), {'rows': [{'item_type': 'asset', 'item_id': 1},
+                                     {'item_type': 'asset', 'item_id': 1, 'label': 'Second pass'}],
+                            'allow_duplicates': True}, trackers.WarRoomTrackerAccess([1]), 3)
+        self.assertEqual([(r['item_id'], r['label'], r['custom_label']) for r in result['data']],
+                         [(1, 'dc01', None), (1, 'dc01', 'Second pass')])
+        self.assertEqual(len({r['key'] for r in result['data']}), 2)
+        self.assertEqual([e.details for e in self.added_of(WarRoomTrackerRowEvent)], [{}, {'label': 'Second pass'}])
+
+    def test_allow_duplicates_is_a_boolean(self):
+        with self.assertRaises(BusinessProcessingError):
+            trackers.war_room_trackers_rows_add(7, _tracker(), {'rows': [{'label': 'x'}], 'allow_duplicates': 'yes'},
+                                                trackers.WarRoomTrackerAccess([1]), 3)
 
     def test_mirror_rows_cannot_be_deleted(self):
         with self.assertRaises(BusinessProcessingError):
@@ -681,3 +732,10 @@ class TestHistory(_Patches):
         trackers.war_room_trackers_history(7, _tracker(source='assets'), trackers.WarRoomTrackerAccess([1]),
                                            item_type='asset', item_id=1)
         self.assertEqual(self.patches['war_room_trackers_db_events'].call_args.kwargs['row_ids'], [10])
+
+    def test_a_manual_row_is_keyed_by_its_id(self):
+        self.patches['war_room_trackers_db_events'].return_value = [
+            SimpleNamespace(id=1, row_id=10, user_id=None, created_at=None, action='created', details={})]
+        self.patches['war_room_trackers_db_rows_keys'].return_value = {10: ('asset', 1)}
+        events = trackers.war_room_trackers_history(7, _tracker(), trackers.WarRoomTrackerAccess([1]))
+        self.assertEqual(events[0]['row_key'], 'row:10')
