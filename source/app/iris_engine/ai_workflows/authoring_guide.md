@@ -98,7 +98,7 @@ Each `trigger` node carries one trigger: its config is `trigger_type` plus the k
 - `write_tool_allowlist`: write tools the workflow may run directly in `action` and `ai_agent` nodes. Any other write becomes a suggestion an analyst accepts.
 - `max_runs_per_hour`: 0 means unlimited.
 - `token_budget_per_run`: the LLM tokens a run may spend, 1 to 10,000,000 (only `ai_agent` nodes spend any). Keep 50000 when the workflow has no AI node.
-- `suggestion_audience`: `entity` (people working on the entity) or `owner`.
+- `suggestion_audience`: `entity` (people working on the entity: its owner, the user the run acts as and the user who started the run by hand) or `owner`.
 
 ## 4. Run context and templates
 

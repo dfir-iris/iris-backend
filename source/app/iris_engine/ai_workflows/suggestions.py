@@ -224,7 +224,9 @@ def _audience(run, entity_type, entity_id) -> list:
         candidates = [snapshot.get('owner_id')]
     else:
         candidates = list(ai_workflows_db_entity_owner_ids(entity_type, entity_id)) if entity_type else []
-        candidates.append(run.run_as_user_id)
+        # Whoever started the run by hand is working on it too: without
+        # them a question they launched never pops up on their screen
+        candidates += [run.run_as_user_id, run.triggered_by_user_id]
         if not entity_type:
             candidates.append(snapshot.get('owner_id'))
     audience = []
