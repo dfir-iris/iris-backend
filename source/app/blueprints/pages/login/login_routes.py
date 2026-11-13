@@ -23,6 +23,7 @@ import qrcode
 import random
 import string
 import time
+from urllib.parse import urlencode
 from flask import Blueprint, flash
 from flask import redirect
 from flask import render_template
@@ -39,6 +40,7 @@ from app import oidc_client
 from app.blueprints.access_controls import is_authentication_oidc
 from app.blueprints.access_controls import is_authentication_ldap
 from app.blueprints.responses import response_error
+from app.business.auth import safe_next_url
 from app.business.auth import validate_ldap_login
 from app.business.login_throttle import login_lockout_seconds
 from app.business.login_throttle import register_login_failure
@@ -146,6 +148,36 @@ def _authenticate_password(form, username, password):
     return _render_template_login(form, "Wrong credentials. Please try again.")
 
 
+def _oidc_destination_from_args(args):
+    """Return the sanitised post-login destination carried by `args`, or None.
+
+    The destination travels as `redirect` (and, for URLs built by the
+    pre-OIDC pages, as the historic `next`), so both spellings are read.
+    Only a path that passed `safe_next_url` survives: an absolute URL or
+    a protocol-relative `//host` can never be echoed into a Location
+    header. A destination pointing back at the login page is dropped as
+    well, so a rejected or repeated login cannot bounce the browser
+    between /login and /oidc-login for ever.
+    """
+    destination = safe_next_url(args.get("redirect") or args.get("next"))
+    if destination is None:
+        return None
+
+    path = destination.split("?", 1)[0].split("#", 1)[0]
+    if path == "/login" or path.startswith("/login/"):
+        return None
+
+    return destination
+
+
+def _oidc_login_page_url(destination):
+    """Build the SPA login page URL carrying the post-OIDC destination."""
+    login_url = "/login?oidc=1"
+    if destination:
+        login_url = f"{login_url}&{urlencode({'redirect': destination})}"
+    return login_url
+
+
 # Authenticate user
 if app.config.get("AUTHENTICATION_TYPE") in ["local", "ldap", "oidc"]:
 
@@ -157,12 +189,21 @@ if app.config.get("AUTHENTICATION_TYPE") in ["local", "ldap", "oidc"]:
             # consumed. Drop it here so it can't linger and be
             # redeemed later by a rogue XHR from the same browser.
             session.pop("oidc_authenticated", None)
+
+            destination = _oidc_destination_from_args(request.args)
+            if destination:
+                return redirect(destination)
+
             return redirect(url_for("index.index"))
 
         if (
             is_authentication_oidc()
             and app.config.get("AUTHENTICATION_LOCAL_FALLBACK") is False
         ):
+            destination = _oidc_destination_from_args(request.args)
+            if destination:
+                return redirect(url_for("login.oidc_login", redirect=destination))
+
             return redirect(url_for("login.oidc_login"))
 
         form = LoginForm(request.form)
@@ -203,8 +244,23 @@ if is_authentication_oidc():
 
     @login_blueprint.route("/oidc-login")
     def oidc_login():
+        destination = _oidc_destination_from_args(request.args)
+
         if iris_current_user.is_authenticated:
+            if destination:
+                return redirect(destination)
+
             return redirect(url_for("index.index"))
+
+        # The session survives the trip through the provider (the state
+        # and nonce below rely on exactly that), so the destination the
+        # request asked to come back to is parked here rather than being
+        # squeezed into the provider's redirect_uri, which must stay
+        # registered verbatim with the IdP.
+        if destination:
+            session["oidc_next"] = destination
+        else:
+            session.pop("oidc_next", None)
 
         session["oidc_state"] = rndstr()
         session["oidc_nonce"] = rndstr()
@@ -606,13 +662,17 @@ if is_authentication_oidc():
 
         wrap_login_user(user, is_oidc=True)
 
-        # Regardless of `next`, send the browser to the SPA's login
-        # page with an OIDC marker. The SPA's onMount detects the
-        # marker, calls oidc-exchange, populates the JWT store, and
-        # then navigates to `/`. Overriding wrap_login_user's redirect
-        # target here also blocks an open-redirect via ?next=... on
-        # the OIDC callback.
-        return redirect("/login?oidc=1")
+        # Regardless of `next` on this callback URL, send the browser to
+        # the SPA's login page with an OIDC marker. The SPA's onMount
+        # detects the marker, calls oidc-exchange, populates the JWT
+        # store, and then navigates back to the destination carried in
+        # the `redirect` argument (or to `/` when the request did not ask
+        # for one). The destination was sanitised by
+        # _oidc_destination_from_args at /login and /oidc-login and is
+        # read back from the session here, so an open-redirect via
+        # ?next=... on the callback itself is still impossible.
+        destination = session.pop("oidc_next", None)
+        return redirect(_oidc_login_page_url(destination))
 
 
 # MFA hardening constants. Values are deliberately conservative — a legitimate
