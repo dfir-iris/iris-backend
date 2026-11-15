@@ -247,6 +247,18 @@ def _parse_oidc_roles_mapping(raw):
     return parsed
 
 
+def _parse_oidc_values(raw):
+    """Split a comma-separated setting such as OIDC_IRIS_REQUIRE_AMR into its values.
+
+    Empty entries are dropped, so a trailing comma or the "" the Helm chart
+    renders for an unset value both read as nothing required.
+    """
+    if not raw:
+        return []
+
+    return [value.strip() for value in raw.split(',') if value.strip()]
+
+
 class CeleryConfig:
     result_backend = "db+" + SQLALCHEMY_BASE_URI + "iris_tasks"  # use database as storage
     broker_url = CELERY_BROKER_
@@ -637,6 +649,21 @@ class Config:
         # deployments keep working; an explicit `email_verified: false` never
         # adopts an account either way (VI-011).
         OIDC_REQUIRE_VERIFIED_EMAIL = config.load('OIDC', 'IRIS_REQUIRE_VERIFIED_EMAIL', fallback="False") == "True"
+        # How strongly the user must have signed in at the provider, as stated
+        # by the ID token. All unset by default, which accepts any sign-in the
+        # provider accepted.
+        OIDC_REQUIRE_ACR = _parse_oidc_values(config.load('OIDC', 'IRIS_REQUIRE_ACR', fallback=None))
+        OIDC_REQUIRE_AUTH_CONTEXT = (config.load('OIDC', 'IRIS_REQUIRE_AUTH_CONTEXT', fallback=None) or '').strip() or None
+        if OIDC_REQUIRE_AUTH_CONTEXT and (',' in OIDC_REQUIRE_AUTH_CONTEXT or ' ' in OIDC_REQUIRE_AUTH_CONTEXT):
+            raise IrisConfigException(f"OIDC_IRIS_REQUIRE_AUTH_CONTEXT takes a single authentication context id, "
+                                      f"got '{OIDC_REQUIRE_AUTH_CONTEXT}'")
+        OIDC_REQUIRE_AMR = _parse_oidc_values(config.load('OIDC', 'IRIS_REQUIRE_AMR', fallback=None))
+        if OIDC_REQUIRE_ACR:
+            logger.info(f'OIDC sign-ins must carry one of acr {OIDC_REQUIRE_ACR}')
+        if OIDC_REQUIRE_AUTH_CONTEXT:
+            logger.info(f'OIDC sign-ins must satisfy authentication context {OIDC_REQUIRE_AUTH_CONTEXT}')
+        if OIDC_REQUIRE_AMR:
+            logger.info(f'OIDC sign-ins must carry one of amr {OIDC_REQUIRE_AMR}')
 
     # Caching
     CACHE_TYPE = 'SimpleCache'

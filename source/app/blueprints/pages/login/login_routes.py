@@ -230,6 +230,7 @@ if is_authentication_oidc():
             "redirect_uri": redirect_uri,
             "state": session["oidc_state"],
         }
+        args.update(_oidc_authentication_strength_request())
 
         auth_req = oidc_client.construct_AuthorizationRequest(request_args=args)
         login_url = auth_req.request(oidc_client.authorization_endpoint)
@@ -450,6 +451,83 @@ def _oidc_group_ids(group_names, roles_mapping):
     return group_ids
 
 
+def _oidc_authentication_strength_request():
+    """Authorization request parameters asking for the strength the callback enforces.
+
+    Asking up front lets the provider step the user up (prompt for a security
+    key, say) before it sends them back, rather than IRIS turning away a sign-in
+    the user had no way to strengthen. `acr_values` is the standard request;
+    Entra ID ignores it and takes an authentication context through the
+    `claims` parameter instead, which is what makes it emit the `acrs` claim.
+    """
+    args = {}
+
+    required_acr = app.config.get("OIDC_REQUIRE_ACR")
+    if required_acr:
+        args["acr_values"] = required_acr
+
+    required_context = app.config.get("OIDC_REQUIRE_AUTH_CONTEXT")
+    if required_context:
+        args["claims"] = {"id_token": {"acrs": {"essential": True, "value": required_context}}}
+
+    return args
+
+
+def _oidc_claim_values(value):
+    """A multi-valued claim as a list: a bare string is one value, absent is none."""
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        return [value]
+
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value]
+
+    return []
+
+
+def _oidc_authentication_strength_refusal(claims, claims_from_id_token):
+    """Check the token states the user signed in as strongly as the deployment requires.
+
+    Returns a refusal message, or None when the login may go on. Requesting the
+    strength in the authorization request is only half of it: the provider is
+    free to ignore the request, and a Conditional Access policy that was
+    disabled, left in report-only or scoped away from the app would hand over a
+    password-only sign-in without complaint. So what the token says is checked
+    here, and only the ID token counts - it is signed by the provider and bound
+    to this sign-in, whereas userinfo describes the account, not how anyone
+    authenticated to it.
+    """
+    required_acr = app.config.get("OIDC_REQUIRE_ACR")
+    required_context = app.config.get("OIDC_REQUIRE_AUTH_CONTEXT")
+    accepted_amr = app.config.get("OIDC_REQUIRE_AMR")
+    if not (required_acr or required_context or accepted_amr):
+        return None
+
+    if not claims_from_id_token:
+        return ("OIDC authentication refused: an authentication strength is required but the "
+                "provider returned no ID token to state it")
+
+    if required_acr:
+        acr = claims.get("acr")
+        if acr not in required_acr:
+            return f"OIDC authentication refused: acr '{acr}' is not one of the required {required_acr}"
+
+    if required_context:
+        contexts = _oidc_claim_values(claims.get("acrs"))
+        if required_context not in contexts:
+            return (f"OIDC authentication refused: authentication context '{required_context}' "
+                    f"was not satisfied (acrs={contexts})")
+
+    if accepted_amr:
+        methods = _oidc_claim_values(claims.get("amr"))
+        if not set(accepted_amr) & set(methods):
+            return f"OIDC authentication refused: amr {methods} contains none of {accepted_amr}"
+
+    return None
+
+
 if is_authentication_oidc():
 
     @login_blueprint.route("/oidc-authorize")
@@ -492,9 +570,11 @@ if is_authentication_oidc():
         username_field = app.config.get("OIDC_MAPPING_USERNAME")
         usergroup_field = app.config.get("OIDC_MAPPING_USERGROUP")
         userroles_mapping_field = app.config.get("OIDC_MAPPING_ROLES")
+        claims_from_id_token = False
         try:
             if "id_token" in access_token_resp and access_token_resp["id_token"]:
                 claims = access_token_resp["id_token"]
+                claims_from_id_token = True
             else:
                 if "access_token" not in access_token_resp:
                     err = access_token_resp.get("error")
@@ -537,6 +617,18 @@ if is_authentication_oidc():
                 display_in_ui=False,
             )
             return redirect(url_for("login.login"))
+
+        # Before any account is looked up, let alone created or bound, so a
+        # sign-in that is too weak never touches one. Answered with a 403
+        # rather than the redirect `_oidc_refuse` does: without local fallback
+        # /login sends the browser straight back to the provider, which would
+        # silently reissue the same weak token and loop.
+        refusal = _oidc_authentication_strength_refusal(claims, claims_from_id_token)
+        if refusal:
+            log.warning(f"{refusal} (user '{user_login}')")
+            track_activity(f"{refusal} (user '{user_login}')", ctx_less=True, display_in_ui=True)
+            return response_error("Sign-in does not meet the authentication strength required by IRIS",
+                                  status=403)
 
         external_id, refusal = _oidc_external_id_from_claims(claims)
         if refusal:
