@@ -81,7 +81,7 @@ spec:
 
           {{- if eq .Values.irisapp.IRIS_AUTHENTICATION_TYPE "oidc" }}
 
-          - name: IRIS_AUTHENTICATION_TYPE:
+          - name: IRIS_AUTHENTICATION_TYPE
             value: {{ .Values.irisapp.IRIS_AUTHENTICATION_TYPE | quote }}
 
           - name: OIDC_ISSUER_URL
