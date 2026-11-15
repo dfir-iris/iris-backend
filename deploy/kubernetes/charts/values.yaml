@@ -162,6 +162,9 @@ irisapp:
   #OIDC_END_SESSION_ENDPOINT: "your_end_session"  # optional
   #OIDC_MAPPING_USERGROUP: "your_group_mapping"  # optional
   #OIDC_MAPPING_ROLES: "your_roles_mapping"  # optional
+  #OIDC_IRIS_REQUIRE_ACR: "phr,phrh"  # optional, acr values the ID token must carry one of
+  #OIDC_IRIS_REQUIRE_AUTH_CONTEXT: "c1"  # optional, Entra ID authentication context
+  #OIDC_IRIS_REQUIRE_AMR: "hwk,fido"  # optional, amr values the ID token must carry one of
 
 ## @section Iris Backend Configuration
 ##

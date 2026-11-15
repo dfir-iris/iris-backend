@@ -107,6 +107,15 @@ spec:
 
           - name: OIDC_MAPPING_ROLES
             value: {{ .Values.irisapp.OIDC_MAPPING_ROLES | quote }}
+
+          - name: OIDC_IRIS_REQUIRE_ACR
+            value: {{ .Values.irisapp.OIDC_IRIS_REQUIRE_ACR | quote }}
+
+          - name: OIDC_IRIS_REQUIRE_AUTH_CONTEXT
+            value: {{ .Values.irisapp.OIDC_IRIS_REQUIRE_AUTH_CONTEXT | quote }}
+
+          - name: OIDC_IRIS_REQUIRE_AMR
+            value: {{ .Values.irisapp.OIDC_IRIS_REQUIRE_AMR | quote }}
           {{- end }}
 
           ports:
